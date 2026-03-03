@@ -20,7 +20,7 @@ export function FiltroEstoico({ data }: Props) {
             fontWeight: 600,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: '#4ade80',
+            color: '#7B98B8',
           }}
         >
           Necesidad · {necesidadPct}%
@@ -31,7 +31,7 @@ export function FiltroEstoico({ data }: Props) {
             fontWeight: 600,
             letterSpacing: '0.1em',
             textTransform: 'uppercase',
-            color: '#fdba74',
+            color: '#7B98B8',
           }}
         >
           Deseo · {deseoPct}%

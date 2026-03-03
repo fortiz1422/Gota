@@ -34,8 +34,13 @@ function TabBarInner() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)', paddingTop: 8 }}
+      className="fixed bottom-0 left-0 right-0 z-50"
+      style={{
+        paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)',
+        paddingTop: 8,
+        display: 'flex',
+        justifyContent: 'center',
+      }}
     >
       <div
         style={{
@@ -44,6 +49,7 @@ function TabBarInner() {
           gap: 4,
           padding: '6px 8px',
           borderRadius: 9999,
+          width: 'fit-content',
           background: 'rgba(5,12,28,0.92)',
           border: '1px solid rgba(148,210,255,0.15)',
           backdropFilter: 'blur(24px)',

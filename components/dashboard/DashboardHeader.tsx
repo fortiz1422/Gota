@@ -1,10 +1,14 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { ChevronDown } from 'lucide-react'
+import { MonthSelectorSheet } from './MonthSelectorSheet'
 
 interface Props {
-  month: string // YYYY-MM
-  basePath?: string // default '/'
+  month: string             // YYYY-MM
+  basePath?: string         // default '/'
+  earliestDataMonth?: string  // YYYY-MM — si hay data más vieja que 6 meses, extiende la lista
 }
 
 function addMonths(ym: string, delta: number): string {
@@ -18,93 +22,83 @@ function getCurrentMonth(): string {
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
-export function DashboardHeader({ month, basePath = '/' }: Props) {
+function buildMonthList(
+  current: string,
+  earliestDataMonth?: string,
+): { value: string; label: string }[] {
+  // Siempre mostramos los últimos 6 meses; si hay data más vieja, extendemos hasta ahí
+  const defaultStart = addMonths(current, -5)
+  const start =
+    earliestDataMonth && earliestDataMonth < defaultStart
+      ? earliestDataMonth
+      : defaultStart
+
+  const months: { value: string; label: string }[] = []
+  let m = current
+  while (m >= start) {
+    const raw = new Date(m + '-15').toLocaleDateString('es-AR', {
+      month: 'long',
+      year: 'numeric',
+    })
+    months.push({ value: m, label: raw.charAt(0).toUpperCase() + raw.slice(1) })
+    m = addMonths(m, -1)
+  }
+  return months // más reciente primero
+}
+
+export function DashboardHeader({ month, basePath = '/', earliestDataMonth }: Props) {
   const router = useRouter()
+  const [isSheetOpen, setIsSheetOpen] = useState(false)
+
   const current = getCurrentMonth()
-  const min = addMonths(current, -12)
+  const months = buildMonthList(current, earliestDataMonth)
 
-  const label = new Date(month + '-15').toLocaleDateString('es-AR', {
-    month: 'long',
-    year: 'numeric',
-  })
-  const labelCap = label.charAt(0).toUpperCase() + label.slice(1)
+  const monthName = new Date(month + '-15').toLocaleDateString('es-AR', { month: 'long' })
+  const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1)
 
-  const go = (delta: number) => {
-    const next = addMonths(month, delta)
-    router.push(next === current ? basePath : `${basePath}?month=${next}`)
+  const handleSelectMonth = (selected: string) => {
+    router.push(selected === current ? basePath : `${basePath}?month=${selected}`)
   }
 
   return (
-    <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingLeft: 8, paddingRight: 8, marginBottom: 4 }}>
-      <button
-        onClick={() => go(-1)}
-        disabled={month <= min}
-        aria-label="Mes anterior"
-        style={{
-          width: 32,
-          height: 32,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '50%',
-          fontSize: 22,
-          color: '#7B98B8',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          opacity: month <= min ? 0.25 : 1,
-          transition: 'opacity 150ms',
-        }}
-      >
-        ‹
-      </button>
-
-      <button
-        onClick={() => go(0)}
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 4,
-          background: 'none',
-          border: 'none',
-          cursor: 'pointer',
-          padding: '4px 8px',
-        }}
-      >
-        <span
+    <>
+      <header style={{ padding: '20px 24px 0' }}>
+        <button
+          onClick={() => setIsSheetOpen(true)}
           style={{
-            fontSize: 22,
-            fontWeight: 900,
-            color: '#f0f9ff',
-            letterSpacing: '-0.02em',
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            padding: 0,
           }}
         >
-          {labelCap.split(' ')[0]}
-        </span>
-      </button>
+          <span
+            style={{
+              fontSize: 22,
+              fontWeight: 900,
+              color: '#ffffff',
+              letterSpacing: '-0.02em',
+            }}
+          >
+            {monthCap}
+          </span>
+          <ChevronDown
+            size={16}
+            style={{ color: '#7B98B8', marginTop: 2, flexShrink: 0 }}
+          />
+        </button>
+      </header>
 
-      <button
-        onClick={() => go(1)}
-        disabled={month >= current}
-        aria-label="Mes siguiente"
-        style={{
-          width: 32,
-          height: 32,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          borderRadius: '50%',
-          fontSize: 22,
-          color: '#7B98B8',
-          background: 'transparent',
-          border: 'none',
-          cursor: 'pointer',
-          opacity: month >= current ? 0.25 : 1,
-          transition: 'opacity 150ms',
-        }}
-      >
-        ›
-      </button>
-    </header>
+      <MonthSelectorSheet
+        isOpen={isSheetOpen}
+        onClose={() => setIsSheetOpen(false)}
+        selectedMonth={month}
+        onSelectMonth={handleSelectMonth}
+        months={months}
+      />
+    </>
   )
 }

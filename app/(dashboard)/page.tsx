@@ -6,7 +6,6 @@ import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { FiltroEstoico } from '@/components/dashboard/FiltroEstoico'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
 import { IncomeSetupModal } from '@/components/dashboard/IncomeSetupModal'
-import { RachaRegistro } from '@/components/dashboard/RachaRegistro'
 import type { Card, DashboardData } from '@/types/database'
 
 function getCurrentMonth(): string {
@@ -49,8 +48,8 @@ export default async function DashboardPage({
   const allCards: Card[] = (config?.cards as Card[]) ?? []
   const cards: Card[] = allCards.filter((c: Card) => !c.archived)
 
-  // Parallel: check income + fetch dashboard data + streak expenses
-  const [incomeResult, dashboardResult, { data: streakExpenses }] = await Promise.all([
+  // Parallel: check income + fetch dashboard data + oldest expense month
+  const [incomeResult, dashboardResult, { data: oldestExpense }] = await Promise.all([
     supabase
       .from('monthly_income')
       .select('id')
@@ -66,39 +65,29 @@ export default async function DashboardPage({
       .from('expenses')
       .select('date')
       .eq('user_id', user.id)
-      .gte('date', (() => { const d = new Date(); d.setDate(d.getDate() - 9); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()),
+      .order('date', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
   ])
-
-  // Racha de registro: últimos 10 días
-  const todayStr = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` })()
-  const activeDates = new Set((streakExpenses ?? []).map((e) => e.date.substring(0, 10)))
-  const rachaDays = Array.from({ length: 10 }, (_, i) => {
-    const d = new Date()
-    d.setDate(d.getDate() - (9 - i))
-    const date = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    return { date, active: activeDates.has(date), isToday: date === todayStr }
-  })
-  let rachaStreak = 0
-  for (let i = 0; i < 10; i++) {
-    const d = new Date()
-    d.setDate(d.getDate() - i)
-    const dStr = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    if (activeDates.has(dStr)) rachaStreak++
-    else break
-  }
 
   const hasIncome = incomeResult.data !== null
   const dashboardData = dashboardResult.data as DashboardData | null
+  const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
   const isCurrentMonth = selectedMonth === currentMonth
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <div className="mx-auto max-w-md px-4 pb-6 pt-safe" style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        <DashboardHeader month={selectedMonth} />
-
-        <SmartInput cards={cards} />
-
-        <RachaRegistro days={rachaDays} streak={rachaStreak} />
+      {/* Scrollable content */}
+      <div
+        className="mx-auto max-w-md px-4 pt-safe"
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 24,
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 160px)',
+        }}
+      >
+        <DashboardHeader month={selectedMonth} earliestDataMonth={earliestDataMonth} />
 
         {!hasIncome && isCurrentMonth && (
           <IncomeSetupModal month={selectedMonth} currency={currency} />
@@ -115,6 +104,24 @@ export default async function DashboardPage({
         )}
 
         <Ultimos5 expenses={dashboardData?.ultimos_5 ?? null} month={selectedMonth} />
+      </div>
+
+      {/* Command Input — floating pill above TabBar */}
+      <div
+        style={{
+          position: 'fixed',
+          bottom: 'calc(env(safe-area-inset-bottom) + 76px)',
+          left: 0,
+          right: 0,
+          zIndex: 50,
+          display: 'flex',
+          justifyContent: 'center',
+          pointerEvents: 'none',
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: 448, padding: '0 16px', pointerEvents: 'auto' }}>
+        <SmartInput cards={cards} />
+        </div>
       </div>
     </div>
   )

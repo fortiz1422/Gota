@@ -50,30 +50,43 @@ export default async function AnalyticsPage({
   const trendStart = trendMonths[0] + '-01'
   const trendEnd = addMonths(selectedMonth, 1) + '-01'
 
-  // Gastos del mes seleccionado + rango de tendencias + ingresos en paralelo
-  const [{ data: monthExpenses }, { data: trendExpenses }, { data: trendIncome }] =
-    await Promise.all([
-      supabase
-        .from('expenses')
-        .select('category, amount, is_want')
-        .eq('user_id', user.id)
-        .gte('date', selectedMonth + '-01')
-        .lt('date', addMonths(selectedMonth, 1) + '-01')
-        .neq('category', 'Pago de Tarjetas'),
-      supabase
-        .from('expenses')
-        .select('date, amount')
-        .eq('user_id', user.id)
-        .gte('date', trendStart)
-        .lt('date', trendEnd)
-        .neq('category', 'Pago de Tarjetas'),
-      supabase
-        .from('monthly_income')
-        .select('month, amount_ars, amount_usd')
-        .eq('user_id', user.id)
-        .gte('month', trendStart)
-        .lt('month', trendEnd),
-    ])
+  // Gastos del mes seleccionado + rango de tendencias + ingresos + mes más antiguo
+  const [
+    { data: monthExpenses },
+    { data: trendExpenses },
+    { data: trendIncome },
+    { data: oldestExpense },
+  ] = await Promise.all([
+    supabase
+      .from('expenses')
+      .select('category, amount, is_want')
+      .eq('user_id', user.id)
+      .gte('date', selectedMonth + '-01')
+      .lt('date', addMonths(selectedMonth, 1) + '-01')
+      .neq('category', 'Pago de Tarjetas'),
+    supabase
+      .from('expenses')
+      .select('date, amount')
+      .eq('user_id', user.id)
+      .gte('date', trendStart)
+      .lt('date', trendEnd)
+      .neq('category', 'Pago de Tarjetas'),
+    supabase
+      .from('monthly_income')
+      .select('month, amount_ars, amount_usd')
+      .eq('user_id', user.id)
+      .gte('month', trendStart)
+      .lt('month', trendEnd),
+    supabase
+      .from('expenses')
+      .select('date')
+      .eq('user_id', user.id)
+      .order('date', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+  ])
+
+  const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
 
   // Distribución por categoría
   const categoryTotals: Record<string, number> = {}
@@ -126,7 +139,7 @@ export default async function AnalyticsPage({
   return (
     <div className="min-h-screen bg-bg-primary">
       <div className="mx-auto max-w-md px-4 pt-safe pb-6" style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
-        <DashboardHeader month={selectedMonth} basePath="/analytics" />
+        <DashboardHeader month={selectedMonth} basePath="/analytics" earliestDataMonth={earliestDataMonth} />
 
         <MonthlyTrends data={trendData} currency={currency} />
 

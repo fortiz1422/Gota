@@ -122,7 +122,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0 }: Props) {
               </p>
               <p
                 style={{
-                  fontSize: 14,
+                  fontSize: 20,
                   fontWeight: 800,
                   color: '#f0f9ff',
                   letterSpacing: '-0.02em',
@@ -180,7 +180,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0 }: Props) {
                 </p>
                 <p
                   style={{
-                    fontSize: 14,
+                    fontSize: 20,
                     fontWeight: 800,
                     color: '#f0f9ff',
                     letterSpacing: '-0.02em',
