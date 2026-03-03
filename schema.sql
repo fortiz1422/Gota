@@ -280,7 +280,9 @@ BEGIN
       SELECT json_build_object(
         'necesidad_count', COUNT(*) FILTER (WHERE is_want = false),
         'deseo_count', COUNT(*) FILTER (WHERE is_want = true),
-        'total_count', COUNT(*)
+        'total_count', COUNT(*),
+        'necesidad_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = false), 0),
+        'deseo_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = true), 0)
       )
       FROM expenses
       WHERE user_id = p_user_id AND currency = p_currency

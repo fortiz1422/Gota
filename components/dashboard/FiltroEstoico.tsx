@@ -7,7 +7,10 @@ interface Props {
 export function FiltroEstoico({ data }: Props) {
   if (!data || data.total_count === 0) return null
 
-  const necesidadPct = Math.round((data.necesidad_count / data.total_count) * 100)
+  const totalAmount = data.necesidad_amount + data.deseo_amount
+  const necesidadPct = totalAmount > 0
+    ? Math.round((data.necesidad_amount / totalAmount) * 100)
+    : Math.round((data.necesidad_count / data.total_count) * 100)
   const deseoPct = 100 - necesidadPct
 
   return (

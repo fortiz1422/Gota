@@ -106,6 +106,23 @@ export default async function DashboardPage({
         <Ultimos5 expenses={dashboardData?.ultimos_5 ?? null} month={selectedMonth} />
       </div>
 
+      {/* Fade abisal home — sube hasta cubrir el SmartInput (pisa el fade del layout) */}
+      <div
+        aria-hidden
+        style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: 180,
+          zIndex: 46,
+          pointerEvents: 'none',
+          background: 'linear-gradient(to bottom, transparent, #060a0e)',
+          backdropFilter: 'blur(6px)',
+          WebkitBackdropFilter: 'blur(6px)',
+        }}
+      />
+
       {/* Command Input — floating pill above TabBar */}
       <div
         style={{

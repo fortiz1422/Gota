@@ -219,6 +219,8 @@ export type DashboardData = {
     necesidad_count: number
     deseo_count: number
     total_count: number
+    necesidad_amount: number
+    deseo_amount: number
   }
   top_3:
     | {
