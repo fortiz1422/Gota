@@ -102,18 +102,20 @@ export default async function AnalyticsPage({
     .sort((a, b) => b.pct - a.pct)
 
   // Comportamiento por categoría
-  const nwMap: Record<string, { want: number; need: number }> = {}
+  const nwMap: Record<string, { wantAmount: number; needAmount: number; wantCount: number; needCount: number }> = {}
   for (const e of (monthExpenses ?? []).filter((e) => e.is_want !== null)) {
-    if (!nwMap[e.category]) nwMap[e.category] = { want: 0, need: 0 }
-    if (e.is_want) nwMap[e.category].want++
-    else nwMap[e.category].need++
+    if (!nwMap[e.category]) nwMap[e.category] = { wantAmount: 0, needAmount: 0, wantCount: 0, needCount: 0 }
+    if (e.is_want) { nwMap[e.category].wantAmount += e.amount; nwMap[e.category].wantCount++ }
+    else { nwMap[e.category].needAmount += e.amount; nwMap[e.category].needCount++ }
   }
   const needWantData = Object.entries(nwMap)
-    .map(([category, { want, need }]) => ({
+    .map(([category, { wantAmount, needAmount, wantCount, needCount }]) => ({
       category,
-      want,
-      need,
-      wantPct: Math.round((want / (want + need)) * 100),
+      wantAmount,
+      needAmount,
+      wantCount,
+      needCount,
+      wantPct: Math.round((wantAmount / (wantAmount + needAmount)) * 100),
     }))
     .sort((a, b) => b.wantPct - a.wantPct)
 
