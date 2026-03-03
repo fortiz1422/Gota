@@ -44,6 +44,7 @@ export function MonthlyTrends({ data, currency }: Props) {
 
   const maxExp = Math.max(...data.map((d) => d.expenses), 1)
   const maxInc = Math.max(...data.map((d) => d.income), 1)
+  const maxAll = Math.max(maxExp, maxInc)
 
   const n = data.length
   const px = (i: number) => (n <= 1 ? W / 2 : (i / (n - 1)) * W)
@@ -143,16 +144,16 @@ export function MonthlyTrends({ data, currency }: Props) {
 
         {/* Area fills */}
         {incValues.some((v) => v > 0) && (
-          <path d={wave(incValues, maxInc, true)} fill="url(#tg-inc)" />
+          <path d={wave(incValues, maxAll, true)} fill="url(#tg-inc)" />
         )}
         {expValues.some((v) => v > 0) && (
-          <path d={wave(expValues, maxExp, true)} fill="url(#tg-exp)" />
+          <path d={wave(expValues, maxAll, true)} fill="url(#tg-exp)" />
         )}
 
         {/* Lines */}
         {incValues.some((v) => v > 0) && (
           <path
-            d={wave(incValues, maxInc, false)}
+            d={wave(incValues, maxAll, false)}
             fill="none"
             stroke="#4ade80"
             strokeWidth="1.8"
@@ -161,7 +162,7 @@ export function MonthlyTrends({ data, currency }: Props) {
         )}
         {expValues.some((v) => v > 0) && (
           <path
-            d={wave(expValues, maxExp, false)}
+            d={wave(expValues, maxAll, false)}
             fill="none"
             stroke="#38bdf8"
             strokeWidth="1.8"
@@ -173,10 +174,10 @@ export function MonthlyTrends({ data, currency }: Props) {
         {data.map((d, i) =>
           d.expenses > 0 ? (
             <g key={`e-${i}`}>
-              <circle cx={px(i)} cy={py(d.expenses, maxExp)} r="5" fill="#38bdf8" fillOpacity="0.12" />
+              <circle cx={px(i)} cy={py(d.expenses, maxAll)} r="5" fill="#38bdf8" fillOpacity="0.12" />
               <circle
                 cx={px(i)}
-                cy={py(d.expenses, maxExp)}
+                cy={py(d.expenses, maxAll)}
                 r={d.isSelected ? 3.5 : 2.5}
                 fill="#38bdf8"
                 stroke="#050A14"
@@ -190,10 +191,10 @@ export function MonthlyTrends({ data, currency }: Props) {
         {data.map((d, i) =>
           d.income > 0 ? (
             <g key={`inc-${i}`}>
-              <circle cx={px(i)} cy={py(d.income, maxInc)} r="5" fill="#4ade80" fillOpacity="0.12" />
+              <circle cx={px(i)} cy={py(d.income, maxAll)} r="5" fill="#4ade80" fillOpacity="0.12" />
               <circle
                 cx={px(i)}
-                cy={py(d.income, maxInc)}
+                cy={py(d.income, maxAll)}
                 r={d.isSelected ? 3.5 : 2.5}
                 fill="#4ade80"
                 stroke="#050A14"
