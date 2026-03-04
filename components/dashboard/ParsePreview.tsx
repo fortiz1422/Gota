@@ -158,7 +158,7 @@ export function ParsePreview({
                   onClick={() => set('currency', c)}
                   className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
                     form.currency === c
-                      ? 'bg-primary text-white'
+                      ? 'bg-primary text-bg-primary'
                       : 'text-text-secondary'
                   }`}
                 >
@@ -273,7 +273,7 @@ export function ParsePreview({
                 onClick={() => set('is_want', false)}
                 className={`flex-1 rounded-button py-2 text-sm font-medium transition-colors ${
                   form.is_want === false
-                    ? 'bg-success text-white'
+                    ? 'bg-success text-bg-primary'
                     : 'text-text-secondary'
                 }`}
               >
@@ -283,7 +283,7 @@ export function ParsePreview({
                 onClick={() => set('is_want', true)}
                 className={`flex-1 rounded-button py-2 text-sm font-medium transition-colors ${
                   form.is_want === true
-                    ? 'bg-want text-white'
+                    ? 'bg-want text-bg-primary'
                     : 'text-text-secondary'
                 }`}
               >
@@ -319,7 +319,7 @@ export function ParsePreview({
         <button
           onClick={handleSave}
           disabled={isSaving || isChecking}
-          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white transition-transform active:scale-95 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
+          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-transform active:scale-95 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
         >
           {isChecking
             ? 'Verificando...'
@@ -332,7 +332,7 @@ export function ParsePreview({
         <button
           onClick={onCancel}
           disabled={isSaving}
-          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-[rgba(148,210,255,0.05)] hover:text-text-primary"
+          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
         >
           Cancelar
         </button>

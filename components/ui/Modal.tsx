@@ -41,7 +41,7 @@ export function Modal({ open, onClose, children }: ModalProps) {
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="slide-up relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-card-lg bg-bg-secondary border border-[rgba(148,210,255,0.10)] p-6">
+      <div className="slide-up relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-card-lg bg-bg-secondary border border-border-ocean p-6">
         {children}
       </div>
     </div>,
