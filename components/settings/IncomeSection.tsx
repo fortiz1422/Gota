@@ -155,7 +155,7 @@ export function IncomeSection({ defaultMonth }: { defaultMonth: string }) {
           <button
             onClick={handleSave}
             disabled={isSaving}
-            className="w-full rounded-button bg-primary py-2 text-sm font-semibold text-bg-primary transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-50"
+            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-50"
           >
             {isSaving ? 'Guardando...' : 'Guardar ingreso'}
           </button>

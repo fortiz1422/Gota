@@ -154,7 +154,7 @@ export default async function AnalyticsPage({
           <a
             href="/api/export"
             download
-            className="flex w-full items-center justify-center gap-2 rounded-full border border-border-ocean bg-surface py-[14px] text-[13px] font-semibold text-primary no-underline"
+            className="flex w-full items-center justify-center gap-2 rounded-button py-3 text-sm text-text-secondary hover:bg-primary/5 no-underline transition-colors"
           >
             Exportar gastos (CSV)
           </a>
