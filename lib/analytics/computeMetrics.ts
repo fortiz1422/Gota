@@ -23,15 +23,24 @@ export type Metrics = {
   totalNecesidad: number
   totalDeseo: number
   pctDeseo: number
+  pctNecesidad: number
   categorias: CategoriaMetric[]
   topCategoriaMonto: CategoriaMetric
   topCategoriaFrecuencia: CategoriaMetric
   semanaMasCara: number
   pctSemana1DelTotal: number
   diasSinGasto: number
+  pctDiasSinGasto: number
   diasSinDeseo: number
   pctCredito: number
   categoryConcentration: ConcentracionDeseo[]
+
+  // PATRONES DE COMPORTAMIENTO
+  gastoMasGrande: { amount: number; category: string; pctDelTotal: number }
+  goteoCount: number
+  goteoTotal: number
+  pctGoteoDelTotal: number
+  pctDeseoFinDeSemana: number
 
   // NIVEL 2 — solo si income !== null
   ingresoMes: number | null
@@ -93,15 +102,22 @@ export function computeMetrics(
       totalNecesidad: 0,
       totalDeseo: 0,
       pctDeseo: 0,
+      pctNecesidad: 0,
       categorias: [],
       topCategoriaMonto: EMPTY_CATEGORIA,
       topCategoriaFrecuencia: EMPTY_CATEGORIA,
       semanaMasCara: 1,
       pctSemana1DelTotal: 0,
       diasSinGasto: dayOfMonth,
+      pctDiasSinGasto: 100,
       diasSinDeseo: dayOfMonth,
       pctCredito: 0,
       categoryConcentration: [],
+      gastoMasGrande: { amount: 0, category: '', pctDelTotal: 0 },
+      goteoCount: 0,
+      goteoTotal: 0,
+      pctGoteoDelTotal: 0,
+      pctDeseoFinDeSemana: 0,
       ingresoMes,
       pctGastadoDelIngreso: null,
       ahorroActual: null,
@@ -145,9 +161,14 @@ export function computeMetrics(
     .sort((a, b) => b.total - a.total)
 
   const topCategoriaMonto = categorias[0]
-  const topCategoriaFrecuencia = [...categorias].sort(
-    (a, b) => b.cantidad - a.cantidad,
-  )[0]
+  const tipoRank = { want: 0, mixed: 1, need: 2 }
+  const topCategoriaFrecuencia =
+    [...categorias]
+      .filter((c) => c.tipo !== 'need')
+      .sort(
+        (a, b) =>
+          b.cantidad - a.cantidad || tipoRank[a.tipo] - tipoRank[b.tipo],
+      )[0] ?? EMPTY_CATEGORIA
 
   // — TOTALES —
   let totalNecesidad = 0
@@ -158,6 +179,8 @@ export function computeMetrics(
   }
   const pctDeseo =
     totalGastado > 0 ? Math.round((totalDeseo / totalGastado) * 100) : 0
+  const pctNecesidad =
+    totalGastado > 0 ? Math.round((totalNecesidad / totalGastado) * 100) : 0
 
   // — SEMANAS —
   const weekTotals: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 }
@@ -181,6 +204,8 @@ export function computeMetrics(
   for (let d = 1; d <= dayOfMonth; d++) {
     if (!datesWithExpenses.has(d)) diasSinGasto++
   }
+  const pctDiasSinGasto =
+    dayOfMonth > 0 ? Math.round((diasSinGasto / dayOfMonth) * 100) : 0
 
   // — DÍAS SIN DESEO (racha actual hacia atrás) —
   const datesWithWant = new Set(
@@ -213,6 +238,40 @@ export function computeMetrics(
       ticketPromedio: c.ticketPromedio,
     }))
 
+  // — GASTO MÁS GRANDE —
+  const maxExpense = expenses.reduce(
+    (max, e) => (e.amount > max.amount ? e : max),
+    expenses[0],
+  )
+  const gastoMasGrande = {
+    amount: maxExpense.amount,
+    category: maxExpense.category,
+    pctDelTotal:
+      totalGastado > 0
+        ? Math.round((maxExpense.amount / totalGastado) * 100)
+        : 0,
+  }
+
+  // — GOTEO (gastos menores al 2% del ingreso mensual) —
+  const goteoThreshold = hasIngreso && ingresoMes ? ingresoMes * 0.02 : 0
+  const goteoExpenses =
+    goteoThreshold > 0 ? expenses.filter((e) => e.amount < goteoThreshold) : []
+  const goteoCount = goteoExpenses.length
+  const goteoTotal = goteoExpenses.reduce((s, e) => s + e.amount, 0)
+  const pctGoteoDelTotal =
+    totalGastado > 0 ? Math.round((goteoTotal / totalGastado) * 100) : 0
+
+  // — FIN DE SEMANA (Vie=5, Sáb=6, Dom=0) —
+  const totalDeseoFdS = expenses
+    .filter((e) => e.is_want === true)
+    .filter((e) => {
+      const d = new Date(e.date).getDay()
+      return d === 0 || d === 5 || d === 6
+    })
+    .reduce((s, e) => s + e.amount, 0)
+  const pctDeseoFinDeSemana =
+    totalDeseo > 0 ? Math.round((totalDeseoFdS / totalDeseo) * 100) : 0
+
   // — NIVEL 2: PROYECCIONES —
   let pctGastadoDelIngreso: number | null = null
   let ahorroActual: number | null = null
@@ -235,15 +294,22 @@ export function computeMetrics(
     totalNecesidad,
     totalDeseo,
     pctDeseo,
+    pctNecesidad,
     categorias,
     topCategoriaMonto,
     topCategoriaFrecuencia,
     semanaMasCara,
     pctSemana1DelTotal,
     diasSinGasto,
+    pctDiasSinGasto,
     diasSinDeseo,
     pctCredito,
     categoryConcentration,
+    gastoMasGrande,
+    goteoCount,
+    goteoTotal,
+    pctGoteoDelTotal,
+    pctDeseoFinDeSemana,
     ingresoMes,
     pctGastadoDelIngreso,
     ahorroActual,
