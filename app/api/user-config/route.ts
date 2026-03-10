@@ -11,6 +11,8 @@ const CardSchema = z.object({
 const UpdateSchema = z.object({
   default_currency: z.enum(['ARS', 'USD']).optional(),
   cards: z.array(CardSchema).optional(),
+  onboarding_completed: z.boolean().optional(),
+  rollover_mode: z.enum(['auto', 'manual', 'off']).optional(),
 })
 
 export async function GET() {

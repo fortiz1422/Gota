@@ -4,7 +4,7 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from 'lucide-react'
 import { ParsePreview } from './ParsePreview'
-import type { Card } from '@/types/database'
+import type { Account, Card } from '@/types/database'
 
 interface ParsedData {
   amount: number
@@ -19,9 +19,11 @@ interface ParsedData {
 
 interface SmartInputProps {
   cards: Card[]
+  accounts: Account[]
+  onAfterSave?: () => void
 }
 
-export function SmartInput({ cards }: SmartInputProps) {
+export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
@@ -58,7 +60,11 @@ export function SmartInput({ cards }: SmartInputProps) {
     setParsed(null)
     setInput('')
     inputRef.current?.focus()
-    router.refresh()
+    if (onAfterSave) {
+      onAfterSave()
+    } else {
+      router.refresh()
+    }
   }
 
   const handleCancel = () => {
@@ -113,6 +119,7 @@ export function SmartInput({ cards }: SmartInputProps) {
         <ParsePreview
           data={parsed}
           cards={cards}
+          accounts={accounts}
           onSave={handleSave}
           onCancel={handleCancel}
         />

@@ -1,4 +1,4 @@
-import type { Expense, MonthlyIncome } from '@/types/database'
+import type { Expense } from '@/types/database'
 
 export type CategoriaMetric = {
   category: string
@@ -77,7 +77,7 @@ const EMPTY_CATEGORIA: CategoriaMetric = {
 
 export function computeMetrics(
   expenses: Expense[],
-  income: MonthlyIncome | null,
+  ingresoMes: number | null,
   currency: 'ARS' | 'USD',
   selectedMonth: string, // YYYY-MM
 ): Metrics {
@@ -91,8 +91,6 @@ export function computeMetrics(
   const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth
   const diasRestantes = isCurrentMonth ? daysInMonth - dayOfMonth : 0
 
-  const ingresoMes =
-    income ? (currency === 'USD' ? income.amount_usd : income.amount_ars) : null
   const hasIngreso = ingresoMes !== null && ingresoMes > 0
 
   if (cantidadTransacciones === 0) {

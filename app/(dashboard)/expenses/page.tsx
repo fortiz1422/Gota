@@ -4,8 +4,9 @@ import Link from 'next/link'
 import { Suspense } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
+import { IncomeItem } from '@/components/expenses/IncomeItem'
 import { ExpenseFilters } from '@/components/expenses/ExpenseFilters'
-import type { Card, Expense } from '@/types/database'
+import type { Card, Expense, IncomeEntry } from '@/types/database'
 
 function getCurrentMonth(): string {
   const now = new Date()
@@ -37,33 +38,43 @@ export default async function ExpensesPage({
   const pageSize = 20
   const offset = (page - 1) * pageSize
 
-  const { data: config } = await supabase
-    .from('user_config')
-    .select('cards')
-    .eq('user_id', user.id)
-    .single()
-  const cards: Card[] = ((config?.cards as Card[]) ?? []).filter((c: Card) => !c.archived)
-
   const [y, m] = month.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  let query = supabase
-    .from('expenses')
-    .select('*', { count: 'exact' })
-    .eq('user_id', user.id)
-    .gte('date', `${month}-01`)
-    .lte('date', `${month}-${String(lastDay).padStart(2, '0')}`)
-    .order('date', { ascending: false })
-    .order('created_at', { ascending: false })
-    .range(offset, offset + pageSize - 1)
+  const nextMonthDate = new Date(y, m, 1).toISOString().split('T')[0]
 
-  if (category) query = query.eq('category', category)
-  if (paymentMethod)
-    query = query.eq('payment_method', paymentMethod as 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT')
+  const [{ data: config }, incomeResult, expensesResult] = await Promise.all([
+    supabase.from('user_config').select('cards').eq('user_id', user.id).single(),
+    supabase
+      .from('income_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', `${month}-01`)
+      .lt('date', nextMonthDate)
+      .order('date', { ascending: false }),
+    (() => {
+      let q = supabase
+        .from('expenses')
+        .select('*', { count: 'exact' })
+        .eq('user_id', user.id)
+        .gte('date', `${month}-01`)
+        .lt('date', nextMonthDate)
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .range(offset, offset + pageSize - 1)
+      if (category) q = q.eq('category', category)
+      if (paymentMethod)
+        q = q.eq('payment_method', paymentMethod as 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT')
+      return q
+    })(),
+  ])
 
-  const { data, count } = await query
-  const expenses = (data ?? []) as Expense[]
-  const total = count ?? 0
+  const cards: Card[] = ((config?.cards as Card[]) ?? []).filter((c: Card) => !c.archived)
+  const incomeEntries = (incomeResult.data ?? []) as IncomeEntry[]
+  const expenses = (expensesResult.data ?? []) as Expense[]
+  const total = expensesResult.count ?? 0
   const totalPages = Math.ceil(total / pageSize)
+
+  // Only show income entries on first page when no filters active
+  const showIncome = page === 1 && !category && !paymentMethod && incomeEntries.length > 0
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -77,15 +88,24 @@ export default async function ExpensesPage({
           >
             <ChevronLeft size={20} />
           </Link>
-          <h1 className="text-base font-semibold text-text-primary">Gastos</h1>
+          <h1 className="text-base font-semibold text-text-primary">Movimientos</h1>
         </div>
 
         {/* Filters */}
-        <div className="mb-4 rounded-card bg-bg-secondary border border-border-ocean p-4">
+        <div className="mb-4 rounded-card border border-border-ocean bg-bg-secondary p-4">
           <Suspense fallback={null}>
             <ExpenseFilters month={month} category={category} paymentMethod={paymentMethod} />
           </Suspense>
         </div>
+
+        {/* Income entries */}
+        {showIncome && (
+          <div className="mb-4 space-y-2">
+            {incomeEntries.map((entry) => (
+              <IncomeItem key={entry.id} entry={entry} />
+            ))}
+          </div>
+        )}
 
         {/* Results count */}
         {total > 0 && (
@@ -110,9 +130,7 @@ export default async function ExpensesPage({
                 : 'Sin gastos este mes'}
             </p>
             {!category && !paymentMethod && (
-              <p className="mt-1 text-xs text-text-tertiary">
-                Registrá gastos desde Home
-              </p>
+              <p className="mt-1 text-xs text-text-tertiary">Registrá gastos desde Home</p>
             )}
           </div>
         )}

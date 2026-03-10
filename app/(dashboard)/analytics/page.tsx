@@ -41,7 +41,7 @@ export default async function AnalyticsPage({
 
   const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
 
-  const [{ data: rawExpenses }, { data: income }, { data: oldestExpense }] =
+  const [{ data: rawExpenses }, { data: incomeEntries }, { data: legacyIncome }, { data: oldestExpense }] =
     await Promise.all([
       supabase
         .from('expenses')
@@ -52,8 +52,15 @@ export default async function AnalyticsPage({
         .gte('date', startOfMonth)
         .lt('date', endOfMonth),
       supabase
+        .from('income_entries')
+        .select('amount, currency')
+        .eq('user_id', user.id)
+        .eq('currency', currency)
+        .gte('date', startOfMonth)
+        .lt('date', endOfMonth),
+      supabase
         .from('monthly_income')
-        .select('*')
+        .select('amount_ars, amount_usd')
         .eq('user_id', user.id)
         .eq('month', startOfMonth)
         .maybeSingle(),
@@ -66,8 +73,19 @@ export default async function AnalyticsPage({
         .maybeSingle(),
     ])
 
+  // Priority: income_entries sum > monthly_income fallback > null
+  const entriesSum = (incomeEntries ?? []).reduce((s, e) => s + e.amount, 0)
+  const ingresoMes: number | null =
+    entriesSum > 0
+      ? entriesSum
+      : legacyIncome
+        ? currency === 'ARS'
+          ? legacyIncome.amount_ars
+          : legacyIncome.amount_usd
+        : null
+
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
-  const metrics = computeMetrics(rawExpenses ?? [], income ?? null, currency, selectedMonth)
+  const metrics = computeMetrics(rawExpenses ?? [], ingresoMes, currency, selectedMonth)
   const insight = evaluateInsights(metrics)
 
   return (

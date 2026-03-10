@@ -72,6 +72,9 @@ CREATE TABLE monthly_income (
   saldo_inicial_ars DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (saldo_inicial_ars >= 0),
   saldo_inicial_usd DECIMAL(12,2) NOT NULL DEFAULT 0 CHECK (saldo_inicial_usd >= 0),
 
+  closed BOOLEAN NOT NULL DEFAULT false,
+  closed_at TIMESTAMPTZ,
+
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
 
@@ -97,6 +100,9 @@ CREATE TABLE user_config (
     {"id": "bbva_master", "name": "BBVA MÁSTER", "archived": false},
     {"id": "bna_master", "name": "BNA MASTER", "archived": false}
   ]'::jsonb,
+
+  onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+  rollover_mode VARCHAR(10) NOT NULL DEFAULT 'off' CHECK (rollover_mode IN ('auto', 'manual', 'off')),
 
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -259,6 +265,7 @@ BEGIN
           WHERE user_id = p_user_id AND currency = p_currency
             AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
             AND payment_method IN ('CASH', 'DEBIT', 'TRANSFER')
+            AND category != 'Pago de Tarjetas'
         ), 0),
         'pago_tarjetas', COALESCE((
           SELECT SUM(amount) FROM expenses
@@ -355,9 +362,210 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
+-- MIGRATIONS — run on existing DBs
+-- ============================================
+
+-- v1.1 — Onboarding + Rollover
+ALTER TABLE monthly_income
+  ADD COLUMN IF NOT EXISTS closed BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS closed_at TIMESTAMPTZ;
+
+ALTER TABLE user_config
+  ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS rollover_mode VARCHAR(10) NOT NULL DEFAULT 'off';
+
+ALTER TABLE user_config
+  DROP CONSTRAINT IF EXISTS user_config_rollover_mode_check;
+ALTER TABLE user_config
+  ADD CONSTRAINT user_config_rollover_mode_check
+    CHECK (rollover_mode IN ('auto', 'manual', 'off'));
+
+-- Mark existing users with data as onboarding complete
+UPDATE user_config
+SET onboarding_completed = true
+WHERE user_id IN (SELECT DISTINCT user_id FROM monthly_income);
+
+-- ============================================
+-- v1.2 — Accounts (multi-cuenta)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS accounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name VARCHAR(100) NOT NULL,
+  type VARCHAR(20) NOT NULL CHECK (type IN ('bank', 'cash', 'digital')),
+  is_primary BOOLEAN NOT NULL DEFAULT false,
+  archived BOOLEAN NOT NULL DEFAULT false,
+  opening_balance_ars DECIMAL(12,2) NOT NULL DEFAULT 0,
+  opening_balance_usd DECIMAL(12,2) NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Only one primary account per user allowed
+CREATE UNIQUE INDEX IF NOT EXISTS one_primary_per_user
+  ON accounts (user_id) WHERE is_primary = true;
+
+CREATE INDEX IF NOT EXISTS idx_accounts_user
+  ON accounts(user_id, archived, created_at DESC);
+
+CREATE TRIGGER accounts_updated_at
+  BEFORE UPDATE ON accounts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "accounts_select" ON accounts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "accounts_insert" ON accounts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "accounts_update" ON accounts FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "accounts_delete" ON accounts FOR DELETE USING (auth.uid() = user_id);
+
+-- Add account_id FK to expenses (nullable, non-breaking)
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES accounts(id) ON DELETE SET NULL;
+
+-- ============================================
+-- v1.3 — Income Entries + Account Period Balance
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS income_entries (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  account_id UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  amount DECIMAL(12,2) NOT NULL CHECK (amount > 0),
+  currency VARCHAR(3) NOT NULL DEFAULT 'ARS' CHECK (currency IN ('ARS', 'USD')),
+  description VARCHAR(100) NOT NULL DEFAULT '',
+  category VARCHAR(30) NOT NULL DEFAULT 'other'
+    CHECK (category IN ('salary', 'freelance', 'other')),
+  date TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_income_entries_user_date ON income_entries(user_id, date DESC);
+ALTER TABLE income_entries ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ie_select" ON income_entries FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "ie_insert" ON income_entries FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "ie_delete" ON income_entries FOR DELETE USING (auth.uid() = user_id);
+
+CREATE TABLE IF NOT EXISTS account_period_balance (
+  account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  period DATE NOT NULL,          -- siempre YYYY-MM-01
+  balance_ars DECIMAL(12,2) NOT NULL DEFAULT 0,
+  balance_usd DECIMAL(12,2) NOT NULL DEFAULT 0,
+  source VARCHAR(20) NOT NULL DEFAULT 'manual'
+    CHECK (source IN ('opening', 'rollover_auto', 'manual')),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  PRIMARY KEY (account_id, period)
+);
+
+ALTER TABLE account_period_balance ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "apb_select" ON account_period_balance FOR SELECT
+  USING (EXISTS (SELECT 1 FROM accounts WHERE accounts.id = account_id AND accounts.user_id = auth.uid()));
+CREATE POLICY "apb_insert" ON account_period_balance FOR INSERT
+  WITH CHECK (EXISTS (SELECT 1 FROM accounts WHERE accounts.id = account_id AND accounts.user_id = auth.uid()));
+CREATE POLICY "apb_update" ON account_period_balance FOR UPDATE
+  USING (EXISTS (SELECT 1 FROM accounts WHERE accounts.id = account_id AND accounts.user_id = auth.uid()));
+CREATE POLICY "apb_delete" ON account_period_balance FOR DELETE
+  USING (EXISTS (SELECT 1 FROM accounts WHERE accounts.id = account_id AND accounts.user_id = auth.uid()));
+
+-- Update get_dashboard_data to use new tables with COALESCE fallback to monthly_income
+CREATE OR REPLACE FUNCTION get_dashboard_data(
+  p_user_id UUID,
+  p_month DATE,
+  p_currency VARCHAR(3)
+)
+RETURNS JSON AS $$
+DECLARE
+  v_result JSON;
+BEGIN
+  SELECT json_build_object(
+    'saldo_vivo', json_build_object(
+      'saldo_inicial', COALESCE(
+        (SELECT SUM(CASE WHEN p_currency = 'ARS' THEN apb.balance_ars ELSE apb.balance_usd END)
+         FROM account_period_balance apb
+         JOIN accounts a ON a.id = apb.account_id
+         WHERE a.user_id = p_user_id
+           AND apb.period = DATE_TRUNC('month', p_month)::DATE),
+        (SELECT CASE WHEN p_currency = 'ARS' THEN saldo_inicial_ars ELSE saldo_inicial_usd END
+         FROM monthly_income
+         WHERE user_id = p_user_id AND month = DATE_TRUNC('month', p_month)::DATE),
+        0
+      ),
+      'ingresos', COALESCE(
+        NULLIF((SELECT SUM(amount) FROM income_entries
+         WHERE user_id = p_user_id AND currency = p_currency
+           AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)), 0),
+        (SELECT CASE WHEN p_currency = 'ARS' THEN amount_ars ELSE amount_usd END
+         FROM monthly_income
+         WHERE user_id = p_user_id AND month = DATE_TRUNC('month', p_month)::DATE),
+        0
+      ),
+      'gastos_percibidos', COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND payment_method IN ('CASH', 'DEBIT', 'TRANSFER')
+          AND category != 'Pago de Tarjetas'
+      ), 0),
+      'pago_tarjetas', COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND category = 'Pago de Tarjetas'
+      ), 0)
+    ),
+    'gastos_tarjeta', COALESCE((
+      SELECT SUM(amount) FROM expenses
+      WHERE user_id = p_user_id AND currency = p_currency
+        AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+        AND payment_method = 'CREDIT' AND category != 'Pago de Tarjetas'
+    ), 0),
+    'filtro_estoico', (
+      SELECT json_build_object(
+        'necesidad_count', COUNT(*) FILTER (WHERE is_want = false),
+        'deseo_count', COUNT(*) FILTER (WHERE is_want = true),
+        'total_count', COUNT(*),
+        'necesidad_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = false), 0),
+        'deseo_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = true), 0)
+      )
+      FROM expenses
+      WHERE user_id = p_user_id AND currency = p_currency
+        AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+        AND category != 'Pago de Tarjetas' AND is_want IS NOT NULL
+    ),
+    'top_3', (
+      SELECT json_agg(row_to_json(t))
+      FROM (
+        SELECT category, SUM(amount) AS total, COUNT(*) AS count
+        FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND category != 'Pago de Tarjetas'
+        GROUP BY category
+        ORDER BY SUM(amount) DESC, COUNT(*) DESC
+        LIMIT 3
+      ) t
+    ),
+    'ultimos_5', (
+      SELECT json_agg(row_to_json(t))
+      FROM (
+        SELECT id, amount, currency, category, description, is_want,
+               payment_method, card_id, date, created_at
+        FROM expenses
+        WHERE user_id = p_user_id
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+        ORDER BY date DESC, created_at DESC
+        LIMIT 5
+      ) t
+    )
+  ) INTO v_result;
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
 -- VERIFY
 -- ============================================
 
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
--- Should return: expenses, monthly_income, user_config
+-- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance

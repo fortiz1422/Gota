@@ -9,6 +9,64 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      income_entries: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string | null
+          amount: number
+          currency: 'ARS' | 'USD'
+          description: string
+          category: 'salary' | 'freelance' | 'other'
+          date: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id?: string | null
+          amount: number
+          currency?: 'ARS' | 'USD'
+          description?: string
+          category?: 'salary' | 'freelance' | 'other'
+          date?: string
+          created_at?: string
+        }
+        Update: {
+          account_id?: string | null
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          description?: string
+          category?: 'salary' | 'freelance' | 'other'
+          date?: string
+        }
+        Relationships: []
+      }
+      account_period_balance: {
+        Row: {
+          account_id: string
+          period: string
+          balance_ars: number
+          balance_usd: number
+          source: 'opening' | 'rollover_auto' | 'manual'
+          updated_at: string
+        }
+        Insert: {
+          account_id: string
+          period: string
+          balance_ars?: number
+          balance_usd?: number
+          source?: 'opening' | 'rollover_auto' | 'manual'
+          updated_at?: string
+        }
+        Update: {
+          balance_ars?: number
+          balance_usd?: number
+          source?: 'opening' | 'rollover_auto' | 'manual'
+          updated_at?: string
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           id: string
@@ -20,6 +78,7 @@ export type Database = {
           is_want: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id: string | null
+          account_id: string | null
           date: string
           created_at: string
           updated_at: string
@@ -34,6 +93,7 @@ export type Database = {
           is_want?: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
+          account_id?: string | null
           date?: string
           created_at?: string
           updated_at?: string
@@ -48,7 +108,47 @@ export type Database = {
           is_want?: boolean | null
           payment_method?: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
+          account_id?: string | null
           date?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      accounts: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          type: 'bank' | 'cash' | 'digital'
+          is_primary: boolean
+          archived: boolean
+          opening_balance_ars: number
+          opening_balance_usd: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          type: 'bank' | 'cash' | 'digital'
+          is_primary?: boolean
+          archived?: boolean
+          opening_balance_ars?: number
+          opening_balance_usd?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          name?: string
+          type?: 'bank' | 'cash' | 'digital'
+          is_primary?: boolean
+          archived?: boolean
+          opening_balance_ars?: number
+          opening_balance_usd?: number
           created_at?: string
           updated_at?: string
         }
@@ -63,6 +163,8 @@ export type Database = {
           amount_usd: number
           saldo_inicial_ars: number
           saldo_inicial_usd: number
+          closed: boolean
+          closed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -74,6 +176,8 @@ export type Database = {
           amount_usd?: number
           saldo_inicial_ars?: number
           saldo_inicial_usd?: number
+          closed?: boolean
+          closed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -85,6 +189,8 @@ export type Database = {
           amount_usd?: number
           saldo_inicial_ars?: number
           saldo_inicial_usd?: number
+          closed?: boolean
+          closed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -95,6 +201,8 @@ export type Database = {
           user_id: string
           default_currency: 'ARS' | 'USD'
           cards: Json
+          onboarding_completed: boolean
+          rollover_mode: 'auto' | 'manual' | 'off'
           created_at: string
           updated_at: string
         }
@@ -102,6 +210,8 @@ export type Database = {
           user_id: string
           default_currency?: 'ARS' | 'USD'
           cards?: Json
+          onboarding_completed?: boolean
+          rollover_mode?: 'auto' | 'manual' | 'off'
           created_at?: string
           updated_at?: string
         }
@@ -109,6 +219,8 @@ export type Database = {
           user_id?: string
           default_currency?: 'ARS' | 'USD'
           cards?: Json
+          onboarding_completed?: boolean
+          rollover_mode?: 'auto' | 'manual' | 'off'
           created_at?: string
           updated_at?: string
         }
@@ -170,6 +282,46 @@ export type MonthlyIncomeInsert =
   Database['public']['Tables']['monthly_income']['Insert']
 export type MonthlyIncomeUpdate =
   Database['public']['Tables']['monthly_income']['Update']
+
+export type UserConfig = Database['public']['Tables']['user_config']['Row']
+export type RolloverMode = 'auto' | 'manual' | 'off'
+
+export type Account = Database['public']['Tables']['accounts']['Row']
+export type AccountInsert = Database['public']['Tables']['accounts']['Insert']
+export type AccountUpdate = Database['public']['Tables']['accounts']['Update']
+export type AccountType = 'bank' | 'cash' | 'digital'
+
+export type IncomeCategory = 'salary' | 'freelance' | 'other'
+
+export type IncomeEntry = {
+  id: string
+  user_id: string
+  account_id: string | null
+  amount: number
+  currency: 'ARS' | 'USD'
+  description: string
+  category: IncomeCategory
+  date: string
+  created_at: string
+}
+
+export type IncomeEntryInsert = {
+  account_id?: string | null
+  amount: number
+  currency?: 'ARS' | 'USD'
+  description?: string
+  category?: IncomeCategory
+  date?: string
+}
+
+export type AccountPeriodBalance = {
+  account_id: string
+  period: string // YYYY-MM-01
+  balance_ars: number
+  balance_usd: number
+  source: 'opening' | 'rollover_auto' | 'manual'
+  updated_at: string
+}
 
 export type Card = {
   id: string
