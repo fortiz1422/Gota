@@ -57,5 +57,5 @@ interface Props {
 export function CategoryIcon({ category, size = 16 }: Props) {
   const Icon = CATEGORY_ICONS[category]
   if (!Icon) return null
-  return <Icon weight="duotone" size={size} className="icon-duotone shrink-0" />
+  return <Icon weight="duotone" size={size} className="text-text-primary icon-duotone shrink-0" />
 }

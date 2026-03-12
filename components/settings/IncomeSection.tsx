@@ -78,7 +78,7 @@ export function IncomeSection({ month }: Props) {
     }`
 
   return (
-    <CollapsibleSection icon={<Coins weight="duotone" size={18} className="icon-duotone" />} title="Ingresos" summary={summary}>
+    <CollapsibleSection icon={<Coins weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Ingresos" summary={summary}>
       {isLoading ? (
         <div className="flex justify-center py-4">
           <span className="spinner" />

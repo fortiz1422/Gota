@@ -35,7 +35,7 @@ export function CashSection({ initialCash, month }: Props) {
 
   return (
     <>
-      <CollapsibleSection icon={<Wallet weight="duotone" size={18} className="icon-duotone" />} title="Efectivo" summary={summary}>
+      <CollapsibleSection icon={<Wallet weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Efectivo" summary={summary}>
         <div className="space-y-1.5">
           {cash ? (
             <button

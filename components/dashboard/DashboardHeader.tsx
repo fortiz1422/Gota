@@ -2,13 +2,14 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronDown } from 'lucide-react'
+import { CaretDown } from '@phosphor-icons/react'
 import { MonthSelectorSheet } from './MonthSelectorSheet'
 
 interface Props {
   month: string
   basePath?: string
   earliestDataMonth?: string
+  className?: string
 }
 
 function addMonths(ym: string, delta: number): string {
@@ -45,7 +46,7 @@ function buildMonthList(
   return months
 }
 
-export function DashboardHeader({ month, basePath = '/', earliestDataMonth }: Props) {
+export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5' }: Props) {
   const router = useRouter()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
@@ -61,13 +62,13 @@ export function DashboardHeader({ month, basePath = '/', earliestDataMonth }: Pr
 
   return (
     <>
-      <header className="px-6 pt-5">
+      <header className={className}>
         <button
           onClick={() => setIsSheetOpen(true)}
           className="flex items-center gap-1.5 bg-transparent border-0 p-0 cursor-pointer transition-opacity duration-150 hover:opacity-70 active:opacity-50"
         >
           <span className="type-month text-text-primary">{monthCap}</span>
-          <ChevronDown size={16} className="text-text-label mt-0.5 shrink-0" />
+          <CaretDown size={16} weight="bold" className="text-text-label mt-0.5 shrink-0" />
         </button>
       </header>
 

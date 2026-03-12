@@ -185,6 +185,14 @@ body {
   letter-spacing: -0.02em;
 }
 
+/* 30px — títulos de página (Settings) */
+@utility type-title {
+  font-size: 30px;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+  line-height: 1;
+}
+
 /* 46px — saldo principal (SaldoVivo hero) */
 @utility type-hero {
   font-size: 46px;
@@ -250,10 +258,7 @@ body {
   animation: growBar 0.55s cubic-bezier(0.4, 0, 0.2, 1) both;
 }
 
-/* Phosphor duotone icon: white contour + primary fill at 15% */
-.icon-duotone {
-  color: var(--color-text-primary);
-}
+/* Phosphor duotone icon: primary fill at 15% (color comes from sibling text-* utility) */
 .icon-duotone [opacity] {
   fill: var(--color-primary) !important;
   opacity: 0.15 !important;

@@ -107,7 +107,7 @@ export function CardsSection({ cards: initialCards, month }: { cards: Card[]; mo
   const summary = activeCount === 0 ? 'Sin tarjetas' : `${activeCount} tarjeta${activeCount !== 1 ? 's' : ''}`
 
   return (
-    <CollapsibleSection icon={<CreditCard weight="duotone" size={18} className="icon-duotone" />} title="Tarjetas" summary={summary}>
+    <CollapsibleSection icon={<CreditCard weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Tarjetas" summary={summary}>
       <div className="space-y-1.5">
         {cards.map((card) => {
           const info = card.closing_day ? closingInfo(card.closing_day, month) : null

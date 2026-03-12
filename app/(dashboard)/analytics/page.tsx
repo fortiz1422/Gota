@@ -1,9 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { AnalyticsClient } from '@/components/analytics/AnalyticsClient'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import { evaluateInsights } from '@/lib/analytics/insights'
+import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
+import type { Card } from '@/types/database'
 
 function getCurrentMonth(): string {
   const now = new Date()
@@ -35,11 +36,12 @@ export default async function AnalyticsPage({
   // Fetch config first to get default_currency for expense filtering
   const { data: config } = await supabase
     .from('user_config')
-    .select('default_currency')
+    .select('default_currency, cards')
     .eq('user_id', user.id)
     .single()
 
   const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const cards = ((config?.cards as Card[]) ?? []).filter((c) => !c.archived)
 
   const [{ data: rawExpenses }, { data: incomeEntries }, { data: legacyIncome }, { data: oldestExpense }] =
     await Promise.all([
@@ -85,20 +87,32 @@ export default async function AnalyticsPage({
         : null
 
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
+  const today = new Date()
+  const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
+  const isCurrentMonth =
+    today.getFullYear() === ymYear && today.getMonth() + 1 === ymMonth
+  const daysInMonth = new Date(ymYear, ymMonth, 0).getDate()
+  const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth
+
   const metrics = computeMetrics(rawExpenses ?? [], ingresoMes, currency, selectedMonth)
   const insight = evaluateInsights(metrics)
+  const compromisos = computeCompromisos(
+    rawExpenses ?? [],
+    cards,
+    dayOfMonth,
+    ingresoMes,
+  )
 
   return (
     <div className="min-h-screen bg-bg-primary overflow-x-hidden">
       <div className="mx-auto max-w-md pt-safe pb-tab-bar">
-        <div className="px-4 pb-2">
-          <DashboardHeader
-            month={selectedMonth}
-            basePath="/analytics"
-            earliestDataMonth={earliestDataMonth}
-          />
-        </div>
-        <AnalyticsClient metrics={metrics} insight={insight} />
+        <AnalyticsClient
+          metrics={metrics}
+          insight={insight}
+          compromisos={compromisos}
+          selectedMonth={selectedMonth}
+          earliestDataMonth={earliestDataMonth}
+        />
       </div>
     </div>
   )

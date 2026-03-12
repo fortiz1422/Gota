@@ -60,7 +60,7 @@ export function AccountsSection({ initialAccounts, month }: Props) {
 
   return (
     <>
-      <CollapsibleSection icon={<Bank weight="duotone" size={18} className="icon-duotone" />} title="Cuentas" summary={summary}>
+      <CollapsibleSection icon={<Bank weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Cuentas" summary={summary}>
         <div className="space-y-1.5">
           {bankDigital.length === 0 && (
             <p className="text-xs text-text-disabled py-1">Sin cuentas bancarias o digitales.</p>

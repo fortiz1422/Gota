@@ -3,7 +3,7 @@
 import { Suspense } from 'react'
 import { usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Home, BarChart2, Settings } from 'lucide-react'
+import { House, ChartBar, Gear } from '@phosphor-icons/react'
 
 function TabBarInner() {
   const pathname = usePathname()
@@ -14,19 +14,19 @@ function TabBarInner() {
   const tabs = [
     {
       href: `/${monthSuffix}`,
-      icon: Home,
+      icon: House,
       label: 'Home',
       isActive: pathname === '/' || pathname.startsWith('/expenses'),
     },
     {
       href: `/analytics${monthSuffix}`,
-      icon: BarChart2,
+      icon: ChartBar,
       label: 'Análisis',
       isActive: pathname.startsWith('/analytics'),
     },
     {
       href: '/settings',
-      icon: Settings,
+      icon: Gear,
       label: 'Config',
       isActive: pathname.startsWith('/settings'),
     },
@@ -53,8 +53,8 @@ function TabBarInner() {
           >
             <Icon
               size={18}
-              strokeWidth={isActive ? 2.2 : 1.7}
-              className={`shrink-0 ${isActive ? 'text-text-primary' : 'text-text-label'}`}
+              weight={isActive ? 'duotone' : 'regular'}
+              className={`shrink-0 ${isActive ? 'text-text-primary icon-duotone' : 'text-text-label'}`}
             />
             {isActive && (
               <span className="text-[12px] font-semibold text-text-primary whitespace-nowrap tracking-[-0.01em]">

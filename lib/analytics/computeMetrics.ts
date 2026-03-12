@@ -1,5 +1,33 @@
 import type { Expense } from '@/types/database'
 
+export type FugaCatItem = {
+  category: string
+  amount: number
+  count: number
+  pct: number // pct of total fuga
+}
+
+export type FugaSilenciosaData = {
+  hasEnoughData: boolean
+  threshold: number
+  total: number
+  count: number
+  byCategory: FugaCatItem[]
+}
+
+export type HabitosTx = {
+  id: string
+  category: string
+  amount: number
+  description: string
+}
+
+export type HabitosDayEntry = {
+  day: number
+  amount: number
+  txs: HabitosTx[]
+}
+
 export type CategoriaMetric = {
   category: string
   total: number
@@ -51,6 +79,10 @@ export type Metrics = {
   diasDeRunway: number | null
   diasRestantes: number
 
+  // ANÁLISIS VIEW
+  fugaSilenciosa: FugaSilenciosaData
+  habitosMap: HabitosDayEntry[]
+
   // Meta
   cantidadTransacciones: number
   hasIngreso: boolean
@@ -93,6 +125,14 @@ export function computeMetrics(
 
   const hasIngreso = ingresoMes !== null && ingresoMes > 0
 
+  const emptyFuga: FugaSilenciosaData = {
+    hasEnoughData: false,
+    threshold: 0,
+    total: 0,
+    count: 0,
+    byCategory: [],
+  }
+
   if (cantidadTransacciones === 0) {
     return {
       totalGastado: 0,
@@ -116,6 +156,8 @@ export function computeMetrics(
       goteoTotal: 0,
       pctGoteoDelTotal: 0,
       pctDeseoFinDeSemana: 0,
+      fugaSilenciosa: emptyFuga,
+      habitosMap: [],
       ingresoMes,
       pctGastadoDelIngreso: null,
       ahorroActual: null,
@@ -270,6 +312,58 @@ export function computeMetrics(
   const pctDeseoFinDeSemana =
     totalDeseo > 0 ? Math.round((totalDeseoFdS / totalDeseo) * 100) : 0
 
+  // — FUGA SILENCIOSA (Q1 threshold) —
+  const sorted = [...expenses].sort((a, b) => a.amount - b.amount)
+  const q1Idx = Math.floor(sorted.length * 0.25)
+  const threshold = sorted[q1Idx]?.amount ?? 0
+  const hasEnoughData = expenses.length >= 4 && threshold > 0
+  const fugaTxs = hasEnoughData ? expenses.filter((e) => e.amount <= threshold) : []
+  const fugaTotal = fugaTxs.reduce((s, e) => s + e.amount, 0)
+  const fugaCatMap: Record<string, { amount: number; count: number }> = {}
+  for (const e of fugaTxs) {
+    if (!fugaCatMap[e.category]) fugaCatMap[e.category] = { amount: 0, count: 0 }
+    fugaCatMap[e.category].amount += e.amount
+    fugaCatMap[e.category].count++
+  }
+  const fugaByCategory: FugaCatItem[] = Object.entries(fugaCatMap)
+    .map(([category, { amount, count }]) => ({
+      category,
+      amount,
+      count,
+      pct: fugaTotal > 0 ? Math.round((amount / fugaTotal) * 100) : 0,
+    }))
+    .sort((a, b) => b.amount - a.amount)
+  const fugaSilenciosa: FugaSilenciosaData = {
+    hasEnoughData,
+    threshold,
+    total: fugaTotal,
+    count: fugaTxs.length,
+    byCategory: fugaByCategory,
+  }
+
+  // — MAPA DE HÁBITOS —
+  const dayMap: Record<number, { amount: number; txs: HabitosTx[] }> = {}
+  for (let d = 1; d <= daysInMonth; d++) {
+    dayMap[d] = { amount: 0, txs: [] }
+  }
+  for (const e of expenses) {
+    const d = new Date(e.date).getDate()
+    if (dayMap[d]) {
+      dayMap[d].amount += e.amount
+      dayMap[d].txs.push({
+        id: e.id,
+        category: e.category,
+        amount: e.amount,
+        description: e.description,
+      })
+    }
+  }
+  const habitosMap: HabitosDayEntry[] = Array.from({ length: daysInMonth }, (_, i) => ({
+    day: i + 1,
+    amount: dayMap[i + 1]?.amount ?? 0,
+    txs: dayMap[i + 1]?.txs ?? [],
+  }))
+
   // — NIVEL 2: PROYECCIONES —
   let pctGastadoDelIngreso: number | null = null
   let ahorroActual: number | null = null
@@ -308,6 +402,8 @@ export function computeMetrics(
     goteoTotal,
     pctGoteoDelTotal,
     pctDeseoFinDeSemana,
+    fugaSilenciosa,
+    habitosMap,
     ingresoMes,
     pctGastadoDelIngreso,
     ahorroActual,
