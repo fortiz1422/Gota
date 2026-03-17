@@ -1,0 +1,28 @@
+﻿Fecha,Descripción,Monto,Moneda,Categoría,Medio de pago,Tarjeta,¿Deseo?
+2026-03-18T15:00:00+00:00,"carniceria",40000,ARS,"Alimentos","Efectivo","",No
+2026-03-17T15:00:00+00:00,"verduleria",50000,ARS,"Alimentos","Efectivo","",No
+2026-03-14T15:00:00+00:00,"panaderia",80000,ARS,"Alimentos","Efectivo","",No
+2026-03-05T15:00:00+00:00,"atracciones",300000,ARS,"Otros","Efectivo","",Sí
+2026-03-05T15:00:00+00:00,"pago tarjetas",1500000,ARS,"Pago de Tarjetas","Transferencia","BBVA VISA",No
+2026-03-05T15:00:00+00:00,"suscripcion canva",40000,ARS,"Suscripciones","Transferencia","",Sí
+2026-03-05T15:00:00+00:00,"delivery oficina",50000,ARS,"Delivery","Transferencia","",Sí
+2026-03-05T15:00:00+00:00,"restaurante",80000,ARS,"Restaurantes","Transferencia","",Sí
+2026-03-05T15:00:00+00:00,"servicios hogar",500000,ARS,"Servicios del Hogar","Transferencia","",No
+2026-03-05T15:00:00+00:00,"psicologa",50000,ARS,"Salud","Transferencia","",No
+2026-03-05T15:00:00+00:00,"Tabaco",168116,ARS,"Kiosco y Varios","Transferencia","",Sí
+2026-03-05T15:00:00+00:00,"Oficina",3000,ARS,"Kiosco y Varios","Transferencia","",Sí
+2026-03-05T15:00:00+00:00,"",189073,ARS,"Educación","Transferencia","",No
+2026-03-04T15:00:00+00:00,"facturas oficina",30064,ARS,"Delivery","Crédito","BBVA VISA",Sí
+2026-03-04T00:00:00+00:00,"Paquete BNA",75000,ARS,"Pago de Tarjetas","Transferencia","BNA MASTER",No
+2026-03-03T15:00:00+00:00,"Gaseosa y snacks",7000,ARS,"Supermercado","Transferencia","",Sí
+2026-03-03T15:00:00+00:00,"despensa",6500,ARS,"Supermercado","Transferencia","",No
+2026-03-02T15:00:00+00:00,"Nafta",60000,ARS,"Auto/Combustible","Crédito","BBVA VISA",No
+2026-03-01T15:00:00+00:00,"Pizza",18000,ARS,"Delivery","Transferencia","",Sí
+2026-03-01T15:00:00+00:00,"Regalo Agus bolso",50000,ARS,"Ropa e Indumentaria","Crédito","BBVA VISA",Sí
+2026-03-01T15:00:00+00:00,"Hamburguesas shopping",47900,ARS,"Restaurantes","Crédito","BBVA VISA",Sí
+2026-03-01T15:00:00+00:00,"Equus saco de vestir",141700,ARS,"Ropa e Indumentaria","Crédito","BBVA VISA",No
+2026-03-01T15:00:00+00:00,"Ropa clarita",32250,ARS,"Ropa e Indumentaria","Crédito","BBVA VISA",Sí
+2026-02-28T15:00:00+00:00,"pizza",100,ARS,"Alimentos","Efectivo","",No
+2026-02-26T15:00:00+00:00,"Comida",2004,ARS,"Alimentos","Efectivo","",No
+2026-02-12T00:00:00+00:00,"comida",1000000,ARS,"Alimentos","Efectivo","",No
+2026-02-10T15:00:00+00:00,"",310000,ARS,"Otros","Efectivo","",Sí

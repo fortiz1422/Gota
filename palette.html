@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Gota — Paleta de Colores</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: #050A14;
+      color: #f0f9ff;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+      padding: 48px 32px;
+    }
+
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 4px; letter-spacing: -0.5px; }
+    .subtitle { color: #7B98B8; font-size: 14px; margin-bottom: 8px; }
+    .updated { color: #4B6472; font-size: 11px; margin-bottom: 56px; font-family: monospace; }
+
+    h2 {
+      font-size: 11px; font-weight: 600; letter-spacing: 0.12em;
+      text-transform: uppercase; color: #4B6472;
+      margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid #0f1c30;
+    }
+
+    section { margin-bottom: 48px; }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 12px;
+    }
+
+    .chip {
+      border-radius: 12px; overflow: hidden;
+      background: #0b1221; border: 1px solid #132030;
+    }
+
+    .chip-swatch { height: 64px; width: 100%; }
+
+    .chip-body { padding: 10px 12px; }
+    .chip-name { font-size: 12px; font-weight: 600; color: #f0f9ff; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .chip-value { font-size: 11px; color: #7B98B8; font-variant-numeric: tabular-nums; }
+    .chip-token { font-size: 10px; color: #4B6472; margin-top: 4px; font-family: "SF Mono", "Fira Code", monospace; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .badge {
+      display: inline-block; font-size: 9px; font-weight: 600;
+      letter-spacing: 0.06em; text-transform: uppercase;
+      padding: 2px 6px; border-radius: 4px; margin-top: 6px;
+    }
+    .badge-token  { background: rgba(56,189,248,0.15); color: #38bdf8; }
+    .badge-js     { background: rgba(168,139,250,0.15); color: #a78bfa; }
+    .badge-alpha  { background: rgba(148,210,255,0.08); color: #94a3b8; }
+
+    /* checkerboard para swatches alpha */
+    .alpha-bg {
+      background-image:
+        linear-gradient(45deg, #334155 25%, transparent 25%),
+        linear-gradient(-45deg, #334155 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, #334155 75%),
+        linear-gradient(-45deg, transparent 75%, #334155 75%);
+      background-size: 12px 12px;
+      background-position: 0 0, 0 6px, 6px -6px, -6px 0px;
+      background-color: #1a2d42;
+      position: relative;
+    }
+    .alpha-bg .chip-swatch-inner { position: absolute; inset: 0; }
+  </style>
+</head>
+<body>
+
+  <h1>Gota — Paleta de Colores</h1>
+  <p class="subtitle">Tokens de diseño completos del sistema Gota Glass</p>
+  <p class="updated">Actualizado: 2026-03-13 · Fuente de verdad: app/globals.css + lib/colors.ts</p>
+
+  <!-- ===================== FONDOS ===================== -->
+  <section>
+    <h2>Fondos — @theme tokens</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background:#050A14;"></div>
+        <div class="chip-body">
+          <div class="chip-name">bg-primary</div>
+          <div class="chip-value">#050A14</div>
+          <div class="chip-token">--color-bg-primary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#0b1221;"></div>
+        <div class="chip-body">
+          <div class="chip-name">bg-secondary</div>
+          <div class="chip-value">#0b1221</div>
+          <div class="chip-token">--color-bg-secondary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#0f1c30;"></div>
+        <div class="chip-body">
+          <div class="chip-name">bg-tertiary</div>
+          <div class="chip-value">#0f1c30</div>
+          <div class="chip-token">--color-bg-tertiary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#1a2d42;"></div>
+        <div class="chip-body">
+          <div class="chip-name">bg-elevated</div>
+          <div class="chip-value">#1a2d42</div>
+          <div class="chip-token">--color-bg-elevated</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.05);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">surface</div>
+          <div class="chip-value">rgba(148,210,255, 0.05)</div>
+          <div class="chip-token">--color-surface</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== TEXTO ===================== -->
+  <section>
+    <h2>Texto — @theme tokens</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background:#f0f9ff;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-primary</div>
+          <div class="chip-value">#f0f9ff</div>
+          <div class="chip-token">--color-text-primary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#bae6fd;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-secondary</div>
+          <div class="chip-value">#bae6fd</div>
+          <div class="chip-token">--color-text-secondary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#94a3b8;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-tertiary</div>
+          <div class="chip-value">#94a3b8</div>
+          <div class="chip-token">--color-text-tertiary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#64748b;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-disabled</div>
+          <div class="chip-value">#64748b</div>
+          <div class="chip-token">--color-text-disabled</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#7B98B8;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-label</div>
+          <div class="chip-value">#7B98B8</div>
+          <div class="chip-token">--color-text-label</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#4B6472;"></div>
+        <div class="chip-body">
+          <div class="chip-name">text-dim</div>
+          <div class="chip-value">#4B6472</div>
+          <div class="chip-token">--color-text-dim</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== BORDES ===================== -->
+  <section>
+    <h2>Bordes — @theme tokens</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background:#132030;"></div>
+        <div class="chip-body">
+          <div class="chip-name">border-subtle</div>
+          <div class="chip-value">#132030</div>
+          <div class="chip-token">--color-border-subtle</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#334155;"></div>
+        <div class="chip-body">
+          <div class="chip-name">border-strong</div>
+          <div class="chip-value">#334155</div>
+          <div class="chip-token">--color-border-strong</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.15);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">border-ocean</div>
+          <div class="chip-value">rgba(148,210,255, 0.15)</div>
+          <div class="chip-token">--color-border-ocean</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== ACENTOS ===================== -->
+  <section>
+    <h2>Acentos — @theme tokens</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background:#38bdf8;"></div>
+        <div class="chip-body">
+          <div class="chip-name">primary</div>
+          <div class="chip-value">#38bdf8</div>
+          <div class="chip-token">--color-primary</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#4ade80;"></div>
+        <div class="chip-body">
+          <div class="chip-name">success / necessity</div>
+          <div class="chip-value">#4ade80</div>
+          <div class="chip-token">--color-success</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#fdba74;"></div>
+        <div class="chip-body">
+          <div class="chip-name">want</div>
+          <div class="chip-value">#fdba74</div>
+          <div class="chip-token">--color-want</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#f59e0b;"></div>
+        <div class="chip-body">
+          <div class="chip-name">warning</div>
+          <div class="chip-value">#f59e0b</div>
+          <div class="chip-token">--color-warning</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#ef4444;"></div>
+        <div class="chip-body">
+          <div class="chip-name">danger</div>
+          <div class="chip-value">#ef4444</div>
+          <div class="chip-token">--color-danger</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#f87171;"></div>
+        <div class="chip-body">
+          <div class="chip-name">danger-light</div>
+          <div class="chip-value">#f87171</div>
+          <div class="chip-token">--color-danger-light</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== OCEAN ===================== -->
+  <section>
+    <h2>Ocean — @theme token + familia de opacidades via bg-ocean/X</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background:#94d2ff;"></div>
+        <div class="chip-body">
+          <div class="chip-name">ocean (base)</div>
+          <div class="chip-value">#94d2ff</div>
+          <div class="chip-token">--color-ocean</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.05);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">ocean/5 · surface</div>
+          <div class="chip-value">rgba(148,210,255, 0.05)</div>
+          <div class="chip-token">bg-ocean/5 · bg-surface</div>
+          <span class="badge badge-alpha">alpha</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.06);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">ocean/6 · tab bar glow</div>
+          <div class="chip-value">rgba(148,210,255, 0.06)</div>
+          <div class="chip-token">--shadow-tab-bar (CSS var)</div>
+          <span class="badge badge-alpha">alpha</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.10);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">ocean/10 · SVG strokes</div>
+          <div class="chip-value">rgba(148,210,255, 0.10)</div>
+          <div class="chip-token">oceanAlpha[10] en lib/colors.ts</div>
+          <span class="badge badge-js">lib/colors.ts</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(148,210,255,0.15);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">ocean/15 · border-ocean</div>
+          <div class="chip-value">rgba(148,210,255, 0.15)</div>
+          <div class="chip-token">--color-border-ocean · border-border-ocean</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== OVERLAYS ===================== -->
+  <section>
+    <h2>Overlays — @theme tokens</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(5,12,28,0.92);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">nav-bg</div>
+          <div class="chip-value">rgba(5,12,28, 0.92)</div>
+          <div class="chip-token">--color-nav-bg · bg-nav-bg</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(3,8,16,0.75);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">backdrop</div>
+          <div class="chip-value">rgba(3,8,16, 0.75)</div>
+          <div class="chip-token">--color-backdrop · bg-backdrop</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== JS / lib/colors.ts ===================== -->
+  <section>
+    <h2>JS colors (lib/colors.ts) — para SVGs, inline styles, objetos JS</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(56,189,248,0.12);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">primary / 12</div>
+          <div class="chip-value">rgba(56,189,248, 0.12)</div>
+          <div class="chip-token">primaryAlpha[12] — logo SVG outer</div>
+          <span class="badge badge-js">lib/colors.ts</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch alpha-bg"><div class="chip-swatch-inner" style="background:rgba(56,189,248,0.65);"></div></div>
+        <div class="chip-body">
+          <div class="chip-name">primary / 65</div>
+          <div class="chip-value">rgba(56,189,248, 0.65)</div>
+          <div class="chip-token">primaryAlpha[65] — logo SVG inner</div>
+          <span class="badge badge-js">lib/colors.ts</span>
+        </div>
+      </div>
+      <div class="chip">
+        <div class="chip-swatch" style="background:#a78bfa;"></div>
+        <div class="chip-body">
+          <div class="chip-name">purple</div>
+          <div class="chip-value">#a78bfa</div>
+          <div class="chip-token">colors.purple — Compromisos CARD_COLORS[3]</div>
+          <span class="badge badge-js">lib/colors.ts</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== GRADIENTES CSS ===================== -->
+  <section>
+    <h2>Gradientes CSS — usan var(--color-bg-primary)</h2>
+    <div class="grid">
+      <div class="chip">
+        <div class="chip-swatch" style="background: linear-gradient(to bottom, transparent, #050A14);"></div>
+        <div class="chip-body">
+          <div class="chip-name">fade abisal</div>
+          <div class="chip-value">transparent → bg-primary</div>
+          <div class="chip-token">layout.tsx, page.tsx — inline style via var()</div>
+          <span class="badge badge-token">token</span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</body>
+</html>
