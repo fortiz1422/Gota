@@ -207,7 +207,9 @@ export function buildPills23(s: HeroEngineInput, thread: HeroThread): Chip[] {
         signal: 'daily_average_trend',
         score: delta > 0 ? 65 : 40,
         pill: {
-          label: `Promedio semanal · ${delta > 0 ? '+' : ''}${Math.round(delta)}% vs el mes`,
+          label: delta > 0
+            ? `Semana cara · ${Math.round(delta)}% sobre el promedio`
+            : `Semana tranquila · ${Math.round(Math.abs(delta))}% bajo el promedio`,
           emphasis: delta > 20 ? 'warning' : delta < -15 ? 'positive' : 'neutral',
         },
       })
