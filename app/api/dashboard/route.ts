@@ -109,16 +109,7 @@ export async function GET(request: Request) {
   const accountIds = accounts.map((a) => a.id)
 
   // Fire-and-forget subscription auto-insert (current month only)
-  const now = new Date()
-  void processSubscriptions(supabase, user.id, currentMonth, now.getDate())
-
-  const { data: subscriptionsData } = await supabase
-    .from('subscriptions')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('is_active', true)
-    .order('created_at', { ascending: true })
-  const activeSubscriptions = (subscriptionsData ?? []) as Subscription[]
+  void processSubscriptions(supabase, user.id, currentMonth, new Date().getDate())
 
   const [
     legacyIncomeResult,
@@ -128,6 +119,7 @@ export async function GET(request: Request) {
     { data: usdCheckData },
     { data: allUltimosData },
     { data: transfersData },
+    { data: subscriptionsData },
   ] = await Promise.all([
     supabase
       .from('monthly_income')
@@ -171,6 +163,12 @@ export async function GET(request: Request) {
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5),
+    supabase
+      .from('subscriptions')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true)
+      .order('created_at', { ascending: true }),
   ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
@@ -181,6 +179,7 @@ export async function GET(request: Request) {
   const hasUsdExpenses = usdCheckData !== null
   const allUltimos = (allUltimosData ?? []) as Expense[]
   const transfers = (transfersData ?? []) as Transfer[]
+  const activeSubscriptions = (subscriptionsData ?? []) as Subscription[]
 
   let autoRolloverAmount: number | null = null
   let manualRolloverSummary = null

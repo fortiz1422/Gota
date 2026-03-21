@@ -1,6 +1,7 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { AnalyticsClient } from './AnalyticsClient'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
@@ -32,6 +33,17 @@ function AnalyticsSkeleton() {
 }
 
 export function AnalyticsDataLoader({ selectedMonth }: Props) {
+  const queryClient = useQueryClient()
+
+  // Prefetch Home dashboard in background so the tab is instant on return
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['dashboard', selectedMonth, 'ARS'],
+      queryFn: () =>
+        fetch(`/api/dashboard?month=${selectedMonth}&currency=ARS`).then((r) => r.json()),
+    })
+  }, [selectedMonth, queryClient])
+
   const { data, isLoading } = useQuery<AnalyticsApiData>({
     queryKey: ['analytics', selectedMonth],
     queryFn: async () => {

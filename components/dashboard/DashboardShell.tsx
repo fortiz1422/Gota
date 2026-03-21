@@ -1,6 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
 import { SmartInput } from '@/components/dashboard/SmartInput'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { CurrencyToggle } from '@/components/dashboard/CurrencyToggle'
@@ -73,6 +74,15 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
 
   const invalidateDashboard = () =>
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedMonth, viewCurrency] })
+
+  // Prefetch Analytics in background so the tab is instant on first visit
+  useEffect(() => {
+    queryClient.prefetchQuery({
+      queryKey: ['analytics', selectedMonth],
+      queryFn: () =>
+        fetch(`/api/analytics-data?month=${selectedMonth}`).then((r) => r.json()),
+    })
+  }, [selectedMonth, queryClient])
 
   if (isLoading || !data) return <DashboardSkeleton />
 
