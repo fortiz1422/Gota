@@ -14,7 +14,8 @@ export function formatCompact(amount: number, currency: 'ARS' | 'USD'): string {
 }
 
 export function formatDate(isoString: string): string {
-  return new Date(isoString).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+  const [y, m, d] = isoString.substring(0, 10).split('-').map(Number)
+  return new Date(y, m - 1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
 const TZ = 'America/Buenos_Aires'

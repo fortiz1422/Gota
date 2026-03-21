@@ -4,7 +4,7 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { CATEGORIES } from '@/lib/validation/schemas'
-import { formatAmount, formatDate } from '@/lib/format'
+import { formatAmount, formatDate, dateInputToISO } from '@/lib/format'
 import type { Expense, Card } from '@/types/database'
 
 interface Props {
@@ -32,7 +32,7 @@ export function ExpenseItem({ expense, cards }: Props) {
   const [category, setCategory] = useState(expense.category)
   const [paymentMethod, setPaymentMethod] = useState(expense.payment_method)
   const [cardId, setCardId] = useState(expense.card_id ?? '')
-  const [date, setDate] = useState(expense.date)
+  const [date, setDate] = useState(expense.date.substring(0, 10))
   const [isWant, setIsWant] = useState(expense.is_want)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -44,7 +44,7 @@ export function ExpenseItem({ expense, cards }: Props) {
     category !== expense.category ||
     paymentMethod !== expense.payment_method ||
     (cardId || null) !== expense.card_id ||
-    date !== expense.date ||
+    date !== expense.date.substring(0, 10) ||
     isWant !== expense.is_want
 
   const handleSave = useCallback(async () => {
@@ -67,7 +67,7 @@ export function ExpenseItem({ expense, cards }: Props) {
           category,
           payment_method: paymentMethod,
           card_id: cardId || null,
-          date,
+          date: dateInputToISO(date),
           is_want: isWant,
         }),
       })

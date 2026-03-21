@@ -19,6 +19,9 @@ export function SubscriptionReviewSheet({ subscriptions, currency, cards, onDone
   const [amounts, setAmounts] = useState<Record<string, string>>(
     Object.fromEntries(subscriptions.map((s) => [s.id, String(s.amount)])),
   )
+  const [days, setDays] = useState<Record<string, string>>(
+    Object.fromEntries(subscriptions.map((s) => [s.id, String(s.day_of_month)])),
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [archived, setArchived] = useState<Set<string>>(new Set())
 
@@ -43,6 +46,8 @@ export function SubscriptionReviewSheet({ subscriptions, currency, cards, onDone
           const newAmount = Number(amounts[s.id])
           const patch: Record<string, unknown> = { last_reviewed_at: now }
           if (newAmount > 0 && newAmount !== s.amount) patch.amount = newAmount
+          const newDay = Number(days[s.id])
+          if (newDay >= 1 && newDay <= 31 && newDay !== s.day_of_month) patch.day_of_month = newDay
           return fetch(`/api/subscriptions/${s.id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -85,12 +90,24 @@ export function SubscriptionReviewSheet({ subscriptions, currency, cards, onDone
                   {sub.payment_method === 'CREDIT' && ` · ${cardName(sub.card_id)}`}
                 </p>
               </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <span className="text-[10px] text-text-tertiary">Día</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={31}
+                  value={days[sub.id]}
+                  onChange={(e) => setDays((prev) => ({ ...prev, [sub.id]: e.target.value }))}
+                  className="w-10 rounded-input border border-transparent bg-bg-secondary px-2 py-2 text-center text-sm text-text-primary focus:border-primary focus:outline-none"
+                />
+              </div>
               <input
                 type="number"
                 inputMode="decimal"
                 value={amounts[sub.id]}
                 onChange={(e) => setAmounts((prev) => ({ ...prev, [sub.id]: e.target.value }))}
-                className="w-24 rounded-input border border-transparent bg-bg-secondary px-3 py-2 text-right text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="w-20 rounded-input border border-transparent bg-bg-secondary px-3 py-2 text-right text-sm text-text-primary focus:border-primary focus:outline-none"
               />
               <span className="text-xs text-text-tertiary shrink-0">
                 {sub.currency}
