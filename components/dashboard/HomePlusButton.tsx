@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard } from '@phosphor-icons/react'
+import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { IncomeModal } from './IncomeModal'
 import { SubscriptionSheet } from '@/components/subscriptions/SubscriptionSheet'
 import { CuotasEnCursoSheet } from './CuotasEnCursoSheet'
+import { TransferForm } from './TransferForm'
 import type { Account, Card } from '@/types/database'
 
 interface Props {
@@ -15,7 +16,7 @@ interface Props {
   month: string
 }
 
-type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas'
+type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas' | 'transfer'
 
 export function HomePlusButton({ accounts, currency, cards, month }: Props) {
   const [sheet, setSheet] = useState<Sheet>(null)
@@ -80,7 +81,7 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
 
             <button
               onClick={() => setSheet('cuotas')}
-              className="flex w-full items-center gap-4 py-[13px] text-left transition-colors"
+              className="flex w-full items-center gap-4 py-[13px] border-b border-border-subtle text-left transition-colors"
             >
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center"
@@ -92,6 +93,24 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
                 <p className="text-sm font-semibold text-text-primary">Cuotas en curso</p>
                 <p className="text-xs text-text-tertiary">
                   Compras en cuotas que ya estás pagando
+                </p>
+              </div>
+            </button>
+
+            <button
+              onClick={() => setSheet('transfer')}
+              className="flex w-full items-center gap-4 py-[13px] text-left transition-colors"
+            >
+              <div
+                className="flex h-10 w-10 shrink-0 items-center justify-center"
+                style={{ borderRadius: 12, backgroundColor: 'rgba(27,126,158,0.10)' }}
+              >
+                <ArrowsLeftRight weight="regular" size={20} className="text-ocean" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary">Transferencia</p>
+                <p className="text-xs text-text-tertiary">
+                  Movimiento entre tus cuentas propias
                 </p>
               </div>
             </button>
@@ -122,6 +141,10 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
           currency={currency}
           cards={cards}
         />
+      )}
+
+      {sheet === 'transfer' && (
+        <TransferForm accounts={accounts} onClose={() => setSheet(null)} />
       )}
     </>
   )

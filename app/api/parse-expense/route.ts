@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/server'
 import { geminiModel } from '@/lib/gemini/client'
 import { createExpensePrompt } from '@/lib/gemini/prompts'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
+import { checkRateLimit } from '@/lib/rate-limit'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -13,6 +14,13 @@ export async function POST(request: Request) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (!checkRateLimit(user.id)) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Esperá un momento.' },
+      { status: 429, headers: { 'Retry-After': '60' } }
+    )
   }
 
   try {

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { SmartInput } from '@/components/dashboard/SmartInput'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
+import { CurrencyToggle } from '@/components/dashboard/CurrencyToggle'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { FiltroEstoico } from '@/components/dashboard/FiltroEstoico'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
@@ -11,7 +12,7 @@ import { CierreMesModal } from '@/components/dashboard/CierreMesModal'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
 import { buildPrevMonthSummary, buildPerAccountBalances } from '@/lib/rollover'
-import type { Account, Card, DashboardData, IncomeEntry, RolloverMode, Subscription } from '@/types/database'
+import type { Account, Card, DashboardData, Expense, IncomeEntry, RolloverMode, Subscription, Transfer } from '@/types/database'
 import type { PrevMonthSummary } from '@/lib/rollover'
 
 function getCurrentMonth(): string {
@@ -77,7 +78,7 @@ async function processSubscriptions(
 export default async function DashboardPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; currency?: string }>
 }) {
   const supabase = await createClient()
   const {
@@ -86,7 +87,7 @@ export default async function DashboardPage({
 
   if (!user) redirect('/login')
 
-  const { month } = await searchParams
+  const { month, currency: currencyParam } = await searchParams
   const currentMonth = getCurrentMonth()
   const selectedMonth = month ?? currentMonth
   const selectedMonthDate = selectedMonth + '-01'
@@ -108,7 +109,11 @@ export default async function DashboardPage({
       .order('created_at', { ascending: true }),
   ])
 
-  const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  // userCurrency: default del usuario (para modales/formularios)
+  // viewCurrency: moneda activa en la vista (URL param, default ARS)
+  const userCurrency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const viewCurrency = (currencyParam === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD'
+  const currency = userCurrency // alias para compatibilidad con código existente
   const rolloverMode = (config?.rollover_mode ?? 'off') as RolloverMode
   const allCards: Card[] = (config?.cards as Card[]) ?? []
   const cards: Card[] = allCards.filter((c: Card) => !c.archived)
@@ -131,38 +136,67 @@ export default async function DashboardPage({
   const activeSubscriptions = (subscriptionsData ?? []) as Subscription[]
 
   // Check income from all sources (legacy + new)
-  const [legacyIncomeResult, incomeEntriesResult, periodBalancesResult, { data: oldestExpense }] =
-    await Promise.all([
-      supabase
-        .from('monthly_income')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('month', selectedMonthDate)
-        .maybeSingle(),
-      supabase
-        .from('income_entries')
-        .select('*')
-        .eq('user_id', user.id)
-        .gte('date', selectedMonthDate)
-        .lt('date', nextMonthDate)
-        .order('date', { ascending: false })
-        .limit(20),
-      accountIds.length > 0
-        ? supabase
-            .from('account_period_balance')
-            .select('account_id')
-            .in('account_id', accountIds)
-            .eq('period', selectedMonthDate)
-            .limit(1)
-        : Promise.resolve({ data: [] }),
-      supabase
-        .from('expenses')
-        .select('date')
-        .eq('user_id', user.id)
-        .order('date', { ascending: true })
-        .limit(1)
-        .maybeSingle(),
-    ])
+  const [
+    legacyIncomeResult,
+    incomeEntriesResult,
+    periodBalancesResult,
+    { data: oldestExpense },
+    { data: usdCheckData },
+    { data: allUltimosData },
+    { data: transfersData },
+  ] = await Promise.all([
+    supabase
+      .from('monthly_income')
+      .select('id')
+      .eq('user_id', user.id)
+      .eq('month', selectedMonthDate)
+      .maybeSingle(),
+    supabase
+      .from('income_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', selectedMonthDate)
+      .lt('date', nextMonthDate)
+      .order('date', { ascending: false })
+      .limit(20),
+    accountIds.length > 0
+      ? supabase
+          .from('account_period_balance')
+          .select('account_id')
+          .in('account_id', accountIds)
+          .eq('period', selectedMonthDate)
+          .limit(1)
+      : Promise.resolve({ data: [] }),
+    supabase
+      .from('expenses')
+      .select('date')
+      .eq('user_id', user.id)
+      .order('date', { ascending: true })
+      .limit(1)
+      .maybeSingle(),
+    // ¿El usuario tiene algún gasto en USD?
+    supabase.from('expenses').select('id').eq('user_id', user.id).eq('currency', 'USD').limit(1).maybeSingle(),
+    // Últimos 5 movimientos de ambas monedas (para Ultimos5)
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', selectedMonthDate)
+      .lt('date', nextMonthDate)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(5),
+    // Transferencias del mes (para Ultimos5)
+    supabase
+      .from('transfers')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', selectedMonthDate)
+      .lt('date', nextMonthDate)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(5),
+  ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
   const hasLegacyIncome = legacyIncomeResult.data !== null
@@ -170,6 +204,9 @@ export default async function DashboardPage({
     incomeEntries.length > 0 || (periodBalancesResult.data?.length ?? 0) > 0
   const hasIncome = hasLegacyIncome || hasNewStyleIncome
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
+  const hasUsdExpenses = usdCheckData !== null
+  const allUltimos = (allUltimosData ?? []) as Expense[]
+  const transfers = (transfersData ?? []) as Transfer[]
 
   // Rollover detection — only for current month without income
   let autoRolloverAmount: number | null = null
@@ -267,10 +304,11 @@ export default async function DashboardPage({
   }
 
   // Fetch dashboard data (after potential auto rollover)
+  // Usa viewCurrency para filtrar métricas (toggle ARS/USD del header)
   const { data: dashboardRaw } = await supabase.rpc('get_dashboard_data', {
     p_user_id: user.id,
     p_month: selectedMonthDate,
-    p_currency: currency,
+    p_currency: viewCurrency,
   })
 
   const dashboardData = dashboardRaw as DashboardData | null
@@ -288,18 +326,27 @@ export default async function DashboardPage({
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 180px)',
         }}
       >
-        <div className="flex items-center justify-between pt-5">
-          <DashboardHeader
-            month={selectedMonth}
-            earliestDataMonth={earliestDataMonth}
-            className=""
-          />
-          <HomePlusButton
-            accounts={accounts}
-            currency={currency}
-            cards={cards}
-            month={selectedMonth}
-          />
+        {/* Header: [ARS·USD] | Mes ∨ | [+] */}
+        <div className="grid grid-cols-3 items-center pt-5">
+          <div>
+            <CurrencyToggle viewCurrency={viewCurrency} selectedMonth={selectedMonth} />
+          </div>
+          <div className="flex justify-center">
+            <DashboardHeader
+              month={selectedMonth}
+              earliestDataMonth={earliestDataMonth}
+              viewCurrency={viewCurrency}
+              className=""
+            />
+          </div>
+          <div className="flex justify-end">
+            <HomePlusButton
+              accounts={accounts}
+              currency={currency}
+              cards={cards}
+              month={selectedMonth}
+            />
+          </div>
         </div>
 
         {!hasIncomeAfterRollover && isCurrentMonth && !manualRolloverSummary && (
@@ -312,11 +359,11 @@ export default async function DashboardPage({
 
         <SaldoVivo
           data={dashboardData?.saldo_vivo ?? null}
-          currency={currency}
+          currency={viewCurrency}
           gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
         />
 
-        {(dashboardData?.ultimos_5?.length ?? 0) > 0 && (
+        {(allUltimos.length > 0 || (dashboardData?.ultimos_5?.length ?? 0) > 0) && (
           <FiltroEstoico data={dashboardData!.filtro_estoico} />
         )}
 
@@ -329,8 +376,10 @@ export default async function DashboardPage({
         )}
 
         <Ultimos5
-          expenses={dashboardData?.ultimos_5 ?? null}
+          expenses={allUltimos.length > 0 ? allUltimos : (dashboardData?.ultimos_5 ?? null)}
           incomeEntries={incomeEntries}
+          transfers={transfers}
+          accounts={accounts}
           month={selectedMonth}
         />
       </div>

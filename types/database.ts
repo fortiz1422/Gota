@@ -132,6 +132,40 @@ export type Database = {
         }
         Relationships: []
       }
+      transfers: {
+        Row: {
+          id: string
+          user_id: string
+          from_account_id: string
+          to_account_id: string
+          amount_from: number
+          amount_to: number
+          currency_from: 'ARS' | 'USD'
+          currency_to: 'ARS' | 'USD'
+          exchange_rate: number | null
+          date: string
+          note: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          from_account_id: string
+          to_account_id: string
+          amount_from: number
+          amount_to: number
+          currency_from: 'ARS' | 'USD'
+          currency_to: 'ARS' | 'USD'
+          exchange_rate?: number | null
+          date: string
+          note?: string | null
+          created_at?: string
+        }
+        Update: {
+          note?: string | null
+        }
+        Relationships: []
+      }
       expenses: {
         Row: {
           id: string
@@ -485,3 +519,24 @@ export type DashboardData = {
     | null
   ultimos_5: Expense[] | null
 }
+
+// ============================================
+// TRANSFER TYPES
+// ============================================
+
+export type Transfer = {
+  id: string
+  user_id: string
+  from_account_id: string
+  to_account_id: string
+  amount_from: number
+  amount_to: number
+  currency_from: 'ARS' | 'USD'
+  currency_to: 'ARS' | 'USD'
+  exchange_rate: number | null
+  date: string
+  note: string | null
+  created_at: string
+}
+
+export type TransferInsert = Omit<Transfer, 'id' | 'user_id' | 'created_at'>

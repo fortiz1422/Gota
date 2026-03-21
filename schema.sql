@@ -563,9 +563,35 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
+-- v2.0 — Transferencias entre cuentas
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS transfers (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  from_account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  to_account_id UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  amount_from DECIMAL(12,2) NOT NULL CHECK (amount_from > 0),
+  amount_to DECIMAL(12,2) NOT NULL CHECK (amount_to > 0),
+  currency_from VARCHAR(3) NOT NULL CHECK (currency_from IN ('ARS', 'USD')),
+  currency_to VARCHAR(3) NOT NULL CHECK (currency_to IN ('ARS', 'USD')),
+  exchange_rate DECIMAL(14,4),  -- null si misma moneda
+  date DATE NOT NULL DEFAULT CURRENT_DATE,
+  note TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_transfers_user_date ON transfers(user_id, date DESC);
+
+ALTER TABLE transfers ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "transfers_select" ON transfers FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "transfers_insert" ON transfers FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "transfers_delete" ON transfers FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
 -- VERIFY
 -- ============================================
 
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
--- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance
+-- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers

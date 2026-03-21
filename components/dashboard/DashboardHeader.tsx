@@ -10,6 +10,7 @@ interface Props {
   basePath?: string
   earliestDataMonth?: string
   className?: string
+  viewCurrency?: 'ARS' | 'USD'
 }
 
 function addMonths(ym: string, delta: number): string {
@@ -46,18 +47,25 @@ function buildMonthList(
   return months
 }
 
-export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5' }: Props) {
+export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5', viewCurrency }: Props) {
   const router = useRouter()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
   const current = getCurrentMonth()
   const months = buildMonthList(current, earliestDataMonth)
 
-  const monthName = new Date(month + '-15').toLocaleDateString('es-AR', { month: 'long' })
-  const monthCap = monthName.charAt(0).toUpperCase() + monthName.slice(1)
+  const monthLong = new Date(month + '-15').toLocaleDateString('es-AR', { month: 'long' })
+  const monthLongCap = monthLong.charAt(0).toUpperCase() + monthLong.slice(1)
+  // Abreviar a 3 chars si el nombre supera 6 caracteres (ej: Septiembre → Sep)
+  const monthCap =
+    monthLongCap.length > 6 ? monthLongCap.slice(0, 3) : monthLongCap
 
   const handleSelectMonth = (selected: string) => {
-    router.push(selected === current ? basePath : `${basePath}?month=${selected}`)
+    const params = new URLSearchParams()
+    if (selected !== current) params.set('month', selected)
+    if (viewCurrency && viewCurrency !== 'ARS') params.set('currency', viewCurrency)
+    const query = params.toString()
+    router.push(query ? `${basePath}?${query}` : basePath)
   }
 
   return (

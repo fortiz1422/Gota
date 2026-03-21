@@ -33,10 +33,12 @@ type SourceKey = string
 
 function getDefaultSource(data: ParsedData, accounts: Account[]): SourceKey {
   if (data.payment_method === 'CREDIT') return 'credit'
+  // Priorizar siempre la cuenta marcada como primaria
+  const primary = accounts.find((a) => a.is_primary && a.type !== 'cash')
+  if (primary) return primary.id
+  // Fallback: usar hint de Gemini o primera cuenta disponible
   if (data.payment_method === 'CASH') return 'cash'
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
-  const principal = bankDigital.find((a) => a.is_primary)
-  if (principal) return principal.id
   if (bankDigital.length > 0) return bankDigital[0].id
   return 'cash'
 }

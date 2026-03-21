@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { ArrowCircleUp, X, ArrowRight } from '@phosphor-icons/react'
+import { ArrowCircleUp, X, ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
-import type { Expense, IncomeEntry } from '@/types/database'
+import type { Account, Expense, IncomeEntry, Transfer } from '@/types/database'
 
 const INCOME_LABELS: Record<string, string> = {
   salary: 'Sueldo',
@@ -17,10 +17,13 @@ const INCOME_LABELS: Record<string, string> = {
 type Movement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
+  | { kind: 'transfer'; data: Transfer }
 
 interface Props {
   expenses: Expense[] | null
   incomeEntries: IncomeEntry[]
+  transfers: Transfer[]
+  accounts: Account[]
   month: string
 }
 
@@ -30,9 +33,11 @@ function getWantDotClass(isWant: boolean | null): string {
   return 'bg-text-dim'
 }
 
-export function Ultimos5({ expenses, incomeEntries, month }: Props) {
+export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }: Props) {
   const router = useRouter()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+
+  const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
 
   const handleDeleteIncome = async (id: string) => {
     setDeletedIds((prev) => new Set([...prev, id]))
@@ -53,6 +58,7 @@ export function Ultimos5({ expenses, incomeEntries, month }: Props) {
     ...incomeEntries
       .filter((e) => !deletedIds.has(e.id))
       .map((e) => ({ kind: 'income' as const, data: e })),
+    ...transfers.map((t) => ({ kind: 'transfer' as const, data: t })),
   ]
     .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
     .slice(0, 5)
@@ -110,8 +116,45 @@ export function Ultimos5({ expenses, incomeEntries, month }: Props) {
               )
             }
 
+            if (mv.kind === 'transfer') {
+              const transfer = mv.data
+              const fromName = accountMap[transfer.from_account_id] ?? 'Cuenta'
+              const toName = accountMap[transfer.to_account_id] ?? 'Cuenta'
+              const sameCurrency = transfer.currency_from === transfer.currency_to
+              return (
+                <div key={`t-${transfer.id}`} className={`flex items-center gap-3.5 py-3.5 ${divider}`}>
+                  <div
+                    className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full"
+                    style={{ background: 'rgba(27,126,158,0.10)', border: '1px solid rgba(27,126,158,0.20)' }}
+                  >
+                    <ArrowsLeftRight weight="duotone" size={18} style={{ color: 'var(--color-ocean)' }} />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="m-0 truncate text-[13px] font-medium text-text-primary">
+                      {fromName} → {toName}
+                    </p>
+                    <span className="text-[11px] text-text-label">
+                      {transfer.note ? `${transfer.note} · ` : ''}
+                      {formatDate(transfer.date)}
+                    </span>
+                  </div>
+                  <div className="text-right shrink-0">
+                    <p className="text-[14px] font-bold tabular-nums tracking-[-0.01em] text-text-secondary">
+                      {formatAmount(transfer.amount_from, transfer.currency_from)}
+                    </p>
+                    {!sameCurrency && (
+                      <p className="text-[11px] text-text-tertiary">
+                        {formatAmount(transfer.amount_to, transfer.currency_to)}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )
+            }
+
             const expense = mv.data
             const isPagoTarjetas = expense.category === 'Pago de Tarjetas'
+            const isUsd = expense.currency === 'USD'
             return (
               <div key={`e-${expense.id}`} className={`flex items-center gap-3.5 py-3.5 ${divider}`}>
                 <CategoryIcon category={expense.category} size={18} container />
@@ -133,11 +176,16 @@ export function Ultimos5({ expenses, incomeEntries, month }: Props) {
                     )}
                   </div>
                 </div>
-                <p
-                  className={`text-[14px] font-bold tabular-nums tracking-[-0.01em] ${isPagoTarjetas ? 'text-primary' : 'text-text-primary'}`}
-                >
-                  {formatAmount(expense.amount, expense.currency)}
-                </p>
+                <div className="text-right shrink-0">
+                  <p
+                    className={`text-[14px] font-bold tabular-nums tracking-[-0.01em] ${isPagoTarjetas ? 'text-primary' : 'text-text-primary'}`}
+                  >
+                    {formatAmount(expense.amount, expense.currency)}
+                  </p>
+                  {isUsd && (
+                    <span className="text-[10px] font-semibold text-warning">USD</span>
+                  )}
+                </div>
               </div>
             )
           })}

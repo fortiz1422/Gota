@@ -68,7 +68,7 @@ interface DrillProps {
   selectedMonth: string // YYYY-MM
 }
 
-const DAY_LABELS = ['D', 'L', 'M', 'M', 'J', 'V', 'S']
+const DAY_LABELS = ['L', 'M', 'X', 'J', 'V', 'S', 'D']
 
 export function DrillMapaHabitos({ habitosMap, selDay, setSelDay, currency, selectedMonth }: DrillProps) {
   const maxCount = Math.max(...habitosMap.map((d) => d.txs.length), 0)
