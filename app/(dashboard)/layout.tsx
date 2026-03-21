@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { TabBar } from '@/components/navigation/TabBar'
+import { ReactQueryProvider } from '@/components/providers/ReactQueryProvider'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
   const supabase = await createClient()
@@ -11,6 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   return (
+    <ReactQueryProvider>
     <div className="relative min-h-screen bg-bg-primary">
       <main className="pb-tab-bar">{children}</main>
       {/* Fade abisal — enmascara el scroll antes de llegar a los elementos flotantes */}
@@ -29,7 +31,8 @@ export default async function DashboardLayout({ children }: { children: React.Re
           WebkitBackdropFilter: 'blur(6px)',
         }}
       />
-      <TabBar />
+        <TabBar />
     </div>
+    </ReactQueryProvider>
   )
 }

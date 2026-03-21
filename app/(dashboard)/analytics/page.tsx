@@ -1,19 +1,10 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
-import { AnalyticsClient } from '@/components/analytics/AnalyticsClient'
-import { computeMetrics } from '@/lib/analytics/computeMetrics'
-import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
-import type { Card, Subscription } from '@/types/database'
+import { AnalyticsDataLoader } from '@/components/analytics/AnalyticsDataLoader'
 
 function getCurrentMonth(): string {
   const now = new Date()
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function addMonths(ym: string, delta: number): string {
-  const [y, m] = ym.split('-').map(Number)
-  const d = new Date(y, m - 1 + delta, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
 }
 
 export default async function AnalyticsPage({
@@ -29,96 +20,11 @@ export default async function AnalyticsPage({
 
   const { month } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
-  const startOfMonth = selectedMonth + '-01'
-  const endOfMonth = addMonths(selectedMonth, 1) + '-01'
-
-  const { data: config } = await supabase
-    .from('user_config')
-    .select('default_currency, cards')
-    .eq('user_id', user.id)
-    .single()
-
-  const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
-  const cards = ((config?.cards as Card[]) ?? []).filter((c) => !c.archived)
-
-  const [
-    { data: rawExpenses },
-    { data: incomeEntries },
-    { data: legacyIncome },
-    { data: oldestExpense },
-    { data: subscriptionsData },
-  ] = await Promise.all([
-    supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('currency', currency)
-      .neq('category', 'Pago de Tarjetas')
-      .gte('date', startOfMonth)
-      .lt('date', endOfMonth),
-    supabase
-      .from('income_entries')
-      .select('amount, currency')
-      .eq('user_id', user.id)
-      .eq('currency', currency)
-      .gte('date', startOfMonth)
-      .lt('date', endOfMonth),
-    supabase
-      .from('monthly_income')
-      .select('amount_ars, amount_usd')
-      .eq('user_id', user.id)
-      .eq('month', startOfMonth)
-      .maybeSingle(),
-    supabase
-      .from('expenses')
-      .select('date')
-      .eq('user_id', user.id)
-      .order('date', { ascending: true })
-      .limit(1)
-      .maybeSingle(),
-    supabase
-      .from('subscriptions')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('is_active', true),
-  ])
-
-  const entriesSum = (incomeEntries ?? []).reduce((s, e) => s + e.amount, 0)
-  const ingresoMes: number | null =
-    entriesSum > 0
-      ? entriesSum
-      : legacyIncome
-        ? currency === 'ARS'
-          ? legacyIncome.amount_ars
-          : legacyIncome.amount_usd
-        : null
-
-  const earliestDataMonth = oldestExpense?.date?.substring(0, 7)
-  const today = new Date()
-  const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
-  const isCurrentMonth =
-    today.getFullYear() === ymYear && today.getMonth() + 1 === ymMonth
-  const daysInMonth = new Date(ymYear, ymMonth, 0).getDate()
-  const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth
-
-  const expenses = rawExpenses ?? []
-  const subscriptions = (subscriptionsData ?? []) as Subscription[]
-
-  const metrics = computeMetrics(expenses, ingresoMes, currency, selectedMonth)
-  const compromisos = computeCompromisos(expenses, cards, dayOfMonth, ingresoMes)
 
   return (
     <div className="min-h-screen bg-bg-primary overflow-x-hidden">
       <div className="mx-auto max-w-md pt-safe pb-tab-bar">
-        <AnalyticsClient
-          metrics={metrics}
-          compromisos={compromisos}
-          rawExpenses={expenses}
-          subscriptions={subscriptions}
-          cards={cards}
-          selectedMonth={selectedMonth}
-          earliestDataMonth={earliestDataMonth}
-        />
+        <AnalyticsDataLoader selectedMonth={selectedMonth} />
       </div>
     </div>
   )
