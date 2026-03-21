@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatAmount, formatDate, dateInputToISO } from '@/lib/format'
@@ -21,6 +22,7 @@ const PAYMENT_LABELS: Record<string, string> = {
 
 export function ExpenseItem({ expense, cards }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [expanded, setExpanded] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
@@ -74,6 +76,8 @@ export function ExpenseItem({ expense, cards }: Props) {
       if (!res.ok) throw new Error()
       setExpanded(false)
       setIsSaving(false)
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       router.refresh()
     } catch {
       setError('Error al guardar. Intentá de nuevo.')

@@ -361,7 +361,7 @@ export function computeMetrics(
     dayMap[d] = { amount: 0, txs: [] }
   }
   for (const e of expenses) {
-    const d = new Date(e.date).getDate()
+    const d = parseInt(e.date.substring(8, 10), 10)
     if (dayMap[d]) {
       dayMap[d].amount += e.amount
       dayMap[d].txs.push({
@@ -383,7 +383,7 @@ export function computeMetrics(
   // Weekly avg: avg daily spend over the last 7 days (days dayOfMonth-6 to dayOfMonth)
   const weekStart = Math.max(1, dayOfMonth - 6)
   const recentExpenses = expenses.filter((e) => {
-    const d = new Date(e.date).getDate()
+    const d = parseInt(e.date.substring(8, 10), 10)
     return d >= weekStart && d <= dayOfMonth
   })
   const recentTotal = recentExpenses.reduce((s, e) => s + e.amount, 0)
