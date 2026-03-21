@@ -65,7 +65,6 @@ export async function GET(request: Request) {
     supabase
       .from('account_period_balance')
       .select('account_id, balance_ars, balance_usd')
-      .in('account_id', (accountsData ?? []).map((a) => a.id))
       .eq('period', monthDate),
     supabase
       .from('transfers')

@@ -155,10 +155,10 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           currency={viewCurrency}
           gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
           transferAdjustment={transferCurrencyAdjustment}
-          onBreakdownOpen={accounts.length > 1 ? () => setBreakdownOpen(true) : undefined}
+          onBreakdownOpen={accounts.length > 0 ? () => setBreakdownOpen(true) : undefined}
         />
 
-        {accounts.length > 1 && (
+        {accounts.length > 0 && (
           <SaldoVivoSheet
             open={breakdownOpen}
             onClose={() => setBreakdownOpen(false)}
