@@ -31,6 +31,7 @@ export function TransferItem({ transfer, accounts }: Props) {
       if (!res.ok) throw new Error()
       setDeleted(true)
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
     } catch {
       alert('Error al eliminar la transferencia.')

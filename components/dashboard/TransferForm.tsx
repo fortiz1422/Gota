@@ -105,6 +105,7 @@ export function TransferForm({ accounts, onClose }: Props) {
         throw new Error(data.error ?? 'Error al guardar')
       }
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onClose()
     } catch (e) {

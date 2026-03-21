@@ -61,6 +61,7 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
     try {
       await fetch(`/api/transfers/${id}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
     } catch {
       setDeletedIds((prev) => {

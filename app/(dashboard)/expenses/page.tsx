@@ -88,22 +88,17 @@ export default async function ExpensesPage({
   const total = expensesResult.count ?? 0
   const totalPages = Math.ceil(total / pageSize)
 
-  // Only show income/transfer entries on first page when no filters active
-  const showExtras = page === 1 && !category && !paymentMethod
-
-  // Merge income + transfers + expenses into a sorted list for page 1 (no filters)
+  // Income and transfers always show on page 1 (filters apply to expenses only)
   type Row =
     | { kind: 'income'; data: IncomeEntry }
     | { kind: 'transfer'; data: Transfer }
     | { kind: 'expense'; data: Expense }
 
-  const rows: Row[] = showExtras
-    ? [
-        ...incomeEntries.map((e) => ({ kind: 'income' as const, data: e })),
-        ...transfers.map((t) => ({ kind: 'transfer' as const, data: t })),
-        ...expenses.map((e) => ({ kind: 'expense' as const, data: e })),
-      ].sort((a, b) => b.data.date.localeCompare(a.data.date))
-    : expenses.map((e) => ({ kind: 'expense' as const, data: e }))
+  const rows: Row[] = [
+    ...(page === 1 ? incomeEntries.map((e) => ({ kind: 'income' as const, data: e })) : []),
+    ...(page === 1 ? transfers.map((t) => ({ kind: 'transfer' as const, data: t })) : []),
+    ...expenses.map((e) => ({ kind: 'expense' as const, data: e })),
+  ].sort((a, b) => b.data.date.localeCompare(a.data.date))
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -131,7 +126,7 @@ export default async function ExpensesPage({
         {total > 0 && (
           <p className="mb-3 text-xs text-text-tertiary">
             {total} gasto{total !== 1 ? 's' : ''}
-            {showExtras && transfers.length > 0 && ` · ${transfers.length} transferencia${transfers.length !== 1 ? 's' : ''}`}
+            {page === 1 && transfers.length > 0 && ` · ${transfers.length} transferencia${transfers.length !== 1 ? 's' : ''}`}
           </p>
         )}
 
