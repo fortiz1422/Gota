@@ -88,17 +88,22 @@ export default async function ExpensesPage({
   const total = expensesResult.count ?? 0
   const totalPages = Math.ceil(total / pageSize)
 
-  // Income and transfers always show on page 1 (filters apply to expenses only)
+  // Income always at top on page 1, then transfers + expenses sorted by date
   type Row =
     | { kind: 'income'; data: IncomeEntry }
     | { kind: 'transfer'; data: Transfer }
     | { kind: 'expense'; data: Expense }
 
-  const rows: Row[] = [
-    ...(page === 1 ? incomeEntries.map((e) => ({ kind: 'income' as const, data: e })) : []),
+  const incomeRows: Row[] = page === 1
+    ? [...incomeEntries].sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ kind: 'income' as const, data: e }))
+    : []
+
+  const restRows: Row[] = [
     ...(page === 1 ? transfers.map((t) => ({ kind: 'transfer' as const, data: t })) : []),
     ...expenses.map((e) => ({ kind: 'expense' as const, data: e })),
   ].sort((a, b) => b.data.date.localeCompare(a.data.date))
+
+  const rows: Row[] = [...incomeRows, ...restRows]
 
   return (
     <div className="min-h-screen bg-bg-primary">

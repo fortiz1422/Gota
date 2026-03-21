@@ -109,9 +109,11 @@ export async function GET(request: Request) {
     if (id) cardMap[id] = (cardMap[id] ?? 0) + e.amount
   }
 
-  // Cross-currency transfer adjustments per account
+  // Transfer adjustments per account (all transfers, not just cross-currency)
+  // Same-currency (ARS→ARS): subtracts from source, adds to destination → total unchanged, per-account correct
+  // Cross-currency (ARS→USD viewing ARS): only subtracts from source → per-currency correct
   const transferMap: Record<string, number> = {}
-  for (const t of (transfersData ?? []).filter((t) => t.currency_from !== t.currency_to)) {
+  for (const t of transfersData ?? []) {
     if (t.currency_from === currency) {
       const id = resolve(t.from_account_id)
       if (id) transferMap[id] = (transferMap[id] ?? 0) - t.amount_from
