@@ -71,6 +71,10 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
     }
   }
 
+  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300)
+  }
+
   const chipBase =
     'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
   const chipActive = 'border-primary bg-primary/15 text-primary'
@@ -95,6 +99,7 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
             placeholder="Ej. Heladera Samsung, Notebook..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onFocus={scrollOnFocus}
             autoFocus
             maxLength={100}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
@@ -113,6 +118,7 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
               placeholder="0"
               value={amountPerCuota}
               onChange={(e) => setAmountPerCuota(e.target.value)}
+              onFocus={scrollOnFocus}
               className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <div className="flex rounded-input bg-bg-tertiary p-1">
@@ -146,6 +152,7 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
                 placeholder="3"
                 value={currentCuota}
                 onChange={(e) => setCurrentCuota(e.target.value)}
+                onFocus={scrollOnFocus}
                 className="min-w-0 flex-1 bg-transparent text-sm text-text-primary text-right focus:outline-none"
               />
             </div>
@@ -159,6 +166,7 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
                 placeholder="18"
                 value={totalCuotas}
                 onChange={(e) => setTotalCuotas(e.target.value)}
+                onFocus={scrollOnFocus}
                 className="min-w-0 flex-1 bg-transparent text-sm text-text-primary text-right focus:outline-none"
               />
             </div>

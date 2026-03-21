@@ -11,6 +11,7 @@ interface ModalProps {
 
 export function Modal({ open, onClose, children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
+  const contentRef = useRef<HTMLDivElement>(null)
 
   // Cerrar con Escape
   useEffect(() => {
@@ -30,6 +31,12 @@ export function Modal({ open, onClose, children }: ModalProps) {
     }
   }, [open])
 
+  // Reset scroll al top al abrir (evita jump en iOS al reabrir modal)
+  useEffect(() => {
+    const t = setTimeout(() => contentRef.current?.scrollTo({ top: 0 }), 50)
+    return () => clearTimeout(t)
+  }, [])
+
   if (!open) return null
 
   return createPortal(
@@ -41,7 +48,11 @@ export function Modal({ open, onClose, children }: ModalProps) {
         onClick={onClose}
       />
       {/* Modal */}
-      <div className="slide-up relative w-full max-w-md max-h-[90vh] overflow-y-auto rounded-t-3xl sm:rounded-card-lg bg-bg-secondary border border-border-ocean p-6">
+      <div
+        ref={contentRef}
+        className="slide-up relative w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-card-lg bg-bg-secondary border border-border-ocean p-6"
+        style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
+      >
         {children}
       </div>
     </div>,

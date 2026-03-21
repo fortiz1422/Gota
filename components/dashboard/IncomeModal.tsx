@@ -72,6 +72,10 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
     }
   }
 
+  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300)
+  }
+
   const chipBase =
     'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
   const chipActive = 'border-primary bg-primary/15 text-primary'
@@ -96,6 +100,7 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
               placeholder="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onFocus={scrollOnFocus}
               autoFocus
               className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
@@ -183,6 +188,7 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
             placeholder="Ej. Quincena, proyecto freelance..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onFocus={scrollOnFocus}
             maxLength={100}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
           />
@@ -197,6 +203,7 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
             type="date"
             value={date}
             onChange={(e) => setDate(e.target.value)}
+            onFocus={scrollOnFocus}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           />
         </div>

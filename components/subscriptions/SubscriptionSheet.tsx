@@ -75,6 +75,10 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
     }
   }
 
+  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
+    setTimeout(() => e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300)
+  }
+
   const chipBase =
     'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
   const chipActive = 'border-primary bg-primary/15 text-primary'
@@ -106,6 +110,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
             placeholder="Ej. Netflix, Spotify, Gym..."
             value={description}
             onChange={(e) => setDescription(e.target.value)}
+            onFocus={scrollOnFocus}
             autoFocus
             maxLength={100}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
@@ -124,6 +129,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
               placeholder="0"
               value={amount}
               onChange={(e) => setAmount(e.target.value)}
+              onFocus={scrollOnFocus}
               className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <div className="flex rounded-input bg-bg-tertiary p-1">
@@ -173,6 +179,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
               max={31}
               value={dayOfMonth}
               onChange={(e) => setDayOfMonth(e.target.value)}
+              onFocus={scrollOnFocus}
               className="w-24 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <span className="text-xs text-text-tertiary">de cada mes (1–31)</span>
