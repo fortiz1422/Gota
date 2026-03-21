@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, DeviceMobileSpeaker } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { todayAR } from '@/lib/format'
@@ -20,6 +21,7 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
 
 export function TransferForm({ accounts, onClose }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const activeAccounts = accounts.filter((a) => !a.archived)
 
   const [fromAccountId, setFromAccountId] = useState(activeAccounts[0]?.id ?? '')
@@ -102,6 +104,7 @@ export function TransferForm({ accounts, onClose }: Props) {
         const data = await res.json()
         throw new Error(data.error ?? 'Error al guardar')
       }
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       router.refresh()
       onClose()
     } catch (e) {

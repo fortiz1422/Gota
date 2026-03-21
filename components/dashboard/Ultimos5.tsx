@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { ArrowCircleUp, X, ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
@@ -35,6 +36,7 @@ function getWantDotClass(isWant: boolean | null): string {
 
 export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
 
   const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
@@ -43,6 +45,22 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
     setDeletedIds((prev) => new Set([...prev, id]))
     try {
       await fetch(`/api/income-entries/${id}`, { method: 'DELETE' })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      router.refresh()
+    } catch {
+      setDeletedIds((prev) => {
+        const s = new Set(prev)
+        s.delete(id)
+        return s
+      })
+    }
+  }
+
+  const handleDeleteTransfer = async (id: string) => {
+    setDeletedIds((prev) => new Set([...prev, id]))
+    try {
+      await fetch(`/api/transfers/${id}`, { method: 'DELETE' })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       router.refresh()
     } catch {
       setDeletedIds((prev) => {
@@ -58,7 +76,7 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
     ...incomeEntries
       .filter((e) => !deletedIds.has(e.id))
       .map((e) => ({ kind: 'income' as const, data: e })),
-    ...transfers.map((t) => ({ kind: 'transfer' as const, data: t })),
+    ...transfers.filter((t) => !deletedIds.has(t.id)).map((t) => ({ kind: 'transfer' as const, data: t })),
   ]
     .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
     .slice(0, 5)
@@ -138,15 +156,24 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
                       {formatDate(transfer.date)}
                     </span>
                   </div>
-                  <div className="text-right shrink-0">
-                    <p className="text-[14px] font-bold tabular-nums tracking-[-0.01em] text-text-secondary">
-                      {formatAmount(transfer.amount_from, transfer.currency_from)}
-                    </p>
-                    {!sameCurrency && (
-                      <p className="text-[11px] text-text-tertiary">
-                        {formatAmount(transfer.amount_to, transfer.currency_to)}
+                  <div className="flex items-center gap-2">
+                    <div className="text-right shrink-0">
+                      <p className="text-[14px] font-bold tabular-nums tracking-[-0.01em] text-text-secondary">
+                        {formatAmount(transfer.amount_from, transfer.currency_from)}
                       </p>
-                    )}
+                      {!sameCurrency && (
+                        <p className="text-[11px] text-text-tertiary">
+                          {formatAmount(transfer.amount_to, transfer.currency_to)}
+                        </p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => handleDeleteTransfer(transfer.id)}
+                      aria-label="Eliminar transferencia"
+                      className="flex items-center justify-center text-text-disabled transition-colors hover:text-danger"
+                    >
+                      <X size={14} weight="bold" />
+                    </button>
                   </div>
                 </div>
               )
