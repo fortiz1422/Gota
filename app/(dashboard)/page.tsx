@@ -124,7 +124,7 @@ export default async function DashboardPage({
   // Process subscriptions (auto-insert for current month, real date)
   const now = new Date()
   const currentDay = now.getDate()
-  await processSubscriptions(supabase, user.id, currentMonth, currentDay)
+  void processSubscriptions(supabase, user.id, currentMonth, currentDay)
 
   // Fetch active subscriptions for banner
   const { data: subscriptionsData } = await supabase
