@@ -2,12 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AccountSection } from '@/components/settings/AccountSection'
 import { SettingsPreferences } from '@/components/settings/SettingsPreferences'
+import { getCurrentMonth } from '@/lib/dates'
 import type { Card, RolloverMode, Account } from '@/types/database'
-
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
 
 export default async function SettingsPage() {
   const supabase = await createClient()

@@ -1,11 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AnalyticsDataLoader } from '@/components/analytics/AnalyticsDataLoader'
-
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
+import { getCurrentMonth } from '@/lib/dates'
 
 export default async function AnalyticsPage({
   searchParams,

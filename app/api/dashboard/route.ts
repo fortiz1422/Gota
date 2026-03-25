@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { buildPrevMonthSummary, buildPerAccountBalances } from '@/lib/rollover'
+import { buildPrevMonthSummary, buildSmartPerAccountBalances } from '@/lib/rollover'
+import { getCurrentMonth, addMonths } from '@/lib/dates'
 import type {
   Account,
   Card,
@@ -11,17 +12,6 @@ import type {
   Subscription,
   Transfer,
 } from '@/types/database'
-
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
-
-function addMonths(ym: string, delta: number): string {
-  const [y, m] = ym.split('-').map(Number)
-  const d = new Date(y, m - 1 + delta, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processSubscriptions(supabase: any, userId: string, currentMonth: string, currentDay: number) {
@@ -193,32 +183,42 @@ export async function GET(request: Request) {
       { data: prevExps },
       { data: prevIncomeEntries },
       { data: prevPeriodBalances },
+      { data: prevTransfers },
     ] = await Promise.all([
       supabase.from('monthly_income').select('*').eq('user_id', user.id).eq('month', prevMonthDate).maybeSingle(),
       supabase
         .from('expenses')
-        .select('amount, category, payment_method')
+        .select('amount, category, payment_method, account_id, currency')
         .eq('user_id', user.id)
-        .eq('currency', currency)
         .gte('date', prevMonthDate)
         .lt('date', selectedMonthDate),
-      supabase.from('income_entries').select('amount, currency').eq('user_id', user.id).gte('date', prevMonthDate).lt('date', selectedMonthDate),
+      supabase.from('income_entries').select('amount, currency, account_id').eq('user_id', user.id).gte('date', prevMonthDate).lt('date', selectedMonthDate),
       accountIds.length > 0
         ? supabase
             .from('account_period_balance')
-            .select('balance_ars, balance_usd')
+            .select('account_id, balance_ars, balance_usd')
             .in('account_id', accountIds)
             .eq('period', prevMonthDate)
-        : Promise.resolve({ data: [] as { balance_ars: number; balance_usd: number }[] }),
+        : Promise.resolve({ data: [] as { account_id: string; balance_ars: number; balance_usd: number }[] }),
+      accountIds.length > 0
+        ? supabase
+            .from('transfers')
+            .select('from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to')
+            .or(`from_account_id.in.(${accountIds.join(',')}),to_account_id.in.(${accountIds.join(',')})`)
+            .gte('date', prevMonthDate)
+            .lt('date', selectedMonthDate)
+        : Promise.resolve({ data: [] as { from_account_id: string; to_account_id: string; amount_from: number; amount_to: number; currency_from: string; currency_to: string }[] }),
     ])
 
     const prevBalanceSum = (prevPeriodBalances ?? []).reduce((s, b) => s + b.balance_ars + b.balance_usd, 0)
     const hasPrevData = prevIncome !== null || (prevIncomeEntries?.length ?? 0) > 0 || prevBalanceSum > 0
 
     if (hasPrevData) {
+      // Filter expenses by currency for the global summary display
+      const prevExpsForSummary = (prevExps ?? []).filter((e) => e.currency === currency)
       const summary = buildPrevMonthSummary(
         prevIncome,
-        prevExps ?? [],
+        prevExpsForSummary,
         currency,
         prevMonthStr,
         prevIncomeEntries ?? [],
@@ -226,7 +226,13 @@ export async function GET(request: Request) {
       )
 
       if (rolloverMode === 'auto') {
-        const perAccountBalances = buildPerAccountBalances(summary.saldoFinal, accounts, currency)
+        const perAccountBalances = buildSmartPerAccountBalances(
+          accounts,
+          prevPeriodBalances ?? [],
+          prevIncomeEntries ?? [],
+          prevExps ?? [],
+          prevTransfers ?? [],
+        )
         await Promise.all([
           ...perAccountBalances.map((bal) =>
             supabase.from('account_period_balance').upsert(

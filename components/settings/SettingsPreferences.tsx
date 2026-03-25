@@ -7,13 +7,8 @@ import { AccountsSection } from '@/components/settings/AccountsSection'
 import { CashSection } from '@/components/settings/CashSection'
 import { CardsSection } from '@/components/settings/CardsSection'
 import { RolloverSection } from '@/components/settings/RolloverSection'
+import { addMonths } from '@/lib/dates'
 import type { Account, Card, RolloverMode } from '@/types/database'
-
-function addMonths(ym: string, delta: number): string {
-  const [y, m] = ym.split('-').map(Number)
-  const d = new Date(y, m - 1 + delta, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
 
 function getMonthLabel(month: string): string {
   const label = new Date(month + '-15').toLocaleDateString('es-AR', {

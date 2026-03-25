@@ -7,12 +7,8 @@ import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeItem } from '@/components/expenses/IncomeItem'
 import { TransferItem } from '@/components/expenses/TransferItem'
 import { ExpenseFilters } from '@/components/expenses/ExpenseFilters'
+import { getCurrentMonth } from '@/lib/dates'
 import type { Account, Card, Expense, IncomeEntry, Transfer } from '@/types/database'
-
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
-}
 
 export default async function ExpensesPage({
   searchParams,

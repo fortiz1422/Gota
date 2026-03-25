@@ -21,16 +21,13 @@ export default async function LoginPage({
     <div className="flex min-h-screen items-center justify-center bg-bg-primary px-4">
       <div className="w-full max-w-sm text-center">
         <Image
-          src="/logo-login.png"
+          src="/gota-wordmark.png"
           alt="Gota"
-          width={80}
-          height={80}
-          className="mb-5 mx-auto"
+          width={240}
+          height={320}
+          className="mb-10 mx-auto"
           priority
         />
-        <h1 className="mb-2 text-3xl font-light tracking-wide text-text-primary">
-          Gota
-        </h1>
         <p className="mb-10 text-sm text-text-tertiary">
           Tus gastos, sin fricción
         </p>

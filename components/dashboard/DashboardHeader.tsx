@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaretDown } from '@phosphor-icons/react'
 import { MonthSelectorSheet } from './MonthSelectorSheet'
+import { getCurrentMonth, addMonths } from '@/lib/dates'
 
 interface Props {
   month: string
@@ -11,17 +12,6 @@ interface Props {
   earliestDataMonth?: string
   className?: string
   viewCurrency?: 'ARS' | 'USD'
-}
-
-function addMonths(ym: string, delta: number): string {
-  const [y, m] = ym.split('-').map(Number)
-  const d = new Date(y, m - 1 + delta, 1)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-}
-
-function getCurrentMonth(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
 }
 
 function buildMonthList(

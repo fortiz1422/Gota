@@ -43,35 +43,36 @@ export function TransferItem({ transfer, accounts }: Props) {
   if (deleted) return null
 
   return (
-    <div
-      className="flex items-center gap-3 rounded-card px-3 py-3"
-      style={{
-        background: 'rgba(27,126,158,0.06)',
-        border: '1px solid rgba(27,126,158,0.18)',
-      }}
-    >
+    <div className="flex items-center gap-3 py-[13px] border-b border-border-subtle">
       <div
-        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-        style={{ background: 'rgba(27,126,158,0.10)', border: '1px solid rgba(27,126,158,0.20)' }}
+        style={{
+          width: 36,
+          height: 36,
+          borderRadius: 10,
+          backgroundColor: 'rgba(74,96,112,0.10)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
       >
-        <ArrowsLeftRight weight="duotone" size={18} style={{ color: 'var(--color-ocean)' }} />
+        <ArrowsLeftRight weight="regular" size={16} style={{ color: '#4A6070' }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="truncate text-[13px] font-medium text-text-primary">
-          {fromName} → {toName}
+        <p className="truncate text-sm text-text-primary">
+          {transfer.note || `${fromName} → ${toName}`}
         </p>
-        <p className="mt-0.5 text-[11px] text-text-tertiary">
-          {transfer.note ? `${transfer.note} · ` : ''}
-          {formatDate(transfer.date)}
+        <p className="text-xs text-text-tertiary">
+          {fromName} → {toName} · {formatDate(transfer.date)}
         </p>
       </div>
       <div className="flex shrink-0 items-center gap-2">
         <div className="text-right">
-          <p className="text-[14px] font-bold tabular-nums text-text-secondary">
+          <p className="text-sm font-medium text-text-primary tabular-nums">
             {formatAmount(transfer.amount_from, transfer.currency_from)}
           </p>
           {!sameCurrency && (
-            <p className="text-[11px] text-text-tertiary">
+            <p className="text-[10px] text-text-tertiary">
               {formatAmount(transfer.amount_to, transfer.currency_to)}
             </p>
           )}

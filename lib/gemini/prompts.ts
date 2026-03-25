@@ -1,5 +1,7 @@
+import { todayAR } from '@/lib/format'
+
 export function createExpensePrompt(input: string): string {
-  const today = new Date().toISOString().split('T')[0]
+  const today = todayAR()
 
   return `Parseá este gasto en español argentino. Hoy es ${today}.
 
