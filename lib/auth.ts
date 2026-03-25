@@ -5,4 +5,7 @@ export const signInAnonymously = () => createClient().auth.signInAnonymously()
 
 /** Vincula Google al usuario anónimo actual → convierte en cuenta permanente */
 export const linkGoogleAccount = () =>
-  createClient().auth.linkIdentity({ provider: 'google' })
+  createClient().auth.linkIdentity({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/auth/callback` },
+  })

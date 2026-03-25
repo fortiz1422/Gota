@@ -46,8 +46,7 @@ export async function PUT(request: Request) {
 
     const { error } = await supabase
       .from('user_config')
-      .update(validated)
-      .eq('user_id', user.id)
+      .upsert({ user_id: user.id, ...validated }, { onConflict: 'user_id' })
 
     if (error) throw error
     return NextResponse.json({ ok: true })
