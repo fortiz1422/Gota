@@ -9,7 +9,6 @@ import { CurrencyToggle } from '@/components/dashboard/CurrencyToggle'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { FiltroEstoico } from '@/components/dashboard/FiltroEstoico'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
-import { IncomeSetupModal } from '@/components/dashboard/IncomeSetupModal'
 import { RolloverBanner } from '@/components/dashboard/RolloverBanner'
 import { CierreMesModal } from '@/components/dashboard/CierreMesModal'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
@@ -141,10 +140,6 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
             <HomePlusButton accounts={accounts} currency={currency} cards={cards} month={selectedMonth} />
           </div>
         </div>
-
-        {!hasIncomeAfterRollover && isCurrentMonth && !manualRolloverSummary && (
-          <IncomeSetupModal month={selectedMonth} currency={currency} />
-        )}
 
         {autoRolloverAmount !== null && (
           <RolloverBanner amount={autoRolloverAmount} currency={currency} />
