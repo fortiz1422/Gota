@@ -17,6 +17,7 @@ interface ParsedData {
   is_want: boolean | null
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_id: string | null
+  installments?: number | null
   date: string
 }
 
@@ -86,7 +87,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
     is_want: data.is_want ?? false,
   })
   const [source, setSource] = useState<SourceKey>(() => getDefaultSource(data, accounts))
-  const [installments, setInstallments] = useState(1)
+  const [installments, setInstallments] = useState(data.installments ?? 1)
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isChecking, setIsChecking] = useState(false)

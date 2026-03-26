@@ -64,6 +64,7 @@ export const ParsedExpenseSchema = z.union([
     is_want: z.boolean().nullable(),
     payment_method: z.enum(['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     card_id: z.string().nullable(),
+    installments: z.number().int().min(1).nullable().optional(),
     date: z.string(),
   }),
   z.object({

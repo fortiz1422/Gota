@@ -14,6 +14,7 @@ interface ParsedData {
   is_want: boolean | null
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_id: string | null
+  installments?: number | null
   date: string
 }
 
