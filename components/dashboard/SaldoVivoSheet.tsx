@@ -2,6 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
+import { Info } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 
 interface AccountRow {
@@ -97,6 +98,14 @@ export function SaldoVivoSheet({ open, onClose, selectedMonth, currency }: Props
             >
               {data.total < 0 ? '−' : ''}{formatAmount(Math.abs(data.total), currency)}
             </span>
+          </div>
+
+          {/* Nota */}
+          <div className="mt-5 flex gap-3 rounded-[14px] bg-bg-secondary px-4 py-3.5">
+            <Info size={16} weight="light" className="text-text-dim shrink-0 mt-0.5" />
+            <p className="text-[12px] text-text-secondary leading-[1.55]">
+              El Saldo Vivo es la suma real de todo tu dinero ahora mismo: cuentas bancarias, billeteras digitales y efectivo. Es el mismo número que ves en cada uno de tus bancos.
+            </p>
           </div>
         </div>
       ) : (

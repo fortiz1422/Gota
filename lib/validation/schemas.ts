@@ -39,7 +39,7 @@ export const ExpenseSchema = z
     payment_method: z.enum(['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     card_id: z.string().nullable(),
     date: z.string(),
-    installments: z.number().int().min(1).max(72).optional(),
+    installments: z.number().int().min(1).max(72).nullish(),
     installment_start: z.number().int().min(1).optional(),
     installment_grand_total: z.number().int().min(1).optional(),
   })

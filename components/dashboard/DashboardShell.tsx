@@ -151,6 +151,7 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
           transferAdjustment={transferCurrencyAdjustment}
           onBreakdownOpen={accounts.length > 0 ? () => setBreakdownOpen(true) : undefined}
+          selectedMonth={selectedMonth}
         />
 
         {accounts.length > 0 && (
