@@ -24,6 +24,7 @@ interface Props {
   onClose: () => void
   selectedMonth: string // YYYY-MM
   currency: 'ARS' | 'USD'
+  isProjected?: boolean
 }
 
 const MESES = [
@@ -31,15 +32,14 @@ const MESES = [
   'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
 ]
 
-export function SaldoVivoSheet({ open, onClose, selectedMonth, currency }: Props) {
+export function SaldoVivoSheet({ open, onClose, selectedMonth, currency, isProjected = false }: Props) {
   const monthName = MESES[parseInt(selectedMonth.split('-')[1], 10) - 1] ?? ''
 
   const { data, isLoading } = useQuery<BreakdownData>({
-    queryKey: ['account-breakdown', selectedMonth, currency],
+    queryKey: ['account-breakdown', selectedMonth, currency, isProjected],
     queryFn: async () => {
-      const res = await fetch(
-        `/api/dashboard/account-breakdown?month=${selectedMonth}&currency=${currency}`,
-      )
+      const url = `/api/dashboard/account-breakdown?month=${selectedMonth}&currency=${currency}${isProjected ? '&projected=true' : ''}`
+      const res = await fetch(url)
       if (!res.ok) throw new Error('breakdown fetch failed')
       return res.json()
     },
@@ -54,7 +54,7 @@ export function SaldoVivoSheet({ open, onClose, selectedMonth, currency }: Props
 
       {/* Header */}
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
-        SALDO VIVO · {monthName}
+        {isProjected ? 'SALDO INICIAL PROYECTADO' : 'SALDO VIVO'} · {monthName}
       </p>
       <p className="mt-1 mb-6 text-[36px] font-extrabold leading-none tabular-nums text-text-primary">
         {data ? formatAmount(data.total, currency) : '—'}

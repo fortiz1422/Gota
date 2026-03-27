@@ -33,6 +33,7 @@ type DashboardApiData = {
   hasUsdExpenses: boolean
   selectedMonth: string
   isCurrentMonth: boolean
+  isProjected: boolean
 }
 
 interface Props {
@@ -101,6 +102,7 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
     transfers,
     earliestDataMonth,
     isCurrentMonth,
+    isProjected,
   } = data
 
   // Cross-currency transfers shift per-currency balance
@@ -152,6 +154,7 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           transferAdjustment={transferCurrencyAdjustment}
           onBreakdownOpen={accounts.length > 0 ? () => setBreakdownOpen(true) : undefined}
           selectedMonth={selectedMonth}
+          isProjected={isProjected}
         />
 
         {accounts.length > 0 && (
@@ -160,6 +163,7 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
             onClose={() => setBreakdownOpen(false)}
             selectedMonth={selectedMonth}
             currency={viewCurrency}
+            isProjected={isProjected}
           />
         )}
 

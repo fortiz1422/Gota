@@ -258,13 +258,45 @@ export async function GET(request: Request) {
     }
   }
 
+  // Projected saldo inicial: if navigating to the immediate next month,
+  // current month is open, and rollover is enabled → use current Saldo Vivo as projected opening balance
+  let projectedSaldoInicial: number | null = null
+  const isNextMonth = selectedMonth === addMonths(currentMonth, 1)
+
+  if (isNextMonth && rolloverMode !== 'off' && !hasIncome) {
+    const { data: currentMonthIncome } = await supabase
+      .from('monthly_income')
+      .select('closed')
+      .eq('user_id', user.id)
+      .eq('month', currentMonth + '-01')
+      .maybeSingle()
+
+    if (!currentMonthIncome?.closed) {
+      const { data: currentDashRaw } = await supabase.rpc('get_dashboard_data', {
+        p_user_id: user.id,
+        p_month: currentMonth + '-01',
+        p_currency: viewCurrency,
+      })
+      const currentData = currentDashRaw as DashboardData | null
+      if (currentData?.saldo_vivo) {
+        const sv = currentData.saldo_vivo
+        projectedSaldoInicial = sv.saldo_inicial + sv.ingresos - sv.gastos_percibidos - sv.pago_tarjetas
+      }
+    }
+  }
+
   const { data: dashboardRaw } = await supabase.rpc('get_dashboard_data', {
     p_user_id: user.id,
     p_month: selectedMonthDate,
     p_currency: viewCurrency,
   })
 
-  const dashboardData = dashboardRaw as DashboardData | null
+  const rawData = dashboardRaw as DashboardData | null
+  let dashboardData: DashboardData | null = rawData
+  if (projectedSaldoInicial !== null && rawData?.saldo_vivo) {
+    dashboardData = { ...rawData, saldo_vivo: { ...rawData.saldo_vivo, saldo_inicial: projectedSaldoInicial } }
+  }
+  const isProjected = projectedSaldoInicial !== null
   const hasIncomeAfterRollover = autoRolloverAmount !== null ? true : hasIncome
 
   return NextResponse.json({
@@ -284,5 +316,6 @@ export async function GET(request: Request) {
     hasUsdExpenses,
     selectedMonth,
     isCurrentMonth,
+    isProjected,
   })
 }

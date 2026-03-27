@@ -11,6 +11,7 @@ interface Props {
   gastosTarjeta: number
   currency: 'ARS' | 'USD'
   selectedMonth: string // YYYY-MM
+  isProjected?: boolean
 }
 
 const MESES = [
@@ -18,7 +19,7 @@ const MESES = [
   'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
 ]
 
-export function DisponibleRealSheet({ open, onClose, saldoVivo, gastosTarjeta, currency, selectedMonth }: Props) {
+export function DisponibleRealSheet({ open, onClose, saldoVivo, gastosTarjeta, currency, selectedMonth, isProjected = false }: Props) {
   const monthName = MESES[parseInt(selectedMonth.split('-')[1], 10) - 1] ?? ''
   const disponibleReal = saldoVivo - gastosTarjeta
 
@@ -29,7 +30,7 @@ export function DisponibleRealSheet({ open, onClose, saldoVivo, gastosTarjeta, c
 
       {/* Header */}
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
-        DISPONIBLE REAL · {monthName}
+        {isProjected ? 'DISPONIBLE REAL PROYECTADO' : 'DISPONIBLE REAL'} · {monthName}
       </p>
       <p className={`mt-1 mb-6 text-[36px] font-extrabold leading-none tabular-nums ${disponibleReal < 0 ? 'text-danger' : 'text-primary'}`}>
         {disponibleReal < 0 ? '−' : ''}
