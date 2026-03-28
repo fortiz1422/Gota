@@ -105,6 +105,8 @@ export function ExpenseItem({ expense, cards }: Props) {
     try {
       const res = await fetch(`/api/expenses/${expense.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       router.refresh()
     } catch {
       setError('Error al eliminar.')
