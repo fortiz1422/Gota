@@ -10,6 +10,7 @@ const UpdateSchema = z.object({
   is_want: z.boolean().nullable().optional(),
   payment_method: z.enum(['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']).optional(),
   card_id: z.string().nullable().optional(),
+  account_id: z.string().uuid().nullable().optional(),
   date: z.string().optional(),
 })
 
