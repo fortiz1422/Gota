@@ -146,6 +146,8 @@ export function CardsSection({
   }
 
   const deleteCard = async (id: string) => {
+    const card = cards.find((c) => c.id === id)
+    if (!confirm(`¿Eliminar "${card?.name}"?`)) return
     setIsSaving(true)
     try {
       const res = await fetch(`/api/cards/${id}`, { method: 'DELETE' })
