@@ -43,6 +43,24 @@ export async function PATCH(
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   if (!data) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
+  // Sync opening balance to account_period_balance for the current month
+  // so get_dashboard_data can reflect it in saldo_vivo
+  if (opening_balance_ars !== undefined || opening_balance_usd !== undefined) {
+    const now = new Date()
+    const period = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    await supabase.from('account_period_balance').upsert(
+      {
+        account_id: id,
+        period,
+        balance_ars: Number(opening_balance_ars) || 0,
+        balance_usd: Number(opening_balance_usd) || 0,
+        source: 'opening',
+        updated_at: now.toISOString(),
+      },
+      { onConflict: 'account_id,period', ignoreDuplicates: false },
+    )
+  }
+
   return NextResponse.json(data)
 }
 
