@@ -12,7 +12,9 @@ import { Ultimos5 } from '@/components/dashboard/Ultimos5'
 import { RolloverBanner } from '@/components/dashboard/RolloverBanner'
 import { CierreMesModal } from '@/components/dashboard/CierreMesModal'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
+import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
+import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import type { Account, Card, DashboardData, Expense, IncomeEntry, Subscription, Transfer } from '@/types/database'
 import type { PrevMonthSummary } from '@/lib/rollover'
 
@@ -92,6 +94,13 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
 
   const invalidateDashboard = () =>
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedMonth, viewCurrency] })
+
+  const { activePrompt } = useCardPaymentPrompts(
+    data?.cards ?? [],
+    data?.isCurrentMonth ?? false,
+    viewCurrency,
+    data?.accounts ?? [],
+  )
 
   // Prefetch Analytics in background so the tab is instant on first visit
   useEffect(() => {
@@ -237,6 +246,21 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           <SmartInput cards={cards} accounts={accounts} onAfterSave={invalidateDashboard} />
         </div>
       </div>
+
+      {activePrompt && !manualRolloverSummary && (
+        <CardPaymentPrompt
+          card={activePrompt.card}
+          amount={activePrompt.amount}
+          currency={viewCurrency}
+          periodoDesde={activePrompt.periodoDesde}
+          periodoHasta={activePrompt.periodoHasta}
+          accounts={accounts}
+          onConfirm={(finalAmount) =>
+            activePrompt.onConfirm(finalAmount).then(invalidateDashboard)
+          }
+          onDismiss={activePrompt.onDismiss}
+        />
+      )}
 
       {manualRolloverSummary && (
         <CierreMesModal

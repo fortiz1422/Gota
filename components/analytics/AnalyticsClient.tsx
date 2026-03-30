@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import Link from 'next/link'
 import { ArrowLineDown, CaretLeft } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
@@ -10,6 +10,7 @@ import { CategoriaRow } from './CategoriaRow'
 import { AnalysisView } from './AnalysisView'
 import { buildHeroOutput } from '@/lib/heroEngine'
 import type { InsightResult } from '@/lib/heroEngine'
+import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { Expense, Card, Subscription } from '@/types/database'
@@ -44,6 +45,7 @@ export function AnalyticsClient({
 }: Props) {
   const [expanded, setExpanded] = useState(false)
   const [activeTab, setActiveTab] = useState<Tab>('diario')
+  const [soloPercibidos, setSoloPercibidos] = useState(false)
   const [drill, setDrill] = useState<Drill | null>(null)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
   const [hero, setHero] = useState<InsightResult | null>(null)
@@ -55,10 +57,17 @@ export function AnalyticsClient({
   }, [selectedMonth])
 
   const { currency } = metrics
-  const visibleCategorias = expanded ? metrics.categorias : metrics.categorias.slice(0, 5)
+
+  const displayCategorias = useMemo(() => {
+    if (!soloPercibidos) return metrics.categorias
+    const filtered = rawExpenses.filter((e) => e.payment_method !== 'CREDIT')
+    return computeMetrics(filtered, metrics.ingresoMes, metrics.currency, selectedMonth).categorias
+  }, [soloPercibidos, rawExpenses, metrics, selectedMonth])
+
+  const visibleCategorias = expanded ? displayCategorias : displayCategorias.slice(0, 5)
   const maxCatTotal =
-    metrics.categorias.length > 0
-      ? Math.max(...metrics.categorias.map((c) => c.total))
+    displayCategorias.length > 0
+      ? Math.max(...displayCategorias.map((c) => c.total))
       : 0
 
   function handleSetDrill(d: Drill | null) {
@@ -171,9 +180,25 @@ export function AnalyticsClient({
                 </div>
               )}
 
-              {metrics.categorias.length > 0 && (
+              {displayCategorias.length > 0 && (
                 <section className="mt-2 px-5">
-                  <p className="type-label text-text-label mb-3">ESTE MES GASTASTE EN</p>
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="type-label text-text-label">ESTE MES GASTASTE EN</p>
+                    <div className="flex items-center rounded-full border border-border-subtle bg-bg-tertiary p-0.5">
+                      <button
+                        onClick={() => { setSoloPercibidos(false); setExpanded(false) }}
+                        className={`px-2.5 py-0.5 text-xs rounded-full transition-colors ${!soloPercibidos ? 'bg-primary text-bg-primary font-medium' : 'text-text-tertiary'}`}
+                      >
+                        Todos
+                      </button>
+                      <button
+                        onClick={() => { setSoloPercibidos(true); setExpanded(false) }}
+                        className={`px-2.5 py-0.5 text-xs rounded-full transition-colors ${soloPercibidos ? 'bg-primary text-bg-primary font-medium' : 'text-text-tertiary'}`}
+                      >
+                        Percibidos
+                      </button>
+                    </div>
+                  </div>
 
                   {visibleCategorias.map((cat, idx) => (
                     <div
@@ -187,7 +212,7 @@ export function AnalyticsClient({
                     </div>
                   ))}
 
-                  {metrics.categorias.length > 5 && (
+                  {displayCategorias.length > 5 && (
                     <div className="flex justify-center mt-2 mb-4">
                       <button
                         onClick={() => setExpanded(!expanded)}
@@ -195,7 +220,7 @@ export function AnalyticsClient({
                       >
                         {expanded
                           ? 'Ver menos'
-                          : `Ver todas (${metrics.categorias.length})`}
+                          : `Ver todas (${displayCategorias.length})`}
                       </button>
                     </div>
                   )}
