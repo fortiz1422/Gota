@@ -589,9 +589,110 @@ CREATE POLICY "transfers_insert" ON transfers FOR INSERT WITH CHECK (auth.uid() 
 CREATE POLICY "transfers_delete" ON transfers FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
+-- v2.1 — Rendimiento diario (cuentas remuneradas)
+-- ============================================
+
+ALTER TABLE accounts
+  ADD COLUMN IF NOT EXISTS daily_yield_enabled BOOLEAN NOT NULL DEFAULT false,
+  ADD COLUMN IF NOT EXISTS daily_yield_rate    DECIMAL(8,4);  -- % TNA. Ej: 78.5000. DECIMAL(8,4) soporta hasta 9999.9999%
+
+CREATE TABLE IF NOT EXISTS yield_accumulator (
+  id                  UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  account_id          UUID NOT NULL REFERENCES accounts(id) ON DELETE CASCADE,
+  month               CHAR(7) NOT NULL,            -- formato YYYY-MM. Ej: '2026-03'
+  accumulated         DECIMAL(12,2) NOT NULL DEFAULT 0,
+  is_manual_override  BOOLEAN NOT NULL DEFAULT false,
+  last_accrued_date   DATE,                        -- última fecha procesada; NULL = no acreditado aún. Usado para idempotencia en GOT-30.
+  confirmed_at        TIMESTAMPTZ,                 -- NULL = mes en curso, fecha = mes cerrado
+  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  UNIQUE (account_id, month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_yield_acc_user_month    ON yield_accumulator(user_id, month DESC);
+CREATE INDEX IF NOT EXISTS idx_yield_acc_account_month ON yield_accumulator(account_id, month);
+
+CREATE TRIGGER yield_accumulator_updated_at
+  BEFORE UPDATE ON yield_accumulator
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE yield_accumulator ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ya_select" ON yield_accumulator FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "ya_insert" ON yield_accumulator FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "ya_update" ON yield_accumulator FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "ya_delete" ON yield_accumulator FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
+-- v2.2 — Instruments (plazo_fijo / fci)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS instruments (
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id         UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  type            TEXT NOT NULL CHECK (type IN ('plazo_fijo', 'fci')),
+  label           TEXT,
+  amount          NUMERIC(12,2) NOT NULL,
+  currency        TEXT NOT NULL DEFAULT 'ARS' CHECK (currency IN ('ARS', 'USD')),
+  rate            NUMERIC(6,4),
+  account_id      UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  opened_at       DATE NOT NULL,
+  due_date        DATE,
+  status          TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'closed')),
+  closed_at       DATE,
+  closed_amount   NUMERIC(12,2),
+  auto_egress_id  UUID,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_instruments_user_status ON instruments(user_id, status);
+
+ALTER TABLE instruments ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "instruments_select" ON instruments FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "instruments_insert" ON instruments FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "instruments_update" ON instruments FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "instruments_delete" ON instruments FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
+-- v2.3 — Ingresos Recurrentes
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS recurring_incomes (
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  amount       NUMERIC(12,2) NOT NULL CHECK (amount > 0),
+  currency     TEXT NOT NULL DEFAULT 'ARS' CHECK (currency IN ('ARS', 'USD')),
+  category     TEXT NOT NULL DEFAULT 'salary' CHECK (category IN ('salary', 'freelance', 'other')),
+  description  TEXT NOT NULL DEFAULT '' CHECK (length(description) <= 100),
+  account_id   UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  day_of_month SMALLINT NOT NULL CHECK (day_of_month BETWEEN 1 AND 28),
+  is_active    BOOLEAN NOT NULL DEFAULT true,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_recurring_incomes_user ON recurring_incomes(user_id, is_active);
+
+CREATE TRIGGER recurring_incomes_updated_at
+  BEFORE UPDATE ON recurring_incomes
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE recurring_incomes ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "ri_select" ON recurring_incomes FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "ri_insert" ON recurring_incomes FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "ri_update" ON recurring_incomes FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "ri_delete" ON recurring_incomes FOR DELETE USING (auth.uid() = user_id);
+
+-- Link income_entries to recurring config (nullable, non-breaking)
+ALTER TABLE income_entries
+  ADD COLUMN IF NOT EXISTS recurring_income_id UUID REFERENCES recurring_incomes(id) ON DELETE SET NULL;
+
+-- ============================================
 -- VERIFY
 -- ============================================
 
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
--- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers
+-- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes

@@ -74,6 +74,45 @@ export type Database = {
         }
         Relationships: []
       }
+      recurring_incomes: {
+        Row: {
+          id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          category: 'salary' | 'freelance' | 'other'
+          description: string
+          account_id: string | null
+          day_of_month: number
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          amount: number
+          currency?: 'ARS' | 'USD'
+          category?: 'salary' | 'freelance' | 'other'
+          description?: string
+          account_id?: string | null
+          day_of_month: number
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          category?: 'salary' | 'freelance' | 'other'
+          description?: string
+          account_id?: string | null
+          day_of_month?: number
+          is_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
       income_entries: {
         Row: {
           id: string
@@ -85,6 +124,7 @@ export type Database = {
           category: 'salary' | 'freelance' | 'other'
           date: string
           created_at: string
+          recurring_income_id: string | null
         }
         Insert: {
           id?: string
@@ -96,6 +136,7 @@ export type Database = {
           category?: 'salary' | 'freelance' | 'other'
           date?: string
           created_at?: string
+          recurring_income_id?: string | null
         }
         Update: {
           account_id?: string | null
@@ -104,6 +145,7 @@ export type Database = {
           description?: string
           category?: 'salary' | 'freelance' | 'other'
           date?: string
+          recurring_income_id?: string | null
         }
         Relationships: []
       }
@@ -265,6 +307,8 @@ export type Database = {
           archived: boolean
           opening_balance_ars: number
           opening_balance_usd: number
+          daily_yield_enabled: boolean
+          daily_yield_rate: number | null
           created_at: string
           updated_at: string
         }
@@ -277,6 +321,8 @@ export type Database = {
           archived?: boolean
           opening_balance_ars?: number
           opening_balance_usd?: number
+          daily_yield_enabled?: boolean
+          daily_yield_rate?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -289,8 +335,95 @@ export type Database = {
           archived?: boolean
           opening_balance_ars?: number
           opening_balance_usd?: number
+          daily_yield_enabled?: boolean
+          daily_yield_rate?: number | null
           created_at?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      yield_accumulator: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string
+          month: string
+          accumulated: number
+          is_manual_override: boolean
+          last_accrued_date: string | null
+          confirmed_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          month: string
+          accumulated?: number
+          is_manual_override?: boolean
+          last_accrued_date?: string | null
+          confirmed_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          accumulated?: number
+          is_manual_override?: boolean
+          last_accrued_date?: string | null
+          confirmed_at?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      instruments: {
+        Row: {
+          id: string
+          user_id: string
+          type: 'plazo_fijo' | 'fci'
+          label: string | null
+          amount: number
+          currency: 'ARS' | 'USD'
+          rate: number | null
+          account_id: string | null
+          opened_at: string
+          due_date: string | null
+          status: 'active' | 'closed'
+          closed_at: string | null
+          closed_amount: number | null
+          auto_egress_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          type: 'plazo_fijo' | 'fci'
+          label?: string | null
+          amount: number
+          currency?: 'ARS' | 'USD'
+          rate?: number | null
+          account_id?: string | null
+          opened_at: string
+          due_date?: string | null
+          status?: 'active' | 'closed'
+          closed_at?: string | null
+          closed_amount?: number | null
+          auto_egress_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          type?: 'plazo_fijo' | 'fci'
+          label?: string | null
+          amount?: number
+          currency?: 'ARS' | 'USD'
+          rate?: number | null
+          account_id?: string | null
+          opened_at?: string
+          due_date?: string | null
+          status?: 'active' | 'closed'
+          closed_at?: string | null
+          closed_amount?: number | null
+          auto_egress_id?: string | null
         }
         Relationships: []
       }
@@ -431,6 +564,10 @@ export type AccountInsert = Database['public']['Tables']['accounts']['Insert']
 export type AccountUpdate = Database['public']['Tables']['accounts']['Update']
 export type AccountType = 'bank' | 'cash' | 'digital'
 
+export type YieldAccumulator = Database['public']['Tables']['yield_accumulator']['Row']
+export type YieldAccumulatorInsert = Database['public']['Tables']['yield_accumulator']['Insert']
+export type YieldAccumulatorUpdate = Database['public']['Tables']['yield_accumulator']['Update']
+
 export type IncomeCategory = 'salary' | 'freelance' | 'other'
 
 export type IncomeEntry = {
@@ -443,6 +580,7 @@ export type IncomeEntry = {
   category: IncomeCategory
   date: string
   created_at: string
+  recurring_income_id: string | null
 }
 
 export type IncomeEntryInsert = {
@@ -452,7 +590,12 @@ export type IncomeEntryInsert = {
   description?: string
   category?: IncomeCategory
   date?: string
+  recurring_income_id?: string | null
 }
+
+export type RecurringIncome       = Database['public']['Tables']['recurring_incomes']['Row']
+export type RecurringIncomeInsert = Database['public']['Tables']['recurring_incomes']['Insert']
+export type RecurringIncomeUpdate = Database['public']['Tables']['recurring_incomes']['Update']
 
 export type AccountPeriodBalance = {
   account_id: string
@@ -490,6 +633,12 @@ export type SubscriptionInsertion = {
 export type Card       = Database['public']['Tables']['cards']['Row']
 export type CardInsert = Database['public']['Tables']['cards']['Insert']
 export type CardUpdate = Database['public']['Tables']['cards']['Update']
+
+export type InstrumentType   = 'plazo_fijo' | 'fci'
+export type InstrumentStatus = 'active' | 'closed'
+export type Instrument       = Database['public']['Tables']['instruments']['Row']
+export type InstrumentInsert = Database['public']['Tables']['instruments']['Insert']
+export type InstrumentUpdate = Database['public']['Tables']['instruments']['Update']
 
 export type Currency = 'ARS' | 'USD'
 export type PaymentMethod = 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
@@ -530,6 +679,7 @@ export type DashboardData = {
     ingresos: number
     gastos_percibidos: number
     pago_tarjetas: number
+    rendimientos: number  // yield acumulado del mes — GOT-30
   } | null
   gastos_tarjeta: number
   filtro_estoico: {

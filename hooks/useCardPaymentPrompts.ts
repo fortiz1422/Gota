@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueries, useQueryClient } from '@tanstack/react-query'
 import {
   findActiveDueCycle,
   getPromptState,
@@ -51,8 +51,8 @@ export function useCardPaymentPrompts(
   // Incrementar para forzar re-cómputo tras dismiss/confirm
   const [refreshKey, setRefreshKey] = useState(0)
 
-  const activeCandidate = useMemo<Candidate | null>(() => {
-    if (!isCurrentMonth) return null
+  const allCandidates = useMemo<Candidate[]>(() => {
+    if (!isCurrentMonth) return []
 
     const today = parseLocalDate(todayAR())
 
@@ -71,36 +71,37 @@ export function useCardPaymentPrompts(
       })
     }
 
-    if (candidates.length === 0) return null
     // Ordenar por due_day ascendente → más urgente primero
     candidates.sort((a, b) => a.card.due_day - b.card.due_day)
-    return candidates[0]
+    return candidates
 
     // refreshKey is intentionally included so the memo re-runs after dismiss/confirm
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cards, isCurrentMonth, refreshKey])
 
-  const { data: amount } = useQuery<number>({
-    queryKey: [
-      'card-resumen',
-      activeCandidate?.card.id,
-      activeCandidate?.cycleKey,
-      viewCurrency,
-    ],
-    queryFn: async () => {
-      const { card, periodoDesde, periodoHasta } = activeCandidate!
-      const from = toYMD(periodoDesde)
-      const to = toYMD(periodoHasta)
-      const res = await fetch(
-        `/api/card-resumen?cardId=${card.id}&from=${from}&to=${to}&currency=${viewCurrency}`,
-      )
-      if (!res.ok) return 0
-      const json = (await res.json()) as { amount: number }
-      return json.amount
-    },
-    enabled: activeCandidate !== null,
-    staleTime: Infinity,
+  const activeCandidate = allCandidates[0] ?? null
+
+  // Pre-cargar montos de todos los candidatos en paralelo.
+  // Así cuando se confirma A, el monto de B ya está en caché y no hay flash de null.
+  const amountResults = useQueries({
+    queries: allCandidates.map((candidate) => ({
+      queryKey: ['card-resumen', candidate.card.id, candidate.cycleKey, viewCurrency],
+      queryFn: async () => {
+        const { card, periodoDesde, periodoHasta } = candidate
+        const from = toYMD(periodoDesde)
+        const to = toYMD(periodoHasta)
+        const res = await fetch(
+          `/api/card-resumen?cardId=${card.id}&from=${from}&to=${to}&currency=${viewCurrency}`,
+        )
+        if (!res.ok) return 0
+        const json = (await res.json()) as { amount: number }
+        return json.amount
+      },
+      staleTime: Infinity,
+    })),
   })
+
+  const amount = amountResults[0]?.data
 
   if (!activeCandidate || amount === undefined || amount === 0) {
     return { activePrompt: null }

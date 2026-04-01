@@ -9,6 +9,8 @@ const Schema = z.object({
   description: z.string().max(100).default(''),
   category: z.enum(['salary', 'freelance', 'other']).default('other'),
   date: z.string().datetime().optional(),
+  recurring_income_id: z.string().uuid().optional(),
+  recurring: z.object({ day_of_month: z.number().int().min(1).max(28) }).optional(),
 })
 
 export async function GET(request: Request) {
@@ -47,7 +49,27 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json()
-    const { account_id, amount, currency, description, category, date } = Schema.parse(body)
+    const { account_id, amount, currency, description, category, date, recurring, recurring_income_id } = Schema.parse(body)
+
+    // Create recurring config if requested
+    let recurringId = recurring_income_id ?? null
+    if (recurring) {
+      const { data: ri, error: riError } = await supabase
+        .from('recurring_incomes')
+        .insert({
+          user_id: user.id,
+          amount,
+          currency,
+          category,
+          description,
+          account_id: account_id ?? null,
+          day_of_month: recurring.day_of_month,
+        })
+        .select('id')
+        .single()
+      if (riError) throw riError
+      recurringId = ri.id
+    }
 
     const { data, error } = await supabase
       .from('income_entries')
@@ -59,6 +81,7 @@ export async function POST(request: Request) {
         description,
         category,
         date: date ?? new Date().toISOString(),
+        recurring_income_id: recurringId,
       })
       .select()
       .single()

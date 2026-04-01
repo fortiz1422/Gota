@@ -14,8 +14,11 @@ import { CierreMesModal } from '@/components/dashboard/CierreMesModal'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
+import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
+import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
-import type { Account, Card, DashboardData, Expense, IncomeEntry, Subscription, Transfer } from '@/types/database'
+import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
+import type { Account, Card, DashboardData, Expense, Instrument, IncomeEntry, RecurringIncome, Subscription, Transfer, YieldAccumulator } from '@/types/database'
 import type { PrevMonthSummary } from '@/lib/rollover'
 
 type DashboardApiData = {
@@ -36,6 +39,11 @@ type DashboardApiData = {
   selectedMonth: string
   isCurrentMonth: boolean
   isProjected: boolean
+  yieldAccumulators: YieldAccumulator[]
+  activeInstruments: Instrument[]
+  capitalInstrumentosMes: number
+  recurringPending: RecurringIncome[]
+  activeRecurring: RecurringIncome[]
 }
 
 interface Props {
@@ -128,6 +136,11 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
     earliestDataMonth,
     isCurrentMonth,
     isProjected,
+    yieldAccumulators,
+    activeInstruments,
+    capitalInstrumentosMes,
+    recurringPending,
+    activeRecurring,
   } = data
 
   // Cross-currency transfers shift per-currency balance
@@ -177,6 +190,7 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           currency={viewCurrency}
           gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
           transferAdjustment={transferCurrencyAdjustment}
+          capitalInstrumentos={FF_INSTRUMENTS ? capitalInstrumentosMes : 0}
           onBreakdownOpen={accounts.length > 0 ? () => setBreakdownOpen(true) : undefined}
           selectedMonth={selectedMonth}
           isProjected={isProjected}
@@ -190,6 +204,14 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
             currency={viewCurrency}
             isProjected={isProjected}
           />
+        )}
+
+        {isCurrentMonth && recurringPending.length > 0 && (
+          <RecurringIncomeBanner pending={recurringPending} accounts={accounts} />
+        )}
+
+        {FF_INSTRUMENTS && (
+          <InstrumentosCard instruments={activeInstruments} currency={viewCurrency} />
         )}
 
         {(allUltimos.length > 0 || (dashboardData?.ultimos_5?.length ?? 0) > 0) && (
@@ -206,6 +228,9 @@ export function DashboardShell({ selectedMonth, viewCurrency }: Props) {
           transfers={transfers}
           accounts={accounts}
           month={selectedMonth}
+          yieldAccumulators={yieldAccumulators}
+          isCurrentMonth={isCurrentMonth}
+          recurringIncomes={activeRecurring}
         />
       </div>
 

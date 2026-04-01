@@ -4,10 +4,12 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
-import { ArrowCircleUp, X, ArrowRight, ArrowsLeftRight } from '@phosphor-icons/react'
+import { ArrowCircleUp, X, ArrowRight, ArrowsLeftRight, TrendUp, CaretRight, ArrowsClockwise } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
-import type { Account, Expense, IncomeEntry, Transfer } from '@/types/database'
+import { Modal } from '@/components/ui/Modal'
+import { FF_YIELD } from '@/lib/flags'
+import type { Account, Expense, IncomeEntry, RecurringIncome, Transfer, YieldAccumulator } from '@/types/database'
 
 const INCOME_LABELS: Record<string, string> = {
   salary: 'Sueldo',
@@ -15,10 +17,13 @@ const INCOME_LABELS: Record<string, string> = {
   other: 'Ingreso',
 }
 
+type YieldMovementData = YieldAccumulator & { accountName: string }
+
 type Movement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
+  | { kind: 'yield'; data: YieldMovementData }
 
 interface Props {
   expenses: Expense[] | null
@@ -26,6 +31,9 @@ interface Props {
   transfers: Transfer[]
   accounts: Account[]
   month: string
+  yieldAccumulators: YieldAccumulator[]
+  isCurrentMonth: boolean
+  recurringIncomes?: RecurringIncome[]
 }
 
 function getWantDotClass(isWant: boolean | null): string {
@@ -34,10 +42,25 @@ function getWantDotClass(isWant: boolean | null): string {
   return 'bg-text-dim'
 }
 
-export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }: Props) {
+function getMovementSortDate(mv: Movement): number {
+  if (mv.kind === 'yield') {
+    const d = mv.data.last_accrued_date ?? mv.data.created_at
+    return new Date(d).getTime()
+  }
+  return new Date(mv.data.date).getTime()
+}
+
+export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, yieldAccumulators, isCurrentMonth, recurringIncomes }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [deletedIds, setDeletedIds] = useState<Set<string>>(new Set())
+  const [yieldSheetItem, setYieldSheetItem] = useState<YieldMovementData | null>(null)
+  const [overrideAmount, setOverrideAmount] = useState('')
+  const [isSavingOverride, setIsSavingOverride] = useState(false)
+  const [gestionarEntry, setGestionarEntry] = useState<{ entry: IncomeEntry; ri: RecurringIncome } | null>(null)
+  const [isDeactivating, setIsDeactivating] = useState(false)
+
+  const recurringMap = new Map((recurringIncomes ?? []).map((ri) => [ri.id, ri]))
 
   const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
 
@@ -72,15 +95,67 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
     }
   }
 
+  const handleOpenYieldSheet = (ya: YieldMovementData) => {
+    setOverrideAmount(String(ya.accumulated))
+    setYieldSheetItem(ya)
+  }
+
+  const handleDeactivateRecurring = async () => {
+    if (!gestionarEntry) return
+    setIsDeactivating(true)
+    try {
+      await fetch(`/api/recurring-incomes/${gestionarEntry.ri.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_active: false }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setGestionarEntry(null)
+    } catch {
+      alert('Error al desactivar el recordatorio.')
+    } finally {
+      setIsDeactivating(false)
+    }
+  }
+
+  const handleSaveOverride = async () => {
+    if (!yieldSheetItem || overrideAmount === '') return
+    setIsSavingOverride(true)
+    try {
+      await fetch(`/api/yield-accumulator/${yieldSheetItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accumulated: Number(overrideAmount), is_manual_override: true }),
+      })
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      setYieldSheetItem(null)
+    } catch {
+      alert('Error al guardar rendimiento.')
+    } finally {
+      setIsSavingOverride(false)
+    }
+  }
+
+  const yieldMovements: Movement[] = FF_YIELD
+    ? yieldAccumulators.map((ya) => ({
+        kind: 'yield' as const,
+        data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' },
+      }))
+    : []
+
   const movements: Movement[] = [
     ...(expenses ?? []).map((e) => ({ kind: 'expense' as const, data: e })),
     ...incomeEntries
       .filter((e) => !deletedIds.has(e.id))
       .map((e) => ({ kind: 'income' as const, data: e })),
     ...transfers.filter((t) => !deletedIds.has(t.id)).map((t) => ({ kind: 'transfer' as const, data: t })),
+    ...yieldMovements,
   ]
-    .sort((a, b) => new Date(b.data.date).getTime() - new Date(a.data.date).getTime())
+    .sort((a, b) => getMovementSortDate(b) - getMovementSortDate(a))
     .slice(0, 5)
+
+  const inputClass =
+    'w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none'
 
   return (
     <div className="px-2">
@@ -104,8 +179,46 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
             const isLast = idx === movements.length - 1
             const divider = !isLast ? 'border-b border-border-subtle' : ''
 
+            if (mv.kind === 'yield') {
+              const ya = mv.data
+              const isClosed = !!ya.confirmed_at
+              return (
+                <div
+                  key={`y-${ya.account_id}`}
+                  className={`flex items-center gap-3.5 py-3.5 ${divider} ${isCurrentMonth && !isClosed ? 'cursor-pointer' : ''}`}
+                  onClick={() => isCurrentMonth && !isClosed && handleOpenYieldSheet(ya)}
+                >
+                  <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border border-success/20 bg-success/10">
+                    <TrendUp weight="duotone" size={18} className="text-success" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="m-0 truncate text-[13px] font-medium text-text-primary">
+                      {ya.accountName}
+                    </p>
+                    <span className="text-[11px] text-text-label">
+                      Rendimiento · {isClosed ? formatDate(ya.confirmed_at!) : 'en curso'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <div className="text-right">
+                      <p className="text-[14px] font-bold tabular-nums tracking-[-0.01em] text-success">
+                        +{formatAmount(ya.accumulated, 'ARS')}
+                      </p>
+                      {!isClosed && (
+                        <p className="text-[10px] text-text-disabled leading-none">est.</p>
+                      )}
+                    </div>
+                    {isCurrentMonth && !isClosed && (
+                      <CaretRight size={12} className="text-text-dim" />
+                    )}
+                  </div>
+                </div>
+              )
+            }
+
             if (mv.kind === 'income') {
               const entry = mv.data
+              const linkedRi = entry.recurring_income_id ? recurringMap.get(entry.recurring_income_id) : null
               return (
                 <div key={`i-${entry.id}`} className={`flex items-center gap-3.5 py-3.5 ${divider}`}>
                   <div className="flex h-[38px] w-[38px] shrink-0 items-center justify-center rounded-full border border-success/20 bg-success/10">
@@ -123,6 +236,15 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
                     <p className="text-[14px] font-bold tabular-nums tracking-[-0.01em] text-success">
                       +{formatAmount(entry.amount, entry.currency)}
                     </p>
+                    {linkedRi && (
+                      <button
+                        onClick={() => setGestionarEntry({ entry, ri: linkedRi })}
+                        aria-label="Gestionar ingreso recurrente"
+                        className="flex items-center justify-center text-primary/50 transition-colors hover:text-primary"
+                      >
+                        <ArrowsClockwise size={14} weight="bold" />
+                      </button>
+                    )}
                     <button
                       onClick={() => handleDeleteIncome(entry.id)}
                       aria-label="Eliminar ingreso"
@@ -218,6 +340,72 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month }
             )
           })}
         </div>
+      )}
+
+      {/* Gestionar ingreso recurrente */}
+      {gestionarEntry && (
+        <Modal open onClose={() => setGestionarEntry(null)}>
+          <div className="space-y-4">
+            <div>
+              <p className="mb-0.5 text-xs text-text-tertiary">Ingreso recurrente</p>
+              <h2 className="text-lg font-bold text-text-primary">
+                {gestionarEntry.ri.description || INCOME_LABELS[gestionarEntry.ri.category] || 'Ingreso'}
+              </h2>
+            </div>
+            <div className="rounded-card bg-bg-tertiary px-4 py-3 space-y-1.5">
+              <div className="flex justify-between text-[13px]">
+                <span className="text-text-secondary">Monto esperado</span>
+                <span className="font-semibold text-text-primary tabular-nums">
+                  {formatAmount(gestionarEntry.ri.amount, gestionarEntry.ri.currency as 'ARS' | 'USD')}
+                </span>
+              </div>
+              <div className="flex justify-between text-[13px]">
+                <span className="text-text-secondary">Repite el día</span>
+                <span className="font-semibold text-text-primary">{gestionarEntry.ri.day_of_month} de cada mes</span>
+              </div>
+            </div>
+            <button
+              onClick={handleDeactivateRecurring}
+              disabled={isDeactivating}
+              className="w-full rounded-button border border-danger/30 py-3 text-sm font-medium text-danger transition-colors hover:bg-danger/5 disabled:opacity-50"
+            >
+              {isDeactivating ? 'Desactivando...' : 'Desactivar recordatorio'}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {/* Override manual sheet — solo mes en curso */}
+      {yieldSheetItem && (
+        <Modal open onClose={() => setYieldSheetItem(null)}>
+          <div className="space-y-4">
+            <div>
+              <p className="mb-0.5 text-xs text-text-tertiary">Rendimiento estimado</p>
+              <h2 className="text-lg font-bold text-text-primary">{yieldSheetItem.accountName}</h2>
+            </div>
+            <p className="text-[13px] text-text-secondary">
+              Si conocés el número real desde la app del banco, ingresalo acá. Gota dejará de estimar este mes.
+            </p>
+            <label className="block space-y-1">
+              <span className="text-[10px] text-text-disabled">Acumulado del mes (ARS)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                value={overrideAmount}
+                onChange={(e) => setOverrideAmount(e.target.value)}
+                className={inputClass}
+                autoFocus
+              />
+            </label>
+            <button
+              onClick={handleSaveOverride}
+              disabled={isSavingOverride || overrideAmount === ''}
+              className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-50"
+            >
+              {isSavingOverride ? 'Guardando...' : 'Guardar monto real'}
+            </button>
+          </div>
+        </Modal>
       )}
     </div>
   )

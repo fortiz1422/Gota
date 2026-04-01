@@ -184,20 +184,37 @@ export function AnalyticsClient({
                 <section className="mt-2 px-5">
                   <div className="flex items-center justify-between mb-3">
                     <p className="type-label text-text-label">ESTE MES GASTASTE EN</p>
-                    <div className="flex items-center rounded-full border border-border-subtle bg-bg-tertiary p-0.5">
-                      <button
-                        onClick={() => { setSoloPercibidos(false); setExpanded(false) }}
-                        className={`px-2.5 py-0.5 text-xs rounded-full transition-colors ${!soloPercibidos ? 'bg-primary text-bg-primary font-medium' : 'text-text-tertiary'}`}
+                    <button
+                      onClick={() => { setSoloPercibidos(!soloPercibidos); setExpanded(false) }}
+                      className="flex items-center gap-1.5"
+                      aria-pressed={soloPercibidos}
+                    >
+                      <span
+                        className="text-[11px] font-medium transition-colors"
+                        style={{ color: soloPercibidos ? '#2178A8' : '#90A4B0' }}
                       >
-                        Todos
-                      </button>
-                      <button
-                        onClick={() => { setSoloPercibidos(true); setExpanded(false) }}
-                        className={`px-2.5 py-0.5 text-xs rounded-full transition-colors ${soloPercibidos ? 'bg-primary text-bg-primary font-medium' : 'text-text-tertiary'}`}
+                        Solo percibidos
+                      </span>
+                      {/* Track */}
+                      <span
+                        className="relative inline-flex shrink-0 rounded-full transition-colors duration-200"
+                        style={{
+                          width: 28,
+                          height: 16,
+                          backgroundColor: soloPercibidos ? '#2178A8' : '#C8D6DF',
+                        }}
                       >
-                        Percibidos
-                      </button>
-                    </div>
+                        {/* Thumb */}
+                        <span
+                          className="absolute top-px rounded-full bg-white shadow transition-transform duration-200"
+                          style={{
+                            width: 14,
+                            height: 14,
+                            transform: soloPercibidos ? 'translateX(13px)' : 'translateX(1px)',
+                          }}
+                        />
+                      </span>
+                    </button>
                   </div>
 
                   {visibleCategorias.map((cat, idx) => (

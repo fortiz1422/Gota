@@ -11,6 +11,14 @@ interface Props {
   accounts: Account[]
   defaultCurrency: 'ARS' | 'USD'
   onClose: () => void
+  prefill?: {
+    amount: number
+    currency: 'ARS' | 'USD'
+    category: IncomeCategory
+    description: string
+    account_id: string | null
+  }
+  recurringIncomeId?: string
 }
 
 const INCOME_CATEGORIES: { value: IncomeCategory; label: string }[] = [
@@ -25,20 +33,28 @@ function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number
   return <Bank weight="duotone" size={size} />
 }
 
-export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
+export function IncomeModal({ accounts, defaultCurrency, onClose, prefill, recurringIncomeId }: Props) {
   const router = useRouter()
-  const [amount, setAmount] = useState('')
-  const [currency, setCurrency] = useState<'ARS' | 'USD'>(defaultCurrency)
-  const [category, setCategory] = useState<IncomeCategory>('salary')
-  const [description, setDescription] = useState('')
+  const [amount, setAmount] = useState(() => prefill ? String(prefill.amount) : '')
+  const [currency, setCurrency] = useState<'ARS' | 'USD'>(() => prefill?.currency ?? defaultCurrency)
+  const [category, setCategory] = useState<IncomeCategory>(() => prefill?.category ?? 'salary')
+  const [description, setDescription] = useState(() => prefill?.description ?? '')
   const [date, setDate] = useState(() => todayAR())
   const [isSaving, setIsSaving] = useState(false)
+  const [repeat, setRepeat] = useState(false)
+  const [dayOfMonth, setDayOfMonth] = useState(() => new Date().getDate())
 
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
   const cashAccount = accounts.find((a) => a.type === 'cash') ?? null
   const primaryAccount = bankDigital.find((a) => a.is_primary) ?? bankDigital[0]
   const defaultAccountKey = primaryAccount?.id ?? (cashAccount ? 'cash' : null)
-  const [selectedKey, setSelectedKey] = useState<string | null>(defaultAccountKey)
+  const [selectedKey, setSelectedKey] = useState<string | null>(() => {
+    if (prefill?.account_id) {
+      if (cashAccount?.id === prefill.account_id) return 'cash'
+      if (bankDigital.some((a) => a.id === prefill.account_id)) return prefill.account_id
+    }
+    return defaultAccountKey
+  })
 
   const resolveAccountId = (): string | null => {
     if (selectedKey === 'cash') return cashAccount?.id ?? null
@@ -60,6 +76,8 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
           description: description.trim(),
           category,
           date: dateInputToISO(date),
+          ...(recurringIncomeId ? { recurring_income_id: recurringIncomeId } : {}),
+          ...(repeat && !recurringIncomeId ? { recurring: { day_of_month: dayOfMonth } } : {}),
         }),
       })
       if (!res.ok) throw new Error()
@@ -192,6 +210,51 @@ export function IncomeModal({ accounts, defaultCurrency, onClose }: Props) {
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
           />
         </div>
+
+        {/* Repetir cada mes — solo si no viene de un recordatorio existente */}
+        {!recurringIncomeId && (
+          <div>
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+                Repetir cada mes
+              </label>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={repeat}
+                onClick={() => setRepeat((v) => !v)}
+                className={`relative h-6 w-10 rounded-full transition-colors ${
+                  repeat ? 'bg-primary' : 'border border-border-subtle bg-bg-tertiary'
+                }`}
+              >
+                <span
+                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
+                    repeat ? 'translate-x-4' : 'translate-x-0.5'
+                  }`}
+                />
+              </button>
+            </div>
+            {repeat && (
+              <div className="mt-3">
+                <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+                  Día del mes <span className="normal-case text-text-disabled">(1–28)</span>
+                </label>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={28}
+                  value={dayOfMonth}
+                  onChange={(e) =>
+                    setDayOfMonth(Math.min(28, Math.max(1, Number(e.target.value) || 1)))
+                  }
+                  onFocus={scrollOnFocus}
+                  className="w-28 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                />
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Fecha */}
         <div>

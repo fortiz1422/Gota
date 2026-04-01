@@ -24,6 +24,8 @@ export function Step5SmartInput({ accountId, accountName, accountType, onBack, o
     archived: false,
     opening_balance_ars: 0,
     opening_balance_usd: 0,
+    daily_yield_enabled: false,
+    daily_yield_rate: null,
     user_id: '',
     created_at: '',
     updated_at: '',

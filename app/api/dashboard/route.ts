@@ -2,12 +2,16 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { buildPrevMonthSummary, buildSmartPerAccountBalances } from '@/lib/rollover'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
+import { processYieldAccrual } from '@/lib/yieldEngine'
+import { FF_YIELD, FF_INSTRUMENTS } from '@/lib/flags'
 import type {
   Account,
   Card,
   DashboardData,
   Expense,
+  Instrument,
   IncomeEntry,
+  RecurringIncome,
   RolloverMode,
   Subscription,
   Transfer,
@@ -105,6 +109,8 @@ export async function GET(request: Request) {
 
   // Fire-and-forget subscription auto-insert (current month only)
   void processSubscriptions(supabase, user.id, currentMonth, new Date().getDate())
+  // Yield accrual: awaited antes del Promise.all para que la query de yieldData lea el valor actualizado
+  if (isCurrentMonth && FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
 
   const [
     legacyIncomeResult,
@@ -115,6 +121,9 @@ export async function GET(request: Request) {
     { data: allUltimosData },
     { data: transfersData },
     { data: subscriptionsData },
+    { data: yieldData },
+    { data: instrumentsData },
+    { data: recurringData },
   ] = await Promise.all([
     supabase
       .from('monthly_income')
@@ -164,6 +173,22 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .eq('is_active', true)
       .order('created_at', { ascending: true }),
+    supabase
+      .from('yield_accumulator')
+      .select('id, account_id, accumulated, is_manual_override, last_accrued_date, confirmed_at')
+      .eq('user_id', user.id)
+      .eq('month', selectedMonth),
+    supabase
+      .from('instruments')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'active')
+      .order('opened_at', { ascending: false }),
+    supabase
+      .from('recurring_incomes')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('is_active', true),
   ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
@@ -296,10 +321,41 @@ export async function GET(request: Request) {
     p_currency: viewCurrency,
   })
 
+  const rendimientosMes = FF_YIELD
+    ? (yieldData ?? []).reduce((sum: number, ya: { accumulated: number }) => sum + (ya.accumulated ?? 0), 0)
+    : 0
+
+  const activeInstruments = (instrumentsData ?? []) as Instrument[]
+  // Solo instrumentos abiertos en el mes seleccionado: el rollover captura el saldo
+  // actualizado al pasar de mes, por lo que meses anteriores ya están reflejados en saldo_inicial
+  const capitalInstrumentosMes = FF_INSTRUMENTS
+    ? activeInstruments
+        .filter((i) => i.opened_at.startsWith(selectedMonth) && i.currency === viewCurrency)
+        .reduce((sum, i) => sum + i.amount, 0)
+    : 0
+
+  const activeRecurring = (recurringData ?? []) as RecurringIncome[]
+  const todayAR = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Buenos_Aires' })
+  const todayDay = parseInt(todayAR.split('-')[2], 10)
+  const linkedThisMonth = new Set(
+    incomeEntries
+      .filter((ie) => ie.recurring_income_id !== null)
+      .map((ie) => ie.recurring_income_id as string),
+  )
+  const recurringPending = isCurrentMonth
+    ? activeRecurring.filter((ri) => ri.day_of_month <= todayDay && !linkedThisMonth.has(ri.id))
+    : []
+
   const rawData = dashboardRaw as DashboardData | null
   let dashboardData: DashboardData | null = rawData
   if (projectedSaldoInicial !== null && rawData?.saldo_vivo) {
     dashboardData = { ...rawData, saldo_vivo: { ...rawData.saldo_vivo, saldo_inicial: projectedSaldoInicial } }
+  }
+  if (dashboardData?.saldo_vivo) {
+    dashboardData = {
+      ...dashboardData,
+      saldo_vivo: { ...dashboardData.saldo_vivo, rendimientos: rendimientosMes },
+    }
   }
   const isProjected = projectedSaldoInicial !== null
   const hasIncomeAfterRollover = autoRolloverAmount !== null ? true : hasIncome
@@ -322,5 +378,10 @@ export async function GET(request: Request) {
     selectedMonth,
     isCurrentMonth,
     isProjected,
+    yieldAccumulators: yieldData ?? [],
+    activeInstruments,
+    capitalInstrumentosMes,
+    recurringPending,
+    activeRecurring,
   })
 }

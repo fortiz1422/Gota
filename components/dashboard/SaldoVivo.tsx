@@ -12,6 +12,7 @@ interface Props {
   currency: 'ARS' | 'USD'
   gastosTarjeta?: number
   transferAdjustment?: number
+  capitalInstrumentos?: number
   onBreakdownOpen?: () => void
   selectedMonth?: string
   isProjected?: boolean
@@ -20,7 +21,7 @@ interface Props {
 type HeroMode = 'saldo_vivo' | 'disponible_real'
 type AnimPhase = 'idle' | 'exit' | 'pre-enter' | 'enter'
 
-export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustment = 0, onBreakdownOpen, selectedMonth = '', isProjected = false }: Props) {
+export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustment = 0, capitalInstrumentos = 0, onBreakdownOpen, selectedMonth = '', isProjected = false }: Props) {
   const [mode, setMode] = useState<HeroMode>('saldo_vivo')
   const [displayedMode, setDisplayedMode] = useState<HeroMode>('saldo_vivo')
   const [animPhase, setAnimPhase] = useState<AnimPhase>('idle')
@@ -40,7 +41,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustmen
   }
 
   const saldoInicial = (data.saldo_inicial as number | undefined) ?? 0
-  const disponible = saldoInicial + data.ingresos - data.gastos_percibidos - data.pago_tarjetas + transferAdjustment
+  const disponible = saldoInicial + data.ingresos + (data.rendimientos ?? 0) - data.gastos_percibidos - data.pago_tarjetas + transferAdjustment - capitalInstrumentos
   const disponibleReal = disponible - gastosTarjeta
 
   const heroValue = displayedMode === 'saldo_vivo' ? disponible : disponibleReal

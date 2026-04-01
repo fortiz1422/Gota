@@ -6,9 +6,10 @@ import { CaretLeft, CaretRight } from '@phosphor-icons/react/dist/ssr'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeItem } from '@/components/expenses/IncomeItem'
 import { TransferItem } from '@/components/expenses/TransferItem'
+import { YieldItem } from '@/components/expenses/YieldItem'
 import { ExpenseFilters } from '@/components/expenses/ExpenseFilters'
 import { getCurrentMonth } from '@/lib/dates'
-import type { Account, Card, Expense, IncomeEntry, Transfer } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
 
 export default async function ExpensesPage({
   searchParams,
@@ -38,7 +39,7 @@ export default async function ExpensesPage({
   const [y, m] = month.split('-').map(Number)
   const nextMonthDate = new Date(y, m, 1).toISOString().split('T')[0]
 
-  const [{ data: cardsData }, incomeResult, transfersResult, accountsResult, expensesResult] = await Promise.all([
+  const [{ data: cardsData }, incomeResult, transfersResult, accountsResult, expensesResult, yieldResult] = await Promise.all([
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false).order('created_at', { ascending: true }),
     supabase
       .from('income_entries')
@@ -74,6 +75,11 @@ export default async function ExpensesPage({
         q = q.eq('payment_method', paymentMethod as 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT')
       return q
     })(),
+    supabase
+      .from('yield_accumulator')
+      .select('id, account_id, accumulated, is_manual_override, last_accrued_date, confirmed_at, created_at, updated_at')
+      .eq('user_id', user.id)
+      .eq('month', month),
   ])
 
   const cards: Card[] = (cardsData ?? []) as Card[]
@@ -81,14 +87,22 @@ export default async function ExpensesPage({
   const transfers = (transfersResult.data ?? []) as Transfer[]
   const accounts = (accountsResult.data ?? []) as Account[]
   const expenses = (expensesResult.data ?? []) as Expense[]
+  const yieldAccumulators = (yieldResult.data ?? []) as YieldAccumulator[]
   const total = expensesResult.count ?? 0
   const totalPages = Math.ceil(total / pageSize)
+  const isCurrentMonth = month === currentMonth
 
   // Income always at top on page 1, then transfers + expenses sorted by date
+  // Yield rows always on page 1, excluded from category/payment_method filters
   type Row =
     | { kind: 'income'; data: IncomeEntry }
     | { kind: 'transfer'; data: Transfer }
     | { kind: 'expense'; data: Expense }
+    | { kind: 'yield'; data: YieldAccumulator }
+
+  const yieldRows: Row[] = page === 1
+    ? yieldAccumulators.map((ya) => ({ kind: 'yield' as const, data: ya }))
+    : []
 
   const incomeRows: Row[] = page === 1
     ? [...incomeEntries].sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ kind: 'income' as const, data: e }))
@@ -99,7 +113,7 @@ export default async function ExpensesPage({
     ...expenses.map((e) => ({ kind: 'expense' as const, data: e })),
   ].sort((a, b) => b.data.date.localeCompare(a.data.date))
 
-  const rows: Row[] = [...incomeRows, ...restRows]
+  const rows: Row[] = [...yieldRows, ...incomeRows, ...restRows]
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -135,6 +149,7 @@ export default async function ExpensesPage({
         {rows.length > 0 ? (
           <div className="space-y-2">
             {rows.map((row) => {
+              if (row.kind === 'yield') return <YieldItem key={`y-${row.data.account_id}`} ya={row.data} accounts={accounts} isCurrentMonth={isCurrentMonth} />
               if (row.kind === 'income') return <IncomeItem key={`i-${row.data.id}`} entry={row.data} />
               if (row.kind === 'transfer') return <TransferItem key={`t-${row.data.id}`} transfer={row.data} accounts={accounts} />
               return <ExpenseItem key={`e-${row.data.id}`} expense={row.data} cards={cards} accounts={accounts} />

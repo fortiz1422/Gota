@@ -380,8 +380,9 @@ export function computeMetrics(
 
   // — HERO ENGINE SIGNALS —
 
-  // Weekly avg: avg daily spend over the last 7 days (days dayOfMonth-6 to dayOfMonth)
-  const weekStart = Math.max(1, dayOfMonth - 6)
+  // Weekly avg: current calendar week (Mon–today) for current month; last 7 days for past months
+  const daysSinceMonday = (today.getDay() + 6) % 7 // 0 = Mon … 6 = Sun
+  const weekStart = Math.max(1, isCurrentMonth ? dayOfMonth - daysSinceMonday : dayOfMonth - 6)
   const recentExpenses = expenses.filter((e) => {
     const d = parseInt(e.date.substring(8, 10), 10)
     return d >= weekStart && d <= dayOfMonth

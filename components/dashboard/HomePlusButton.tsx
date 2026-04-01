@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight } from '@phosphor-icons/react'
+import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight, TrendUp } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { IncomeModal } from './IncomeModal'
 import { SubscriptionSheet } from '@/components/subscriptions/SubscriptionSheet'
 import { CuotasEnCursoSheet } from './CuotasEnCursoSheet'
 import { TransferForm } from './TransferForm'
+import { InstrumentForm } from '@/components/instruments/InstrumentForm'
+import { FF_INSTRUMENTS } from '@/lib/flags'
 import type { Account, Card } from '@/types/database'
 
 interface Props {
@@ -16,7 +18,7 @@ interface Props {
   month: string
 }
 
-type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas' | 'transfer'
+type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas' | 'transfer' | 'instrumento'
 
 export function HomePlusButton({ accounts, currency, cards, month }: Props) {
   const [sheet, setSheet] = useState<Sheet>(null)
@@ -99,7 +101,7 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
 
             <button
               onClick={() => setSheet('transfer')}
-              className="flex w-full items-center gap-4 py-[13px] text-left transition-colors"
+              className="flex w-full items-center gap-4 py-[13px] border-b border-border-subtle text-left transition-colors"
             >
               <div
                 className="flex h-10 w-10 shrink-0 items-center justify-center"
@@ -114,6 +116,29 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
                 </p>
               </div>
             </button>
+
+            {FF_INSTRUMENTS && (
+              <button
+                onClick={() => setSheet('instrumento')}
+                className="flex w-full items-center gap-4 py-[13px] text-left transition-colors"
+              >
+                <div
+                  className="flex h-10 w-10 shrink-0 items-center justify-center"
+                  style={{ borderRadius: 12, backgroundColor: 'rgba(184,74,18,0.10)' }}
+                >
+                  <TrendUp weight="regular" size={20} className="text-warning" />
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-text-primary">Plazo fijo / FCI</p>
+                    <span className="rounded-full bg-warning/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wide text-warning">
+                      Nuevo
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-tertiary">Plata que va a rendir y vuelve con intereses</p>
+                </div>
+              </button>
+            )}
           </div>
         </Modal>
       )}
@@ -145,6 +170,14 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
 
       {sheet === 'transfer' && (
         <TransferForm accounts={accounts} onClose={() => setSheet(null)} />
+      )}
+
+      {FF_INSTRUMENTS && sheet === 'instrumento' && (
+        <InstrumentForm
+          accounts={accounts}
+          defaultCurrency={currency}
+          onClose={() => setSheet(null)}
+        />
       )}
     </>
   )
