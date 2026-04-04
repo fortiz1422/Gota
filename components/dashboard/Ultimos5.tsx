@@ -68,6 +68,7 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, 
     try {
       await fetch(`/api/income-entries/${id}`, { method: 'DELETE' })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
     } catch {
       setDeletedIds((prev) => {
@@ -127,6 +128,7 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, 
         body: JSON.stringify({ accumulated: Number(overrideAmount), is_manual_override: true }),
       })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       setYieldSheetItem(null)
     } catch {
       alert('Error al guardar rendimiento.')

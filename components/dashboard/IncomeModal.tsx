@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { todayAR, dateInputToISO } from '@/lib/format'
@@ -35,6 +36,7 @@ function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number
 
 export function IncomeModal({ accounts, defaultCurrency, onClose, prefill, recurringIncomeId }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [amount, setAmount] = useState(() => prefill ? String(prefill.amount) : '')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(() => prefill?.currency ?? defaultCurrency)
   const [category, setCategory] = useState<IncomeCategory>(() => prefill?.category ?? 'salary')
@@ -81,6 +83,8 @@ export function IncomeModal({ accounts, defaultCurrency, onClose, prefill, recur
         }),
       })
       if (!res.ok) throw new Error()
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onClose()
     } catch {

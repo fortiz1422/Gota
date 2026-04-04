@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowCircleUp } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { IncomeEntry } from '@/types/database'
@@ -18,6 +19,7 @@ interface Props {
 
 export function IncomeItem({ entry }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleted, setDeleted] = useState(false)
 
@@ -28,6 +30,8 @@ export function IncomeItem({ entry }: Props) {
       const res = await fetch(`/api/income-entries/${entry.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       setDeleted(true)
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
     } catch {
       alert('Error al eliminar el ingreso.')

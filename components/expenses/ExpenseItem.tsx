@@ -120,6 +120,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       setIsSaving(false)
       queryClient.invalidateQueries({ queryKey: ['analytics'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onUpdate?.()
     } catch {
@@ -150,6 +151,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       if (!res.ok) throw new Error()
       queryClient.invalidateQueries({ queryKey: ['analytics'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onUpdate?.()
     } catch {

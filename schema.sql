@@ -691,6 +691,41 @@ ALTER TABLE income_entries
   ADD COLUMN IF NOT EXISTS recurring_income_id UUID REFERENCES recurring_incomes(id) ON DELETE SET NULL;
 
 -- ============================================
+-- v2.4 — Card Cycles
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS card_cycles (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  card_id UUID NOT NULL REFERENCES cards(id) ON DELETE CASCADE,
+  period_month DATE NOT NULL,
+  closing_date DATE NOT NULL,
+  due_date DATE NOT NULL,
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'paid')),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_card_cycle_period UNIQUE (card_id, period_month)
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_cycles_user_card_period
+  ON card_cycles(user_id, card_id, period_month DESC);
+
+CREATE TRIGGER card_cycles_updated_at
+  BEFORE UPDATE ON card_cycles
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+CREATE TRIGGER card_cycles_normalize_period_month
+  BEFORE INSERT OR UPDATE ON card_cycles
+  FOR EACH ROW EXECUTE FUNCTION normalize_month();
+
+ALTER TABLE card_cycles ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "card_cycles_select" ON card_cycles FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "card_cycles_insert" ON card_cycles FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_cycles_update" ON card_cycles FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_cycles_delete" ON card_cycles FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
 -- VERIFY
 -- ============================================
 

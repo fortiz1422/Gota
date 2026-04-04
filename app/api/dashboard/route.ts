@@ -4,6 +4,7 @@ import { buildPrevMonthSummary, buildSmartPerAccountBalances, sumAccountBalances
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { processYieldAccrual } from '@/lib/yieldEngine'
 import { FF_YIELD, FF_INSTRUMENTS } from '@/lib/flags'
+import { todayAR } from '@/lib/format'
 import type {
   Account,
   Card,
@@ -78,7 +79,7 @@ export async function GET(request: Request) {
   const selectedMonthDate = selectedMonth + '-01'
   const nextMonthDate = addMonths(selectedMonth, 1) + '-01'
   const isCurrentMonth = selectedMonth === currentMonth
-  const todayDate = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Buenos_Aires' })
+  const todayDate = todayAR()
 
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
@@ -110,7 +111,7 @@ export async function GET(request: Request) {
   const accountIds = accounts.map((a) => a.id)
 
   // Fire-and-forget subscription auto-insert (current month only)
-  void processSubscriptions(supabase, user.id, currentMonth, new Date().getDate())
+  void processSubscriptions(supabase, user.id, currentMonth, parseInt(todayDate.split('-')[2], 10))
   // Yield accrual: awaited antes del Promise.all para que la query de yieldData lea el valor actualizado
   if (isCurrentMonth && FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
 
@@ -339,8 +340,7 @@ export async function GET(request: Request) {
     : 0
 
   const activeRecurring = (recurringData ?? []) as RecurringIncome[]
-  const todayAR = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Buenos_Aires' })
-  const todayDay = parseInt(todayAR.split('-')[2], 10)
+  const todayDay = parseInt(todayDate.split('-')[2], 10)
   const linkedThisMonth = new Set(
     incomeEntries
       .filter((ie) => ie.recurring_income_id !== null)

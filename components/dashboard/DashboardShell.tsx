@@ -141,8 +141,10 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
     enabled: !!data,
   })
 
-  const invalidateDashboard = () =>
+  const invalidateDashboardData = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedMonth, viewCurrency] })
+    queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
+  }
 
   const { activePrompt } = useCardPaymentPrompts(
     data?.cards ?? [],
@@ -286,7 +288,7 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
         }}
       >
         <div style={{ width: '100%', maxWidth: 448, padding: '0 16px', pointerEvents: 'auto' }}>
-          <SmartInput cards={cards} accounts={accounts} onAfterSave={invalidateDashboard} />
+          <SmartInput cards={cards} accounts={accounts} onAfterSave={invalidateDashboardData} />
         </div>
       </div>
 
@@ -298,7 +300,7 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
           periodoDesde={activePrompt.periodoDesde}
           periodoHasta={activePrompt.periodoHasta}
           accounts={accounts}
-          onConfirm={(finalAmount) => activePrompt.onConfirm(finalAmount).then(invalidateDashboard)}
+          onConfirm={(finalAmount) => activePrompt.onConfirm(finalAmount).then(invalidateDashboardData)}
           onDismiss={activePrompt.onDismiss}
         />
       )}

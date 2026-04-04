@@ -20,9 +20,25 @@ export function formatDate(isoString: string): string {
 
 const TZ = 'America/Buenos_Aires'
 
+function formatDatePartsInAR(date: Date): { year: string; month: string; day: string } {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+
+  return {
+    year: parts.find((part) => part.type === 'year')?.value ?? '0000',
+    month: parts.find((part) => part.type === 'month')?.value ?? '01',
+    day: parts.find((part) => part.type === 'day')?.value ?? '01',
+  }
+}
+
 /** Hoy en formato YYYY-MM-DD según timezone Argentina */
 export function todayAR(): string {
-  return new Date().toLocaleDateString('en-CA', { timeZone: TZ })
+  const { year, month, day } = formatDatePartsInAR(new Date())
+  return `${year}-${month}-${day}`
 }
 
 /** Convierte un date input (YYYY-MM-DD) a ISO string con mediodía AR (UTC-3) */

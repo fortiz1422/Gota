@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { FF_YIELD } from '@/lib/flags'
+import { todayAR } from '@/lib/format'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -180,7 +181,7 @@ export async function GET(request: Request) {
   const transferMovements: ApiMovement[] = allTransfers.map((t) => ({ kind: 'transfer' as const, data: t }))
   const expenseMovements: ApiMovement[] = filteredExpenses.map((e) => ({ kind: 'expense' as const, data: e }))
 
-  const todayStr = new Date().toLocaleDateString('en-CA', { timeZone: 'America/Buenos_Aires' })
+  const todayStr = todayAR()
 
   // Combine: yield only on page 1
   const allMovements: ApiMovement[] = [

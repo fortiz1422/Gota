@@ -81,7 +81,7 @@ export function computeCompromisos(
       nextCycleSpend,
       daysUntilClosing,
     }
-  })
+  }).sort((a, b) => b.currentSpend - a.currentSpend)
 
   // totalComprometido = currentSpend sum of all cards + unassigned
   const totalComprometido =

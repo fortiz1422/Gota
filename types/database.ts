@@ -300,6 +300,38 @@ export type Database = {
         }
         Relationships: []
       }
+      card_cycles: {
+        Row: {
+          id: string
+          user_id: string
+          card_id: string
+          period_month: string
+          closing_date: string
+          due_date: string
+          status: 'open' | 'closed' | 'paid'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          card_id: string
+          period_month: string
+          closing_date: string
+          due_date: string
+          status?: 'open' | 'closed' | 'paid'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          card_id?: string
+          period_month?: string
+          closing_date?: string
+          due_date?: string
+          status?: 'open' | 'closed' | 'paid'
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           id: string
@@ -636,6 +668,9 @@ export type SubscriptionInsertion = {
 export type Card       = Database['public']['Tables']['cards']['Row']
 export type CardInsert = Database['public']['Tables']['cards']['Insert']
 export type CardUpdate = Database['public']['Tables']['cards']['Update']
+export type CardCycle = Database['public']['Tables']['card_cycles']['Row']
+export type CardCycleInsert = Database['public']['Tables']['card_cycles']['Insert']
+export type CardCycleUpdate = Database['public']['Tables']['card_cycles']['Update']
 
 export type InstrumentType   = 'plazo_fijo' | 'fci'
 export type InstrumentStatus = 'active' | 'closed'
