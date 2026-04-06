@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { toDateOnly } from '@/lib/format'
 
 export async function PATCH(
   request: Request,
@@ -17,7 +18,14 @@ export async function PATCH(
 
   const { error } = await supabase
     .from('income_entries')
-    .update({ amount, currency, description, category, date, account_id })
+    .update({
+      amount,
+      currency,
+      description,
+      category,
+      date: date ? toDateOnly(date) : undefined,
+      account_id,
+    })
     .eq('id', id)
     .eq('user_id', user.id)
 

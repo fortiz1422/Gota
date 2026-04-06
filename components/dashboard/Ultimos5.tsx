@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowCircleUp, X, ArrowsLeftRight, TrendUp, CaretRight, ArrowsClockwise } from '@phosphor-icons/react'
-import { formatAmount, formatDate } from '@/lib/format'
+import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { Modal } from '@/components/ui/Modal'
 import { FF_YIELD } from '@/lib/flags'
@@ -49,6 +49,13 @@ function getMovementSortDate(mv: Movement): number {
   return new Date(mv.data.date).getTime()
 }
 
+function getMovementDateOnly(mv: Movement): string {
+  if (mv.kind === 'yield') {
+    return toDateOnly(mv.data.last_accrued_date ?? mv.data.created_at)
+  }
+  return toDateOnly(mv.data.date)
+}
+
 export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, yieldAccumulators, isCurrentMonth, recurringIncomes }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -62,6 +69,7 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, 
   const recurringMap = new Map((recurringIncomes ?? []).map((ri) => [ri.id, ri]))
 
   const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
+  const today = todayAR()
 
   const handleDeleteIncome = async (id: string) => {
     setDeletedIds((prev) => new Set([...prev, id]))
@@ -152,7 +160,16 @@ export function Ultimos5({ expenses, incomeEntries, transfers, accounts, month, 
     ...transfers.filter((t) => !deletedIds.has(t.id)).map((t) => ({ kind: 'transfer' as const, data: t })),
     ...yieldMovements,
   ]
-    .sort((a, b) => getMovementSortDate(b) - getMovementSortDate(a))
+    .sort((a, b) => {
+      const dateA = getMovementDateOnly(a)
+      const dateB = getMovementDateOnly(b)
+      const aFuture = dateA > today
+      const bFuture = dateB > today
+
+      if (aFuture !== bFuture) return aFuture ? 1 : -1
+      if (dateB !== dateA) return dateB.localeCompare(dateA)
+      return getMovementSortDate(b) - getMovementSortDate(a)
+    })
     .slice(0, 5)
 
   const inputClass =

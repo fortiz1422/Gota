@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { toDateOnly } from '@/lib/format'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -29,10 +30,14 @@ export async function PUT(
   try {
     const body = await request.json()
     const validated = UpdateSchema.parse(body)
+    const updatePayload = {
+      ...validated,
+      date: validated.date ? toDateOnly(validated.date) : undefined,
+    }
 
     const { data, error } = await supabase
       .from('expenses')
-      .update(validated)
+      .update(updatePayload)
       .eq('id', id)
       .eq('user_id', user.id)
       .select()

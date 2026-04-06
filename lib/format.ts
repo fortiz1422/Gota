@@ -18,6 +18,10 @@ export function formatDate(isoString: string): string {
   return new Date(y, m - 1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
+export function toDateOnly(value: string): string {
+  return value.substring(0, 10)
+}
+
 const TZ = 'America/Buenos_Aires'
 
 function formatDatePartsInAR(date: Date): { year: string; month: string; day: string } {

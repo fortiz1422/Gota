@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { z } from 'zod'
+import { todayAR, toDateOnly } from '@/lib/format'
 
 const Schema = z.object({
   account_id: z.string().uuid().nullable().optional(),
@@ -80,7 +81,7 @@ export async function POST(request: Request) {
         currency,
         description,
         category,
-        date: date ?? new Date().toISOString(),
+        date: toDateOnly(date ?? todayAR()),
         recurring_income_id: recurringId,
       })
       .select()

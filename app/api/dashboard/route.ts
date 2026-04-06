@@ -80,6 +80,9 @@ export async function GET(request: Request) {
   const nextMonthDate = addMonths(selectedMonth, 1) + '-01'
   const isCurrentMonth = selectedMonth === currentMonth
   const todayDate = todayAR()
+  const tomorrowDate = new Date(`${todayDate}T00:00:00-03:00`)
+  tomorrowDate.setDate(tomorrowDate.getDate() + 1)
+  const tomorrowStr = tomorrowDate.toISOString().split('T')[0]
 
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
@@ -158,7 +161,7 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .gte('date', selectedMonthDate)
       .lt('date', nextMonthDate)
-      .lte('date', isCurrentMonth ? todayDate : nextMonthDate)
+      .lt('date', isCurrentMonth ? tomorrowStr : nextMonthDate)
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5),
@@ -331,8 +334,6 @@ export async function GET(request: Request) {
     : 0
 
   const activeInstruments = (instrumentsData ?? []) as Instrument[]
-  // Solo instrumentos abiertos en el mes seleccionado: el rollover captura el saldo
-  // actualizado al pasar de mes, por lo que meses anteriores ya están reflejados en saldo_inicial
   const capitalInstrumentosMes = FF_INSTRUMENTS
     ? activeInstruments
         .filter((i) => i.opened_at.startsWith(selectedMonth) && i.currency === viewCurrency)

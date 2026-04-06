@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ExpenseSchema } from '@/lib/validation/schemas'
+import { toDateOnly } from '@/lib/format'
 import { ZodError } from 'zod'
 
 export async function GET(request: Request) {
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
     if (numInstallments === 1) {
       const { data, error } = await supabase
         .from('expenses')
-        .insert({ user_id: user.id, ...expenseFields })
+        .insert({ user_id: user.id, ...expenseFields, date: toDateOnly(expenseFields.date) })
         .select()
         .single()
       if (error) throw error
