@@ -20,7 +20,7 @@ export function StripOperativo({ percibidos, tarjeta, pagoTarjeta, currency = 'A
           {formatCompact(percibidos, currency)}
         </span>
         <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
-          lo que salió de tu bolsillo
+          Caja + débito + pago tarjeta
         </span>
       </div>
 
@@ -34,7 +34,7 @@ export function StripOperativo({ percibidos, tarjeta, pagoTarjeta, currency = 'A
           {tarjeta > 0 ? formatCompact(tarjeta, currency) : '—'}
         </span>
         <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
-          lo que cargaste a la tarjeta
+          Consumos aún no debitados
         </span>
       </div>
 
@@ -48,7 +48,7 @@ export function StripOperativo({ percibidos, tarjeta, pagoTarjeta, currency = 'A
           {pagoTarjeta > 0 ? formatCompact(pagoTarjeta, currency) : '—'}
         </span>
         <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
-          lo que ya saldaste
+          Pagos reales del mes
         </span>
       </div>
     </div>

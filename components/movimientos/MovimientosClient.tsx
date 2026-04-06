@@ -76,7 +76,7 @@ export function MovimientosClient({ initialMonth }: Props) {
           setCards(data.cards ?? [])
         }
       } catch {
-        // silently fail — UI keeps previous state
+        // silently fail â€” UI keeps previous state
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
@@ -85,7 +85,6 @@ export function MovimientosClient({ initialMonth }: Props) {
     []
   )
 
-  // Re-fetch on filter/month changes (reset to page 1)
   useEffect(() => {
     setPage(1)
     fetchMovements(selectedMonth, typeFilter, categoryFilter, 1, false)
@@ -116,11 +115,9 @@ export function MovimientosClient({ initialMonth }: Props) {
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)',
         }}
       >
-        {/* Header */}
         <div className="flex items-center justify-between pt-5">
           <h1 className="text-[17px] font-bold text-text-primary">Movimientos</h1>
 
-          {/* Period selector */}
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrevMonth}
@@ -143,14 +140,12 @@ export function MovimientosClient({ initialMonth }: Props) {
           </div>
         </div>
 
-        {/* Strip operativo */}
         <StripOperativo
           percibidos={stats.percibidos}
           tarjeta={stats.tarjeta}
           pagoTarjeta={stats.pagoTarjeta}
         />
 
-        {/* Filtros */}
         <MovimientosFiltros
           typeFilter={typeFilter}
           onTypeChange={setTypeFilter}
@@ -159,7 +154,6 @@ export function MovimientosClient({ initialMonth }: Props) {
           availableCategories={categories}
         />
 
-        {/* Lista */}
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
