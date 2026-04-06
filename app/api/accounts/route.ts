@@ -68,5 +68,16 @@ export async function POST(request: Request) {
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
 
+  // Sync opening balance to account_period_balance for the current month
+  const balArs = Number(opening_balance_ars) || 0
+  const balUsd = Number(opening_balance_usd) || 0
+  if (balArs > 0 || balUsd > 0) {
+    const period = new Date().toISOString().substring(0, 7) + '-01'
+    await supabase.from('account_period_balance').upsert(
+      { account_id: data.id, period, balance_ars: balArs, balance_usd: balUsd, source: 'opening' },
+      { onConflict: 'account_id,period' },
+    )
+  }
+
   return NextResponse.json(data, { status: 201 })
 }

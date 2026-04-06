@@ -476,40 +476,38 @@ CREATE OR REPLACE FUNCTION get_dashboard_data(
 RETURNS JSON AS $$
 DECLARE
   v_result JSON;
+  v_saldo_cutoff DATE := LEAST(
+    CURRENT_DATE,
+    (DATE_TRUNC('month', p_month) + INTERVAL '1 month - 1 day')::DATE
+  );
 BEGIN
   SELECT json_build_object(
     'saldo_vivo', json_build_object(
       'saldo_inicial', COALESCE(
-        (SELECT SUM(CASE WHEN p_currency = 'ARS' THEN apb.balance_ars ELSE apb.balance_usd END)
-         FROM account_period_balance apb
-         JOIN accounts a ON a.id = apb.account_id
+        (SELECT SUM(CASE WHEN p_currency = 'ARS' THEN a.opening_balance_ars ELSE a.opening_balance_usd END)
+         FROM accounts a
          WHERE a.user_id = p_user_id
-           AND apb.period = DATE_TRUNC('month', p_month)::DATE),
-        (SELECT CASE WHEN p_currency = 'ARS' THEN saldo_inicial_ars ELSE saldo_inicial_usd END
-         FROM monthly_income
-         WHERE user_id = p_user_id AND month = DATE_TRUNC('month', p_month)::DATE),
+           AND a.archived = false),
         0
       ),
       'ingresos', COALESCE(
-        NULLIF((SELECT SUM(amount) FROM income_entries
-         WHERE user_id = p_user_id AND currency = p_currency
-           AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)), 0),
-        (SELECT CASE WHEN p_currency = 'ARS' THEN amount_ars ELSE amount_usd END
-         FROM monthly_income
-         WHERE user_id = p_user_id AND month = DATE_TRUNC('month', p_month)::DATE),
+        (SELECT SUM(amount) FROM income_entries
+         WHERE user_id = p_user_id
+           AND currency = p_currency
+           AND date <= v_saldo_cutoff),
         0
       ),
       'gastos_percibidos', COALESCE((
         SELECT SUM(amount) FROM expenses
         WHERE user_id = p_user_id AND currency = p_currency
-          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND date <= v_saldo_cutoff
           AND payment_method IN ('CASH', 'DEBIT', 'TRANSFER')
           AND category != 'Pago de Tarjetas'
       ), 0),
       'pago_tarjetas', COALESCE((
         SELECT SUM(amount) FROM expenses
         WHERE user_id = p_user_id AND currency = p_currency
-          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND date <= v_saldo_cutoff
           AND category = 'Pago de Tarjetas'
       ), 0)
     ),
