@@ -1,0 +1,241 @@
+name: Qwen Agent 🤖
+
+# ─────────────────────────────────────────────
+# TRIGGERS
+# ─────────────────────────────────────────────
+on:
+  # 1. MANUAL — desde GitHub app en iPhone o terminal
+  workflow_dispatch:
+    inputs:
+      task:
+        description: "Qué tiene que hacer (ej: Fix GOT-26 — SmartInput tapado por teclado)"
+        required: true
+        type: string
+      issue_id:
+        description: "ID del issue de Linear (ej: GOT-26)"
+        required: false
+        type: string
+      mode:
+        description: "Tipo de tarea"
+        required: true
+        type: choice
+        options:
+          - bugfix
+          - feature
+          - review
+        default: bugfix
+
+  # 2. NOCTURNO — revision de calidad automática a las 3am AR (6am UTC)
+  schedule:
+    - cron: "0 6 * * *"
+
+# ─────────────────────────────────────────────
+# PERMISOS — necesarios para abrir PRs
+# ─────────────────────────────────────────────
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  qwen-agent:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      # ── 1. Checkout del repo ──────────────────
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # ── 2. Node.js ───────────────────────────
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+
+      # ── 3. Instalar Qwen Code ─────────────────
+      - name: Install Qwen Code
+        run: npm install -g @qwen/qwen-code
+
+      # ── 4. Configurar modelo ──────────────────
+      - name: Configure Qwen Code
+        run: |
+          mkdir -p ~/.qwen
+          cat > ~/.qwen/settings.json << 'EOF'
+          {
+            "modelProviders": {
+              "openai": [
+                {
+                  "id": "qwen3.6-plus",
+                  "name": "qwen3.6-plus",
+                  "baseUrl": "https://openrouter.ai/api/v1",
+                  "envKey": "OPENROUTER_API_KEY"
+                }
+              ]
+            },
+            "model": { "name": "qwen3.6-plus" },
+            "security": {
+              "auth": { "selectedType": "openai" }
+            }
+          }
+          EOF
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+
+      # ── 5. Instalar dependencias del proyecto ─
+      - name: Install project deps
+        run: npm ci
+
+      # ── 6. TypeScript check baseline ─────────
+      - name: TSC baseline
+        run: npx tsc --noEmit
+        continue-on-error: true  # el agente fixea lo que encuentre
+
+      # ── 7. Preparar prompt según modo ─────────
+      - name: Prepare prompt
+        id: prompt
+        run: |
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            # MODO NOCTURNO — revisión de calidad
+            echo "mode=review" >> $GITHUB_OUTPUT
+            cat > /tmp/agent-task.txt << 'EOF'
+          Sos el agente de calidad de Gota. Tarea de revisión nocturna.
+
+          Revisá el código del repo y hacé lo siguiente:
+          1. Detectá errores de TypeScript (`tsc --noEmit`) y fixeá los que puedas
+          2. Buscá funciones duplicadas — especialmente `addMonths()` y `getCurrentMonth()` — y extraelas a `lib/` si están repetidas en 2+ archivos
+          3. Identificá código muerto importado pero no usado
+          4. Verificá que ningún componente use tokens del tema Deep Ocean (cyan #38bdf8, fondos oscuros)
+          5. Chequeá que los Phosphor Icons usen weight "regular" o "duotone" (no "light" ni "fill" salvo excepción)
+
+          Para cada problema encontrado:
+          - Si podés fixearlo con seguridad → fixealo
+          - Si requiere decisión de producto → dejá un comentario TODO en el código
+
+          Al final abrí un PR con título "[Qwen Nightly] Revisión de calidad YYYY-MM-DD"
+          y descripción con tabla de hallazgos: qué encontraste, qué fixeaste, qué dejaste pendiente.
+
+          Lee docs/contexto-agente.md antes de empezar.
+          EOF
+          else
+            # MODO MANUAL — tarea específica
+            MODE="${{ github.event.inputs.mode }}"
+            TASK="${{ github.event.inputs.task }}"
+            ISSUE="${{ github.event.inputs.issue_id }}"
+            echo "mode=${MODE}" >> $GITHUB_OUTPUT
+
+            if [ "$MODE" == "bugfix" ]; then
+              cat > /tmp/agent-task.txt << EOF
+          Sos el agente de Gota. Tarea: BUGFIX.
+          Issue Linear: ${ISSUE}
+          Descripción: ${TASK}
+
+          Pasos obligatorios:
+          1. Leé docs/contexto-agente.md completo
+          2. Localizá el archivo(s) responsable del bug
+          3. Implementá el fix mínimo necesario
+          4. Corré tsc --noEmit — si hay errores de tipo, fixealos
+          5. Abrí un PR con título "[${ISSUE}] <descripción breve>" en español
+
+          Reglas:
+          - NO toques RLS de Supabase
+          - NO hagas deploy
+          - Si el fix requiere decisión de producto → comentalo en el PR y no asumas
+          - Un PR, un fix
+          EOF
+
+            elif [ "$MODE" == "feature" ]; then
+              cat > /tmp/agent-task.txt << EOF
+          Sos el agente de Gota. Tarea: FEATURE.
+          Issue Linear: ${ISSUE}
+          Descripción: ${TASK}
+
+          Pasos obligatorios:
+          1. Leé docs/contexto-agente.md completo
+          2. Entendé el alcance — si algo no está claro, comentalo en el PR y no asumas
+          3. Implementá siguiendo el stack y design system de Gota (Light Fría)
+          4. Usá Phosphor Icons, DM Sans, tokens de color correctos
+          5. Corré tsc --noEmit — sin errores antes de commitear
+          6. Abrí un PR con título "[${ISSUE}] <descripción breve>" en español
+
+          Reglas:
+          - NO toques RLS de Supabase
+          - NO hagas deploy
+          - Toda lógica financiera nueva: consultá los conceptos en docs/contexto-agente.md
+          - Si necesitás una nueva API route, seguí el patrón BFF de las existentes
+          EOF
+
+            elif [ "$MODE" == "review" ]; then
+              cat > /tmp/agent-task.txt << EOF
+          Sos el agente de Gota. Tarea: CODE REVIEW de un área específica.
+          Área a revisar: ${TASK}
+          Issue referencia: ${ISSUE}
+
+          Pasos obligatorios:
+          1. Leé docs/contexto-agente.md completo
+          2. Analizá el área indicada en profundidad
+          3. Para cada problema encontrado:
+             - Si es un fix seguro y acotado → fixealo
+             - Si requiere decisión de producto → anotalo como TODO
+          4. Abrí un PR con informe detallado: hallazgos, fixes aplicados, pendientes
+
+          Reglas:
+          - NO toques RLS de Supabase
+          - NO hagas deploy
+          EOF
+            fi
+          fi
+
+      # ── 8. Ejecutar agente ────────────────────
+      - name: Run Qwen Agent
+        env:
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Crear rama para el PR
+          if [ "${{ github.event_name }}" == "schedule" ]; then
+            BRANCH="qwen/nightly-$(date +%Y-%m-%d)"
+          else
+            ISSUE="${{ github.event.inputs.issue_id }}"
+            SLUG=$(echo "${{ github.event.inputs.task }}" | tr '[:upper:]' '[:lower:]' | tr ' ' '-' | cut -c1-40)
+            BRANCH="qwen/${ISSUE}-${SLUG}"
+          fi
+
+          git checkout -b "$BRANCH"
+          git config user.email "qwen-agent@gotalabs.ai"
+          git config user.name "Qwen Agent"
+
+          # Correr el agente con el prompt preparado
+          TASK=$(cat /tmp/agent-task.txt)
+          qwen --headless --prompt "$TASK"
+
+          # TSC final — no commitear si hay errores nuevos
+          npx tsc --noEmit
+
+          # Push y PR
+          git add -A
+          git diff --staged --quiet || git commit -m "$(head -1 /tmp/agent-task.txt | sed 's/Sos el agente de Gota. Tarea: //')"
+          git push origin "$BRANCH"
+
+          # Abrir PR via GitHub CLI
+          gh pr create \
+            --base main \
+            --head "$BRANCH" \
+            --title "$(cat /tmp/agent-task.txt | grep 'PR con título' | sed 's/.*título //' | head -1)" \
+            --body "$(cat /tmp/agent-task.txt)" \
+            --label "qwen-agent"
+
+      # ── 9. Notificar resultado ────────────────
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Qwen Agent Result" >> $GITHUB_STEP_SUMMARY
+          echo "- **Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Mode:** ${{ steps.prompt.outputs.mode }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "- **Issue:** ${{ github.event.inputs.issue_id }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Task:** ${{ github.event.inputs.task }}" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
