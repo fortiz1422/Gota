@@ -56,18 +56,6 @@ type DashboardApiData = {
   activeRecurring: RecurringIncome[]
 }
 
-type BreakdownData = {
-  breakdown: {
-    id: string
-    name: string
-    type: string
-    is_primary: boolean
-    saldo: number
-  }[]
-  total: number
-  currency: 'ARS' | 'USD'
-}
-
 interface Props {
   selectedMonth: string
   viewCurrency: 'ARS' | 'USD'
@@ -126,19 +114,6 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
       if (!res.ok) throw new Error('dashboard fetch failed')
       return res.json()
     },
-  })
-
-  const { data: breakdownData } = useQuery<BreakdownData>({
-    queryKey: ['account-breakdown', selectedMonth, viewCurrency, data?.isProjected ?? false],
-    queryFn: async () => {
-      const projected = data?.isProjected ? '&projected=true' : ''
-      const res = await fetch(
-        `/api/dashboard/account-breakdown?month=${selectedMonth}&currency=${viewCurrency}${projected}`,
-      )
-      if (!res.ok) throw new Error('breakdown fetch failed')
-      return res.json()
-    },
-    enabled: !!data,
   })
 
   const invalidateDashboardData = () => {
@@ -214,7 +189,6 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
           gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
           transferAdjustment={transferCurrencyAdjustment}
           capitalInstrumentos={FF_INSTRUMENTS ? capitalInstrumentosMes : 0}
-          saldoVivoOverride={breakdownData?.total ?? null}
           onBreakdownOpen={accounts.length > 0 ? () => setBreakdownOpen(true) : undefined}
           selectedMonth={selectedMonth}
           isProjected={isProjected}

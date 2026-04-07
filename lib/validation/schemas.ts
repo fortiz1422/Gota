@@ -23,6 +23,7 @@ export const CATEGORIES = [
   'Entretenimiento',
   'Mascotas',
   'Hijos',
+  'Cargos Bancarios',
   'Otros',
   'Pago de Tarjetas',
 ] as const
@@ -39,6 +40,7 @@ export const ExpenseSchema = z
     payment_method: z.enum(['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     card_id: z.string().nullable(),
     account_id: z.string().uuid().nullable().optional(),
+    is_legacy_card_payment: z.boolean().nullable().optional(),
     date: z.string(),
     installments: z.number().int().min(1).max(72).nullish(),
     installment_start: z.number().int().min(1).optional(),

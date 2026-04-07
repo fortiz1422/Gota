@@ -24,6 +24,7 @@ CREATE TABLE expenses (
   category VARCHAR(50) NOT NULL,
   description TEXT NOT NULL CHECK (length(description) <= 100),
   is_want BOOLEAN,
+  is_legacy_card_payment BOOLEAN,
 
   payment_method VARCHAR(20) NOT NULL CHECK (payment_method IN ('CASH', 'DEBIT', 'TRANSFER', 'CREDIT')),
   card_id VARCHAR(50),
@@ -422,6 +423,7 @@ CREATE POLICY "accounts_delete" ON accounts FOR DELETE USING (auth.uid() = user_
 -- Add account_id FK to expenses (nullable, non-breaking)
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS account_id UUID REFERENCES accounts(id) ON DELETE SET NULL;
 ALTER TABLE expenses ADD COLUMN IF NOT EXISTS subscription_id UUID REFERENCES subscriptions(id) ON DELETE SET NULL;
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS is_legacy_card_payment BOOLEAN;
 
 -- ============================================
 -- v1.3 — Income Entries + Account Period Balance
@@ -689,6 +691,35 @@ ALTER TABLE income_entries
   ADD COLUMN IF NOT EXISTS recurring_income_id UUID REFERENCES recurring_incomes(id) ON DELETE SET NULL;
 
 -- ============================================
+-- v2.3b — Cards (tabla de tarjetas por usuario)
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS cards (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  name        VARCHAR(100) NOT NULL,
+  closing_day INTEGER,
+  due_day     INTEGER NOT NULL DEFAULT 10,
+  account_id  UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  archived    BOOLEAN NOT NULL DEFAULT false,
+  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_cards_user ON cards(user_id, archived, created_at DESC);
+
+CREATE TRIGGER cards_updated_at
+  BEFORE UPDATE ON cards
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE cards ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "cards_select" ON cards FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "cards_insert" ON cards FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "cards_update" ON cards FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "cards_delete" ON cards FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
 -- v2.4 — Card Cycles
 -- ============================================
 
@@ -724,9 +755,131 @@ CREATE POLICY "card_cycles_update" ON card_cycles FOR UPDATE
 CREATE POLICY "card_cycles_delete" ON card_cycles FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
+-- v2.5 — Card Cycles: montos de resumen y pago
+-- ============================================
+
+ALTER TABLE card_cycles
+  ADD COLUMN IF NOT EXISTS amount_draft NUMERIC(12,2),   -- suma automática del devengado (calculada al cerrar)
+  ADD COLUMN IF NOT EXISTS amount_paid  NUMERIC(12,2),   -- monto efectivamente pagado por el usuario
+  ADD COLUMN IF NOT EXISTS paid_at      TIMESTAMPTZ;     -- null = abierto/vencido; fecha = pagado
+
+-- ============================================
+-- v2.6 — Disponible Real: deuda pendiente neta de tarjetas
+-- Cambia gastos_tarjeta de devengado mensual a deuda acumulada sin pagar
+-- ============================================
+
+CREATE OR REPLACE FUNCTION get_dashboard_data(
+  p_user_id UUID,
+  p_month DATE,
+  p_currency VARCHAR(3)
+)
+RETURNS JSON AS $$
+DECLARE
+  v_result JSON;
+  v_saldo_cutoff DATE := LEAST(
+    CURRENT_DATE,
+    (DATE_TRUNC('month', p_month) + INTERVAL '1 month - 1 day')::DATE
+  );
+BEGIN
+  SELECT json_build_object(
+    'saldo_vivo', json_build_object(
+      'saldo_inicial', COALESCE(
+        (SELECT SUM(CASE WHEN p_currency = 'ARS' THEN a.opening_balance_ars ELSE a.opening_balance_usd END)
+         FROM accounts a
+         WHERE a.user_id = p_user_id
+           AND a.archived = false),
+        0
+      ),
+      'ingresos', COALESCE(
+        (SELECT SUM(amount) FROM income_entries
+         WHERE user_id = p_user_id
+           AND currency = p_currency
+           AND date <= v_saldo_cutoff),
+        0
+      ),
+      'gastos_percibidos', COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND date <= v_saldo_cutoff
+          AND payment_method IN ('CASH', 'DEBIT', 'TRANSFER')
+          AND category != 'Pago de Tarjetas'
+      ), 0),
+      'pago_tarjetas', COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND date <= v_saldo_cutoff
+          AND category = 'Pago de Tarjetas'
+      ), 0)
+    ),
+    -- Deuda pendiente neta: total devengado en tarjeta - total pagos realizados (acumulado histórico).
+    -- Representa lo comprometido que todavía no salió de la cuenta.
+    -- disponibleReal (frontend) = saldoVivo - gastos_tarjeta.
+    -- Como saldoVivo ya descuenta pago_tarjetas, los pagos se cancelan y queda:
+    --   disponibleReal = opening + ingresos - gastos_percibidos - total_devengado_credito
+    'gastos_tarjeta', GREATEST(0,
+      COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND date <= v_saldo_cutoff
+          AND payment_method = 'CREDIT'
+          AND category != 'Pago de Tarjetas'
+      ), 0)
+      -
+      COALESCE((
+        SELECT SUM(amount) FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND date <= v_saldo_cutoff
+          AND category = 'Pago de Tarjetas'
+      ), 0)
+    ),
+    'filtro_estoico', (
+      SELECT json_build_object(
+        'necesidad_count', COUNT(*) FILTER (WHERE is_want = false),
+        'deseo_count', COUNT(*) FILTER (WHERE is_want = true),
+        'total_count', COUNT(*),
+        'necesidad_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = false), 0),
+        'deseo_amount', COALESCE(SUM(amount) FILTER (WHERE is_want = true), 0)
+      )
+      FROM expenses
+      WHERE user_id = p_user_id AND currency = p_currency
+        AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+        AND category != 'Pago de Tarjetas' AND is_want IS NOT NULL
+    ),
+    'top_3', (
+      SELECT json_agg(row_to_json(t))
+      FROM (
+        SELECT category, SUM(amount) AS total, COUNT(*) AS count
+        FROM expenses
+        WHERE user_id = p_user_id AND currency = p_currency
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+          AND category != 'Pago de Tarjetas'
+        GROUP BY category
+        ORDER BY SUM(amount) DESC, COUNT(*) DESC
+        LIMIT 3
+      ) t
+    ),
+    'ultimos_5', (
+      SELECT json_agg(row_to_json(t))
+      FROM (
+        SELECT id, amount, currency, category, description, is_want,
+               payment_method, card_id, date, created_at
+        FROM expenses
+        WHERE user_id = p_user_id
+          AND DATE_TRUNC('month', date) = DATE_TRUNC('month', p_month)
+        ORDER BY date DESC, created_at DESC
+        LIMIT 5
+      ) t
+    )
+  ) INTO v_result;
+
+  RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================
 -- VERIFY
 -- ============================================
 
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
--- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes
+-- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes, cards, card_cycles

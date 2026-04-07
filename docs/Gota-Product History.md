@@ -1,5 +1,5 @@
 # ESTADO-APP.md — Auditoría completa de Gota
-**Fecha:** 2026-03-24 | **Última actualización:** 2026-04-03 | **Autor:** Claude Code (auditoría de código real)
+**Fecha:** 2026-03-24 | **Última actualización:** 2026-04-05 | **Autor:** Claude Code (auditoría de código real)
 
 ---
 
@@ -112,12 +112,14 @@ app/
 - **Lista:** income_entries al tope de página 1, luego transfers + expenses mezclados por fecha DESC
 - **Nota:** La ruta sigue existiendo pero ya no aparece en la TabBar. El tab activo de Movimientos redirige a `/movimientos`. [2026-04-03]
 
-#### `/movimientos` — Movimientos (nueva) [2026-04-03]
+#### `/movimientos` — Movimientos (nueva) [2026-04-03, actualizado 2026-04-05]
 - **Rendering:** Server Component (`page.tsx`) → Client (`MovimientosClient`)
 - **Params:** `?month=YYYY-MM` (solo para el initial state; la navegación es local)
-- **Datos:** Fetch a `/api/movimientos?month=&type=&categories=&page=` con `useState+useEffect`
-- **Componentes:** StripOperativo (3 métricas), MovimientosFiltros (chips + modal categorías), MovimientosGroupedList (agrupado por día, "Cargar más")
-- **Filtros:** Todos / Gastos / Ingresos / Tarjeta / Transferencias + multiselect de categorías
+- **Datos:** Fetch a `/api/movimientos?month=&tipos=&origenes=&cuentas=&categorias=&monedas=&page=` con `useState+useEffect`
+- **Componentes:** StripOperativo (3 métricas, tappable), FiltroSheet (bottom sheet con 5 secciones), MovimientosGroupedList (agrupado por día, "Cargar más")
+- **Filtros [2026-04-05]:** Sistema avanzado 5 dimensiones — Tipo (gasto/ingreso/transferencia/suscripcion), Origen (percibido/tarjeta/pago_tarjeta), Cuenta (multiselect), Categoría (multiselect), Moneda (ARS/USD). Acceso vía ícono embudo (Funnel) en el header con badge numérico.
+- **Strip interactivo [2026-04-05]:** Tocar pill "Percibidos" → activa filtro `origenes: ['percibido','pago_tarjeta']`. Tocar "Tarjeta" o "Pago tarjeta" → filtros individuales. Re-tapping toggling.
+- **Fila de filtro activo [2026-04-05]:** Cuando hay filtros activos: chip `glass-1` con resumen del filtro + × para limpiar (izquierda); total filtrado en moneda seleccionada (derecha); skeleton durante carga.
 - **Period selector:** `← Mes →` inline en el header, maneja estado local sin URL
 
 #### `/settings` — Configuración (legacy)
@@ -309,23 +311,40 @@ Sistema completamente rule-based en `lib/heroEngine/`:
 - Icono Movimientos: `ListBullets` (Phosphor)
 - Diseño: pill glass frosted centrado, tab activo en `#0D1829` con texto
 
-### `MovimientosClient` — `components/movimientos/MovimientosClient.tsx` [2026-04-03]
+### `MovimientosClient` — `components/movimientos/MovimientosClient.tsx` [2026-04-03, reescrito 2026-04-05]
 **Client Component** — container de la pantalla Movimientos
 - Props: `initialMonth: string`
-- Estado: `selectedMonth`, `typeFilter`, `categoryFilter[]`, `page`, `loadedMovements[]`
+- Estado: `selectedMonth`, `activeFilters: ActiveFilters`, `filterOpen`, `page`, `loadedMovements[]`, `filteredSum`, `filteredSumCurrency`
+- `activeFilters` tiene 5 dimensiones: `tipos[]`, `origenes[]`, `cuentas[]`, `categorias[]`, `monedas[]`
 - Fetch a `/api/movimientos` con `useState+useEffect` (sin React Query — estado autocontenido)
+- `handleOrigenClick('percibido')` activa `origenes: ['percibido','pago_tarjeta']` (coincide con definición del strip: non-CREDIT)
+- `activeOrigen` computado: detecta la combinación percibido+pago_tarjeta → devuelve `'percibido'` para resaltar el pill correcto
+- `buildFilterSummary()`: la combinación percibido+pago_tarjeta se muestra como "Percibidos"; resto por labels individuales unidos con ` · `
 - Period selector `← Mes →` inline en el header, paginación append (infinite-style)
-- Skeleton de carga con 5 filas animadas
+- Skeleton de carga con 5 filas animadas; también skeleton para el total filtrado durante `isLoading`
 
-### `StripOperativo` — `components/movimientos/StripOperativo.tsx` [2026-04-03]
+### `StripOperativo` — `components/movimientos/StripOperativo.tsx` [2026-04-03, actualizado 2026-04-05]
 - 3 columnas iguales: Percibidos / Tarjeta / Pago tarjeta
-- Card glassmorphism, sin acción al tocar
-- Datos computados por `/api/movimientos` (stats)
+- Props añadidas: `activeOrigen?: OrigenFilter | null`, `onOrigenClick?: (o: OrigenFilter) => void`
+- Cuando `onOrigenClick` está definido: cada columna es tappable (`cursor-pointer`, `active:opacity-60`)
+- Estado activo: `bg-primary/[0.06]` de fondo, label en `#2178A8`; inactivo: label en `#90A4B0`
+- Subtítulos descriptivos: "Caja + débito + pago tarjeta" / "Consumos aún no debitados" / "Pagos reales del mes"
+- Datos computados por `/api/movimientos` (stats), siempre del mes completo sin filtrar
 
-### `MovimientosFiltros` — `components/movimientos/MovimientosFiltros.tsx` [2026-04-03]
-- Fila scrolleable horizontal: chips Todos / Gastos / Ingresos / Tarjeta / Transferencias
-- Botón "Categoría" al final: abre Modal con checkboxes multiselect
-- Badge numérico en botón cuando hay filtro activo
+### `FiltroSheet` — `components/movimientos/FiltroSheet.tsx` [2026-04-05]
+Bottom sheet de filtros avanzados. Reemplaza al `MovimientosFiltros` anterior.
+- Exporta: `ActiveFilters`, `EMPTY_FILTERS`, `countFilters()`, tipos `TipoFilter`, `OrigenFilter`, `MonedaFilter`
+- Props: `open`, `onClose`, `onApply`, `initial`, `accounts`, `categories`
+- Sincroniza estado pendiente `f` con `initial` en cada apertura (`useEffect` en `open`)
+- 5 secciones ordenadas:
+  1. **Tipo** (siempre visible): gasto / ingreso / transferencia / suscripcion — multi-select chips
+  2. **Origen** (condicional — visible si tipos incluye gasto/suscripcion o no hay tipos): percibido / tarjeta / pago_tarjeta
+  3. **Cuenta** (colapsible, badge numérico): una cuenta por chip, data viene de la API
+  4. **Categoría** (colapsible, badge numérico): categorías del mes actual, data viene de la API
+  5. **Moneda** (siempre visible): ARS / USD
+- `setTipos()` limpia `origenes` automáticamente si la sección Origen desaparece
+- Footer sticky: botón "Aplicar filtros" (azul primario, llama `onApply(f); onClose()`)
+- Chips: default `bg-white/60 border-bg-secondary text-text-secondary`; seleccionado `bg-primary/10 border-primary text-primary font-semibold`
 
 ### `MovimientosGroupedList` — `components/movimientos/MovimientosGroupedList.tsx` [2026-04-03]
 - Agrupa movimientos por fecha, orden cronológico inverso
@@ -665,7 +684,7 @@ Cuando el usuario crea una transferencia, el código invalida la query del dashb
 | Analytics — Diario | ✅ Completo |
 | Analytics — Análisis | ✅ Completo |
 | Hero Engine | ✅ Completo |
-| Movimientos `/movimientos` | ✅ Completo [2026-04-03] |
+| Movimientos `/movimientos` | ✅ Completo [2026-04-05] — filtro avanzado |
 | Movimientos `/expenses` (legacy) | ✅ Completo (ruta accesible, sin tab) |
 | Settings (legacy) | ✅ Completo (ruta accesible, sin tab) |
 | CuentaSheet (nueva Config) | ✅ Completo [2026-04-03] |
@@ -731,3 +750,46 @@ Cuando el usuario crea una transferencia, el código invalida la query del dashb
   - Icono: `Gear` eliminado; `ListBullets` agregado
   - `isActive` Movimientos: `pathname.startsWith('/movimientos') || pathname.startsWith('/expenses')`
   - Config tab eliminado (accesible desde avatar en Home)
+
+---
+
+### 2026-04-05 — Filtro avanzado en Movimientos
+
+**Commit:** `95d7773` — `feat(movimientos): filtro avanzado con sheet, pills interactivos y total filtrado`
+**Scope:** 4 archivos modificados. Build: ✅ sin errores.
+
+#### Nuevo sistema de filtros
+
+**Archivo creado:**
+- `components/movimientos/FiltroSheet.tsx` — reemplaza `MovimientosFiltros.tsx`. Bottom sheet con 5 secciones (Tipo, Origen condicional, Cuenta colapsible, Categoría colapsible, Moneda). Footer sticky con "Aplicar filtros". Exporta `ActiveFilters`, `EMPTY_FILTERS`, `countFilters()` y los tipos de filtro.
+
+**Archivos modificados:**
+
+- `components/movimientos/MovimientosClient.tsx` — reescrito:
+  - Estado `typeFilter + categoryFilter[]` reemplazado por `activeFilters: ActiveFilters` (5 dimensiones)
+  - Nuevo estado `filterOpen`, `filteredSum`, `filteredSumCurrency`
+  - Header: ícono `Funnel` (Phosphor) con badge numérico (`activeCount`) abre el sheet
+  - `handleOrigenClick('percibido')` activa `origenes: ['percibido','pago_tarjeta']` — coincide con la definición del strip (non-CREDIT = percibido + pago_tarjeta)
+  - Fila de filtro activo: chip `glass-1` truncado con `buildFilterSummary()` + `×` para limpiar (izquierda); skeleton/total filtrado en moneda correcta (derecha)
+  - `buildFilterSummary()`: la combinación percibido+pago_tarjeta se consolida como "Percibidos"; el resto se lista con ` · ` como separador
+
+- `components/movimientos/StripOperativo.tsx`:
+  - Nuevas props: `activeOrigen?: OrigenFilter | null`, `onOrigenClick?: (o: OrigenFilter) => void`
+  - Cada columna es tappable cuando se pasa `onOrigenClick`; estado activo con `bg-primary/[0.06]` y label `#2178A8`
+  - Subtítulos actualizados: "Caja + débito + pago tarjeta", "Consumos aún no debitados", "Pagos reales del mes"
+
+- `app/api/movimientos/route.ts` — reescrito:
+  - Params nuevos: `tipos`, `origenes`, `cuentas`, `categorias`, `monedas` (CSV). Eliminados: `type`, `categories` del sistema anterior.
+  - `wantsExpenses`, `wantsIncome`, `wantsTransfers` derivados de `tipos` para evitar queries innecesarias
+  - `cardAccountMap`: `cards.filter(c => c.account_id).map(c => [c.id, c.account_id])` — resuelve gastos de tarjeta de crédito a su cuenta vinculada para el filtro de Cuenta
+  - Filtro Cuenta: coincide por `e.account_id` directo, o por `cardAccountMap[e.card_id]` para gastos CREDIT
+  - Filtro Origen: cuando `origenes.length > 0`, `filteredIncome` y `filteredTransfers` se vacían (origen es exclusivo de expenses)
+  - `filteredSum` se calcula server-side sobre todos los registros filtrados (no solo la página actual). Lógica de neto: solo cuando `tipos` incluye explícitamente `'ingreso'` Y no hay filtro de origen activo.
+  - Response agrega: `filteredSum: number`, `filteredSumCurrency: 'ARS' | 'USD'`
+
+#### Decisiones de diseño documentadas
+
+- **"Percibidos" en el strip = percibido + pago_tarjeta:** El strip muestra gastos non-CREDIT (incluye pago de tarjetas), por lo que tocar el pill Percibidos activa ambos orígenes. Usar solo `['percibido']` excluiría los pagos de tarjeta y el total no coincidiría con el número del strip.
+- **Origen excluye income/transfers:** Cuando hay filtro de origen activo, income y transfers se excluyen del listado y del `filteredSum`. Los orígenes (percibido/tarjeta/pago_tarjeta) son categorías propias de expenses.
+- **`filteredSum` server-side:** Se computa antes de la paginación para que la cifra mostrada represente el total del mes filtrado, no solo la página visible.
+- **Skeleton en total filtrado:** Durante `isLoading`, se muestra un skeleton en lugar del total anterior para evitar datos stale visibles al usuario.

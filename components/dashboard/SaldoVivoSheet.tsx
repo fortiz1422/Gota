@@ -27,19 +27,11 @@ interface Props {
   isProjected?: boolean
 }
 
-const MESES = [
-  'ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
-  'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE',
-]
-
-export function SaldoVivoSheet({ open, onClose, selectedMonth, currency, isProjected = false }: Props) {
-  const monthName = MESES[parseInt(selectedMonth.split('-')[1], 10) - 1] ?? ''
-
+export function SaldoVivoSheet({ open, onClose, currency }: Props) {
   const { data, isLoading } = useQuery<BreakdownData>({
-    queryKey: ['account-breakdown', selectedMonth, currency, isProjected],
+    queryKey: ['account-breakdown', currency],
     queryFn: async () => {
-      const url = `/api/dashboard/account-breakdown?month=${selectedMonth}&currency=${currency}${isProjected ? '&projected=true' : ''}`
-      const res = await fetch(url)
+      const res = await fetch(`/api/dashboard/account-breakdown?currency=${currency}`)
       if (!res.ok) throw new Error('breakdown fetch failed')
       return res.json()
     },
@@ -49,18 +41,15 @@ export function SaldoVivoSheet({ open, onClose, selectedMonth, currency, isProje
 
   return (
     <Modal open={open} onClose={onClose}>
-      {/* Handle */}
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
-      {/* Header */}
       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">
-        {isProjected ? 'SALDO INICIAL PROYECTADO' : 'SALDO VIVO'} · {monthName}
+        SALDO VIVO
       </p>
       <p className="mt-1 mb-6 text-[36px] font-extrabold leading-none tabular-nums text-text-primary">
         {data ? formatAmount(data.total, currency) : '—'}
       </p>
 
-      {/* Account list */}
       {isLoading ? (
         <div className="space-y-3">
           {[1, 2].map((i) => (
@@ -84,32 +73,33 @@ export function SaldoVivoSheet({ open, onClose, selectedMonth, currency, isProje
                 <span
                   className={`text-sm font-semibold tabular-nums ${isNeg ? 'text-danger' : 'text-text-primary'}`}
                 >
-                  {isNeg ? '−' : ''}{formatAmount(Math.abs(acc.saldo), currency)}
+                  {isNeg ? '−' : ''}
+                  {formatAmount(Math.abs(acc.saldo), currency)}
                 </span>
               </div>
             )
           })}
 
-          {/* Footer total */}
           <div className="mt-1 flex items-center justify-between border-t border-border-strong pt-3.5">
             <span className="text-sm font-semibold text-text-primary">Total</span>
             <span
               className={`text-sm font-bold tabular-nums ${data.total < 0 ? 'text-danger' : 'text-text-primary'}`}
             >
-              {data.total < 0 ? '−' : ''}{formatAmount(Math.abs(data.total), currency)}
+              {data.total < 0 ? '−' : ''}
+              {formatAmount(Math.abs(data.total), currency)}
             </span>
           </div>
 
-          {/* Nota */}
           <div className="mt-5 flex gap-3 rounded-[14px] bg-bg-secondary px-4 py-3.5">
             <Info size={16} weight="light" className="text-text-dim shrink-0 mt-0.5" />
             <p className="text-[12px] text-text-secondary leading-[1.55]">
-              El Saldo Vivo es la suma real de todo tu dinero ahora mismo: cuentas bancarias, billeteras digitales y efectivo. Es el mismo número que ves en cada uno de tus bancos.
+              El Saldo Vivo es la suma real de todo tu dinero ahora mismo: cuentas bancarias, billeteras digitales y
+              efectivo. Es el mismo número que ves en cada uno de tus bancos.
             </p>
           </div>
         </div>
       ) : (
-        <p className="py-4 text-sm text-text-tertiary">Sin datos para este mes.</p>
+        <p className="py-4 text-sm text-text-tertiary">Sin datos para mostrar.</p>
       )}
     </Modal>
   )

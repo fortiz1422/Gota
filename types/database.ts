@@ -218,6 +218,7 @@ export type Database = {
           category: string
           description: string
           is_want: boolean | null
+          is_legacy_card_payment: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id: string | null
           account_id: string | null
@@ -237,6 +238,7 @@ export type Database = {
           category: string
           description: string
           is_want?: boolean | null
+          is_legacy_card_payment?: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
           account_id?: string | null
@@ -256,6 +258,7 @@ export type Database = {
           category?: string
           description?: string
           is_want?: boolean | null
+          is_legacy_card_payment?: boolean | null
           payment_method?: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
           account_id?: string | null
@@ -309,6 +312,9 @@ export type Database = {
           closing_date: string
           due_date: string
           status: 'open' | 'closed' | 'paid'
+          amount_draft: number | null
+          amount_paid: number | null
+          paid_at: string | null
           created_at: string
           updated_at: string
         }
@@ -320,6 +326,9 @@ export type Database = {
           closing_date: string
           due_date: string
           status?: 'open' | 'closed' | 'paid'
+          amount_draft?: number | null
+          amount_paid?: number | null
+          paid_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -329,6 +338,9 @@ export type Database = {
           closing_date?: string
           due_date?: string
           status?: 'open' | 'closed' | 'paid'
+          amount_draft?: number | null
+          amount_paid?: number | null
+          paid_at?: string | null
         }
         Relationships: []
       }

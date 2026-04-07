@@ -15,7 +15,6 @@ interface Props {
   gastosTarjeta?: number
   transferAdjustment?: number
   capitalInstrumentos?: number
-  saldoVivoOverride?: number | null
   onBreakdownOpen?: () => void
   selectedMonth?: string
   isProjected?: boolean
@@ -24,7 +23,7 @@ interface Props {
 type HeroMode = 'saldo_vivo' | 'disponible_real'
 type AnimPhase = 'idle' | 'exit' | 'pre-enter' | 'enter'
 
-export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustment = 0, capitalInstrumentos = 0, saldoVivoOverride = null, onBreakdownOpen, selectedMonth = '', isProjected = false }: Props) {
+export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustment = 0, capitalInstrumentos = 0, onBreakdownOpen, selectedMonth = '', isProjected = false }: Props) {
   const router = useRouter()
   const currentMonth = getCurrentMonth()
   const [mode, setMode] = useState<HeroMode>('saldo_vivo')
@@ -54,7 +53,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustmen
     data.pago_tarjetas +
     transferAdjustment -
     capitalInstrumentos
-  const disponible = saldoVivoOverride ?? computedSaldoVivo
+  const disponible = computedSaldoVivo
   const disponibleReal = disponible - gastosTarjeta
 
   const heroValue = displayedMode === 'saldo_vivo' ? disponible : disponibleReal
@@ -123,7 +122,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustmen
             className="flex items-center gap-1.5"
           >
             <span className="type-label text-text-label uppercase">
-              {mode === 'saldo_vivo' ? (isProjected ? 'SALDO INICIAL PROYECTADO' : 'SALDO VIVO') : 'DISPONIBLE REAL'}
+              {mode === 'saldo_vivo' ? 'SALDO VIVO' : 'DISPONIBLE REAL'}
             </span>
             <ArrowsDownUp size={13} weight="light" className="text-text-dim opacity-50" />
           </button>

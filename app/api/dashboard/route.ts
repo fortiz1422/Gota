@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { buildPrevMonthSummary, buildSmartPerAccountBalances, sumAccountBalances } from '@/lib/rollover'
+import { buildPrevMonthSummary } from '@/lib/rollover'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { processYieldAccrual } from '@/lib/yieldEngine'
 import { FF_YIELD, FF_INSTRUMENTS } from '@/lib/flags'
 import { todayAR } from '@/lib/format'
+import { sumActiveInstrumentCapital, sumCrossCurrencyTransferAdjustment } from '@/lib/live-balance'
 import type {
   Account,
   Card,
@@ -115,8 +116,8 @@ export async function GET(request: Request) {
 
   // Fire-and-forget subscription auto-insert (current month only)
   void processSubscriptions(supabase, user.id, currentMonth, parseInt(todayDate.split('-')[2], 10))
-  // Yield accrual: awaited antes del Promise.all para que la query de yieldData lea el valor actualizado
-  if (isCurrentMonth && FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
+  // Home now reflects live balances even when browsing another month.
+  if (FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
 
   const [
     legacyIncomeResult,
@@ -126,11 +127,18 @@ export async function GET(request: Request) {
     { data: usdCheckData },
     { data: allUltimosData },
     { data: transfersData },
-    { data: allTransfersData },
     { data: subscriptionsData },
     { data: yieldData },
     { data: instrumentsData },
     { data: recurringData },
+    { data: liveIncomeData },
+    { data: liveDebitExpenseData },
+    { data: liveCardPaymentData },
+    { data: liveAppliedCardPaymentData },
+    { data: liveCreditExpenseData },
+    { data: liveTransfersData },
+    { data: liveYieldData },
+    { data: liveInstrumentsData },
   ] = await Promise.all([
     supabase
       .from('monthly_income')
@@ -175,12 +183,6 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: false })
       .limit(5),
     supabase
-      .from('transfers')
-      .select('amount_from, amount_to, currency_from, currency_to')
-      .eq('user_id', user.id)
-      .gte('date', selectedMonthDate)
-      .lt('date', nextMonthDate),
-    supabase
       .from('subscriptions')
       .select('*')
       .eq('user_id', user.id)
@@ -202,6 +204,58 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('is_active', true),
+    supabase
+      .from('income_entries')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('currency', viewCurrency)
+      .lte('date', todayDate),
+    supabase
+      .from('expenses')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('currency', viewCurrency)
+      .lte('date', todayDate)
+      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
+      .neq('category', 'Pago de Tarjetas'),
+    supabase
+      .from('expenses')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('currency', viewCurrency)
+      .lte('date', todayDate)
+      .eq('category', 'Pago de Tarjetas'),
+    supabase
+      .from('expenses')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('currency', viewCurrency)
+      .lte('date', todayDate)
+      .eq('category', 'Pago de Tarjetas')
+      .or('is_legacy_card_payment.is.null,is_legacy_card_payment.eq.false'),
+    supabase
+      .from('expenses')
+      .select('amount')
+      .eq('user_id', user.id)
+      .eq('currency', viewCurrency)
+      .lte('date', todayDate)
+      .eq('payment_method', 'CREDIT')
+      .neq('category', 'Pago de Tarjetas'),
+    supabase
+      .from('transfers')
+      .select('amount_from, amount_to, currency_from, currency_to')
+      .eq('user_id', user.id)
+      .lte('date', todayDate),
+    supabase
+      .from('yield_accumulator')
+      .select('accumulated')
+      .eq('user_id', user.id)
+      .lte('month', currentMonth),
+    supabase
+      .from('instruments')
+      .select('amount, currency')
+      .eq('user_id', user.id)
+      .eq('status', 'active'),
   ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
@@ -215,18 +269,19 @@ export async function GET(request: Request) {
   const hasUsdExpenses = usdCheckData !== null
   const allUltimos = (allUltimosData ?? []) as Expense[]
   const transfers = (transfersData ?? []) as Transfer[]
-  const transferCurrencyAdjustment = (allTransfersData ?? []).reduce((sum, t) => {
-    if (t.currency_from !== t.currency_to) {
-      if (t.currency_from === viewCurrency) return sum - t.amount_from
-      if (t.currency_to === viewCurrency) return sum + t.amount_to
-    }
-    return sum
-  }, 0)
+  const transferCurrencyAdjustment = sumCrossCurrencyTransferAdjustment(
+    (liveTransfersData ?? []) as {
+      amount_from: number
+      amount_to: number
+      currency_from: 'ARS' | 'USD'
+      currency_to: 'ARS' | 'USD'
+    }[],
+    viewCurrency,
+  )
   const activeSubscriptions = (subscriptionsData ?? []) as Subscription[]
 
   let autoRolloverAmount: number | null = null
   let manualRolloverSummary = null
-  let effectiveSaldoInicial: number | null = null
 
   if (rolloverMode !== 'off' && isCurrentMonth) {
     const prevMonthStr = addMonths(currentMonth, -1)
@@ -237,7 +292,6 @@ export async function GET(request: Request) {
       { data: prevExps },
       { data: prevIncomeEntries },
       { data: prevPeriodBalances },
-      { data: prevTransfers },
     ] = await Promise.all([
       supabase.from('monthly_income').select('*').eq('user_id', user.id).eq('month', prevMonthDate).maybeSingle(),
       supabase
@@ -254,28 +308,12 @@ export async function GET(request: Request) {
             .in('account_id', accountIds)
             .eq('period', prevMonthDate)
         : Promise.resolve({ data: [] as { account_id: string; balance_ars: number; balance_usd: number }[] }),
-      accountIds.length > 0
-        ? supabase
-            .from('transfers')
-            .select('from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to')
-            .or(`from_account_id.in.(${accountIds.join(',')}),to_account_id.in.(${accountIds.join(',')})`)
-            .gte('date', prevMonthDate)
-            .lt('date', selectedMonthDate)
-        : Promise.resolve({ data: [] as { from_account_id: string; to_account_id: string; amount_from: number; amount_to: number; currency_from: string; currency_to: string }[] }),
     ])
 
     const prevBalanceSum = (prevPeriodBalances ?? []).reduce((s, b) => s + b.balance_ars + b.balance_usd, 0)
     const hasPrevData = prevIncome !== null || (prevIncomeEntries?.length ?? 0) > 0 || prevBalanceSum > 0
 
     if (hasPrevData) {
-      const livePerAccountBalances = buildSmartPerAccountBalances(
-        accounts,
-        prevPeriodBalances ?? [],
-        prevIncomeEntries ?? [],
-        prevExps ?? [],
-        prevTransfers ?? [],
-      )
-
       // Filter expenses by currency for the global summary display
       const prevExpsForSummary = (prevExps ?? []).filter((e) => e.currency === currency)
       const summary = buildPrevMonthSummary(
@@ -288,37 +326,9 @@ export async function GET(request: Request) {
       )
 
       if (rolloverMode === 'auto' && incomeEntries.length === 0) {
-        effectiveSaldoInicial = sumAccountBalances(livePerAccountBalances, viewCurrency)
         autoRolloverAmount = summary.saldoFinal
       } else if (rolloverMode === 'manual' && !hasIncome) {
         manualRolloverSummary = summary
-      }
-    }
-  }
-
-  // Projected saldo inicial: if navigating to the immediate next month,
-  // current month is open, and rollover is enabled → use current Saldo Vivo as projected opening balance
-  let projectedSaldoInicial: number | null = null
-  const isNextMonth = selectedMonth === addMonths(currentMonth, 1)
-
-  if (isNextMonth && rolloverMode !== 'off' && !hasIncome) {
-    const { data: currentMonthIncome } = await supabase
-      .from('monthly_income')
-      .select('closed')
-      .eq('user_id', user.id)
-      .eq('month', currentMonth + '-01')
-      .maybeSingle()
-
-    if (!currentMonthIncome?.closed) {
-      const { data: currentDashRaw } = await supabase.rpc('get_dashboard_data', {
-        p_user_id: user.id,
-        p_month: currentMonth + '-01',
-        p_currency: viewCurrency,
-      })
-      const currentData = currentDashRaw as DashboardData | null
-      if (currentData?.saldo_vivo) {
-        const sv = currentData.saldo_vivo
-        projectedSaldoInicial = sv.saldo_inicial + sv.ingresos - sv.gastos_percibidos - sv.pago_tarjetas
       }
     }
   }
@@ -329,15 +339,16 @@ export async function GET(request: Request) {
     p_currency: viewCurrency,
   })
 
-  const rendimientosMes = FF_YIELD
-    ? (yieldData ?? []).reduce((sum: number, ya: { accumulated: number }) => sum + (ya.accumulated ?? 0), 0)
+  const rendimientosHistoricos = FF_YIELD
+    ? (liveYieldData ?? []).reduce((sum: number, ya: { accumulated: number }) => sum + (ya.accumulated ?? 0), 0)
     : 0
 
   const activeInstruments = (instrumentsData ?? []) as Instrument[]
   const capitalInstrumentosMes = FF_INSTRUMENTS
-    ? activeInstruments
-        .filter((i) => i.opened_at.startsWith(selectedMonth) && i.currency === viewCurrency)
-        .reduce((sum, i) => sum + i.amount, 0)
+    ? sumActiveInstrumentCapital(
+        (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
+        viewCurrency,
+      )
     : 0
 
   const activeRecurring = (recurringData ?? []) as RecurringIncome[]
@@ -352,23 +363,44 @@ export async function GET(request: Request) {
     : []
 
   const rawData = dashboardRaw as DashboardData | null
+  const liveSaldoInicial = accounts.reduce(
+    (sum, account) => sum + (viewCurrency === 'ARS' ? account.opening_balance_ars : account.opening_balance_usd),
+    0,
+  )
+  const liveIngresos = (liveIncomeData ?? []).reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
+  const liveGastosPercibidos = (liveDebitExpenseData ?? []).reduce(
+    (sum: number, row: { amount: number }) => sum + row.amount,
+    0,
+  )
+  const livePagoTarjetas = (liveCardPaymentData ?? []).reduce(
+    (sum: number, row: { amount: number }) => sum + row.amount,
+    0,
+  )
+  const livePagoTarjetasAplicables = (liveAppliedCardPaymentData ?? []).reduce(
+    (sum: number, row: { amount: number }) => sum + row.amount,
+    0,
+  )
+  const liveCreditoDevengado = (liveCreditExpenseData ?? []).reduce(
+    (sum: number, row: { amount: number }) => sum + row.amount,
+    0,
+  )
+  const liveGastosTarjeta = Math.max(0, liveCreditoDevengado - livePagoTarjetasAplicables)
+
   let dashboardData: DashboardData | null = rawData
-  if (effectiveSaldoInicial !== null && rawData?.saldo_vivo) {
-    dashboardData = {
-      ...rawData,
-      saldo_vivo: { ...rawData.saldo_vivo, saldo_inicial: effectiveSaldoInicial },
-    }
-  }
-  if (projectedSaldoInicial !== null && rawData?.saldo_vivo) {
-    dashboardData = { ...rawData, saldo_vivo: { ...rawData.saldo_vivo, saldo_inicial: projectedSaldoInicial } }
-  }
   if (dashboardData?.saldo_vivo) {
     dashboardData = {
       ...dashboardData,
-      saldo_vivo: { ...dashboardData.saldo_vivo, rendimientos: rendimientosMes },
+      saldo_vivo: {
+        saldo_inicial: liveSaldoInicial,
+        ingresos: liveIngresos,
+        gastos_percibidos: liveGastosPercibidos,
+        pago_tarjetas: livePagoTarjetas,
+        rendimientos: rendimientosHistoricos,
+      },
+      gastos_tarjeta: liveGastosTarjeta,
     }
   }
-  const isProjected = projectedSaldoInicial !== null
+  const isProjected = false
   const hasIncomeAfterRollover = autoRolloverAmount !== null ? true : hasIncome
 
   return NextResponse.json({
