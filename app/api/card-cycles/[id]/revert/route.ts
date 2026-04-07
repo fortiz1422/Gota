@@ -23,6 +23,9 @@ export async function POST(
 
   if (cycleError || !cycle) return NextResponse.json({ error: 'Not found' }, { status: 404 })
   if (cycle.status !== 'paid') return NextResponse.json({ error: 'Cycle is not paid' }, { status: 400 })
+  if (!cycle.paid_at || cycle.amount_paid == null) {
+    return NextResponse.json({ error: 'Cycle payment data is incomplete' }, { status: 400 })
+  }
 
   // Find matching "Pago de Tarjetas" expense: same card, same date, same amount
   const paidDate = cycle.paid_at.substring(0, 10)

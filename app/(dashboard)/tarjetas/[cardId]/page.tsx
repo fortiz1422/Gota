@@ -5,7 +5,7 @@ import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import { CardDetailClient } from './CardDetailClient'
-import type { Account, Card, CardCycle, Expense } from '@/types/database'
+import type { Account, Card, CardCycle, CardCycleInsert, Expense } from '@/types/database'
 
 export type EnrichedCycle = {
   id: string
@@ -139,17 +139,19 @@ export default async function TarjetaPage({
     (c) => c.source === 'legacy' && c.period_month.substring(0, 7) < currentMonth
   )
   if (legacyPastToMaterialize.length > 0) {
+    const cyclesToUpsert: CardCycleInsert[] = legacyPastToMaterialize.map((c) => ({
+      user_id: user.id,
+      card_id: cardId,
+      period_month: c.period_month,
+      closing_date: c.closing_date,
+      due_date: c.due_date,
+      status: c.cycleStatus === 'pagado' ? 'paid' : 'open',
+      amount_paid: c.amount_paid,
+      paid_at: c.paid_at,
+    }))
+
     await supabase.from('card_cycles').upsert(
-      legacyPastToMaterialize.map((c) => ({
-        user_id: user.id,
-        card_id: cardId,
-        period_month: c.period_month,
-        closing_date: c.closing_date,
-        due_date: c.due_date,
-        status: c.cycleStatus === 'pagado' ? 'paid' : 'open',
-        amount_paid: c.amount_paid,
-        paid_at: c.paid_at,
-      })),
+      cyclesToUpsert,
       { onConflict: 'card_id,period_month', ignoreDuplicates: true }
     )
   }
