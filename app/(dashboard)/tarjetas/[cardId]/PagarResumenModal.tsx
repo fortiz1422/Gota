@@ -28,10 +28,15 @@ function periodMonthLabel(periodMonth: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+function formatARS(n: number): string {
+  if (n === 0) return ''
+  return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
+}
+
 const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((c) => c !== 'Pago de Tarjetas')
 
 export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accounts, expenses }: Props) {
-  const [monto, setMonto] = useState(String(Math.round(cycle.amount)))
+  const [montoRaw, setMontoRaw] = useState(Math.round(cycle.amount))
   const [accountId, setAccountId] = useState(card.account_id ?? (accounts[0]?.id ?? ''))
   const [fecha, setFecha] = useState(todayAR())
   const [motivo, setMotivo] = useState<Motivo>('no_detallar')
@@ -40,9 +45,19 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const montoNum = parseFloat(monto.replace(/[^0-9.]/g, '')) || 0
+  const montoNum = montoRaw
   const diff = Math.round((montoNum - cycle.amount) * 100) / 100
   const hasDiff = Math.abs(diff) >= 1
+
+  const isEqualToTotal = Math.abs(montoNum - cycle.amount) < 1
+  const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasDiff || motivo !== null)
+
+  const ctaLabel = (() => {
+    if (isSaving) return 'Registrando…'
+    if (isEqualToTotal) return 'Registrar pago total'
+    if (montoNum > 0) return 'Registrar pago parcial'
+    return 'Registrar pago'
+  })()
 
   const cycleExpenses = useMemo(
     () =>
@@ -56,7 +71,10 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
     [expenses, cycle.period_from, cycle.closing_date],
   )
 
-  const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasDiff || motivo !== null)
+  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const stripped = e.target.value.replace(/\D/g, '')
+    setMontoRaw(stripped === '' ? 0 : parseInt(stripped, 10))
+  }
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -137,10 +155,62 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
       </div>
 
       <div className="space-y-5 pb-24">
-        <div className="rounded-[18px] bg-bg-secondary px-4">
+        {/* Monto a pagar */}
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+            Monto a pagar
+          </p>
+          <div className="glass-2 flex items-center gap-2 rounded-[18px] px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-1">
+            <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={formatARS(montoRaw)}
+              onChange={handleMontoChange}
+              className="flex-1 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+              placeholder="0"
+            />
+          </div>
+        </div>
+
+        {/* Cuenta y Fecha */}
+        <div className="glass-2 overflow-hidden rounded-[18px]">
+          {accounts.length > 0 && (
+            <div className="border-b border-border-subtle px-4 py-3.5">
+              <p className="mb-2 text-xs text-text-secondary">Cuenta</p>
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {accounts.map((a) => (
+                  <button
+                    key={a.id}
+                    onClick={() => setAccountId(a.id)}
+                    className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      accountId === a.id
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                    }`}
+                  >
+                    {a.name}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          <div className="flex items-center justify-between px-4 py-3.5">
+            <span className="text-sm text-text-secondary">Fecha</span>
+            <input
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+              className="bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50"
+            />
+          </div>
+        </div>
+
+        {/* Gastos registrados */}
+        <div className="glass-2 overflow-hidden rounded-[18px]">
           <button
             onClick={() => setDetailOpen((o) => !o)}
-            className="flex w-full items-center justify-between py-3.5"
+            className="flex w-full items-center justify-between px-4 py-3.5"
           >
             <span className="text-sm text-text-secondary">Gastos registrados</span>
             <div className="flex items-center gap-2">
@@ -159,7 +229,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           {detailOpen && cycleExpenses.length > 0 && (
             <div className="space-y-1 border-t border-border-subtle pb-3 pt-2">
               {cycleExpenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between gap-3 py-1">
+                <div key={e.id} className="flex items-center justify-between gap-3 px-4 py-1">
                   <div className="min-w-0">
                     <p className="truncate text-xs text-text-primary">{e.description || e.category}</p>
                     <p className="text-[10px] text-text-tertiary">
@@ -175,53 +245,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           )}
         </div>
 
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-            Monto a pagar
-          </p>
-          <div className="flex items-center gap-2 rounded-[18px] bg-bg-secondary px-4 py-3.5">
-            <span className="text-sm text-text-secondary">$</span>
-            <input
-              type="number"
-              min={0}
-              step={1}
-              value={monto}
-              onChange={(e) => setMonto(e.target.value)}
-              className="flex-1 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
-              inputMode="decimal"
-            />
-          </div>
-        </div>
-
-        <div className="rounded-[18px] bg-bg-secondary px-4">
-          {accounts.length > 0 && (
-            <div className="flex items-center justify-between border-b border-border-subtle py-3.5">
-              <span className="text-sm text-text-secondary">Cuenta</span>
-              <select
-                value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
-                className="max-w-[200px] bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none"
-              >
-                <option value="">— sin cuenta —</option>
-                {accounts.map((a) => (
-                  <option key={a.id} value={a.id}>
-                    {a.name}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex items-center justify-between py-3.5">
-            <span className="text-sm text-text-secondary">Fecha</span>
-            <input
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-              className="bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50"
-            />
-          </div>
-        </div>
-
+        {/* Diferencia */}
         {hasDiff && (
           <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
@@ -277,7 +301,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           disabled={!canSubmit || isSaving}
           className="w-full rounded-button bg-primary py-3 text-[14px] font-semibold text-white transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-40"
         >
-          {isSaving ? 'Registrando…' : 'Registrar pago'}
+          {ctaLabel}
         </button>
       </div>
     </Modal>

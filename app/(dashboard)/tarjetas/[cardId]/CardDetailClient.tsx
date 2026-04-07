@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check } from '@phosphor-icons/react'
+import { ArrowLeft, Check, ClockCounterClockwise, CaretRight } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { Account, Card, Expense } from '@/types/database'
 import type { EnrichedCycle } from './page'
@@ -194,6 +194,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
       </header>
 
       <div className="space-y-6 px-4 py-5">
+        {/* Configuración */}
         <section>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
             Configuracion
@@ -211,20 +212,33 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
             />
 
             {accounts.length > 0 && (
-              <div className="flex items-center justify-between border-b border-border-subtle py-3.5 last:border-0">
-                <span className="text-sm text-text-secondary">Cuenta</span>
-                <select
-                  value={currentCard.account_id ?? ''}
-                  onChange={(e) => void patchCard({ account_id: e.target.value || null })}
-                  className="max-w-[180px] rounded-lg border border-border-strong bg-bg-primary px-2 py-1 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  <option value="">Sin cuenta</option>
+              <div className="border-b border-border-subtle py-3.5 last:border-0">
+                <span className="mb-2 block text-sm text-text-secondary">Cuenta</span>
+                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <button
+                    onClick={() => void patchCard({ account_id: null })}
+                    className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                      !currentCard.account_id
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                    }`}
+                  >
+                    Sin cuenta
+                  </button>
                   {accounts.map((a) => (
-                    <option key={a.id} value={a.id}>
+                    <button
+                      key={a.id}
+                      onClick={() => void patchCard({ account_id: a.id })}
+                      className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        currentCard.account_id === a.id
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                      }`}
+                    >
                       {a.name}
-                    </option>
+                    </button>
                   ))}
-                </select>
+                </div>
               </div>
             )}
 
@@ -237,18 +251,11 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
           </div>
         </section>
 
+        {/* Resúmenes */}
         <section>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
-              Resumenes
-            </p>
-            <button
-              onClick={() => setIsLegacyPaymentOpen(true)}
-              className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
-            >
-              Pago de tarjeta anterior a tus resúmenes de Gota
-            </button>
-          </div>
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
+            Resumenes
+          </p>
           {resumenes.length === 0 ? (
             <p className="px-1 text-sm text-text-tertiary">Sin gastos registrados en los ultimos meses.</p>
           ) : (
@@ -275,7 +282,11 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                   {cycle.cycleStatus !== 'pagado' && (
                     <button
                       onClick={() => setPayingCycle(cycle)}
-                      className="mt-3 w-full rounded-full bg-primary py-2 text-[13px] font-semibold text-white transition-opacity active:opacity-70"
+                      className={`mt-3 w-full rounded-full py-2 text-[13px] font-semibold transition-opacity active:opacity-70 ${
+                        cycle.cycleStatus === 'en_curso'
+                          ? 'bg-primary text-white'
+                          : 'border border-primary text-primary'
+                      }`}
                     >
                       Pagar resumen
                     </button>
@@ -321,11 +332,31 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
           )}
         </section>
 
-        <section className="pb-4 pt-2">
+        {/* Pago anterior a Gota */}
+        <section>
+          <div className="overflow-hidden rounded-[20px] bg-bg-secondary">
+            <button
+              onClick={() => setIsLegacyPaymentOpen(true)}
+              className="flex w-full items-center gap-3 px-4 py-3.5 text-left active:opacity-60"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-bg-tertiary">
+                <ClockCounterClockwise size={15} weight="duotone" className="text-text-label" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium text-text-primary">Pago anterior a Gota</p>
+                <p className="text-[11px] text-text-tertiary">Deuda existente antes de usar la app</p>
+              </div>
+              <CaretRight size={14} weight="bold" className="shrink-0 text-text-tertiary" />
+            </button>
+          </div>
+        </section>
+
+        {/* Eliminar tarjeta */}
+        <section className="pb-8 pt-2 text-center">
           <button
             onClick={() => void deleteCard()}
             disabled={isDeleting}
-            className="w-full rounded-full border border-danger/30 py-3 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft disabled:opacity-50"
+            className="text-xs text-text-dim underline-offset-2 hover:underline disabled:opacity-50"
           >
             {isDeleting ? 'Eliminando…' : 'Eliminar tarjeta'}
           </button>
