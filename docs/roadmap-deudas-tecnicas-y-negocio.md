@@ -86,9 +86,23 @@ Desde la redaccion inicial ya se avanzo en dos frentes del hero financiero.
 
 Pendientes operativos concretos:
 
-- correr la migracion SQL del flag legacy en Supabase
-- marcar pagos historicos legacy ya existentes
-- validar numero final de `Disponible Real` con esos datos migrados
+- cerrar el siguiente bloque estructural despues del frente de ingresos
+
+### 2.2 Progreso reciente
+
+Ultimos avances aplicados:
+
+- `Disponible Real` ya quedo cerrado operativamente con migracion y etiquetado legacy aplicados
+- dashboard y analytics ya dejaron de usar `monthly_income` como fuente principal de ingresos
+- el setup legacy de ingresos ahora crea `income_entries`
+- se elimino una superficie legacy muerta que seguia escribiendo `monthly_income`
+- el borrado de cuenta ya contempla `income_entries` y tablas nuevas del modelo financiero
+
+Decisiones parciales ya tomadas:
+
+- `income_entries` queda como fuente operativa de ingresos
+- `monthly_income` queda acotado a compatibilidad residual y cierre legacy de mes
+- `rollover` se mantiene por ahora, pero no debe volver al calculo principal de `Saldo Vivo`
 
 ## 3. Roadmap priorizado
 
@@ -241,6 +255,21 @@ Sacar `monthly_income` del corazón contable y dejarlo, si sigue existiendo, com
 P0
 
 ---
+
+**Estado actualizado**
+
+Avance parcial importante:
+
+- dashboard y analytics ya dejaron de usar `monthly_income` como fuente principal de ingresos
+- el setup legacy de ingresos ahora crea `income_entries`
+- se elimino una superficie legacy muerta que seguia escribiendo `monthly_income`
+- `monthly_income` quedo acotado a compatibilidad residual y cierre legacy de mes
+
+Sigue pendiente:
+
+- decidir el destino final de `/api/monthly-income`
+- resolver estrategia para usuarios o meses historicos que solo tengan datos en `monthly_income`
+- simplificar helpers y documentacion para reflejar que `income_entries` es la fuente operativa
 
 ### 3.3 Rol real de `account_period_balance`
 
@@ -905,16 +934,16 @@ Si estas deudas siguen abiertas:
 ### P0
 
 - [x] definir fuente de verdad de `Saldo Vivo`
-- [ ] decidir futuro de `monthly_income`
+- [~] decidir futuro de `monthly_income`
 - [ ] decidir rol de `account_period_balance`
 - [ ] cerrar `Disponible Real` con migración y etiquetado legacy aplicado en Supabase
 - [ ] auditar cuotas de punta a punta
 
 ### P1
 
-- [ ] decidir futuro real de rollover
+- [~] decidir futuro real de rollover
 - [ ] unificar lógica financiera duplicada
-- [ ] inventariar y clasificar features legacy
+- [~] inventariar y clasificar features legacy
 
 ### P2
 

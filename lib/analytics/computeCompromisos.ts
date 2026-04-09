@@ -1,4 +1,6 @@
-import type { Expense, Card } from '@/types/database'
+import { buildLegacyCardCycle } from '@/lib/card-cycles'
+import { addMonths } from '@/lib/dates'
+import type { Expense, Card, CardCycle } from '@/types/database'
 
 export type CompromisoTarjeta = {
   id: string
@@ -19,16 +21,37 @@ export type CompromisosData = {
   unassignedCreditSpend: number
 }
 
+function resolveClosingDay(
+  card: Card,
+  periodMonth: string,
+  storedCyclesByKey: Map<string, CardCycle>,
+): number | null {
+  const storedCycle = storedCyclesByKey.get(`${card.id}:${periodMonth}`)
+  if (storedCycle) {
+    return Number.parseInt(storedCycle.closing_date.substring(8, 10), 10)
+  }
+
+  if (card.closing_day === null) return null
+
+  return Number.parseInt(buildLegacyCardCycle(card, periodMonth).closing_date.substring(8, 10), 10)
+}
+
 export function computeCompromisos(
   expenses: Expense[],
   cards: Card[],
   dayOfMonth: number,
   ingresoMes: number | null,
+  selectedMonth: string,
   prevMonthExpenses: Expense[] = [],
+  cardCycles: CardCycle[] = [],
 ): CompromisosData {
   const creditExpenses = expenses.filter((e) => e.payment_method === 'CREDIT')
   const hasCreditExpenses = creditExpenses.length > 0
   const hasCards = cards.length > 0
+  const prevMonth = addMonths(selectedMonth, -1)
+  const storedCyclesByKey = new Map(
+    cardCycles.map((cycle) => [`${cycle.card_id}:${cycle.period_month.substring(0, 7)}`, cycle] as const)
+  )
 
   // Group credit expenses by card_id
   const byCard: Record<string, Expense[]> = {}
@@ -45,7 +68,8 @@ export function computeCompromisos(
 
   const tarjetas: CompromisoTarjeta[] = cards.map((card) => {
     const cardExpenses = byCard[card.id] ?? []
-    const closingDay = card.closing_day ?? null
+    const closingDay = resolveClosingDay(card, selectedMonth, storedCyclesByKey)
+    const prevClosingDay = resolveClosingDay(card, prevMonth, storedCyclesByKey)
     let currentSpend = 0
     let nextCycleSpend = 0
 
@@ -59,11 +83,11 @@ export function computeCompromisos(
     }
 
     // Previous month's post-closing expenses belong to this month's cycle
-    if (closingDay !== null) {
+    if (prevClosingDay !== null) {
       for (const e of prevMonthExpenses) {
         if (e.card_id !== card.id) continue
         const expDay = parseInt(e.date.substring(8, 10), 10)
-        if (expDay > closingDay) currentSpend += e.amount
+        if (expDay > prevClosingDay) currentSpend += e.amount
       }
     }
 

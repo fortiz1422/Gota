@@ -1,9 +1,7 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { buildCycleDate, mergeResolvedCycles } from '@/lib/card-cycles'
-import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
+import { buildEnrichedCardCycles } from '@/lib/card-summaries'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
-import { todayAR } from '@/lib/format'
 import { CardDetailClient } from './CardDetailClient'
 import type { Account, Card, CardCycle, CardCycleInsert, Expense } from '@/types/database'
 
@@ -76,61 +74,11 @@ export default async function TarjetaPage({
     .eq('card_id', cardId)
     .gte('date', `${addMonths(currentMonth, -7)}-01`)
 
-  const resolvedCycles = mergeResolvedCycles(
-    card as Card,
-    (storedCycles ?? []) as CardCycle[],
-    periodMonths
-  )
-
-  const today = todayAR()
-
-  const enriched: EnrichedCycle[] = resolvedCycles.map((cycle, i) => {
-    // period_from = day after previous cycle's closing_date
-    let periodFrom: string
-    const prevCycle = resolvedCycles[i + 1]
-    if (prevCycle) {
-      const [py, pm, pd] = prevCycle.closing_date.split('-').map(Number)
-      const d = new Date(py, pm - 1, pd + 1)
-      periodFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    } else {
-      const prevMonth = addMonths(cycle.period_month.substring(0, 7), -1)
-      const prevClosing = buildCycleDate(prevMonth, card.closing_day)
-      const [py, pm, pd] = prevClosing.split('-').map(Number)
-      const d = new Date(py, pm - 1, pd + 1)
-      periodFrom = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-    }
-
-    const amount =
-      cycle.amount_draft != null
-        ? cycle.amount_draft
-        : calcularMontoResumen(
-            (expenses ?? []) as Expense[],
-            cardId,
-            new Date(`${periodFrom}T12:00:00Z`),
-            new Date(`${cycle.closing_date}T12:00:00Z`)
-          )
-
-    const isPaid = cycle.paid_at !== null || cycle.status === 'paid'
-    const cycleStatus: EnrichedCycle['cycleStatus'] = isPaid
-      ? 'pagado'
-      : cycle.closing_date >= today
-      ? 'en_curso'
-      : cycle.due_date >= today
-      ? 'cerrado'
-      : 'vencido'
-
-    return {
-      id: cycle.id,
-      source: cycle.source,
-      period_month: cycle.period_month,
-      period_from: periodFrom,
-      closing_date: cycle.closing_date,
-      due_date: cycle.due_date,
-      cycleStatus,
-      amount,
-      paid_at: cycle.paid_at,
-      amount_paid: cycle.amount_paid,
-    }
+  const enriched: EnrichedCycle[] = buildEnrichedCardCycles({
+    card: card as Card,
+    storedCycles: (storedCycles ?? []) as CardCycle[],
+    expenses: (expenses ?? []) as Expense[],
+    periodMonths,
   })
 
   // Auto-materialize legacy past cycles so their date ranges freeze permanently.

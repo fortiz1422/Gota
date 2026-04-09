@@ -5,13 +5,14 @@ import { useEffect } from 'react'
 import { AnalyticsClient } from './AnalyticsClient'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
-import type { Card, Expense, Subscription } from '@/types/database'
+import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
 
 type AnalyticsApiData = {
   rawExpenses: Expense[]
   prevMonthExpenses: Expense[]
   ingresoMes: number | null
   subscriptions: Subscription[]
+  cardCycles: CardCycle[]
   cards: Card[]
   currency: 'ARS' | 'USD'
   earliestDataMonth: string | null
@@ -56,7 +57,7 @@ export function AnalyticsDataLoader({ selectedMonth }: Props) {
 
   if (isLoading || !data) return <AnalyticsSkeleton />
 
-  const { rawExpenses, prevMonthExpenses, ingresoMes, subscriptions, cards, currency, earliestDataMonth } = data
+  const { rawExpenses, prevMonthExpenses, ingresoMes, subscriptions, cardCycles, cards, currency, earliestDataMonth } = data
 
   const today = new Date()
   const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
@@ -65,7 +66,15 @@ export function AnalyticsDataLoader({ selectedMonth }: Props) {
   const dayOfMonth = isCurrentMonth ? today.getDate() : daysInMonth
 
   const metrics = computeMetrics(rawExpenses, ingresoMes, currency, selectedMonth)
-  const compromisos = computeCompromisos(rawExpenses, cards, dayOfMonth, ingresoMes, prevMonthExpenses)
+  const compromisos = computeCompromisos(
+    rawExpenses,
+    cards,
+    dayOfMonth,
+    ingresoMes,
+    selectedMonth,
+    prevMonthExpenses,
+    cardCycles,
+  )
 
   return (
     <AnalyticsClient

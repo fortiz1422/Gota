@@ -70,7 +70,7 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
     }
   }
 
-  const totalDevengado = cards.reduce((sum, c) => sum + c.devengado, 0)
+  const totalPendingAmount = cards.reduce((sum, c) => sum + c.pending_amount, 0)
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -81,9 +81,9 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
             <h2 className="text-base font-bold text-text-primary">
               Tarjetas{cards.length > 0 ? ` (${cards.length})` : ''}
             </h2>
-            {totalDevengado > 0 && (
+            {totalPendingAmount > 0 && (
               <p className="mt-0.5 text-[11px] text-text-tertiary">
-                {formatCompact(totalDevengado, 'ARS')} devengado este mes
+                {formatCompact(totalPendingAmount, 'ARS')} pendiente de pago
               </p>
             )}
           </div>
@@ -121,11 +121,11 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
                   </span>
                 </div>
 
-                {/* Devengado */}
+                {/* Pendiente */}
                 <div className="flex shrink-0 items-center gap-2">
-                  {card.devengado > 0 ? (
+                  {card.pending_amount > 0 ? (
                     <span className="text-xs font-semibold tabular-nums text-text-primary">
-                      {formatCompact(card.devengado, 'ARS')}
+                      {formatCompact(card.pending_amount, 'ARS')}
                     </span>
                   ) : (
                     <span className="text-[10px] text-text-dim">sin gastos</span>

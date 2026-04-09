@@ -13,6 +13,16 @@ export async function DELETE() {
 
   // Delete all user data (RLS scoped to user_id)
   await Promise.all([
+    supabase.from('subscription_insertions').delete().eq('user_id', userId),
+    supabase.from('yield_accumulator').delete().eq('user_id', userId),
+    supabase.from('recurring_incomes').delete().eq('user_id', userId),
+    supabase.from('income_entries').delete().eq('user_id', userId),
+    supabase.from('transfers').delete().eq('user_id', userId),
+    supabase.from('instruments').delete().eq('user_id', userId),
+    supabase.from('account_period_balance').delete().eq('user_id', userId),
+    supabase.from('subscriptions').delete().eq('user_id', userId),
+    supabase.from('cards').delete().eq('user_id', userId),
+    supabase.from('accounts').delete().eq('user_id', userId),
     supabase.from('expenses').delete().eq('user_id', userId),
     supabase.from('monthly_income').delete().eq('user_id', userId),
     supabase.from('user_config').delete().eq('user_id', userId),

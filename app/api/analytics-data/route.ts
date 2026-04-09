@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
-import type { Card, Expense, Subscription } from '@/types/database'
+import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
+
+function isMissingTableError(message: string | undefined): boolean {
+  return !!message && message.toLowerCase().includes('card_cycles')
+}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -31,9 +35,9 @@ export async function GET(request: Request) {
     { data: rawExpenses },
     { data: prevCreditExpenses },
     { data: incomeEntries },
-    { data: legacyIncome },
     { data: oldestExpense },
     { data: subscriptionsData },
+    { data: cardCyclesData, error: cardCyclesError },
   ] = await Promise.all([
     supabase
       .from('expenses')
@@ -60,12 +64,6 @@ export async function GET(request: Request) {
       .gte('date', startOfMonth)
       .lt('date', endOfMonth),
     supabase
-      .from('monthly_income')
-      .select('amount_ars, amount_usd')
-      .eq('user_id', user.id)
-      .eq('month', startOfMonth)
-      .maybeSingle(),
-    supabase
       .from('expenses')
       .select('date')
       .eq('user_id', user.id)
@@ -73,23 +71,25 @@ export async function GET(request: Request) {
       .limit(1)
       .maybeSingle(),
     supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('is_active', true),
+    supabase
+      .from('card_cycles')
+      .select('*')
+      .eq('user_id', user.id)
+      .in('period_month', [startOfMonth, prevMonthStart]),
   ])
 
-  const entriesSum = (incomeEntries ?? []).reduce((s, e) => s + e.amount, 0)
-  const ingresoMes: number | null =
-    entriesSum > 0
-      ? entriesSum
-      : legacyIncome
-        ? currency === 'ARS'
-          ? legacyIncome.amount_ars
-          : legacyIncome.amount_usd
-        : null
+  if (cardCyclesError && !isMissingTableError(cardCyclesError.message)) {
+    return NextResponse.json({ error: cardCyclesError.message }, { status: 500 })
+  }
+
+  const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
 
   return NextResponse.json({
     rawExpenses: (rawExpenses ?? []) as Expense[],
     prevMonthExpenses: (prevCreditExpenses ?? []) as Expense[],
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],
+    cardCycles: (cardCyclesError ? [] : (cardCyclesData ?? [])) as CardCycle[],
     cards,
     currency,
     earliestDataMonth: oldestExpense?.date?.substring(0, 7) ?? null,

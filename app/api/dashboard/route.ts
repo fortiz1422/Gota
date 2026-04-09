@@ -120,7 +120,6 @@ export async function GET(request: Request) {
   if (FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
 
   const [
-    legacyIncomeResult,
     incomeEntriesResult,
     periodBalancesResult,
     { data: oldestExpense },
@@ -140,12 +139,6 @@ export async function GET(request: Request) {
     { data: liveYieldData },
     { data: liveInstrumentsData },
   ] = await Promise.all([
-    supabase
-      .from('monthly_income')
-      .select('id')
-      .eq('user_id', user.id)
-      .eq('month', selectedMonthDate)
-      .maybeSingle(),
     supabase
       .from('income_entries')
       .select('*')
@@ -259,12 +252,10 @@ export async function GET(request: Request) {
   ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
-  const hasLegacyIncome = legacyIncomeResult.data !== null
   const hasConfiguredOpeningBalance = (periodBalancesResult.data ?? []).some(
     (balance) => balance.source !== 'rollover_auto',
   )
-  const hasNewStyleIncome = incomeEntries.length > 0 || hasConfiguredOpeningBalance
-  const hasIncome = hasLegacyIncome || hasNewStyleIncome
+  const hasIncome = incomeEntries.length > 0 || hasConfiguredOpeningBalance
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7) ?? null
   const hasUsdExpenses = usdCheckData !== null
   const allUltimos = (allUltimosData ?? []) as Expense[]
@@ -288,12 +279,10 @@ export async function GET(request: Request) {
     const prevMonthDate = prevMonthStr + '-01'
 
     const [
-      { data: prevIncome },
       { data: prevExps },
       { data: prevIncomeEntries },
       { data: prevPeriodBalances },
     ] = await Promise.all([
-      supabase.from('monthly_income').select('*').eq('user_id', user.id).eq('month', prevMonthDate).maybeSingle(),
       supabase
         .from('expenses')
         .select('amount, category, payment_method, account_id, currency')
@@ -311,13 +300,13 @@ export async function GET(request: Request) {
     ])
 
     const prevBalanceSum = (prevPeriodBalances ?? []).reduce((s, b) => s + b.balance_ars + b.balance_usd, 0)
-    const hasPrevData = prevIncome !== null || (prevIncomeEntries?.length ?? 0) > 0 || prevBalanceSum > 0
+    const hasPrevData = (prevIncomeEntries?.length ?? 0) > 0 || prevBalanceSum > 0
 
     if (hasPrevData) {
       // Filter expenses by currency for the global summary display
       const prevExpsForSummary = (prevExps ?? []).filter((e) => e.currency === currency)
       const summary = buildPrevMonthSummary(
-        prevIncome,
+        null,
         prevExpsForSummary,
         currency,
         prevMonthStr,
