@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { CaretLeft, CaretRight, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
@@ -18,7 +18,7 @@ type ApiMovement =
   | { kind: 'transfer'; data: Transfer }
   | { kind: 'yield';    data: YieldAccumulator & { accountName: string } }
 
-interface ApiResponse {
+export interface ApiResponse {
   movements:           ApiMovement[]
   stats:               { percibidos: number; tarjeta: number; pagoTarjeta: number }
   total:               number
@@ -71,24 +71,26 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[]): string {
 
 interface Props {
   initialMonth: string
+  initialData?: ApiResponse
 }
 
-export function MovimientosClient({ initialMonth }: Props) {
+export function MovimientosClient({ initialMonth, initialData }: Props) {
   const [selectedMonth, setSelectedMonth]         = useState(initialMonth)
   const [activeFilters, setActiveFilters]         = useState<ActiveFilters>(EMPTY_FILTERS)
   const [filterOpen, setFilterOpen]               = useState(false)
   const [page, setPage]                           = useState(1)
-  const [loadedMovements, setLoadedMovements]     = useState<ApiMovement[]>([])
-  const [stats, setStats]                         = useState<ApiResponse['stats']>({ percibidos: 0, tarjeta: 0, pagoTarjeta: 0 })
-  const [total, setTotal]                         = useState(0)
-  const [categories, setCategories]               = useState<string[]>([])
-  const [accounts, setAccounts]                   = useState<Account[]>([])
-  const [cards, setCards]                         = useState<Card[]>([])
-  const [filteredSum, setFilteredSum]             = useState(0)
-  const [filteredSumCurrency, setFilteredSumCurrency] = useState<'ARS' | 'USD'>('ARS')
-  const [statsCurrency, setStatsCurrency]         = useState<'ARS' | 'USD'>('ARS')
-  const [isLoading, setIsLoading]                 = useState(true)
+  const [loadedMovements, setLoadedMovements]     = useState<ApiMovement[]>(initialData?.movements ?? [])
+  const [stats, setStats]                         = useState<ApiResponse['stats']>(initialData?.stats ?? { percibidos: 0, tarjeta: 0, pagoTarjeta: 0 })
+  const [total, setTotal]                         = useState(initialData?.total ?? 0)
+  const [categories, setCategories]               = useState<string[]>(initialData?.categories ?? [])
+  const [accounts, setAccounts]                   = useState<Account[]>(initialData?.accounts ?? [])
+  const [cards, setCards]                         = useState<Card[]>(initialData?.cards ?? [])
+  const [filteredSum, setFilteredSum]             = useState(initialData?.filteredSum ?? 0)
+  const [filteredSumCurrency, setFilteredSumCurrency] = useState<'ARS' | 'USD'>(initialData?.filteredSumCurrency ?? 'ARS')
+  const [statsCurrency, setStatsCurrency]         = useState<'ARS' | 'USD'>(initialData?.statsCurrency ?? 'ARS')
+  const [isLoading, setIsLoading]                 = useState(!initialData)
   const [isLoadingMore, setIsLoadingMore]         = useState(false)
+  const skipFirstFetch                            = useRef(!!initialData)
 
   const currentMonth = getCurrentMonth()
 
@@ -132,6 +134,10 @@ export function MovimientosClient({ initialMonth }: Props) {
   )
 
   useEffect(() => {
+    if (skipFirstFetch.current) {
+      skipFirstFetch.current = false
+      return
+    }
     setPage(1)
     fetchMovements(selectedMonth, activeFilters, 1, false)
   }, [selectedMonth, activeFilters, fetchMovements])
