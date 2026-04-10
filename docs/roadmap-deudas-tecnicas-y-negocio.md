@@ -97,12 +97,31 @@ Ultimos avances aplicados:
 - el setup legacy de ingresos ahora crea `income_entries`
 - se elimino una superficie legacy muerta que seguia escribiendo `monthly_income`
 - el borrado de cuenta ya contempla `income_entries` y tablas nuevas del modelo financiero
+- se agrego una primitive compartida para subtotales vivos del hero en `live-balance`
+- se inicio la extraccion de `movement-classification` a `lib/`
+- dashboard, rollover, movimientos y analytics ya consumen la misma semantica base para gasto percibido, gasto con tarjeta y pago de tarjeta
 
 Decisiones parciales ya tomadas:
 
 - `income_entries` queda como fuente operativa de ingresos
 - `monthly_income` queda acotado a compatibilidad residual y cierre legacy de mes
 - `rollover` se mantiene por ahora, pero no debe volver al calculo principal de `Saldo Vivo`
+
+### 2.3 Docs operativos vigentes
+
+Docs de trabajo que hoy complementan este roadmap:
+
+- `account_period_balance`
+  - [account-period-balance-decision.md](/C:/Users/Admin/Documents/gota/docs/account-period-balance-decision.md)
+- `monthly_income`
+  - [monthly-income-audit.md](/C:/Users/Admin/Documents/gota/docs/monthly-income-audit.md)
+- cuotas
+  - [cuotas-feature-audit.md](/C:/Users/Admin/Documents/gota/docs/cuotas-feature-audit.md)
+- consolidacion financiera
+  - [financial-logic-consolidation-audit.md](/C:/Users/Admin/Documents/gota/docs/financial-logic-consolidation-audit.md)
+  - [live-balance-dashboard-gap-analysis.md](/C:/Users/Admin/Documents/gota/docs/live-balance-dashboard-gap-analysis.md)
+  - [movement-classification-audit.md](/C:/Users/Admin/Documents/gota/docs/movement-classification-audit.md)
+  - [financial-consolidation-status-and-next-step.md](/C:/Users/Admin/Documents/gota/docs/financial-consolidation-status-and-next-step.md)
 
 ## 3. Roadmap priorizado
 
@@ -190,6 +209,7 @@ Sigue pendiente:
 
 - terminar de cerrar el rol residual de tablas legacy alrededor del modelo
 - alinear documentacion final del sistema contable
+- seguir consolidando subtotales y clasificacion compartida para reducir logica financiera repetida
 
 **Prioridad**
 
@@ -258,6 +278,10 @@ P0
 
 **Estado actualizado**
 
+Doc operativo:
+
+- [monthly-income-audit.md](/C:/Users/Admin/Documents/gota/docs/monthly-income-audit.md)
+
 Avance parcial importante:
 
 - dashboard y analytics ya dejaron de usar `monthly_income` como fuente principal de ingresos
@@ -318,6 +342,10 @@ Tratarlo como snapshot derivado siempre que sea posible.
 - no existen usos contradictorios entre endpoints
 
 **Estado actualizado**
+
+Doc operativo:
+
+- [account-period-balance-decision.md](/C:/Users/Admin/Documents/gota/docs/account-period-balance-decision.md)
 
 Avance fuerte.
 
@@ -446,6 +474,10 @@ No seguir expandiendo cuotas hasta cerrar una auditoría completa del flujo.
 - hay tests para inserción y borrado grupal
 
 **Estado actualizado**
+
+Doc operativo:
+
+- [cuotas-feature-audit.md](/C:/Users/Admin/Documents/gota/docs/cuotas-feature-audit.md)
 
 Avance parcial importante:
 
@@ -576,6 +608,28 @@ Extraer núcleo contable compartido a funciones puras en `lib/`.
 
 - las fórmulas centrales existen una sola vez
 - endpoints distintos reutilizan primitives comunes
+
+**Estado actualizado**
+
+Docs operativos:
+
+- [financial-logic-consolidation-audit.md](/C:/Users/Admin/Documents/gota/docs/financial-logic-consolidation-audit.md)
+- [live-balance-dashboard-gap-analysis.md](/C:/Users/Admin/Documents/gota/docs/live-balance-dashboard-gap-analysis.md)
+- [movement-classification-audit.md](/C:/Users/Admin/Documents/gota/docs/movement-classification-audit.md)
+- [financial-consolidation-status-and-next-step.md](/C:/Users/Admin/Documents/gota/docs/financial-consolidation-status-and-next-step.md)
+
+Avance parcial real:
+
+- `live-balance` ya concentra breakdown por cuenta y ahora tambien parte de los subtotales vivos del hero
+- se extrajo `movement-classification` como modulo compartido en `lib/`
+- dashboard, rollover, movimientos y analytics ya usan helpers comunes para clasificar gasto percibido, gasto con tarjeta y pago de tarjeta
+
+Sigue pendiente:
+
+- seguir reduciendo calculos locales en `/api/dashboard`
+- consolidar mejor `gastosTarjeta` y la semantica de pagos legacy aplicables
+- formalizar una primitive mas canonica de resumen mensual
+- cubrir estas primitives con tests
 
 **Prioridad**
 
@@ -981,7 +1035,7 @@ Si estas deudas siguen abiertas:
 ### P1
 
 - [~] decidir futuro real de rollover
-- [ ] unificar lógica financiera duplicada
+- [~] unificar lógica financiera duplicada
 - [~] inventariar y clasificar features legacy
 
 ### P2

@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
+import {
+  isCreditAccruedExpense,
+  isPerceivedExpense,
+} from '@/lib/movement-classification'
 import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
 
 function isMissingTableError(message: string | undefined): boolean {
@@ -44,7 +48,6 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
-      .neq('category', 'Pago de Tarjetas')
       .gte('date', startOfMonth)
       .lt('date', endOfMonth),
     supabase
@@ -52,8 +55,6 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
-      .eq('payment_method', 'CREDIT')
-      .neq('category', 'Pago de Tarjetas')
       .gte('date', prevMonthStart)
       .lt('date', startOfMonth),
     supabase
@@ -83,10 +84,16 @@ export async function GET(request: Request) {
   }
 
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
+  const currentMonthExpenses = ((rawExpenses ?? []) as Expense[]).filter(
+    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
+  )
+  const previousMonthCreditExpenses = ((prevCreditExpenses ?? []) as Expense[]).filter(
+    (expense) => isCreditAccruedExpense(expense),
+  )
 
   return NextResponse.json({
-    rawExpenses: (rawExpenses ?? []) as Expense[],
-    prevMonthExpenses: (prevCreditExpenses ?? []) as Expense[],
+    rawExpenses: currentMonthExpenses,
+    prevMonthExpenses: previousMonthCreditExpenses,
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],
     cardCycles: (cardCyclesError ? [] : (cardCyclesData ?? [])) as CardCycle[],

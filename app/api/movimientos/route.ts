@@ -3,6 +3,11 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { FF_YIELD } from '@/lib/flags'
 import { todayAR, toDateOnly } from '@/lib/format'
+import {
+  isCardPayment,
+  isCreditAccruedExpense,
+  isPerceivedExpense,
+} from '@/lib/movement-classification'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -114,15 +119,15 @@ export async function GET(request: Request) {
   const statsCurrency: 'ARS' | 'USD' = monedas.length === 1 && monedas[0] === 'USD' ? 'USD' : 'ARS'
 
   const percibidos = statsExpenses
-    .filter((e) => e.payment_method !== 'CREDIT' && e.category !== 'Pago de Tarjetas' && e.currency === statsCurrency)
+    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const tarjeta = statsExpenses
-    .filter((e) => e.payment_method === 'CREDIT' && e.category !== 'Pago de Tarjetas' && e.currency === statsCurrency)
+    .filter((e) => isCreditAccruedExpense(e) && e.currency === statsCurrency)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const pagoTarjeta = statsExpenses
-    .filter((e) => e.category === 'Pago de Tarjetas' && e.currency === statsCurrency)
+    .filter((e) => isCardPayment(e) && e.currency === statsCurrency)
     .reduce((sum, e) => sum + e.amount, 0)
 
   // ── Available categories (for filter UI) ───────────────────────────────────
@@ -147,9 +152,9 @@ export async function GET(request: Request) {
   // Origen: percibido / tarjeta / pago_tarjeta
   if (origenes.length > 0) {
     filteredExpenses = filteredExpenses.filter((e) => {
-      if (origenes.includes('percibido')   && e.payment_method !== 'CREDIT' && e.category !== 'Pago de Tarjetas') return true
-      if (origenes.includes('tarjeta')     && e.payment_method === 'CREDIT' && e.category !== 'Pago de Tarjetas') return true
-      if (origenes.includes('pago_tarjeta') && e.category === 'Pago de Tarjetas') return true
+      if (origenes.includes('percibido') && isPerceivedExpense(e)) return true
+      if (origenes.includes('tarjeta') && isCreditAccruedExpense(e)) return true
+      if (origenes.includes('pago_tarjeta') && isCardPayment(e)) return true
       return false
     })
   }

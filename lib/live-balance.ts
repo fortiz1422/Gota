@@ -1,6 +1,4 @@
-import type { Account, Instrument } from '@/types/database'
-
-type Currency = 'ARS' | 'USD'
+import type { Account, Currency, Instrument } from '@/types/database'
 
 type AccountAmountRow = {
   account_id: string | null
@@ -21,6 +19,11 @@ type YieldRow = {
   accumulated: number
 }
 
+type HeroAmountRow = {
+  amount: number
+  currency: Currency
+}
+
 export type LiveBreakdownRow = {
   id: string
   name: string
@@ -28,6 +31,16 @@ export type LiveBreakdownRow = {
   is_primary: boolean
   saldo: number
 }
+
+export type HeroSummaryByCurrency = {
+  saldoInicial: number
+  ingresos: number
+  gastosPercibidos: number
+  pagoTarjetas: number
+  rendimientos: number
+}
+
+export type LiveBalanceHeroSummary = Record<Currency, HeroSummaryByCurrency>
 
 type LiveBreakdownInput = {
   accounts: Account[]
@@ -118,6 +131,74 @@ export function buildLiveBalanceBreakdown({
 
 export function sumLiveBreakdown(breakdown: LiveBreakdownRow[]): number {
   return breakdown.reduce((sum, account) => sum + account.saldo, 0)
+}
+
+export function buildLiveBalanceHeroSummary({
+  accounts,
+  incomes,
+  debitExpenses,
+  cardPayments,
+  yields = [],
+}: {
+  accounts: Account[]
+  incomes: HeroAmountRow[]
+  debitExpenses: HeroAmountRow[]
+  cardPayments: HeroAmountRow[]
+  yields?: Pick<YieldRow, 'accumulated'>[]
+}): LiveBalanceHeroSummary {
+  const saldoInicial = {
+    ARS: accounts.reduce((sum, account) => sum + account.opening_balance_ars, 0),
+    USD: accounts.reduce((sum, account) => sum + account.opening_balance_usd, 0),
+  }
+
+  const ingresos = {
+    ARS: incomes
+      .filter((row) => row.currency === 'ARS')
+      .reduce((sum, row) => sum + row.amount, 0),
+    USD: incomes
+      .filter((row) => row.currency === 'USD')
+      .reduce((sum, row) => sum + row.amount, 0),
+  }
+
+  const gastosPercibidos = {
+    ARS: debitExpenses
+      .filter((row) => row.currency === 'ARS')
+      .reduce((sum, row) => sum + row.amount, 0),
+    USD: debitExpenses
+      .filter((row) => row.currency === 'USD')
+      .reduce((sum, row) => sum + row.amount, 0),
+  }
+
+  const pagoTarjetas = {
+    ARS: cardPayments
+      .filter((row) => row.currency === 'ARS')
+      .reduce((sum, row) => sum + row.amount, 0),
+    USD: cardPayments
+      .filter((row) => row.currency === 'USD')
+      .reduce((sum, row) => sum + row.amount, 0),
+  }
+
+  const rendimientos = {
+    ARS: yields.reduce((sum, row) => sum + row.accumulated, 0),
+    USD: 0,
+  }
+
+  return {
+    ARS: {
+      saldoInicial: saldoInicial.ARS,
+      ingresos: ingresos.ARS,
+      gastosPercibidos: gastosPercibidos.ARS,
+      pagoTarjetas: pagoTarjetas.ARS,
+      rendimientos: rendimientos.ARS,
+    },
+    USD: {
+      saldoInicial: saldoInicial.USD,
+      ingresos: ingresos.USD,
+      gastosPercibidos: gastosPercibidos.USD,
+      pagoTarjetas: pagoTarjetas.USD,
+      rendimientos: rendimientos.USD,
+    },
+  }
 }
 
 export function sumCrossCurrencyTransferAdjustment(

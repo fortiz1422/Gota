@@ -5,7 +5,15 @@ import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { processYieldAccrual } from '@/lib/yieldEngine'
 import { FF_YIELD, FF_INSTRUMENTS } from '@/lib/flags'
 import { todayAR } from '@/lib/format'
-import { sumActiveInstrumentCapital, sumCrossCurrencyTransferAdjustment } from '@/lib/live-balance'
+import {
+  buildLiveBalanceHeroSummary,
+  sumActiveInstrumentCapital,
+  sumCrossCurrencyTransferAdjustment,
+} from '@/lib/live-balance'
+import {
+  isApplicableCardPayment,
+  isCreditAccruedExpense,
+} from '@/lib/movement-classification'
 import type {
   Account,
   Card,
@@ -210,7 +218,7 @@ export async function GET(request: Request) {
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
-      .select('amount')
+      .select('amount, is_legacy_card_payment')
       .eq('user_id', user.id)
       .eq('currency', viewCurrency)
       .lte('date', todayDate)
@@ -218,7 +226,7 @@ export async function GET(request: Request) {
       .or('is_legacy_card_payment.is.null,is_legacy_card_payment.eq.false'),
     supabase
       .from('expenses')
-      .select('amount')
+      .select('amount, category, payment_method')
       .eq('user_id', user.id)
       .eq('currency', viewCurrency)
       .lte('date', todayDate)
@@ -315,9 +323,22 @@ export async function GET(request: Request) {
     p_currency: viewCurrency,
   })
 
-  const rendimientosHistoricos = FF_YIELD
-    ? (liveYieldData ?? []).reduce((sum: number, ya: { accumulated: number }) => sum + (ya.accumulated ?? 0), 0)
-    : 0
+  const liveHeroSummary = buildLiveBalanceHeroSummary({
+    accounts,
+    incomes: (liveIncomeData ?? []).map((row: { amount: number }) => ({
+      amount: row.amount,
+      currency: viewCurrency,
+    })),
+    debitExpenses: (liveDebitExpenseData ?? []).map((row: { amount: number }) => ({
+      amount: row.amount,
+      currency: viewCurrency,
+    })),
+    cardPayments: (liveCardPaymentData ?? []).map((row: { amount: number }) => ({
+      amount: row.amount,
+      currency: viewCurrency,
+    })),
+    yields: FF_YIELD ? ((liveYieldData ?? []) as { accumulated: number }[]) : [],
+  })
 
   const activeInstruments = (instrumentsData ?? []) as Instrument[]
   const capitalInstrumentosMes = FF_INSTRUMENTS
@@ -339,27 +360,24 @@ export async function GET(request: Request) {
     : []
 
   const rawData = dashboardRaw as DashboardData | null
-  const liveSaldoInicial = accounts.reduce(
-    (sum, account) => sum + (viewCurrency === 'ARS' ? account.opening_balance_ars : account.opening_balance_usd),
-    0,
-  )
-  const liveIngresos = (liveIncomeData ?? []).reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
-  const liveGastosPercibidos = (liveDebitExpenseData ?? []).reduce(
-    (sum: number, row: { amount: number }) => sum + row.amount,
-    0,
-  )
-  const livePagoTarjetas = (liveCardPaymentData ?? []).reduce(
-    (sum: number, row: { amount: number }) => sum + row.amount,
-    0,
-  )
-  const livePagoTarjetasAplicables = (liveAppliedCardPaymentData ?? []).reduce(
-    (sum: number, row: { amount: number }) => sum + row.amount,
-    0,
-  )
-  const liveCreditoDevengado = (liveCreditExpenseData ?? []).reduce(
-    (sum: number, row: { amount: number }) => sum + row.amount,
-    0,
-  )
+  const livePagoTarjetasAplicables = (liveAppliedCardPaymentData ?? [])
+    .filter((row: { is_legacy_card_payment: boolean | null }) =>
+      isApplicableCardPayment({
+        category: 'Pago de Tarjetas',
+        payment_method: 'DEBIT',
+        is_legacy_card_payment: row.is_legacy_card_payment,
+      }),
+    )
+    .reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
+  const liveCreditoDevengado = (liveCreditExpenseData ?? [])
+    .filter((row: { category: string; payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' }) =>
+      isCreditAccruedExpense({
+        category: row.category,
+        payment_method: row.payment_method,
+        is_legacy_card_payment: null,
+      }),
+    )
+    .reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
   const liveGastosTarjeta = Math.max(0, liveCreditoDevengado - livePagoTarjetasAplicables)
 
   let dashboardData: DashboardData | null = rawData
@@ -367,11 +385,11 @@ export async function GET(request: Request) {
     dashboardData = {
       ...dashboardData,
       saldo_vivo: {
-        saldo_inicial: liveSaldoInicial,
-        ingresos: liveIngresos,
-        gastos_percibidos: liveGastosPercibidos,
-        pago_tarjetas: livePagoTarjetas,
-        rendimientos: rendimientosHistoricos,
+        saldo_inicial: liveHeroSummary[viewCurrency].saldoInicial,
+        ingresos: liveHeroSummary[viewCurrency].ingresos,
+        gastos_percibidos: liveHeroSummary[viewCurrency].gastosPercibidos,
+        pago_tarjetas: liveHeroSummary[viewCurrency].pagoTarjetas,
+        rendimientos: liveHeroSummary[viewCurrency].rendimientos,
       },
       gastos_tarjeta: liveGastosTarjeta,
     }

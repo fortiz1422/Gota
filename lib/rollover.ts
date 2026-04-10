@@ -1,4 +1,5 @@
 import type { Account } from '@/types/database'
+import { isCardPayment, isPerceivedExpense } from '@/lib/movement-classification'
 
 export type PrevMonthSummary = {
   prevIncomeId: null
@@ -68,13 +69,12 @@ export function buildPrevMonthSummary(
     .filter(
       (e) =>
         (!e.currency || e.currency === currency) &&
-        ['CASH', 'DEBIT', 'TRANSFER'].includes(e.payment_method) &&
-        e.category !== 'Pago de Tarjetas',
+        isPerceivedExpense(e),
     )
     .reduce((s, e) => s + e.amount, 0)
 
   const pagosTarjeta = prevExpenses
-    .filter((e) => (!e.currency || e.currency === currency) && e.category === 'Pago de Tarjetas')
+    .filter((e) => (!e.currency || e.currency === currency) && isCardPayment(e))
     .reduce((s, e) => s + e.amount, 0)
 
   const saldoFinal = Math.max(0, saldoInicial + ingresos - gastosMes - pagosTarjeta)
@@ -156,11 +156,9 @@ export function buildSmartPerAccountBalances(
   }
 
   for (const exp of expenses) {
-    const isDirectExpense =
-      ['CASH', 'DEBIT', 'TRANSFER'].includes(exp.payment_method) &&
-      exp.category !== 'Pago de Tarjetas'
-    const isCardPayment = exp.category === 'Pago de Tarjetas'
-    if (!isDirectExpense && !isCardPayment) continue
+    const isDirectExpense = isPerceivedExpense(exp)
+    const isCardPaymentExpense = isCardPayment(exp)
+    if (!isDirectExpense && !isCardPaymentExpense) continue
 
     const bal = map.get(resolve(exp.account_id))!
     const cur = exp.currency ?? 'ARS'

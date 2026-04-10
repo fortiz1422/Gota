@@ -1,6 +1,6 @@
 # Financial Logic Consolidation Audit
 
-**Fecha:** 2026-04-09  
+**Fecha:** 2026-04-10  
 **Objetivo:** mapear donde vive hoy la logica financiera principal de Gota, que formulas estan duplicadas, cual es el impacto real de esa duplicacion, y como conviene consolidarla sin romper producto.
 
 ## 1. Contexto
@@ -138,7 +138,7 @@ Estado:
 La duplicacion no es solo "mismo codigo copiado".  
 Es principalmente "misma regla de negocio decidida varias veces".
 
-## A. Clasificacion de gastos
+## A. Clasificacion de movimientos
 
 Se vuelve a decidir en varios lugares:
 
@@ -157,6 +157,7 @@ Archivos afectados:
 Impacto:
 
 - si cambia la semantica de una categoria o payment method, es facil olvidar un lugar
+- es probablemente la fuente mas peligrosa de divergencia silenciosa entre Home, rollover, analytics y tarjetas
 
 ## B. Agregacion por moneda
 
@@ -189,6 +190,7 @@ Esto no siempre es duplicacion mala, pero hoy esta repartido sin una capa clara.
 Impacto:
 
 - dificulta entender si un bug es de fecha, de categoria o de agregacion
+- puede convertirse en bug funcional cuando se comparan analytics de un mes pasado contra rollover o ciclos de tarjeta de ese mismo periodo
 
 ## D. Saldos por cuenta vs saldo consolidado
 
@@ -305,6 +307,11 @@ Deberia concentrar:
 
 Idealmente `dashboard/route.ts` deberia consumir este resultado en vez de reconstruir varias partes a mano.
 
+Prerequisito:
+
+- primero hay que mapear exactamente que outputs expone hoy `buildLiveBalanceBreakdown()` y cuales sigue reconstruyendo [route.ts](/C:/Users/Admin/Documents/gota/app/api/dashboard/route.ts)
+- si faltan agregados canonicos, la Etapa 2 no es solo "usar live-balance", sino ampliar su API de forma explicita
+
 ## B. `movement-classification` o equivalente
 
 Falta una primitive clara para responder:
@@ -316,6 +323,11 @@ Falta una primitive clara para responder:
 - esto impacta rollover?
 
 No necesariamente con una sola API publica gigante, pero si con helpers compartidos.
+
+Prioridad:
+
+- deberia subir en prioridad practica
+- es la capa que mas facil rompe consistencia sin que el bug sea obvio a simple vista
 
 ## C. `monthly-summary` o equivalente
 
@@ -349,20 +361,21 @@ Riesgo:
 
 - bajo
 
-## Etapa 2. Consolidar outputs vivos en `live-balance.ts`
+## Etapa 2. Mapear gap de outputs en `live-balance.ts`
 
 Objetivo:
 
-- mover a un helper compartido las agregaciones que hoy `dashboard/route.ts` hace por separado para `Saldo Vivo` y `Disponible Real`
+- comparar que expone hoy `buildLiveBalanceBreakdown()` contra todo lo que [route.ts](/C:/Users/Admin/Documents/gota/app/api/dashboard/route.ts) reconstruye localmente
+- decidir que agregados deben pasar a ser outputs oficiales de `live-balance`
 
 Resultado esperado:
 
-- Home y breakdown parten del mismo nucleo real
+- tamaño real de la consolidacion visible
+- prerequisitos tecnicos claros antes del refactor
 
 Riesgo:
 
-- medio
-- requiere validar numeros visibles
+- bajo
 
 ## Etapa 3. Extraer clasificacion compartida de movimientos
 
@@ -378,8 +391,24 @@ Riesgo:
 
 - medio
 - puede mover varios filtros pequeños
+- pero conviene priorizarla mas alto porque es donde mas facil aparece divergencia silenciosa
 
-## Etapa 4. Formalizar `monthly-summary`
+## Etapa 4. Consolidar outputs vivos en `live-balance.ts`
+
+Objetivo:
+
+- mover a un helper compartido las agregaciones que hoy `dashboard/route.ts` hace por separado para `Saldo Vivo` y `Disponible Real`
+
+Resultado esperado:
+
+- Home y breakdown parten del mismo nucleo real
+
+Riesgo:
+
+- medio
+- requiere validar numeros visibles
+
+## Etapa 5. Formalizar `monthly-summary`
 
 Objetivo:
 
@@ -393,15 +422,17 @@ Riesgo:
 
 - medio
 
-## Etapa 5. Tests de primitives
+## Etapa 6. Tests en paralelo sobre primitives
 
 Objetivo:
 
-- cubrir primero helpers puros y no endpoints completos
+- arrancar tests desde la primera consolidacion util, no al final
+- usar `live-balance` y luego `movement-classification` como red de seguridad para las etapas siguientes
 
 Resultado esperado:
 
-- base estable para seguir refactorizando
+- refactor con menos riesgo
+- base reutilizable para monthly summary y futuros cambios
 
 Riesgo:
 
@@ -414,9 +445,11 @@ El siguiente paso correcto no es reescribir todo `dashboard/route.ts` de una.
 La recomendacion es:
 
 1. usar este audit para decidir las primitives oficiales
-2. consolidar primero solo el modelo vivo en `live-balance.ts`
-3. despues extraer clasificacion compartida
-4. dejar `rollover` y analytics consumiendo esas primitives de a poco
+2. mapear primero el gap exacto entre `live-balance.ts` y [route.ts](/C:/Users/Admin/Documents/gota/app/api/dashboard/route.ts)
+3. priorizar `movement-classification` mas arriba de lo que parecia al inicio
+4. consolidar despues el modelo vivo en `live-balance.ts`
+5. meter tests desde esa primera consolidacion, no al final
+6. dejar `rollover` y analytics consumiendo esas primitives de a poco
 
 ## 11. Conclusion
 
