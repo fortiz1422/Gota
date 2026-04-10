@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { getCurrentMonth } from '@/lib/dates'
+import { readDashboardData } from '@/lib/server/dashboard-queries'
 
 export default async function DashboardPage({
   searchParams,
@@ -26,6 +27,19 @@ export default async function DashboardPage({
   const { month, currency: currencyParam } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
   const viewCurrency = (currencyParam === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD'
+  const initialData = await readDashboardData({
+    supabase,
+    userId: user.id,
+    selectedMonth,
+    viewCurrency,
+  })
 
-  return <DashboardShell selectedMonth={selectedMonth} viewCurrency={viewCurrency} userEmail={user.email ?? ''} />
+  return (
+    <DashboardShell
+      selectedMonth={selectedMonth}
+      viewCurrency={viewCurrency}
+      userEmail={user.email ?? ''}
+      initialData={initialData}
+    />
+  )
 }

@@ -15,50 +15,13 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
-import type {
-  Account,
-  Card,
-  DashboardData,
-  Expense,
-  Instrument,
-  IncomeEntry,
-  RecurringIncome,
-  Subscription,
-  Transfer,
-  YieldAccumulator,
-} from '@/types/database'
-import type { PrevMonthSummary } from '@/lib/rollover'
-
-type DashboardApiData = {
-  dashboardData: DashboardData | null
-  accounts: Account[]
-  cards: Card[]
-  currency: 'ARS' | 'USD'
-  viewCurrency: 'ARS' | 'USD'
-  hasIncomeAfterRollover: boolean
-  autoRolloverAmount: number | null
-  manualRolloverSummary: PrevMonthSummary | null
-  activeSubscriptions: Subscription[]
-  allUltimos: Expense[]
-  incomeEntries: IncomeEntry[]
-  transfers: Transfer[]
-  transferCurrencyAdjustment: number
-  earliestDataMonth: string | null
-  hasUsdExpenses: boolean
-  selectedMonth: string
-  isCurrentMonth: boolean
-  isProjected: boolean
-  yieldAccumulators: YieldAccumulator[]
-  activeInstruments: Instrument[]
-  capitalInstrumentosMes: number
-  recurringPending: RecurringIncome[]
-  activeRecurring: RecurringIncome[]
-}
+import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 
 interface Props {
   selectedMonth: string
   viewCurrency: 'ARS' | 'USD'
   userEmail: string
+  initialData: DashboardApiData
 }
 
 function DashboardSkeleton() {
@@ -85,7 +48,7 @@ function DashboardSkeleton() {
   )
 }
 
-export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props) {
+export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initialData }: Props) {
   const queryClient = useQueryClient()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
@@ -113,6 +76,7 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail }: Props
       if (!res.ok) throw new Error('dashboard fetch failed')
       return res.json()
     },
+    initialData,
   })
 
   const invalidateDashboardData = () => {
