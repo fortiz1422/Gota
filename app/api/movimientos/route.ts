@@ -65,6 +65,8 @@ export async function GET(request: Request) {
     { data: yieldData },
     { data: accountsData },
     { data: cardsData },
+    { data: statsExpensesData },
+    { data: allCatsData },
   ] = await Promise.all([
     wantsExpenses
       ? supabase.from('expenses').select('*').eq('user_id', user.id)
@@ -90,6 +92,12 @@ export async function GET(request: Request) {
 
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),
+
+    supabase.from('expenses').select('amount, currency, payment_method, category')
+      .eq('user_id', user.id).gte('date', effectiveStart).lt('date', effectiveEnd),
+
+    supabase.from('expenses').select('category')
+      .eq('user_id', user.id).gte('date', effectiveStart).lt('date', effectiveEnd),
   ])
 
   const accounts   = (accountsData  ?? []) as Account[]
@@ -104,14 +112,6 @@ export async function GET(request: Request) {
   const allIncome    = (incomeData    ?? []) as IncomeEntry[]
   const allTransfers = (transfersData ?? []) as Transfer[]
   const allYield     = (yieldData     ?? []) as YieldAccumulator[]
-
-  // ── Stats (always from full month, unfiltered) ─────────────────────────────
-  const { data: statsExpensesData } = await supabase
-    .from('expenses')
-    .select('amount, currency, payment_method, category')
-    .eq('user_id', user.id)
-    .gte('date', effectiveStart)
-    .lt('date', effectiveEnd)
 
   const statsExpenses = (statsExpensesData ?? []) as Pick<Expense, 'amount' | 'currency' | 'payment_method' | 'category'>[]
 
@@ -131,10 +131,6 @@ export async function GET(request: Request) {
     .reduce((sum, e) => sum + e.amount, 0)
 
   // ── Available categories (for filter UI) ───────────────────────────────────
-  const { data: allCatsData } = await supabase
-    .from('expenses').select('category')
-    .eq('user_id', user.id).gte('date', effectiveStart).lt('date', effectiveEnd)
-
   const categories = [...new Set((allCatsData ?? []).map((e: { category: string }) => e.category))].sort()
 
   // ── Filter expenses ────────────────────────────────────────────────────────
