@@ -28,16 +28,19 @@ function closingDaysLabel(closingDay: number | null): string {
 export function TarjetasSubSheet({ open, onClose }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<CardSummary[]>([])
+  const [loading, setLoading] = useState(false)
   const [newName, setNewName] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [addingCard, setAddingCard] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    setLoading(true)
     fetch('/api/cards/summary')
       .then((r) => r.json())
       .then((data) => setCards(Array.isArray(data) ? data : []))
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [open])
 
   const handleCardTap = (cardId: string) => {
@@ -89,7 +92,9 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
         </div>
 
         {/* Card list */}
-        {cards.length === 0 ? (
+        {loading ? (
+          <p className="py-2 text-sm text-text-tertiary">Cargando…</p>
+        ) : cards.length === 0 ? (
           <p className="py-2 text-sm text-text-tertiary">Sin tarjetas configuradas.</p>
         ) : (
           <div className="glass-2 overflow-hidden rounded-[20px]">

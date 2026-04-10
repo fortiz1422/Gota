@@ -21,28 +21,6 @@ export async function GET() {
   } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { data: cards, error } = await supabase
-    .from('cards')
-    .select('id, name, closing_day, due_day, account_id')
-    .eq('user_id', user.id)
-    .eq('archived', false)
-    .order('created_at', { ascending: true })
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
-
-  // Fetch accounts to resolve account names
-  const accountIds = [...new Set((cards ?? []).map((c) => c.account_id).filter(Boolean))] as string[]
-  let accountNameById: Record<string, string> = {}
-  if (accountIds.length > 0) {
-    const { data: accountsData } = await supabase
-      .from('accounts')
-      .select('id, name')
-      .in('id', accountIds)
-    for (const a of accountsData ?? []) {
-      accountNameById[a.id] = a.name
-    }
-  }
-
   const currentMonth = getCurrentMonth()
   const periodMonths: string[] = [addMonths(currentMonth, 1)]
   for (let i = 0; i <= 5; i++) periodMonths.push(addMonths(currentMonth, -i))
@@ -50,7 +28,22 @@ export async function GET() {
   const oldest = periodMonths[periodMonths.length - 1]
   const newest = periodMonths[0]
 
-  const [{ data: storedCycles }, { data: expenses }] = await Promise.all([
+  const [
+    { data: cards, error },
+    { data: accountsData },
+    { data: storedCycles },
+    { data: expenses },
+  ] = await Promise.all([
+    supabase
+      .from('cards')
+      .select('id, name, closing_day, due_day, account_id')
+      .eq('user_id', user.id)
+      .eq('archived', false)
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('accounts')
+      .select('id, name')
+      .eq('user_id', user.id),
     supabase
       .from('card_cycles')
       .select('*')
@@ -63,6 +56,13 @@ export async function GET() {
       .eq('user_id', user.id)
       .gte('date', `${addMonths(currentMonth, -7)}-01`),
   ])
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+
+  const accountNameById: Record<string, string> = {}
+  for (const a of accountsData ?? []) {
+    accountNameById[a.id] = a.name
+  }
 
   const cyclesByCard: Record<string, CardCycle[]> = {}
   for (const cycle of (storedCycles ?? []) as CardCycle[]) {

@@ -41,14 +41,6 @@ export default async function TarjetaPage({
 
   if (cardError || !card) notFound()
 
-  const { data: accounts } = await supabase
-    .from('accounts')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('archived', false)
-    .neq('type', 'cash')
-    .order('created_at', { ascending: true })
-
   // Months: next + current + last 5
   const currentMonth = getCurrentMonth()
   const periodMonths: string[] = [addMonths(currentMonth, 1)]
@@ -57,22 +49,29 @@ export default async function TarjetaPage({
   const oldest = periodMonths[periodMonths.length - 1]
   const newest = periodMonths[0]
 
-  const { data: storedCycles } = await supabase
-    .from('card_cycles')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('card_id', cardId)
-    .gte('period_month', `${oldest}-01`)
-    .lte('period_month', `${newest}-01`)
-    .order('period_month', { ascending: false })
-
-  // Expenses for amount calculation — 8 months of coverage
-  const { data: expenses } = await supabase
-    .from('expenses')
-    .select('*')
-    .eq('user_id', user.id)
-    .eq('card_id', cardId)
-    .gte('date', `${addMonths(currentMonth, -7)}-01`)
+  const [{ data: accounts }, { data: storedCycles }, { data: expenses }] = await Promise.all([
+    supabase
+      .from('accounts')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('archived', false)
+      .neq('type', 'cash')
+      .order('created_at', { ascending: true }),
+    supabase
+      .from('card_cycles')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('card_id', cardId)
+      .gte('period_month', `${oldest}-01`)
+      .lte('period_month', `${newest}-01`)
+      .order('period_month', { ascending: false }),
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('card_id', cardId)
+      .gte('date', `${addMonths(currentMonth, -7)}-01`),
+  ])
 
   const enriched: EnrichedCycle[] = buildEnrichedCardCycles({
     card: card as Card,
