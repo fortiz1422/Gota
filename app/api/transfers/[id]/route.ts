@@ -13,11 +13,36 @@ export async function PATCH(
 
   const { id } = await params
   const body = await request.json()
-  const { note, date } = body
+  const {
+    from_account_id,
+    to_account_id,
+    amount_from,
+    amount_to,
+    currency_from,
+    currency_to,
+    exchange_rate,
+    note,
+    date,
+  } = body
 
+  if (from_account_id === to_account_id) {
+    return NextResponse.json({ error: 'Origen y destino no pueden ser la misma cuenta' }, { status: 400 })
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from('transfers')
-    .update({ note, date })
+    .update({
+      from_account_id,
+      to_account_id,
+      amount_from,
+      amount_to,
+      currency_from,
+      currency_to,
+      exchange_rate: exchange_rate ?? null,
+      note: note ?? null,
+      date,
+    } as any)
     .eq('id', id)
     .eq('user_id', user.id)
 

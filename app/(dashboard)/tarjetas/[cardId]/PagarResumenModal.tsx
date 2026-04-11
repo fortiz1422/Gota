@@ -113,7 +113,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
       if (hasDiff && diff > 0 && motivo !== 'no_detallar') {
         const extraCategory = motivo === 'cargo_banco' ? 'Cargos Bancarios' : categoriaExtra
         const extraPaymentMethod = motivo === 'cargo_banco' ? 'DEBIT' : 'CREDIT'
-        const extraDate = cycle.closing_date
+        const extraDate = fecha
         const extraBody: Record<string, unknown> = {
           amount: diff,
           currency: 'ARS',
@@ -131,7 +131,10 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(extraBody),
         })
-        if (!adjRes.ok) throw new Error('Error al registrar el ajuste')
+        if (!adjRes.ok) {
+          const errorText = await adjRes.text()
+          throw new Error(errorText || 'Error al registrar el ajuste')
+        }
       }
 
       onSuccess()

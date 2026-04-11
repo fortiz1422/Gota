@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useRef, useEffect, useCallback } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, CreditCard, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
+import { Modal } from '@/components/ui/Modal'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatAmount, formatDate, dateInputToISO } from '@/lib/format'
 import type { Account, Card, Expense } from '@/types/database'
@@ -49,7 +50,7 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
 export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
-  const [expanded, setExpanded] = useState(false)
+  const [open, setOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -64,8 +65,6 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [date, setDate] = useState(expense.date.substring(0, 10))
   const [isWant, setIsWant] = useState(expense.is_want)
-
-  const containerRef = useRef<HTMLDivElement>(null)
 
   const isPagoTarjetas = category === 'Pago de Tarjetas'
   const isInstallmentGroup = expense.installment_group_id != null
@@ -94,12 +93,12 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const handleSave = useCallback(async () => {
     if (isSaving) return
     if (isInstallmentGroup) {
-      setExpanded(false)
+      setOpen(false)
       setError(null)
       return
     }
     if (!isDirty) {
-      setExpanded(false)
+      setOpen(false)
       setError(null)
       return
     }
@@ -122,7 +121,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
         }),
       })
       if (!res.ok) throw new Error()
-      setExpanded(false)
+      setOpen(false)
       setIsSaving(false)
       queryClient.invalidateQueries({ queryKey: ['analytics'] })
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
@@ -134,20 +133,6 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       setIsSaving(false)
     }
   }, [isSaving, isInstallmentGroup, isDirty, expense.id, description, amount, currency, category, source, accounts, cardId, date, isWant, router, queryClient, onUpdate])
-
-  const saveRef = useRef(handleSave)
-  useEffect(() => { saveRef.current = handleSave }, [handleSave])
-
-  useEffect(() => {
-    if (!expanded) return
-    const handler = (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        saveRef.current()
-      }
-    }
-    document.addEventListener('mousedown', handler)
-    return () => document.removeEventListener('mousedown', handler)
-  }, [expanded])
 
   const handleDelete = async () => {
     setIsSaving(true)
@@ -172,17 +157,10 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
 
   return (
-    <div ref={containerRef}>
+    <>
       {/* Collapsed row */}
       <div
-        onClick={() => {
-          if (expanded) {
-            handleSave()
-          } else {
-            setExpanded(true)
-            setError(null)
-          }
-        }}
+        onClick={() => { setOpen(true); setError(null) }}
         className="flex cursor-pointer items-center gap-3 py-[13px] border-b border-border-subtle transition-colors"
       >
         <CategoryIcon category={expense.category} size={16} container />
@@ -209,9 +187,12 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Expanded edit form */}
-      {expanded && (
-        <div className="space-y-3 border-b border-border-subtle bg-bg-secondary p-3">
+      {/* Bottom sheet edit form */}
+      <Modal open={open} onClose={() => setOpen(false)}>
+        <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
+        <h2 className="text-lg font-semibold text-text-primary">Editar gasto</h2>
+
+        <div className="mt-5 space-y-5">
           {error && <p className="text-xs text-danger">{error}</p>}
           {isInstallmentGroup && (
             <p className="text-xs text-text-secondary">
@@ -219,9 +200,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Descripción
               </label>
               <input
@@ -229,11 +210,11 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Monto
               </label>
               <div className="flex gap-1">
@@ -242,7 +223,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
                   disabled={isInstallmentGroup}
-                  className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                  className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
                 />
                 <button
                   onClick={() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'))}
@@ -255,16 +236,16 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Categoría
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 disabled={isInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -272,7 +253,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Fecha
               </label>
               <input
@@ -280,14 +261,14 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={isInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
           </div>
 
           {/* ¿De dónde sale? */}
           <div>
-            <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               ¿De dónde sale?
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -329,14 +310,14 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           {/* Tarjeta selector */}
           {needsCard && (
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Tarjeta
               </label>
               <select
                 value={cardId}
                 onChange={(e) => setCardId(e.target.value)}
                 disabled={isInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
                 <option value="">— seleccioná —</option>
                 {activeCards.map((c) => (
@@ -349,7 +330,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           {/* Cuotas (solo tarjeta de crédito, no Pago de Tarjetas) */}
           {source === 'credit' && !isPagoTarjetas && (
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Cuotas
               </label>
               <div className="flex flex-wrap gap-2">
@@ -389,14 +370,14 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           {/* Necesidad / Deseo */}
           {!isPagoTarjetas && (
             <div>
-              <label className="mb-1 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Tipo
               </label>
-              <div className="flex h-[38px] items-center gap-2">
+              <div className="flex gap-2">
                 <button
                   onClick={() => setIsWant(false)}
                   disabled={isInstallmentGroup}
-                  className={`rounded-button px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
                     isWant === false ? 'bg-success/20 text-success' : 'bg-bg-tertiary text-text-secondary'
                   }`}
                 >
@@ -405,7 +386,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                 <button
                   onClick={() => setIsWant(true)}
                   disabled={isInstallmentGroup}
-                  className={`rounded-button px-3 py-1.5 text-xs font-medium transition-colors ${
+                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
                     isWant === true ? 'bg-want/20 text-want' : 'bg-bg-tertiary text-text-secondary'
                   }`}
                 >
@@ -414,50 +395,42 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               </div>
             </div>
           )}
-
-          <div className="flex items-center gap-2 pt-1">
-            {confirmDelete ? (
-              <>
-                <p className="flex-1 text-xs text-text-secondary">
-                  {expense.installment_group_id
-                    ? `¿Eliminar las ${expense.installment_total} cuotas?`
-                    : '¿Eliminar este gasto?'}
-                </p>
-                <button
-                  onClick={() => setConfirmDelete(false)}
-                  className="rounded-button px-3 py-1.5 text-xs text-text-secondary transition-colors hover:bg-primary/5"
-                >
-                  Cancelar
-                </button>
-                <button
-                  onClick={handleDelete}
-                  disabled={isSaving}
-                  className="rounded-button bg-danger/20 px-3 py-1.5 text-xs font-medium text-danger disabled:opacity-50"
-                >
-                  {isSaving ? '...' : 'Eliminar'}
-                </button>
-              </>
-            ) : (
-              <>
-                <button
-                  onClick={() => setConfirmDelete(true)}
-                  className="text-xs text-danger hover:underline"
-                >
-                  Eliminar
-                </button>
-                <div className="flex-1" />
-                <button
-                  onClick={handleSave}
-                  disabled={isSaving || isInstallmentGroup}
-                  className="rounded-button bg-primary px-4 py-1.5 text-xs font-semibold text-white disabled:opacity-50"
-                >
-                  {isSaving ? <span className="spinner" /> : 'Guardar'}
-                </button>
-              </>
-            )}
-          </div>
         </div>
-      )}
-    </div>
+
+        <div className="mt-6 flex flex-col gap-2">
+          <button
+            onClick={handleSave}
+            disabled={isSaving || isInstallmentGroup}
+            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {isSaving && !confirmDelete ? 'Guardando...' : 'Guardar'}
+          </button>
+          {confirmDelete ? (
+            <div className="flex gap-2">
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="flex-1 rounded-button py-3 text-sm text-text-secondary"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={isSaving}
+                className="flex-1 rounded-button bg-danger/20 py-3 text-sm font-semibold text-danger disabled:opacity-50"
+              >
+                {isSaving ? '...' : 'Eliminar'}
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setConfirmDelete(true)}
+              className="w-full rounded-button py-3 text-sm text-danger"
+            >
+              Eliminar gasto
+            </button>
+          )}
+        </div>
+      </Modal>
+    </>
   )
 }
