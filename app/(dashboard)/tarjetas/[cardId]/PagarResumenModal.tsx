@@ -113,18 +113,18 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
       if (hasDiff && diff > 0 && motivo !== 'no_detallar') {
         const extraCategory = motivo === 'cargo_banco' ? 'Cargos Bancarios' : categoriaExtra
         const extraPaymentMethod = motivo === 'cargo_banco' ? 'DEBIT' : 'CREDIT'
-        const extraDate = fecha
+        const extraDate = cycle.closing_date
         const extraBody: Record<string, unknown> = {
           amount: diff,
           currency: 'ARS',
           category: extraCategory,
           description: motivo === 'cargo_banco' ? 'Cargo bancario' : 'Gasto no registrado',
           payment_method: extraPaymentMethod,
+          card_id: extraPaymentMethod === 'CREDIT' ? card.id : null,
           account_id: accountId,
           date: extraDate,
           is_want: false,
         }
-        if (extraPaymentMethod === 'CREDIT') extraBody.card_id = card.id
 
         const adjRes = await fetch('/api/expenses', {
           method: 'POST',

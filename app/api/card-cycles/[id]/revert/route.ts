@@ -16,7 +16,7 @@ export async function POST(
   // Fetch cycle to get payment details
   const { data: cycle, error: cycleError } = await supabase
     .from('card_cycles')
-    .select('card_id, paid_at, amount_paid, status')
+    .select('card_id, paid_at, amount_paid, status, closing_date')
     .eq('id', id)
     .eq('user_id', user.id)
     .single()
@@ -47,6 +47,16 @@ export async function POST(
       .delete()
       .eq('id', matchingExpenses[0].id)
       .eq('user_id', user.id)
+  }
+
+  // Delete adjustment expense (cargo bancario / gasto olvidado) if any
+  if (cycle.closing_date) {
+    await supabase
+      .from('expenses')
+      .delete()
+      .eq('user_id', user.id)
+      .eq('date', cycle.closing_date)
+      .in('description', ['Cargo bancario', 'Gasto no registrado'])
   }
 
   // Reset cycle
