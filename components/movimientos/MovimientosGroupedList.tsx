@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowCircleUp, ArrowsLeftRight, Funnel, TrendUp, X } from '@phosphor-icons/react'
+import { ArrowCircleUp, ArrowsLeftRight, Funnel, TrendUp } from '@phosphor-icons/react'
 import { formatAmount, formatDate, todayAR } from '@/lib/format'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
@@ -103,22 +103,11 @@ export function MovimientosGroupedList({
 
   return (
     <div>
-      {grouped.map(([date, items]) => (
+      {grouped.map(([date, items], groupIndex) => (
         <div key={date}>
           <div className="flex items-center justify-between py-3">
             <span className="text-[12px] capitalize text-text-dim">{formatDayLabel(date)}</span>
-            <div className="flex items-center gap-2">
-              {showActiveFilter && (
-                <button
-                  onClick={onClearFilters}
-                  className="glass-1 flex min-w-0 max-w-[180px] items-center gap-1.5 rounded-pill py-1.5 pl-3 pr-2.5 transition-opacity active:opacity-60"
-                >
-                  <span className="truncate text-[12px] font-medium text-primary">
-                    {activeFilterSummary}
-                  </span>
-                  <X size={11} weight="bold" className="shrink-0 text-primary/60" />
-                </button>
-              )}
+            {groupIndex === 0 && (
               <button
                 onClick={onOpenFilters}
                 className="relative flex h-8 w-8 items-center justify-center rounded-full text-text-secondary transition-opacity hover:opacity-70 active:opacity-50"
@@ -131,7 +120,7 @@ export function MovimientosGroupedList({
                   </span>
                 )}
               </button>
-            </div>
+            )}
           </div>
 
           <div>

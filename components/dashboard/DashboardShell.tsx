@@ -3,12 +3,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
-import { SmartInput } from '@/components/dashboard/SmartInput'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
 import { FiltroEstoico } from '@/components/dashboard/FiltroEstoico'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
+import { BottomZone } from '@/components/dashboard/BottomZone'
 import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
 import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
@@ -33,7 +33,7 @@ function DashboardSkeleton() {
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 168px)',
         }}
       >
         <div className="flex items-center justify-between pt-5">
@@ -97,6 +97,16 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
       queryFn: () => fetch(`/api/analytics-data?month=${selectedMonth}`).then((r) => r.json()),
     })
   }, [selectedMonth, queryClient])
+
+  useEffect(() => {
+    const otherCurrency = viewCurrency === 'ARS' ? 'USD' : 'ARS'
+    queryClient.prefetchQuery({
+      queryKey: ['dashboard', selectedMonth, otherCurrency],
+      queryFn: () =>
+        fetch(`/api/dashboard?month=${selectedMonth}&currency=${otherCurrency}`).then((r) => r.json()),
+      staleTime: 60_000,
+    })
+  }, [selectedMonth, viewCurrency, queryClient])
 
   if (isLoading || !data) return <DashboardSkeleton />
 
@@ -193,15 +203,14 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
           isCurrentMonth={isCurrentMonth}
           recurringIncomes={activeRecurring}
         />
-        <div
-          style={{
-            marginBottom: keyboardOffset > 0 ? keyboardOffset : 0,
-            transition: keyboardOffset > 0 ? 'none' : 'margin-bottom 0.25s ease',
-          }}
-        >
-          <SmartInput cards={cards} accounts={accounts} onAfterSave={invalidateDashboardData} />
-        </div>
       </div>
+
+      <BottomZone
+        accounts={accounts}
+        cards={cards}
+        keyboardOffset={keyboardOffset}
+        onAfterSave={invalidateDashboardData}
+      />
 
       {activePrompt && (
         <CardPaymentPrompt
