@@ -222,6 +222,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
         body: JSON.stringify({
           closing_date: editingClosingDate,
           due_date: editingDueDate,
+          amount_draft: null,
         }),
       })
       if (!res.ok) throw new Error()
@@ -370,7 +371,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                     </div>
                   </div>
 
-                  {cycle.source === 'stored' && cycle.cycleStatus !== 'en_curso' && (
+                  {cycle.source === 'stored' && (cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido') && (
                     <>
                       {editingCycleId === cycle.id ? (
                         <div className="mt-3 space-y-2 rounded-[14px] border border-border-subtle bg-bg-primary px-3 py-2.5">
