@@ -141,6 +141,10 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
   const [isLegacyPaymentOpen, setIsLegacyPaymentOpen] = useState(false)
   const [revertingCycleId, setRevertingCycleId] = useState<string | null>(null)
   const [isReverting, setIsReverting] = useState(false)
+  const [editingCycleId, setEditingCycleId] = useState<string | null>(null)
+  const [editingClosingDate, setEditingClosingDate] = useState('')
+  const [editingDueDate, setEditingDueDate] = useState('')
+  const [isSavingCycleDates, setIsSavingCycleDates] = useState(false)
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim()
@@ -189,6 +193,44 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
     } catch {
       alert('Error al eliminar la tarjeta.')
       setIsDeleting(false)
+    }
+  }
+
+  const startCycleDateEdit = (cycle: EnrichedCycle) => {
+    setEditingCycleId(cycle.id)
+    setEditingClosingDate(cycle.closing_date)
+    setEditingDueDate(cycle.due_date)
+  }
+
+  const cancelCycleDateEdit = () => {
+    setEditingCycleId(null)
+    setEditingClosingDate('')
+    setEditingDueDate('')
+  }
+
+  const saveCycleDates = async () => {
+    if (!editingCycleId || !editingClosingDate || !editingDueDate) return
+    if (editingDueDate < editingClosingDate) {
+      alert('La fecha de vencimiento no puede ser anterior al cierre.')
+      return
+    }
+    setIsSavingCycleDates(true)
+    try {
+      const res = await fetch(`/api/card-cycles/${editingCycleId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          closing_date: editingClosingDate,
+          due_date: editingDueDate,
+        }),
+      })
+      if (!res.ok) throw new Error()
+      cancelCycleDateEdit()
+      router.refresh()
+    } catch {
+      alert('No se pudieron actualizar las fechas del resumen.')
+    } finally {
+      setIsSavingCycleDates(false)
     }
   }
 
@@ -327,6 +369,63 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                       <CycleStatusPill status={cycle.cycleStatus} />
                     </div>
                   </div>
+
+                  {cycle.source === 'stored' && cycle.cycleStatus !== 'en_curso' && (
+                    <>
+                      {editingCycleId === cycle.id ? (
+                        <div className="mt-3 space-y-2 rounded-[14px] border border-border-subtle bg-bg-primary px-3 py-2.5">
+                          <div className="grid grid-cols-2 gap-2">
+                            <label className="space-y-1">
+                              <span className="block text-[11px] text-text-secondary">Cierre</span>
+                              <input
+                                type="date"
+                                value={editingClosingDate}
+                                onChange={(e) => setEditingClosingDate(e.target.value)}
+                                disabled={isSavingCycleDates}
+                                className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                            </label>
+                            <label className="space-y-1">
+                              <span className="block text-[11px] text-text-secondary">Vencimiento</span>
+                              <input
+                                type="date"
+                                value={editingDueDate}
+                                onChange={(e) => setEditingDueDate(e.target.value)}
+                                disabled={isSavingCycleDates}
+                                className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                              />
+                            </label>
+                          </div>
+                          <p className="text-[11px] text-text-tertiary">
+                            Al guardar, se recalcula el monto segun los gastos del nuevo periodo.
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={cancelCycleDateEdit}
+                              disabled={isSavingCycleDates}
+                              className="flex-1 rounded-full py-1.5 text-xs text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={() => void saveCycleDates()}
+                              disabled={isSavingCycleDates}
+                              className="flex-1 rounded-full bg-primary py-1.5 text-xs font-semibold text-white disabled:opacity-50"
+                            >
+                              {isSavingCycleDates ? 'Guardando…' : 'Guardar fechas'}
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => startCycleDateEdit(cycle)}
+                          className="mt-2 text-[11px] text-primary underline-offset-2 hover:underline"
+                        >
+                          Editar fechas
+                        </button>
+                      )}
+                    </>
+                  )}
 
                   {cycle.cycleStatus !== 'pagado' && (
                     <button
