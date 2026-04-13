@@ -14,7 +14,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { period_month, closing_date, due_date, status, amount_paid, paid_at } = body
+  const { period_month, closing_date, due_date, status, amount_paid, paid_at, amount_draft } = body
 
   const update: Record<string, unknown> = {}
   if (period_month !== undefined) update.period_month = `${period_month}-01`
@@ -23,6 +23,7 @@ export async function PATCH(
   if (status !== undefined) update.status = status
   if (amount_paid !== undefined) update.amount_paid = amount_paid
   if (paid_at !== undefined) update.paid_at = paid_at
+  if (amount_draft !== undefined) update.amount_draft = amount_draft
 
   const { data, error } = await supabase
     .from('card_cycles')
@@ -37,4 +38,3 @@ export async function PATCH(
 
   return NextResponse.json(data)
 }
-
