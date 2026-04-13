@@ -1,6 +1,6 @@
 'use client'
 
-import { Coins, CaretRight } from '@phosphor-icons/react'
+import { CaretRight, Coins } from '@phosphor-icons/react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { formatAmount } from '@/lib/format'
 import type { FugaSilenciosaData } from '@/lib/analytics/computeMetrics'
@@ -17,44 +17,35 @@ export function FugaSilenciosaCard({ data, currency, onClick }: CardProps) {
   return (
     <button
       onClick={onClick}
-      className="w-full text-left rounded-card p-4 hover:opacity-90 transition-opacity cursor-pointer"
-      style={{
-        background: 'rgba(255,255,255,0.38)',
-        backdropFilter: 'blur(16px)',
-        WebkitBackdropFilter: 'blur(16px)',
-        border: '1px solid rgba(255,255,255,0.70)',
-      }}
+      className="surface-glass-neutral w-full rounded-card p-4 text-left transition-opacity hover:opacity-90"
     >
-      <div className="flex items-center justify-between mb-3">
+      <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <div
-            className="w-8 h-8 flex items-center justify-center"
-            style={{ borderRadius: 10, backgroundColor: 'rgba(184,74,18,0.10)' }}
-          >
-            <Coins weight="regular" size={16} style={{ color: 'var(--color-warning)' }} />
+          <div className="flex h-8 w-8 items-center justify-center rounded-full border border-[color:var(--color-separator)] bg-bg-secondary">
+            <Coins weight="regular" size={16} className="text-text-secondary" />
           </div>
-          <span className="type-label text-warning">FUGA SILENCIOSA</span>
+          <span className="type-label text-text-secondary">Fuga Silenciosa</span>
         </div>
-        <CaretRight weight="bold" size={14} className="text-text-tertiary" />
+        <CaretRight weight="bold" size={14} className="text-primary" />
       </div>
 
       {!data.hasEnoughData ? (
-        <div className="flex items-center justify-center py-4 border-2 border-dashed border-border-ocean rounded-card">
+        <div className="flex items-center justify-center rounded-card border border-dashed border-border-ocean py-4">
           <p className="type-meta text-text-tertiary">Pocos datos aún</p>
         </div>
       ) : (
         <>
-          <p className="type-amount mb-0.5" style={{ color: 'var(--color-warning)' }}>
+          <p className="mb-0.5 text-[22px] font-extrabold tracking-[-0.02em] text-warning">
             {formatAmount(data.total, currency)}
           </p>
-          <p className="type-meta text-text-tertiary mb-3">
+          <p className="mb-3 text-[12px] text-text-dim">
             {data.count} compras menores al Q1 del mes
           </p>
           <div className="flex flex-wrap gap-1">
             {Array.from({ length: dotCount }).map((_, i) => (
               <div
                 key={i}
-                className="w-2 h-2 rounded-sm bg-warning"
+                className="h-2 w-2 rounded-sm bg-warning"
                 style={{ opacity: 0.3 + (i / dotCount) * 0.5 }}
               />
             ))}
@@ -74,7 +65,7 @@ export function DrillFugaSilenciosa({ data, currency }: DrillProps) {
   if (!data.hasEnoughData) {
     return (
       <div className="px-5">
-        <div className="flex items-center justify-center py-12 border-2 border-dashed border-border-ocean rounded-card">
+        <div className="flex items-center justify-center rounded-card border border-dashed border-border-ocean py-12">
           <p className="type-meta text-text-tertiary">Pocos datos aún</p>
         </div>
       </div>
@@ -82,54 +73,42 @@ export function DrillFugaSilenciosa({ data, currency }: DrillProps) {
   }
 
   return (
-    <div className="px-5 space-y-4">
-      {/* Hero */}
-      <div
-        className="rounded-card p-6 flex flex-col items-center text-center"
-        style={{
-          background: 'rgba(255,255,255,0.38)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255,255,255,0.70)',
-        }}
-      >
-        <div
-          className="w-10 h-10 flex items-center justify-center mb-3"
-          style={{ borderRadius: 12, backgroundColor: 'rgba(184,74,18,0.10)' }}
-        >
-          <Coins weight="regular" size={20} style={{ color: 'var(--color-warning)' }} />
+    <div className="space-y-4 px-5">
+      <div className="surface-glass-neutral flex flex-col items-center rounded-card p-6 text-center">
+        <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--color-separator)] bg-bg-secondary">
+          <Coins weight="regular" size={20} className="text-text-secondary" />
         </div>
-        <p className="text-[13px] font-semibold text-text-secondary mb-1">Total fuga silenciosa</p>
-        <p className="text-[36px] font-extrabold leading-tight" style={{ color: 'var(--color-warning)' }}>
+        <p className="mb-1 text-[13px] font-semibold text-text-secondary">Total fuga silenciosa</p>
+        <p className="text-[36px] font-extrabold leading-tight text-warning">
           {formatAmount(data.total, currency)}
         </p>
-        <p className="text-xs text-text-tertiary mt-1">
+        <p className="mt-1 text-xs text-text-tertiary">
           {data.count} operaciones en el cuartil inferior del mes
         </p>
-        <div className="border-t border-border-ocean mt-4 pt-3 w-full">
+        <div className="mt-4 w-full border-t border-border-ocean pt-3">
           <p className="type-meta text-text-tertiary">
             Umbral Q1: transacciones de{' '}
-            <span style={{ color: 'var(--color-warning)' }}>{formatAmount(data.threshold, currency)}</span> o menos
+            <span className="text-warning">{formatAmount(data.threshold, currency)}</span> o menos
           </p>
         </div>
       </div>
 
-      {/* By category */}
       {data.byCategory.length > 0 && (
         <div>
-          <p className="type-label text-text-label mb-3">POR CATEGORÍA</p>
+          <p className="mb-3 type-label text-text-secondary">Por categoría</p>
           {data.byCategory.map((cat) => (
-            <div
-              key={cat.category}
-              className="py-3 mb-1 flex items-center gap-3"
-            >
+            <div key={cat.category} className="mb-1 flex items-center gap-3 py-3">
               <CategoryIcon category={cat.category} size={20} container />
-              <div className="flex-1 min-w-0">
-                <p className="type-body font-medium text-text-primary truncate">{cat.category}</p>
-                <p className="type-meta text-text-tertiary">{cat.count} operaciones · {formatAmount(cat.amount / cat.count, currency)} promedio</p>
+              <div className="min-w-0 flex-1">
+                <p className="truncate type-body font-medium text-text-primary">{cat.category}</p>
+                <p className="text-[12px] text-text-dim">
+                  {cat.count} operaciones · {formatAmount(cat.amount / cat.count, currency)} promedio
+                </p>
               </div>
               <div className="shrink-0">
-                <p className="type-amount text-text-primary">{formatAmount(cat.amount, currency)}</p>
+                <p className="text-[16px] font-bold text-text-primary">
+                  {formatAmount(cat.amount, currency)}
+                </p>
               </div>
             </div>
           ))}

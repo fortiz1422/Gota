@@ -3,6 +3,24 @@
 
 ---
 
+## Update 2026-04-13 - UI refresh vNext
+
+Se implemento una pasada visual grande sobre Home, Movimientos y Analisis, consolidada en `docs/design-system-final.md`.
+
+Cambios principales:
+- fondo principal blanco y jerarquia nueva de superficies
+- `surface-glass`, `surface-glass-neutral` y `surface-module` como superficies canonicas
+- `SmartInput` al final de Home sobre `surface-glass`
+- `TabBar` nueva con labels siempre visibles
+- `Movimientos` con `+` en header, filtro inline y widget de metricas en `surface-module`
+- `Analisis` reorganizado: `Diario` como entrada principal e `Insights` como pantalla navegada
+- iconografia de categorias actualizada a contenedor circular `32x32`
+- alta manual de `Pago de tarjeta` agregada al `+`
+
+Notas:
+- `Pago de tarjeta` desde `+` queda ARS-only por ahora; USD pendiente para v2
+- `docs/design-system-final.md` pasa a ser la fuente de verdad visual; `docs/gota-design-system.md` queda historico
+
 ## 1. Stack y arquitectura
 
 ### Framework y lenguaje

@@ -22,65 +22,67 @@ export function StripOperativo({
 }: Props) {
   const isActive = (o: OrigenFilter) => activeOrigen === o
 
-  const itemClass = (o: OrigenFilter) =>
+  const cardClass = (o: OrigenFilter) =>
     [
-      'flex-1 flex flex-col items-center text-center px-[14px] py-1 rounded-xl transition-colors',
+      'rounded-[18px] px-4 py-3 text-left transition-colors',
       onOrigenClick ? 'cursor-pointer active:opacity-60' : '',
-      isActive(o) ? 'bg-primary/[0.06]' : '',
-    ].filter(Boolean).join(' ')
+      isActive(o) ? 'bg-primary/6' : '',
+    ]
+      .filter(Boolean)
+      .join(' ')
 
   return (
-    <div className="flex items-stretch">
-      <div
-        className={itemClass('percibido')}
+    <div className="surface-module rounded-[22px] px-4 py-4">
+      <button
         onClick={() => onOrigenClick?.('percibido')}
-        role={onOrigenClick ? 'button' : undefined}
+        className={`w-full ${cardClass('percibido')}`}
+        type="button"
       >
-        <span style={{ fontSize: '9px', fontWeight: 700, color: isActive('percibido') ? '#2178A8' : '#90A4B0', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, marginBottom: '5px' }}>
+        <p className={`type-label ${isActive('percibido') ? 'text-primary' : 'text-text-secondary'}`}>
           Percibidos
-        </span>
-        <span style={{ fontSize: '18px', fontWeight: 700, color: '#B84A12', letterSpacing: '-0.5px', lineHeight: 1, marginBottom: '4px' }}>
+        </p>
+        <p className="mt-1 text-[28px] font-extrabold tracking-[-0.03em] text-warning">
           {formatCompact(percibidos, currency)}
-        </span>
-        <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
+        </p>
+        <p className="mt-1 text-[12px] text-text-secondary">
           Dinero que salió de tu cuenta
-        </span>
-      </div>
+        </p>
+      </button>
 
-      <div style={{ width: '1px', background: 'rgba(144,164,176,0.25)', alignSelf: 'stretch' }} />
+      <div className="my-3 h-px bg-[color:var(--color-separator)]" />
 
-      <div
-        className={itemClass('tarjeta')}
-        onClick={() => onOrigenClick?.('tarjeta')}
-        role={onOrigenClick ? 'button' : undefined}
-      >
-        <span style={{ fontSize: '9px', fontWeight: 700, color: isActive('tarjeta') ? '#2178A8' : '#90A4B0', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, marginBottom: '5px' }}>
-          Tarjeta
-        </span>
-        <span style={{ fontSize: '18px', fontWeight: 700, color: '#0D1829', letterSpacing: '-0.5px', lineHeight: 1, marginBottom: '4px' }}>
-          {tarjeta > 0 ? formatCompact(tarjeta, currency) : '-'}
-        </span>
-        <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
-          Consumos del mes que todavía no pagaste
-        </span>
-      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <button
+          onClick={() => onOrigenClick?.('tarjeta')}
+          className={cardClass('tarjeta')}
+          type="button"
+        >
+          <p className={`type-label ${isActive('tarjeta') ? 'text-primary' : 'text-text-secondary'}`}>
+            Tarjeta
+          </p>
+          <p className="mt-1 text-[18px] font-bold tracking-[-0.02em] text-text-primary">
+            {tarjeta > 0 ? formatCompact(tarjeta, currency) : '-'}
+          </p>
+          <p className="mt-1 text-[12px] text-text-dim">
+            Consumos del mes sin pagar
+          </p>
+        </button>
 
-      <div style={{ width: '1px', background: 'rgba(144,164,176,0.25)', alignSelf: 'stretch' }} />
-
-      <div
-        className={itemClass('pago_tarjeta')}
-        onClick={() => onOrigenClick?.('pago_tarjeta')}
-        role={onOrigenClick ? 'button' : undefined}
-      >
-        <span style={{ fontSize: '9px', fontWeight: 700, color: isActive('pago_tarjeta') ? '#2178A8' : '#90A4B0', letterSpacing: '0.07em', textTransform: 'uppercase', lineHeight: 1, marginBottom: '5px' }}>
-          Pago tarjeta
-        </span>
-        <span style={{ fontSize: '18px', fontWeight: 700, color: '#2178A8', letterSpacing: '-0.5px', lineHeight: 1, marginBottom: '4px' }}>
-          {pagoTarjeta > 0 ? formatCompact(pagoTarjeta, currency) : '-'}
-        </span>
-        <span style={{ fontSize: '10px', color: '#4A6070', lineHeight: 1.3 }}>
-          Pago de tarjeta por consumos previos
-        </span>
+        <button
+          onClick={() => onOrigenClick?.('pago_tarjeta')}
+          className={cardClass('pago_tarjeta')}
+          type="button"
+        >
+          <p className={`type-label ${isActive('pago_tarjeta') ? 'text-primary' : 'text-text-secondary'}`}>
+            Pago tarjeta
+          </p>
+          <p className="mt-1 text-[18px] font-bold tracking-[-0.02em] text-primary">
+            {pagoTarjeta > 0 ? formatCompact(pagoTarjeta, currency) : '-'}
+          </p>
+          <p className="mt-1 text-[12px] text-text-dim">
+            Pagos por consumos previos
+          </p>
+        </button>
       </div>
     </div>
   )

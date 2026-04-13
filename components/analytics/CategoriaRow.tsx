@@ -42,21 +42,21 @@ export function CategoriaRow({ cat, currency, maxTotal }: Props) {
   const barColor = TIPO_ICON_COLOR[cat.tipo]
 
   return (
-    <div className="py-3 mb-1 flex items-center gap-3">
+    <div className="mb-1 flex items-center gap-3 py-3">
       <CategoryIcon category={cat.category} size={20} container />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
-          <p className="type-body font-medium text-text-primary truncate">{cat.category}</p>
-          <p className="type-amount text-text-primary ml-2 shrink-0">{formatAmount(cat.total, currency)}</p>
+          <p className="truncate type-body font-medium text-text-primary">{cat.category}</p>
+          <p className="ml-2 shrink-0 text-[16px] font-bold text-text-primary">{formatAmount(cat.total, currency)}</p>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <p className="type-meta text-text-tertiary truncate">{getCategoryNote(cat, currency)}</p>
-          <span className={`type-micro rounded-full px-2 py-0.5 shrink-0 ${TAG_CLASS[cat.tipo]}`}>
+          <p className="truncate text-[12px] text-text-dim">{getCategoryNote(cat, currency)}</p>
+          <span className={`shrink-0 rounded-pill px-2 py-0.5 text-[11px] font-semibold ${TAG_CLASS[cat.tipo]}`}>
             {TAG_LABEL[cat.tipo]}
           </span>
         </div>
         {maxTotal !== undefined && maxTotal > 0 && (
-          <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-border-subtle">
+          <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-[color:var(--color-separator)]">
             <div
               className="h-full rounded-full bar-grow"
               style={{ width: `${barPct}%`, backgroundColor: barColor }}

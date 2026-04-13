@@ -7,7 +7,7 @@ interface Props {
 }
 
 const EMPHASIS_CLASS: Record<NonNullable<Chip['emphasis']>, string> = {
-  neutral: 'glass-1 border-border-ocean text-text-secondary',
+  neutral: 'border border-primary/35 bg-primary/10 text-primary',
   warning: 'bg-warning/8 border-warning/30 text-warning',
   positive: 'bg-success/8 border-success/30 text-success',
 }
@@ -20,7 +20,7 @@ export function InsightChips({ chips }: Props) {
       {chips.map((chip) => (
         <span
           key={chip.label}
-          className={`border rounded-full px-2.5 py-1 type-micro whitespace-nowrap shrink-0 ${
+          className={`shrink-0 whitespace-nowrap rounded-pill px-2.5 py-1 text-[12px] font-medium ${
             EMPHASIS_CLASS[chip.emphasis ?? 'neutral']
           }`}
         >

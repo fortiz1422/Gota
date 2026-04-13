@@ -33,7 +33,7 @@ function DashboardSkeleton() {
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 180px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)',
         }}
       >
         <div className="flex items-center justify-between pt-5">
@@ -127,7 +127,7 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
           display: 'flex',
           flexDirection: 'column',
           gap: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 180px)',
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)',
         }}
       >
         <div className="flex items-center justify-between pt-5">
@@ -193,38 +193,12 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
           isCurrentMonth={isCurrentMonth}
           recurringIncomes={activeRecurring}
         />
-      </div>
-
-      <div
-        aria-hidden
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 140,
-          zIndex: 46,
-          pointerEvents: 'none',
-          background: 'linear-gradient(to bottom, transparent, var(--color-bg-primary))',
-          backdropFilter: 'blur(6px)',
-          WebkitBackdropFilter: 'blur(6px)',
-        }}
-      />
-
-      <div
-        style={{
-          position: 'fixed',
-          bottom: keyboardOffset > 0 ? keyboardOffset + 8 : 'calc(env(safe-area-inset-bottom) + 58px)',
-          left: 0,
-          right: 0,
-          zIndex: 50,
-          display: 'flex',
-          justifyContent: 'center',
-          pointerEvents: 'none',
-          transition: keyboardOffset > 0 ? 'none' : 'bottom 0.25s ease',
-        }}
-      >
-        <div style={{ width: '100%', maxWidth: 448, padding: '0 16px', pointerEvents: 'auto' }}>
+        <div
+          style={{
+            marginBottom: keyboardOffset > 0 ? keyboardOffset : 0,
+            transition: keyboardOffset > 0 ? 'none' : 'margin-bottom 0.25s ease',
+          }}
+        >
           <SmartInput cards={cards} accounts={accounts} onAfterSave={invalidateDashboardData} />
         </div>
       </div>

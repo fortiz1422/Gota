@@ -16,7 +16,6 @@ import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { Expense, Card, Subscription } from '@/types/database'
 
-type Tab = 'diario' | 'analisis'
 type Drill = 'fuga' | 'habitos' | 'compromisos'
 
 const drillTitles: Record<Drill, string> = {
@@ -45,8 +44,8 @@ export function AnalyticsClient({
   earliestDataMonth,
 }: Props) {
   const [expanded, setExpanded] = useState(false)
-  const [activeTab, setActiveTab] = useState<Tab>('diario')
   const [soloPercibidos, setSoloPercibidos] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(false)
   const [drill, setDrill] = useState<Drill | null>(null)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
   const [hero, setHero] = useState<InsightResult | null>(() => {
@@ -59,7 +58,7 @@ export function AnalyticsClient({
   useEffect(() => {
     const result = buildHeroOutput(metrics, rawExpenses, cards, subscriptions, compromisos)
     setHero(result)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedMonth])
 
   const { currency } = metrics
@@ -81,68 +80,49 @@ export function AnalyticsClient({
     if (d !== 'habitos') setSelDay(null)
   }
 
-  function handleTabChange(t: Tab) {
-    setActiveTab(t)
-    setDrill(null)
-    setSelDay(null)
-  }
-
   return (
     <div>
-      {/* Top row: period selector + toggle pill (or back button when drilling) */}
-      {drill !== null ? (
-        <div className="flex items-center gap-3 px-5 pt-5 mb-4">
+      {insightsOpen ? (
+        <div className="mb-4 flex items-center justify-between px-5 pt-5">
           <button
-            onClick={() => handleSetDrill(null)}
-            className="glass-2 w-10 h-10 rounded-full flex items-center justify-center shrink-0"
+            onClick={() => {
+              setInsightsOpen(false)
+              handleSetDrill(null)
+            }}
+            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
           >
-            <CaretLeft weight="bold" size={18} className="text-text-primary" />
+            <CaretLeft weight="bold" size={16} />
+            Diario
           </button>
-          <h2 className="type-month text-text-primary">{drillTitles[drill]}</h2>
+          <h2 className="type-title text-text-primary">
+            {drill !== null ? drillTitles[drill] : 'Insights'}
+          </h2>
         </div>
       ) : (
-        <div className="flex items-center justify-between px-5 pt-5 mb-4">
+        <div className="mb-4 flex items-center justify-between px-5 pt-5">
           <DashboardHeader
             month={selectedMonth}
             basePath="/analytics"
             earliestDataMonth={earliestDataMonth}
             className=""
           />
-          <div className="glass-2 p-1 flex rounded-xl">
-            <button
-              onClick={() => handleTabChange('diario')}
-              className={`px-3 py-1.5 type-meta transition-colors rounded-[9px] ${
-                activeTab === 'diario'
-                  ? 'font-semibold text-white bg-text-primary'
-                  : 'bg-transparent text-text-secondary'
-              }`}
-            >
-              Diario
-            </button>
-            <button
-              onClick={() => handleTabChange('analisis')}
-              className={`px-3 py-1.5 type-meta transition-colors rounded-[9px] ${
-                activeTab === 'analisis'
-                  ? 'font-semibold text-white bg-text-primary'
-                  : 'bg-transparent text-text-secondary'
-              }`}
-            >
-              Análisis
-            </button>
-          </div>
+          <button
+            onClick={() => setInsightsOpen(true)}
+            className="rounded-pill border border-primary px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
+          >
+            Insights
+          </button>
         </div>
       )}
 
-      {/* Content */}
-      {activeTab === 'diario' ? (
+      {!insightsOpen ? (
         <>
           {hero ? (
             <TitularHero titular={hero.titular} sentiment={hero.sentiment} />
           ) : (
-            /* Skeleton while engine initializes */
-            <div className="px-5 pt-4 pb-2">
-              <div className="h-7 w-3/4 rounded-lg bg-bg-tertiary animate-pulse" />
-              <div className="h-7 w-1/2 rounded-lg bg-bg-tertiary animate-pulse mt-2" />
+            <div className="px-5 pb-2 pt-4">
+              <div className="mt-2 h-7 w-3/4 animate-pulse rounded-lg bg-bg-tertiary" />
+              <div className="mt-2 h-7 w-1/2 animate-pulse rounded-lg bg-bg-tertiary" />
             </div>
           )}
 
@@ -151,7 +131,7 @@ export function AnalyticsClient({
               {hero && <InsightChips chips={hero.chips} />}
 
               {!metrics.hasIngreso && (
-                <div className="bg-warning/10 border border-warning/20 rounded-card px-4 py-3 mx-5 mb-3">
+                <div className="mx-5 mb-3 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
                   <p className="type-meta text-text-primary">
                     Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
                     <Link href="/settings" className="underline">
@@ -163,10 +143,13 @@ export function AnalyticsClient({
 
               {displayCategorias.length > 0 && (
                 <section className="mt-2 px-5">
-                  <div className="flex items-center justify-between mb-3">
-                    <p className="type-label text-text-label">ESTE MES GASTASTE EN</p>
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="type-label text-text-secondary">Este mes gastaste en</p>
                     <button
-                      onClick={() => { setSoloPercibidos(!soloPercibidos); setExpanded(false) }}
+                      onClick={() => {
+                        setSoloPercibidos(!soloPercibidos)
+                        setExpanded(false)
+                      }}
                       className="flex items-center gap-1.5"
                       aria-pressed={soloPercibidos}
                     >
@@ -176,7 +159,6 @@ export function AnalyticsClient({
                       >
                         Solo percibidos
                       </span>
-                      {/* Track */}
                       <span
                         className="relative inline-flex shrink-0 rounded-full transition-colors duration-200"
                         style={{
@@ -185,7 +167,6 @@ export function AnalyticsClient({
                           backgroundColor: soloPercibidos ? '#2178A8' : '#C8D6DF',
                         }}
                       >
-                        {/* Thumb */}
                         <span
                           className="absolute top-px rounded-full bg-white shadow transition-transform duration-200"
                           style={{
@@ -211,14 +192,12 @@ export function AnalyticsClient({
                   ))}
 
                   {displayCategorias.length > 5 && (
-                    <div className="flex justify-center mt-2 mb-4">
+                    <div className="mb-4 mt-2 flex justify-center">
                       <button
                         onClick={() => setExpanded(!expanded)}
-                        className="glass-1 border border-border-ocean rounded-full px-3 py-1.5 type-meta text-text-secondary"
+                        className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
                       >
-                        {expanded
-                          ? 'Ver menos'
-                          : `Ver todas (${displayCategorias.length})`}
+                        {expanded ? 'Ver menos' : `Ver todas (${displayCategorias.length})`}
                       </button>
                     </div>
                   )}
@@ -239,13 +218,12 @@ export function AnalyticsClient({
         />
       )}
 
-      {/* Export button — visible when not drilling */}
-      {drill === null && (
-        <div className="px-5 pt-4 pb-2">
+      {!insightsOpen && (
+        <div className="px-5 pb-2 pt-4">
           <a
             href="/api/export"
             download
-            className="flex w-full items-center justify-center gap-2 rounded-button py-3 type-meta text-text-tertiary hover:text-text-secondary transition-colors"
+            className="flex w-full items-center justify-center gap-2 rounded-button py-3 type-meta text-text-tertiary transition-colors hover:text-text-secondary"
           >
             <ArrowLineDown weight="duotone" size={14} />
             Exportar gastos (CSV)

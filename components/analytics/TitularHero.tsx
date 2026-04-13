@@ -44,7 +44,7 @@ export function TitularHero({ titular, sentiment }: Props) {
   const color = SENTIMENT_COLOR[sentiment]
   return (
     <div className="px-5 pt-4 pb-2 slide-up">
-      <p className="type-month text-text-primary">
+      <p className="type-title text-text-primary">
         {renderWithHighlights(titular, color)}
       </p>
     </div>

@@ -5,6 +5,8 @@
 
 ## Vigentes
 
+- [design-system-final.md](/C:/Users/Admin/Documents/gota/docs/design-system-final.md)
+- [gota-frontend-guidelines.md](/C:/Users/Admin/Documents/gota/docs/gota-frontend-guidelines.md)
 - [roadmap-deudas-tecnicas-y-negocio.md](/C:/Users/Admin/Documents/gota/docs/roadmap-deudas-tecnicas-y-negocio.md)
 - [account-period-balance-decision.md](/C:/Users/Admin/Documents/gota/docs/account-period-balance-decision.md)
 - [monthly-income-audit.md](/C:/Users/Admin/Documents/gota/docs/monthly-income-audit.md)
@@ -22,6 +24,9 @@
 
 ## Historicos o transicionales
 
+- [gota-design-system.md](/C:/Users/Admin/Documents/gota/docs/gota-design-system.md)
+- [gota-design-specv2.md](/C:/Users/Admin/Documents/gota/docs/gota-design-specv2.md)
+- [ui-product-upgrade-plan-2026-04-11.md](/C:/Users/Admin/Documents/gota/docs/ui-product-upgrade-plan-2026-04-11.md)
 - [saldo-vivo-diagnostico-2026-04.md](/C:/Users/Admin/Documents/gota/docs/saldo-vivo-diagnostico-2026-04.md)
 - [saldo-vivo-modelo-y-transicion-2026-04.md](/C:/Users/Admin/Documents/gota/docs/saldo-vivo-modelo-y-transicion-2026-04.md)
 - [saldo-vivo-signoff-inputs.md](/C:/Users/Admin/Documents/gota/docs/saldo-vivo-signoff-inputs.md)

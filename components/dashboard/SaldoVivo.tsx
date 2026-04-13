@@ -107,35 +107,29 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustmen
     : 'text-text-primary'
 
   return (
-    <div className="relative px-2 py-6">
-      {/* Bioluminescent glow */}
-      <div
-        aria-hidden
-        className={`absolute -top-5 -left-[30px] w-[280px] h-[200px] rounded-full pointer-events-none z-0 blur-2xl ${isNegative ? 'glow-negative' : 'glow-positive'}`}
-      />
-
-      <div className="relative z-10">
+    <div className="px-2 py-3">
+      <div>
         {/* Toggle label + ARS/USD inline */}
         <div className="flex items-center justify-between mb-1.5">
           <button
             onClick={handleToggle}
             className="flex items-center gap-1.5"
           >
-            <span className="type-label text-text-label uppercase">
+            <span className="type-label text-text-secondary uppercase">
               {mode === 'saldo_vivo' ? 'SALDO VIVO' : 'DISPONIBLE REAL'}
             </span>
             <ArrowsDownUp size={13} weight="light" className="text-text-dim opacity-50" />
           </button>
 
-          <div className="flex items-center gap-0.5">
+          <div className="flex items-center gap-2">
             {(['ARS', 'USD'] as const).map((c) => (
               <button
                 key={c}
                 onClick={() => handleCurrencyToggle(c)}
-                className={`px-2 py-0.5 rounded text-[10px] font-semibold transition-colors ${
+                className={`rounded text-[11px] font-medium transition-colors ${
                   currency === c
-                    ? 'text-text-primary'
-                    : 'text-text-dim opacity-50 hover:opacity-80'
+                    ? 'text-primary'
+                    : 'text-text-dim opacity-70 hover:opacity-100'
                 }`}
               >
                 {c}
@@ -157,7 +151,7 @@ export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustmen
           {isTappable && (
             <button
               onClick={handleHeroTap}
-              className={`flex items-center gap-0.5 mt-1 text-[11px] font-semibold leading-none ${displayedMode === 'disponible_real' ? 'text-primary' : 'text-text-dim'}`}
+              className="mt-2 flex items-center gap-0.5 text-[12px] font-semibold leading-none text-primary"
             >
               Ver detalle
               <CaretRight size={11} weight="light" />

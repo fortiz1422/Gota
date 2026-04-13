@@ -33,6 +33,19 @@ interface CategoryColors {
   colorSoft: string
 }
 
+function hexToRgba(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const value = normalized.length === 3
+    ? normalized.split('').map((c) => c + c).join('')
+    : normalized
+
+  const r = parseInt(value.slice(0, 2), 16)
+  const g = parseInt(value.slice(2, 4), 16)
+  const b = parseInt(value.slice(4, 6), 16)
+
+  return `rgba(${r},${g},${b},${alpha})`
+}
+
 const CATEGORY_MAP: Record<string, { icon: Icon } & CategoryColors> = {
   'Supermercado':              { icon: ShoppingCart,    color: '#1A7A42', colorSoft: 'rgba(26,122,66,0.10)' },
   'Alimentos':                 { icon: Basket,          color: '#1A7A42', colorSoft: 'rgba(26,122,66,0.10)' },
@@ -63,7 +76,7 @@ const CATEGORY_MAP: Record<string, { icon: Icon } & CategoryColors> = {
 interface Props {
   category: string
   size?: number
-  /** When true, wraps the icon in a 36×36 colored container (borderRadius 10px) */
+  /** When true, wraps the icon in a 32×32 circular container */
   container?: boolean
 }
 
@@ -77,22 +90,22 @@ export function CategoryIcon({ category, size = 16, container = false }: Props) 
     return (
       <div
         style={{
-          width: 36,
-          height: 36,
-          borderRadius: 10,
-          backgroundColor: colorSoft,
+          width: 32,
+          height: 32,
+          borderRadius: '50%',
+          backgroundColor: hexToRgba(color, 0.07),
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
           flexShrink: 0,
         }}
       >
-        <Icon weight="regular" size={size} style={{ color }} />
+        <Icon weight="light" size={size ?? 15} style={{ color }} />
       </div>
     )
   }
 
-  return <Icon weight="regular" size={size} style={{ color }} className="shrink-0" />
+  return <Icon weight="light" size={size} style={{ color }} className="shrink-0" />
 }
 
 /** Returns the color and colorSoft for a given category (for custom containers) */

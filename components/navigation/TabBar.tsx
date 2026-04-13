@@ -34,39 +34,33 @@ function TabBarInner() {
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 flex justify-center pt-2"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 12px)' }}
+      className="fixed bottom-0 left-0 right-0 z-50 border-t border-[color:var(--color-separator)]"
+      style={{
+        paddingBottom: 'env(safe-area-inset-bottom)',
+        background: 'var(--color-nav-bg)',
+        backdropFilter: 'blur(16px)',
+        WebkitBackdropFilter: 'blur(16px)',
+      }}
     >
-      <div
-        className="flex items-center gap-1 px-2 py-1.5 rounded-full w-fit shadow-tab-bar"
-        style={{
-          background: 'rgba(255,255,255,0.38)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-          border: '1px solid rgba(255,255,255,0.70)',
-        }}
-      >
+      <div className="mx-auto flex w-full max-w-md items-center justify-around px-4 py-2 shadow-tab-bar">
         {tabs.map(({ href, icon: Icon, label, isActive }) => (
           <Link
             key={label}
             href={href}
-            className={`flex items-center rounded-full overflow-hidden transition-all duration-200 ${
-              isActive
-                ? 'gap-1.5 px-5 py-2'
-                : 'gap-0 px-[14px] py-2 bg-transparent'
-            }`}
-            style={isActive ? { background: '#0D1829' } : undefined}
+            className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-3 py-1.5 transition-colors duration-200"
           >
             <Icon
               size={18}
-              weight="regular"
-              className={`shrink-0 ${isActive ? 'text-white' : 'text-[#90A4B0]'}`}
+              weight={isActive ? 'bold' : 'regular'}
+              className={`shrink-0 ${isActive ? 'text-primary' : 'text-text-dim'}`}
             />
-            {isActive && (
-              <span className="text-[13px] font-semibold text-white whitespace-nowrap tracking-[-0.01em]">
-                {label}
-              </span>
-            )}
+            <span
+              className={`whitespace-nowrap text-[12px] leading-none ${
+                isActive ? 'font-semibold text-primary' : 'font-normal text-text-dim'
+              }`}
+            >
+              {label}
+            </span>
           </Link>
         ))}
       </div>
@@ -78,14 +72,8 @@ export function TabBar() {
   return (
     <Suspense
       fallback={
-        <div className="fixed bottom-0 left-0 right-0 flex justify-center pb-5">
-          <div
-            className="w-40 h-12 rounded-full"
-            style={{
-              background: 'rgba(255,255,255,0.38)',
-              border: '1px solid rgba(255,255,255,0.70)',
-            }}
-          />
+        <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--color-separator)] bg-[color:var(--color-nav-bg)]">
+          <div className="mx-auto h-14 max-w-md" />
         </div>
       }
     >

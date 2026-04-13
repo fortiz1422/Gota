@@ -78,14 +78,9 @@ export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
   return (
     <>
       <div
-        className={`flex items-center gap-2.5 rounded-full py-[11px] pr-2.5 pl-[18px] border transition-colors duration-200 ${
-          hasInput ? 'border-primary/35' : 'border-[rgba(255,255,255,0.70)]'
+        className={`surface-glass flex items-center gap-2.5 rounded-card px-4 py-3 transition-colors duration-200 ${
+          hasInput ? 'border-primary/35' : ''
         }`}
-        style={{
-          background: 'rgba(255,255,255,0.38)',
-          backdropFilter: 'blur(20px)',
-          WebkitBackdropFilter: 'blur(20px)',
-        }}
       >
         <input
           ref={inputRef}
@@ -103,11 +98,9 @@ export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
           onClick={handleSubmit}
           disabled={!hasInput || isParsing}
           aria-label="Agregar gasto"
-          className="w-9 h-9 rounded-full shrink-0 flex items-center justify-center transition-all duration-200 cursor-pointer"
-          style={hasInput
-            ? { background: '#2178A8' }
-            : { background: 'rgba(15,30,60,0.06)' }
-          }
+          className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
+            hasInput ? 'bg-primary' : 'bg-[color:var(--color-border-subtle)]'
+          }`}
         >
           {isParsing ? (
             <span className="spinner" style={{ width: 16, height: 16 }} />
@@ -115,7 +108,7 @@ export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
             <ArrowRight
               size={15}
               weight="bold"
-              className={`transition-colors duration-200 ${hasInput ? 'text-bg-primary' : 'text-text-label'}`}
+              className={`transition-colors duration-200 ${hasInput ? 'text-white' : 'text-text-label'}`}
             />
           )}
         </button>

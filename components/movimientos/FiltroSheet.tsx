@@ -51,9 +51,9 @@ const MONEDA_OPTIONS: { value: MonedaFilter; label: string }[] = [
 // ─── Chip styles ──────────────────────────────────────────────────────────────
 
 const CHIP_DEFAULT =
-  'shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-medium border transition-colors bg-white/60 border-bg-secondary text-text-secondary'
+  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-medium border transition-colors bg-white/60 border-bg-secondary text-text-secondary'
 const CHIP_SELECTED =
-  'shrink-0 rounded-full px-3.5 py-1.5 text-[12px] font-semibold border transition-colors bg-primary/10 border-primary text-primary'
+  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold border transition-colors bg-primary/10 border-primary text-primary'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
