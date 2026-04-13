@@ -22,9 +22,15 @@ interface SmartInputProps {
   cards: Card[]
   accounts: Account[]
   onAfterSave?: () => void
+  variant?: 'default' | 'bottom-zone'
 }
 
-export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
+export function SmartInput({
+  cards,
+  accounts,
+  onAfterSave,
+  variant = 'default',
+}: SmartInputProps) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
@@ -74,11 +80,14 @@ export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
   }
 
   const hasInput = Boolean(input.trim())
+  const isBottomZone = variant === 'bottom-zone'
 
   return (
     <>
       <div
-        className={`surface-glass flex items-center gap-2.5 rounded-card px-4 py-3 transition-colors duration-200 ${
+        className={`surface-glass flex items-center gap-2.5 transition-colors duration-200 ${
+          isBottomZone ? 'rounded-[14px] px-3 py-[9px]' : 'rounded-card px-4 py-3'
+        } ${
           hasInput ? 'border-primary/35' : ''
         }`}
       >
@@ -98,7 +107,9 @@ export function SmartInput({ cards, accounts, onAfterSave }: SmartInputProps) {
           onClick={handleSubmit}
           disabled={!hasInput || isParsing}
           aria-label="Agregar gasto"
-          className={`flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
+          className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
+            isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
+          } ${
             hasInput ? 'bg-primary' : 'bg-[color:var(--color-border-subtle)]'
           }`}
         >

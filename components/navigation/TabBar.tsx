@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { House, ChartBar, ListBullets } from '@phosphor-icons/react'
 
-function TabBarInner() {
+function TabBarContent() {
   const pathname = usePathname()
   const searchParams = useSearchParams()
   const month = searchParams.get('month')
@@ -33,6 +33,45 @@ function TabBarInner() {
   ]
 
   return (
+    <div className="flex items-center justify-around py-2">
+      {tabs.map(({ href, icon: Icon, label, isActive }) => (
+        <Link
+          key={label}
+          href={href}
+          className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-3 py-1.5 transition-colors duration-200"
+        >
+          <Icon
+            size={18}
+            weight={isActive ? 'bold' : 'regular'}
+            className={`shrink-0 ${isActive ? 'text-primary' : 'text-text-dim'}`}
+          />
+          <span
+            className={`whitespace-nowrap text-[12px] leading-none ${
+              isActive ? 'font-semibold text-primary' : 'font-normal text-text-dim'
+            }`}
+          >
+            {label}
+          </span>
+        </Link>
+      ))}
+    </div>
+  )
+}
+
+function TabBarInner({ integrated = false }: { integrated?: boolean }) {
+  const pathname = usePathname()
+
+  if (!integrated && pathname === '/') return null
+
+  if (integrated) {
+    return (
+      <div className="mx-auto w-full max-w-md">
+        <TabBarContent />
+      </div>
+    )
+  }
+
+  return (
     <nav
       className="fixed bottom-0 left-0 right-0 z-50 border-t border-[color:var(--color-separator)]"
       style={{
@@ -42,42 +81,25 @@ function TabBarInner() {
         WebkitBackdropFilter: 'blur(16px)',
       }}
     >
-      <div className="mx-auto flex w-full max-w-md items-center justify-around px-4 py-2 shadow-tab-bar">
-        {tabs.map(({ href, icon: Icon, label, isActive }) => (
-          <Link
-            key={label}
-            href={href}
-            className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-3 py-1.5 transition-colors duration-200"
-          >
-            <Icon
-              size={18}
-              weight={isActive ? 'bold' : 'regular'}
-              className={`shrink-0 ${isActive ? 'text-primary' : 'text-text-dim'}`}
-            />
-            <span
-              className={`whitespace-nowrap text-[12px] leading-none ${
-                isActive ? 'font-semibold text-primary' : 'font-normal text-text-dim'
-              }`}
-            >
-              {label}
-            </span>
-          </Link>
-        ))}
+      <div className="mx-auto w-full max-w-md px-4 shadow-tab-bar">
+        <TabBarContent />
       </div>
     </nav>
   )
 }
 
-export function TabBar() {
+export function TabBar({ integrated = false }: { integrated?: boolean }) {
   return (
     <Suspense
       fallback={
-        <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--color-separator)] bg-[color:var(--color-nav-bg)]">
-          <div className="mx-auto h-14 max-w-md" />
-        </div>
+        integrated ? null : (
+          <div className="fixed bottom-0 left-0 right-0 border-t border-[color:var(--color-separator)] bg-[color:var(--color-nav-bg)]">
+            <div className="mx-auto h-14 max-w-md" />
+          </div>
+        )
       }
     >
-      <TabBarInner />
+      <TabBarInner integrated={integrated} />
     </Suspense>
   )
 }
