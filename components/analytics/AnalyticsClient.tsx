@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { ArrowLineDown, CaretLeft } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
@@ -43,6 +44,7 @@ export function AnalyticsClient({
   selectedMonth,
   earliestDataMonth,
 }: Props) {
+  const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [soloPercibidos, setSoloPercibidos] = useState(false)
   const [insightsOpen, setInsightsOpen] = useState(false)
@@ -70,10 +72,6 @@ export function AnalyticsClient({
   }, [soloPercibidos, rawExpenses, metrics, selectedMonth])
 
   const visibleCategorias = expanded ? displayCategorias : displayCategorias.slice(0, 5)
-  const maxCatTotal =
-    displayCategorias.length > 0
-      ? Math.max(...displayCategorias.map((c) => c.total))
-      : 0
 
   function handleSetDrill(d: Drill | null) {
     setDrill(d)
@@ -187,7 +185,16 @@ export function AnalyticsClient({
                         idx >= 5 ? { animationDelay: `${(idx - 5) * 40}ms` } : undefined
                       }
                     >
-                      <CategoriaRow cat={cat} currency={currency} maxTotal={maxCatTotal} />
+                      <CategoriaRow
+                        cat={cat}
+                        currency={currency}
+                        soloPercibidos={soloPercibidos}
+                        onClick={() =>
+                          router.push(
+                            `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${soloPercibidos}`
+                          )
+                        }
+                      />
                     </div>
                   ))}
 

@@ -5,23 +5,11 @@ import { colors } from '@/lib/colors'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import type { CategoriaMetric } from '@/lib/analytics/computeMetrics'
 
-const TIPO_ICON_COLOR = {
-  need:  colors.success,
-  want:  colors.want,
-  mixed: colors.primary,
-} as const
-
-const TAG_CLASS = {
-  need:  'bg-success/10 text-success border border-success/20',
-  want:  'bg-warning/10 text-warning border border-warning/20',
-  mixed: 'bg-[rgba(74,96,112,0.09)] text-[#4A6070] border border-[rgba(74,96,112,0.12)]',
-} as const
-
-const TAG_LABEL = {
-  need:  'NECESIDAD',
-  want:  'DESEO',
-  mixed: 'MIXTO',
-} as const
+const TIPO_LABEL: Record<string, { text: string; color: string }> = {
+  need:  { text: 'Necesidad', color: colors.success },
+  want:  { text: 'Deseo',     color: colors.warning },
+  mixed: { text: 'Mixto',     color: colors.data },
+}
 
 function getCategoryNote(cat: CategoriaMetric, currency: 'ARS' | 'USD'): string {
   if (cat.cantidad === 1) return 'Una vez este mes'
@@ -34,35 +22,40 @@ function getCategoryNote(cat: CategoriaMetric, currency: 'ARS' | 'USD'): string 
 interface Props {
   cat: CategoriaMetric
   currency: 'ARS' | 'USD'
-  maxTotal?: number
+  soloPercibidos: boolean
+  onClick: () => void
 }
 
-export function CategoriaRow({ cat, currency, maxTotal }: Props) {
-  const barPct = maxTotal && maxTotal > 0 ? (cat.total / maxTotal) * 100 : 0
-  const barColor = TIPO_ICON_COLOR[cat.tipo]
+export function CategoriaRow({ cat, currency, soloPercibidos, onClick }: Props) {
+  const tipoMeta = TIPO_LABEL[cat.tipo]
 
   return (
-    <div className="mb-1 flex items-center gap-3 py-3">
+    <div
+      className="mb-1 flex items-center gap-3 rounded-xl py-3 cursor-pointer active:bg-black/[0.03] transition-colors duration-150"
+      onClick={onClick}
+    >
       <CategoryIcon category={cat.category} size={20} container />
       <div className="flex-1 min-w-0">
         <div className="flex items-center justify-between mb-0.5">
           <p className="truncate type-body font-medium text-text-primary">{cat.category}</p>
-          <p className="ml-2 shrink-0 text-[16px] font-bold text-text-primary">{formatAmount(cat.total, currency)}</p>
+          <div className="ml-2 shrink-0 flex items-center gap-1.5">
+            <p className="text-[16px] font-bold text-text-primary">{formatAmount(cat.total, currency)}</p>
+            <span style={{ color: '#90A4B0', fontSize: 13 }}>›</span>
+          </div>
         </div>
         <div className="flex items-center justify-between gap-2">
           <p className="truncate text-[12px] text-text-dim">{getCategoryNote(cat, currency)}</p>
-          <span className={`shrink-0 rounded-pill px-2 py-0.5 text-[11px] font-semibold ${TAG_CLASS[cat.tipo]}`}>
-            {TAG_LABEL[cat.tipo]}
-          </span>
-        </div>
-        {maxTotal !== undefined && maxTotal > 0 && (
-          <div className="mt-1.5 h-[3px] w-full overflow-hidden rounded-full bg-[color:var(--color-separator)]">
-            <div
-              className="h-full rounded-full bar-grow"
-              style={{ width: `${barPct}%`, backgroundColor: barColor }}
-            />
+          <div className="shrink-0 flex items-center gap-1.5">
+            {tipoMeta && (
+              <span style={{ color: tipoMeta.color, fontSize: 11, fontWeight: 500 }}>
+                {tipoMeta.text}
+              </span>
+            )}
+            <span style={{ color: colors.primary, fontSize: 11, fontWeight: 500 }}>
+              {Math.round(cat.pctDelTotal)}% del {soloPercibidos ? 'percibido' : 'mes'}
+            </span>
           </div>
-        )}
+        </div>
       </div>
     </div>
   )

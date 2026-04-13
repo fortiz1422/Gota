@@ -82,11 +82,20 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[]): string {
 interface Props {
   initialMonth: string
   initialData?: ApiResponse
+  initialCategoria?: string
+  initialSoloPercibidos?: boolean
 }
 
-export function MovimientosClient({ initialMonth, initialData }: Props) {
+export function MovimientosClient({ initialMonth, initialData, initialCategoria, initialSoloPercibidos }: Props) {
   const [selectedMonth, setSelectedMonth] = useState(initialMonth)
-  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(EMPTY_FILTERS)
+  const [activeFilters, setActiveFilters] = useState<ActiveFilters>(() => {
+    if (!initialCategoria) return EMPTY_FILTERS
+    return {
+      ...EMPTY_FILTERS,
+      categorias: [initialCategoria],
+      origenes: initialSoloPercibidos ? ['percibido' as const] : [],
+    }
+  })
   const [filterOpen, setFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
   const [loadedMovements, setLoadedMovements] = useState<ApiMovement[]>(
@@ -109,6 +118,11 @@ export function MovimientosClient({ initialMonth, initialData }: Props) {
   const [isLoading, setIsLoading] = useState(!initialData)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const skipFirstFetch = useRef(!!initialData)
+
+  useEffect(() => {
+    if (initialCategoria) window.scrollTo({ top: 0 })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const currentMonth = getCurrentMonth()
 
