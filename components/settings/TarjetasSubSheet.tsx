@@ -97,23 +97,23 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
         ) : cards.length === 0 ? (
           <p className="py-2 text-sm text-text-tertiary">Sin tarjetas configuradas.</p>
         ) : (
-          <div className="glass-2 overflow-hidden rounded-[20px]">
+          <div>
             {cards.map((card, i) => (
               <button
                 key={card.id}
                 onClick={() => handleCardTap(card.id)}
-                className={`flex w-full items-center gap-3 px-4 py-3 text-left active:opacity-60 ${
+                className={`flex w-full items-center gap-3 rounded-sm px-4 py-3 text-left transition-colors hover:bg-primary/5 active:opacity-60 ${
                   i < cards.length - 1 ? 'border-b border-border-subtle' : ''
                 }`}
               >
                 {/* Icon pill */}
-                <div className="glass-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary/8">
                   <CreditCard weight="duotone" size={14} className="text-text-label" />
                 </div>
 
                 {/* Name + subtitle */}
                 <div className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-text-primary">
+                  <span className="block truncate text-sm text-text-primary">
                     {card.name}
                   </span>
                   <span className="text-[10px] text-text-tertiary">
@@ -140,8 +140,8 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
 
         {/* Nueva tarjeta row */}
         {addingCard ? (
-          <div className="glass-2 flex items-center gap-3 rounded-[20px] px-4 py-3">
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+          <div className="flex items-center gap-3 rounded-sm border border-border-subtle px-4 py-3">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary/8">
               <Plus size={14} className="text-primary" />
             </div>
             <input
@@ -179,12 +179,12 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
         ) : (
           <button
             onClick={() => setAddingCard(true)}
-            className="glass-2 flex w-full items-center gap-3 rounded-[20px] px-4 py-3 active:opacity-70"
+            className="flex w-full items-center gap-3 rounded-sm border border-border-subtle px-4 py-3 text-left transition-colors hover:bg-primary/5 active:opacity-70"
           >
-            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10">
+            <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary/8">
               <Plus size={14} className="text-primary" />
             </div>
-            <span className="text-sm font-semibold text-primary">Nueva tarjeta</span>
+            <span className="text-sm font-medium text-text-secondary">Nueva tarjeta</span>
           </button>
         )}
       </div>

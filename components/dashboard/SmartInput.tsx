@@ -22,6 +22,7 @@ interface SmartInputProps {
   cards: Card[]
   accounts: Account[]
   onAfterSave?: () => void
+  onFocusChange?: (focused: boolean) => void
   variant?: 'default' | 'bottom-zone'
 }
 
@@ -29,6 +30,7 @@ export function SmartInput({
   cards,
   accounts,
   onAfterSave,
+  onFocusChange,
   variant = 'default',
 }: SmartInputProps) {
   const router = useRouter()
@@ -96,6 +98,8 @@ export function SmartInput({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
+          onFocus={() => onFocusChange?.(true)}
+          onBlur={() => onFocusChange?.(false)}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
           placeholder="café 2500"
           disabled={isParsing}

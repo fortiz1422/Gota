@@ -10,10 +10,10 @@ import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } 
 const PAGE_SIZE = 20
 
 type ApiMovement =
-  | { kind: 'expense';  data: Expense }
-  | { kind: 'income';   data: IncomeEntry }
+  | { kind: 'expense'; data: Expense }
+  | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield';    data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
 
 export default async function MovimientosPage({
   searchParams,
@@ -30,7 +30,7 @@ export default async function MovimientosPage({
   const { month, categoria, soloPercibidos } = await searchParams
   const initialMonth = month ?? getCurrentMonth()
   const startOfMonth = initialMonth + '-01'
-  const endOfMonth   = addMonths(initialMonth, 1) + '-01'
+  const endOfMonth = addMonths(initialMonth, 1) + '-01'
 
   const [
     { data: expensesData },
@@ -42,55 +42,99 @@ export default async function MovimientosPage({
     { data: statsExpensesData },
     { data: allCatsData },
   ] = await Promise.all([
-    supabase.from('expenses').select('*').eq('user_id', user.id)
-      .gte('date', startOfMonth).lt('date', endOfMonth)
-      .order('date', { ascending: false }).order('created_at', { ascending: false }),
-    supabase.from('income_entries').select('*').eq('user_id', user.id)
-      .gte('date', startOfMonth).lt('date', endOfMonth)
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth)
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('income_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth)
       .order('date', { ascending: false }),
-    supabase.from('transfers').select('*').eq('user_id', user.id)
-      .gte('date', startOfMonth).lt('date', endOfMonth)
+    supabase
+      .from('transfers')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth)
       .order('date', { ascending: false }),
     FF_YIELD
       ? supabase.from('yield_accumulator').select('*').eq('user_id', user.id).eq('month', initialMonth)
       : Promise.resolve({ data: [] as YieldAccumulator[], error: null }),
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),
-    supabase.from('expenses').select('amount, currency, payment_method, category')
-      .eq('user_id', user.id).gte('date', startOfMonth).lt('date', endOfMonth),
-    supabase.from('expenses').select('category')
-      .eq('user_id', user.id).gte('date', startOfMonth).lt('date', endOfMonth),
+    supabase
+      .from('expenses')
+      .select('amount, currency, payment_method, category')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth),
+    supabase
+      .from('expenses')
+      .select('category')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth),
   ])
 
-  const accounts   = (accountsData  ?? []) as Account[]
-  const cards      = (cardsData     ?? []) as Card[]
+  const accounts = (accountsData ?? []) as Account[]
+  const cards = (cardsData ?? []) as Card[]
   const accountMap = Object.fromEntries(accounts.map((a) => [a.id, a.name]))
 
-  // Stats
-  const statsExpenses = (statsExpensesData ?? []) as Pick<Expense, 'amount' | 'currency' | 'payment_method' | 'category'>[]
+  const statsExpenses = (statsExpensesData ?? []) as Pick<
+    Expense,
+    'amount' | 'currency' | 'payment_method' | 'category'
+  >[]
   const statsCurrency: 'ARS' | 'USD' = 'ARS'
-  const percibidos  = statsExpenses.filter((e) => isPerceivedExpense(e)       && e.currency === statsCurrency).reduce((s, e) => s + e.amount, 0)
-  const tarjeta     = statsExpenses.filter((e) => isCreditAccruedExpense(e)   && e.currency === statsCurrency).reduce((s, e) => s + e.amount, 0)
-  const pagoTarjeta = statsExpenses.filter((e) => isCardPayment(e)            && e.currency === statsCurrency).reduce((s, e) => s + e.amount, 0)
+  const percibidos = statsExpenses
+    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
+    .reduce((s, e) => s + e.amount, 0)
+  const tarjeta = statsExpenses
+    .filter((e) => isCreditAccruedExpense(e) && e.currency === statsCurrency)
+    .reduce((s, e) => s + e.amount, 0)
+  const pagoTarjeta = statsExpenses
+    .filter((e) => isCardPayment(e) && e.currency === statsCurrency)
+    .reduce((s, e) => s + e.amount, 0)
 
-  // Categories
   const categories = [...new Set((allCatsData ?? []).map((e: { category: string }) => e.category))].sort()
 
-  // Build & sort movements
-  const allExpenses  = (expensesData  ?? []) as Expense[]
-  const allIncome    = (incomeData    ?? []) as IncomeEntry[]
+  const allExpenses = (expensesData ?? []) as Expense[]
+  const allIncome = (incomeData ?? []) as IncomeEntry[]
   const allTransfers = (transfersData ?? []) as Transfer[]
-  const allYield     = (yieldData     ?? []) as YieldAccumulator[]
-  const todayStr     = todayAR()
+  const allYield = (yieldData ?? []) as YieldAccumulator[]
+  const todayStr = todayAR()
+
+  let filteredExpenses = allExpenses
+  if (soloPercibidos === 'true') {
+    filteredExpenses = filteredExpenses.filter((e) => isPerceivedExpense(e))
+  }
+  if (categoria) {
+    filteredExpenses = filteredExpenses.filter((e) => e.category === categoria)
+  }
+
+  const filteredIncome = categoria ? [] : allIncome
+  const filteredTransfers = categoria ? [] : allTransfers
+  const filteredYield = categoria ? [] : allYield
 
   const allMovements: ApiMovement[] = [
-    ...allYield.map((ya) => ({ kind: 'yield'     as const, data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' } })),
-    ...allIncome.map((e)  => ({ kind: 'income'   as const, data: e })),
-    ...allTransfers.map((t) => ({ kind: 'transfer' as const, data: t })),
-    ...allExpenses.map((e) => ({ kind: 'expense'  as const, data: e })),
+    ...filteredYield.map((ya) => ({
+      kind: 'yield' as const,
+      data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' },
+    })),
+    ...filteredIncome.map((e) => ({ kind: 'income' as const, data: e })),
+    ...filteredTransfers.map((t) => ({ kind: 'transfer' as const, data: t })),
+    ...filteredExpenses.map((e) => ({ kind: 'expense' as const, data: e })),
   ].sort((a, b) => {
-    const dateA   = a.kind === 'yield' ? toDateOnly(a.data.last_accrued_date ?? a.data.created_at) : toDateOnly(a.data.date)
-    const dateB   = b.kind === 'yield' ? toDateOnly(b.data.last_accrued_date ?? b.data.created_at) : toDateOnly(b.data.date)
+    const dateA =
+      a.kind === 'yield' ? toDateOnly(a.data.last_accrued_date ?? a.data.created_at) : toDateOnly(a.data.date)
+    const dateB =
+      b.kind === 'yield' ? toDateOnly(b.data.last_accrued_date ?? b.data.created_at) : toDateOnly(b.data.date)
     const aFuture = dateA > todayStr
     const bFuture = dateB > todayStr
     if (aFuture !== bFuture) return aFuture ? 1 : -1
@@ -100,12 +144,14 @@ export default async function MovimientosPage({
     return caB.localeCompare(caA)
   })
 
-  const filteredSum = allExpenses.filter((e) => e.currency === statsCurrency).reduce((s, e) => s + e.amount, 0)
+  const filteredSum = filteredExpenses
+    .filter((e) => e.currency === statsCurrency)
+    .reduce((s, e) => s + e.amount, 0)
 
   const initialData: ApiResponse = {
-    movements:           allMovements.slice(0, PAGE_SIZE),
-    stats:               { percibidos, tarjeta, pagoTarjeta },
-    total:               allMovements.length,
+    movements: allMovements.slice(0, PAGE_SIZE),
+    stats: { percibidos, tarjeta, pagoTarjeta },
+    total: allMovements.length,
     categories,
     accounts,
     cards,

@@ -6,9 +6,9 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import type { CategoriaMetric } from '@/lib/analytics/computeMetrics'
 
 const TIPO_LABEL: Record<string, { text: string; color: string }> = {
-  need:  { text: 'Necesidad', color: colors.success },
-  want:  { text: 'Deseo',     color: colors.warning },
-  mixed: { text: 'Mixto',     color: colors.data },
+  need: { text: 'Necesidad', color: colors.success },
+  want: { text: 'Deseo', color: colors.warning },
+  mixed: { text: 'Mixto', color: colors.data },
 }
 
 function getCategoryNote(cat: CategoriaMetric, currency: 'ARS' | 'USD'): string {
@@ -35,27 +35,41 @@ export function CategoriaRow({ cat, currency, soloPercibidos, onClick }: Props) 
       onClick={onClick}
     >
       <CategoryIcon category={cat.category} size={20} container />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-0.5">
-          <p className="truncate type-body font-medium text-text-primary">{cat.category}</p>
-          <div className="ml-2 shrink-0 flex items-center gap-1.5">
-            <p className="text-[16px] font-bold text-text-primary">{formatAmount(cat.total, currency)}</p>
+
+      <div className="min-w-0 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 truncate type-body font-medium text-text-primary">
+            {cat.category}
+          </p>
+
+          <div className="ml-2 flex shrink-0 items-center gap-1.5 text-right">
+            <p className="text-[16px] font-bold text-text-primary">
+              {formatAmount(cat.total, currency)}
+            </p>
             <span style={{ color: '#90A4B0', fontSize: 13 }}>›</span>
           </div>
         </div>
-        <div className="flex items-center justify-between gap-2">
-          <p className="truncate text-[12px] text-text-dim">{getCategoryNote(cat, currency)}</p>
-          <div className="shrink-0 flex items-center gap-1.5">
-            {tipoMeta && (
-              <span style={{ color: tipoMeta.color, fontSize: 11, fontWeight: 500 }}>
-                {tipoMeta.text}
-              </span>
-            )}
-            <span style={{ color: colors.primary, fontSize: 11, fontWeight: 500 }}>
-              {Math.round(cat.pctDelTotal)}% del {soloPercibidos ? 'percibido' : 'mes'}
+
+        <div className="mt-0.5 flex items-start justify-between gap-3">
+          <p className="min-w-0 flex-1 text-[12px] leading-[1.35] text-text-dim">
+            {getCategoryNote(cat, currency)}
+          </p>
+
+          <span
+            className="ml-2 shrink-0 text-right"
+            style={{ color: colors.primary, fontSize: 11, fontWeight: 500, lineHeight: 1.35 }}
+          >
+            {Math.round(cat.pctDelTotal)}% del {soloPercibidos ? 'percibido' : 'mes'}
+          </span>
+        </div>
+
+        {tipoMeta && (
+          <div className="mt-0.5">
+            <span style={{ color: tipoMeta.color, fontSize: 11, fontWeight: 500 }}>
+              {tipoMeta.text}
             </span>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
