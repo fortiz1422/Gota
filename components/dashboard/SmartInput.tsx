@@ -38,6 +38,14 @@ export function SmartInput({
   const [isParsing, setIsParsing] = useState(false)
   const [parsed, setParsed] = useState<ParsedData | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
+  const blurTimeoutRef = useRef<number | null>(null)
+
+  const clearPendingBlur = () => {
+    if (blurTimeoutRef.current !== null) {
+      window.clearTimeout(blurTimeoutRef.current)
+      blurTimeoutRef.current = null
+    }
+  }
 
   const handleSubmit = async () => {
     const trimmed = input.trim()
@@ -98,8 +106,17 @@ export function SmartInput({
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          onFocus={() => onFocusChange?.(true)}
-          onBlur={() => onFocusChange?.(false)}
+          onFocus={() => {
+            clearPendingBlur()
+            onFocusChange?.(true)
+          }}
+          onBlur={() => {
+            clearPendingBlur()
+            blurTimeoutRef.current = window.setTimeout(() => {
+              onFocusChange?.(false)
+              blurTimeoutRef.current = null
+            }, 120)
+          }}
           onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
           placeholder="café 2500"
           disabled={isParsing}
@@ -108,6 +125,7 @@ export function SmartInput({
           }`}
         />
         <button
+          onPointerDown={clearPendingBlur}
           onClick={handleSubmit}
           disabled={!hasInput || isParsing}
           aria-label="Agregar gasto"
