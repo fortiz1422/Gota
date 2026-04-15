@@ -161,10 +161,12 @@ export function computeCompromisos(
           enCursoClosingDay = parseInt(cycle.closing_date.substring(8, 10), 10)
         } else {
           // Closed — cerrado if due_date is still future, vencido if past
+          const amount = computeCycleAmount(cycle, card, expenses, cardCycles)
+          if (amount === 0) continue  // ciclo sin deuda real — no mostrar
           const cs: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
           debtCycles.push({
             periodMonth: cycle.period_month.substring(0, 7),
-            amount: computeCycleAmount(cycle, card, expenses, cardCycles),
+            amount,
             dueDate: cycle.due_date,
             cycleStatus: cs,
           })
