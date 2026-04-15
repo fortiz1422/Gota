@@ -3,20 +3,8 @@ import { createClient } from '@/lib/supabase/server'
 import { buildEnrichedCardCycles } from '@/lib/card-summaries'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { CardDetailClient } from './CardDetailClient'
+import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, CardCycle, CardCycleInsert, Expense } from '@/types/database'
-
-export type EnrichedCycle = {
-  id: string
-  source: 'stored' | 'legacy'
-  period_month: string   // YYYY-MM-01
-  period_from: string    // YYYY-MM-DD — day after previous cycle's closing_date
-  closing_date: string   // YYYY-MM-DD
-  due_date: string       // YYYY-MM-DD
-  cycleStatus: 'en_curso' | 'cerrado' | 'vencido' | 'pagado'
-  amount: number
-  paid_at: string | null
-  amount_paid: number | null
-}
 
 export default async function TarjetaPage({
   params,
@@ -41,7 +29,6 @@ export default async function TarjetaPage({
 
   if (cardError || !card) notFound()
 
-  // Months: next + current + last 5
   const currentMonth = getCurrentMonth()
   const periodMonths: string[] = [addMonths(currentMonth, 1)]
   for (let i = 0; i <= 5; i++) periodMonths.push(addMonths(currentMonth, -i))
@@ -80,37 +67,32 @@ export default async function TarjetaPage({
     periodMonths,
   })
 
-  // Auto-materialize legacy past cycles so their date ranges freeze permanently.
-  // Uses INSERT ... ON CONFLICT (card_id, period_month) DO NOTHING so existing rows are untouched.
   const legacyPastToMaterialize = enriched.filter(
-    (c) => c.source === 'legacy' && c.period_month.substring(0, 7) < currentMonth
+    (cycle) => cycle.source === 'legacy' && cycle.period_month.substring(0, 7) < currentMonth
   )
   if (legacyPastToMaterialize.length > 0) {
-    const cyclesToUpsert: CardCycleInsert[] = legacyPastToMaterialize.map((c) => ({
+    const cyclesToUpsert: CardCycleInsert[] = legacyPastToMaterialize.map((cycle) => ({
       user_id: user.id,
       card_id: cardId,
-      period_month: c.period_month,
-      closing_date: c.closing_date,
-      due_date: c.due_date,
-      status: c.cycleStatus === 'pagado' ? 'paid' : 'open',
-      amount_paid: c.amount_paid,
-      paid_at: c.paid_at,
+      period_month: cycle.period_month,
+      closing_date: cycle.closing_date,
+      due_date: cycle.due_date,
+      status: cycle.cycleStatus === 'pagado' ? 'paid' : 'open',
+      amount_paid: cycle.amount_paid,
+      paid_at: cycle.paid_at,
     }))
 
-    // Fire-and-forget — don't block page render; ignoreDuplicates makes it idempotent
     void supabase.from('card_cycles').upsert(
       cyclesToUpsert,
       { onConflict: 'card_id,period_month', ignoreDuplicates: true }
     )
   }
 
-  // Upcoming = next month's cycle (for "Próximo cierre" in config)
-  const upcomingCycle = enriched.find((c) => c.period_month.substring(0, 7) > currentMonth) ?? null
+  const upcomingCycle = enriched.find((cycle) => cycle.period_month.substring(0, 7) > currentMonth) ?? null
 
-  // Resúmenes: current + past, only if have gastos or are paid.
-  const resumenes = enriched.filter((c) => {
-    if (c.period_month.substring(0, 7) > currentMonth) return false
-    return c.amount > 0 || c.cycleStatus === 'pagado'
+  const resumenes = enriched.filter((cycle) => {
+    if (cycle.period_month.substring(0, 7) > currentMonth) return false
+    return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
   })
 
   return (

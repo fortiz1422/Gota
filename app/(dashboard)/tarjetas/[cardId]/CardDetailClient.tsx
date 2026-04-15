@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, Check, ClockCounterClockwise, CaretRight } from '@phosphor-icons/react'
+import { ArrowLeft, Check, ClockCounterClockwise, CaretRight, CaretDown, CaretUp } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
+import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, Expense } from '@/types/database'
-import type { EnrichedCycle } from './page'
 import { PagarResumenModal } from './PagarResumenModal'
 import { LegacyCardPaymentModal } from './LegacyCardPaymentModal'
+import { CycleExpensesDetail } from './CycleExpensesDetail'
 
 interface Props {
   card: Card
@@ -81,7 +82,7 @@ function DayField({
       ) : (
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold text-text-primary">
-            {value ? `Dia ${value}` : '—'}
+            {value ? `Dia ${value}` : '-'}
           </span>
           {saved && <Check size={13} weight="bold" className="text-success" />}
           <button onClick={() => setEditing(true)} className="text-xs text-primary">
@@ -96,8 +97,8 @@ function DayField({
 function CycleStatusPill({ status }: { status: EnrichedCycle['cycleStatus'] }) {
   if (status === 'pagado') {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-success-soft px-2.5 py-0.5 text-[10px] font-semibold text-success">
-        ✓ Pagado
+      <span className="inline-flex items-center rounded-full bg-success-soft px-2.5 py-0.5 text-[10px] font-semibold text-success">
+        Pagado
       </span>
     )
   }
@@ -130,6 +131,12 @@ function periodMonthLabel(periodMonth: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+function formatDiff(diff: number): string {
+  if (diff === 0) return '$0'
+  const sign = diff > 0 ? '+' : '-'
+  return `${sign}${formatAmount(Math.abs(diff), 'ARS')}`
+}
+
 export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDate, expenses }: Props) {
   const router = useRouter()
   const [currentCard, setCurrentCard] = useState<Card>(card)
@@ -145,10 +152,31 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
   const [editingClosingDate, setEditingClosingDate] = useState('')
   const [editingDueDate, setEditingDueDate] = useState('')
   const [isSavingCycleDates, setIsSavingCycleDates] = useState(false)
+  const [detailCycleId, setDetailCycleId] = useState<string | null>(null)
+
+  const cycleExpensesMap = useMemo(
+    () =>
+      Object.fromEntries(
+        resumenes.map((cycle) => [
+          cycle.id,
+          expenses.filter(
+            (expense) =>
+              expense.payment_method === 'CREDIT' &&
+              expense.category !== 'Pago de Tarjetas' &&
+              expense.date >= cycle.period_from &&
+              expense.date <= cycle.closing_date,
+          ),
+        ]),
+      ) as Record<string, Expense[]>,
+    [resumenes, expenses]
+  )
 
   const handleSaveName = async () => {
     const trimmed = nameInput.trim()
-    if (!trimmed || trimmed === currentCard.name) { setEditingName(false); return }
+    if (!trimmed || trimmed === currentCard.name) {
+      setEditingName(false)
+      return
+    }
     setSavingName(true)
     try {
       await patchCard({ name: trimmed })
@@ -184,7 +212,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
   }
 
   const deleteCard = async () => {
-    if (!confirm(`¿Eliminar "${currentCard.name}"?`)) return
+    if (!confirm(`Eliminar "${currentCard.name}"?`)) return
     setIsDeleting(true)
     try {
       const res = await fetch(`/api/cards/${currentCard.id}`, { method: 'DELETE' })
@@ -252,13 +280,11 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
       </header>
 
       <div className="space-y-6 px-4 py-5">
-        {/* Configuración */}
         <section>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
             Configuracion
           </p>
           <div className="rounded-[20px] bg-bg-secondary px-4">
-            {/* Nombre editable */}
             <div className="flex items-center justify-between border-b border-border-subtle py-3.5">
               <span className="text-sm text-text-secondary">Nombre</span>
               {editingName ? (
@@ -269,7 +295,10 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                     onChange={(e) => setNameInput(e.target.value)}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') void handleSaveName()
-                      if (e.key === 'Escape') { setEditingName(false); setNameInput(currentCard.name) }
+                      if (e.key === 'Escape') {
+                        setEditingName(false)
+                        setNameInput(currentCard.name)
+                      }
                     }}
                     className="w-36 rounded-lg border border-border-strong bg-bg-primary px-2 py-1 text-right text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
                     autoFocus
@@ -292,16 +321,8 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
               )}
             </div>
 
-            <DayField
-              label="Cierre"
-              value={currentCard.closing_day}
-              onSave={(day) => patchCard({ closing_day: day })}
-            />
-            <DayField
-              label="Vencimiento"
-              value={currentCard.due_day}
-              onSave={(day) => patchCard({ due_day: day })}
-            />
+            <DayField label="Cierre" value={currentCard.closing_day} onSave={(day) => patchCard({ closing_day: day })} />
+            <DayField label="Vencimiento" value={currentCard.due_day} onSave={(day) => patchCard({ due_day: day })} />
 
             {accounts.length > 0 && (
               <div className="border-b border-border-subtle py-3.5 last:border-0">
@@ -317,17 +338,17 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                   >
                     Sin cuenta
                   </button>
-                  {[...accounts].sort((a) => a.id === currentCard.account_id ? -1 : 1).map((a) => (
+                  {[...accounts].sort((a) => (a.id === currentCard.account_id ? -1 : 1)).map((account) => (
                     <button
-                      key={a.id}
-                      onClick={() => void patchCard({ account_id: a.id })}
+                      key={account.id}
+                      onClick={() => void patchCard({ account_id: account.id })}
                       className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        currentCard.account_id === a.id
+                        currentCard.account_id === account.id
                           ? 'border-primary bg-primary/15 text-primary'
                           : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
                       }`}
                     >
-                      {a.name}
+                      {account.name}
                     </button>
                   ))}
                 </div>
@@ -337,13 +358,12 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
             <div className="flex items-center justify-between py-3.5">
               <span className="text-sm text-text-secondary">Proximo cierre</span>
               <span className="text-sm text-text-tertiary">
-                {upcomingClosingDate ? formatDate(upcomingClosingDate) : '—'}
+                {upcomingClosingDate ? formatDate(upcomingClosingDate) : '-'}
               </span>
             </div>
           </div>
         </section>
 
-        {/* Resúmenes */}
         <section>
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
             Resumenes
@@ -354,21 +374,70 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
             <div className="divide-y divide-border-subtle overflow-hidden rounded-[20px] bg-bg-secondary">
               {resumenes.map((cycle) => (
                 <div key={cycle.id} className="px-4 py-3.5">
+                  {(() => {
+                    const hasRecordedPayment = cycle.cycleStatus === 'pagado' && cycle.amount_paid != null
+                    const paymentDiff = hasRecordedPayment ? cycle.amount - (cycle.amount_paid ?? 0) : 0
+                    const showPaymentDiff = hasRecordedPayment && Math.abs(paymentDiff) >= 1
+
+                    return (
+                      <>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="text-sm font-semibold text-text-primary">
                         {periodMonthLabel(cycle.period_month)}
                       </p>
                       <p className="mt-0.5 text-[11px] text-text-tertiary">
-                        {formatDate(cycle.closing_date)} → {formatDate(cycle.due_date)}
+                        {formatDate(cycle.closing_date)} {'->'} {formatDate(cycle.due_date)}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-col items-end gap-1.5">
                       <span className="text-sm font-bold tabular-nums text-text-primary">
                         {formatAmount(cycle.amount, 'ARS')}
                       </span>
+                      {hasRecordedPayment && (
+                        <div className="flex flex-col items-end gap-0.5">
+                          <span className="text-[10px] font-medium text-text-tertiary">
+                            Pago registrado: {formatAmount(cycle.amount_paid ?? 0, 'ARS')}
+                          </span>
+                          {showPaymentDiff && (
+                            <span className={`text-[10px] font-medium ${paymentDiff > 0 ? 'text-warning' : 'text-text-tertiary'}`}>
+                              Diferencia: {formatDiff(paymentDiff)}
+                            </span>
+                          )}
+                        </div>
+                      )}
                       <CycleStatusPill status={cycle.cycleStatus} />
+                      {cycle.cycleStatus === 'pagado' && cycle.changed_after_payment && (
+                        <span className="inline-flex items-center rounded-full bg-warning-soft px-2.5 py-0.5 text-[10px] font-semibold text-warning">
+                          Modificado despues del pago
+                        </span>
+                      )}
                     </div>
+                  </div>
+
+                  <div className="mt-3 overflow-hidden rounded-[14px] bg-bg-primary">
+                    <button
+                      onClick={() => setDetailCycleId((current) => (current === cycle.id ? null : cycle.id))}
+                      className="flex w-full items-center justify-between px-3 py-2.5"
+                    >
+                      <span className="text-[11px] font-medium text-text-secondary">Detalle de gastos</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[11px] text-text-tertiary">
+                          {cycleExpensesMap[cycle.id]?.length ?? 0} items
+                        </span>
+                        {detailCycleId === cycle.id ? (
+                          <CaretUp size={12} className="text-text-tertiary" />
+                        ) : (
+                          <CaretDown size={12} className="text-text-tertiary" />
+                        )}
+                      </div>
+                    </button>
+                    {detailCycleId === cycle.id && (
+                      <CycleExpensesDetail
+                        expenses={cycleExpensesMap[cycle.id] ?? []}
+                        paidAt={cycle.cycleStatus === 'pagado' ? cycle.paid_at : null}
+                      />
+                    )}
                   </div>
 
                   {cycle.source === 'stored' && (cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido') && (
@@ -413,7 +482,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                               disabled={isSavingCycleDates}
                               className="flex-1 rounded-full bg-primary py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                             >
-                              {isSavingCycleDates ? 'Guardando…' : 'Guardar fechas'}
+                              {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
                             </button>
                           </div>
                         </div>
@@ -446,7 +515,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                       {revertingCycleId === cycle.id ? (
                         <div className="mt-3 space-y-2 rounded-[14px] bg-danger/10 px-3 py-2.5">
                           <p className="text-xs font-medium text-danger">
-                            ¿Revertir el pago? Se eliminara el movimiento registrado.
+                            Revertir el pago? Se eliminara el movimiento registrado.
                           </p>
                           <div className="flex gap-2">
                             <button
@@ -461,7 +530,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                               disabled={isReverting}
                               className="flex-1 rounded-full bg-danger py-1.5 text-xs font-semibold text-white disabled:opacity-50"
                             >
-                              {isReverting ? 'Revirtiendo…' : 'Confirmar'}
+                              {isReverting ? 'Revirtiendo...' : 'Confirmar'}
                             </button>
                           </div>
                         </div>
@@ -475,13 +544,15 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                       )}
                     </>
                   )}
+                      </>
+                    )
+                  })()}
                 </div>
               ))}
             </div>
           )}
         </section>
 
-        {/* Pago anterior a Gota */}
         <section>
           <div className="overflow-hidden rounded-[20px] bg-bg-secondary">
             <button
@@ -500,14 +571,13 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
           </div>
         </section>
 
-        {/* Eliminar tarjeta */}
         <section className="pb-8 pt-2 text-center">
           <button
             onClick={() => void deleteCard()}
             disabled={isDeleting}
             className="text-xs text-text-dim underline-offset-2 hover:underline disabled:opacity-50"
           >
-            {isDeleting ? 'Eliminando…' : 'Eliminar tarjeta'}
+            {isDeleting ? 'Eliminando...' : 'Eliminar tarjeta'}
           </button>
         </section>
       </div>

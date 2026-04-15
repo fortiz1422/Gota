@@ -15,6 +15,7 @@ export type EnrichedCycle = {
   amount: number
   paid_at: string | null
   amount_paid: number | null
+  changed_after_payment: boolean
 }
 
 function addOneDay(dateStr: string): string {
@@ -60,7 +61,19 @@ export function buildEnrichedCardCycles({
             new Date(`${cycle.closing_date}T12:00:00Z`),
           )
 
-    const isPaid = cycle.paid_at !== null || cycle.status === 'paid'
+    const paidAt = cycle.paid_at
+    const isPaid = paidAt !== null || cycle.status === 'paid'
+    const changedAfterPayment =
+      paidAt != null &&
+      expenses.some(
+        (expense) =>
+          expense.card_id === card.id &&
+          expense.payment_method === 'CREDIT' &&
+          expense.category !== 'Pago de Tarjetas' &&
+          expense.date >= periodFrom &&
+          expense.date <= cycle.closing_date &&
+          (expense.created_at > paidAt || expense.updated_at > paidAt)
+      )
     const cycleStatus: EnrichedCycle['cycleStatus'] = isPaid
       ? 'pagado'
       : cycle.closing_date >= today
@@ -78,8 +91,9 @@ export function buildEnrichedCardCycles({
       due_date: cycle.due_date,
       cycleStatus,
       amount,
-      paid_at: cycle.paid_at,
+      paid_at: paidAt,
       amount_paid: cycle.amount_paid,
+      changed_after_payment: changedAfterPayment,
     }
   })
 }

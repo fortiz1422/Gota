@@ -3,10 +3,11 @@
 import { useMemo, useState } from 'react'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
-import { formatAmount, formatDate, todayAR } from '@/lib/format'
+import { formatAmount, todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
+import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, Expense } from '@/types/database'
-import type { EnrichedCycle } from './page'
+import { CycleExpensesDetail } from './CycleExpensesDetail'
 
 type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
 
@@ -53,7 +54,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
   const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasDiff || motivo !== null)
 
   const ctaLabel = (() => {
-    if (isSaving) return 'Registrando…'
+    if (isSaving) return 'Registrando...'
     if (isEqualToTotal) return 'Registrar pago total'
     if (montoNum > 0) return 'Registrar pago parcial'
     return 'Registrar pago'
@@ -150,7 +151,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
 
       <div className="mb-5">
         <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-text-tertiary">
-          Pago de tarjeta · {card.name}
+          Pago de tarjeta | {card.name}
         </p>
         <h2 className="mt-0.5 text-base font-bold text-text-primary">
           {periodMonthLabel(cycle.period_month)}
@@ -158,7 +159,6 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
       </div>
 
       <div className="space-y-5 pb-24">
-        {/* Monto a pagar */}
         <div>
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
             Monto a pagar
@@ -176,7 +176,6 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           </div>
         </div>
 
-        {/* Cuenta y Fecha */}
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
           {accounts.length > 0 && (
             <div className="border-b border-border-subtle px-4 py-3.5">
@@ -209,7 +208,6 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           </div>
         </div>
 
-        {/* Gastos registrados */}
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
           <button
             onClick={() => setDetailOpen((o) => !o)}
@@ -230,31 +228,16 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           </button>
 
           {detailOpen && cycleExpenses.length > 0 && (
-            <div className="space-y-1 border-t border-border-subtle pb-3 pt-2">
-              {cycleExpenses.map((e) => (
-                <div key={e.id} className="flex items-center justify-between gap-3 px-4 py-1">
-                  <div className="min-w-0">
-                    <p className="truncate text-xs text-text-primary">{e.description || e.category}</p>
-                    <p className="text-[10px] text-text-tertiary">
-                      {formatDate(e.date)} · {e.category}
-                    </p>
-                  </div>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-text-primary">
-                    {formatAmount(e.amount, e.currency as 'ARS' | 'USD')}
-                  </span>
-                </div>
-              ))}
-            </div>
+            <CycleExpensesDetail expenses={cycleExpenses} />
           )}
         </div>
 
-        {/* Diferencia */}
         {hasDiff && (
           <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
               {diff > 0
                 ? `Pagas ${formatAmount(diff, 'ARS')} de mas`
-                : `Pagas ${formatAmount(Math.abs(diff), 'ARS')} de menos`} · ¿Por que?
+                : `Pagas ${formatAmount(Math.abs(diff), 'ARS')} de menos`} | Por que?
             </p>
 
             {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((m) => (

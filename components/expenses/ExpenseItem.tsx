@@ -19,7 +19,23 @@ interface Props {
 
 type SourceKey = string
 
-function getInitialSource(expense: Expense, accounts: Account[]): SourceKey {
+type InstallmentGroupSummary = {
+  installment_group_id: string
+  description: string
+  category: string
+  payment_method: Expense['payment_method']
+  card_id: string | null
+  account_id: string | null
+  currency: Expense['currency']
+  is_want: boolean | null
+  total_amount: number
+  date: string | null
+  recorded_installments: number
+  first_installment_number: number
+  installment_total: number
+}
+
+function getInitialSource(expense: Pick<Expense, 'payment_method' | 'account_id'>, accounts: Account[]): SourceKey {
   if (expense.payment_method === 'CREDIT') return 'credit'
   if (expense.payment_method === 'CASH') return 'cash'
   if (expense.account_id) return expense.account_id
@@ -54,6 +70,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const [isSaving, setIsSaving] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [groupSummary, setGroupSummary] = useState<InstallmentGroupSummary | null>(null)
+  const [isLoadingGroup, setIsLoadingGroup] = useState(false)
+  const [editingGroup, setEditingGroup] = useState(false)
 
   const [description, setDescription] = useState(expense.description)
   const [amount, setAmount] = useState(String(expense.amount))
@@ -61,13 +80,26 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const [category, setCategory] = useState(expense.category)
   const [source, setSource] = useState<SourceKey>(() => getInitialSource(expense, accounts))
   const [cardId, setCardId] = useState(expense.card_id ?? '')
-  const [installments, setInstallments] = useState(1)
+  const [installments, setInstallments] = useState(expense.installment_total ?? 1)
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [date, setDate] = useState(expense.date.substring(0, 10))
   const [isWant, setIsWant] = useState(expense.is_want)
 
-  const isPagoTarjetas = category === 'Pago de Tarjetas'
   const isInstallmentGroup = expense.installment_group_id != null
+  const canEditInstallmentGroup = isInstallmentGroup && (groupSummary?.first_installment_number ?? 1) === 1
+
+  const originalDescription = groupSummary?.description ?? expense.description
+  const originalAmount = groupSummary?.total_amount ?? expense.amount
+  const originalCurrency = groupSummary?.currency ?? expense.currency
+  const originalCategory = groupSummary?.category ?? expense.category
+  const originalPaymentMethod = groupSummary?.payment_method ?? expense.payment_method
+  const originalAccountId = groupSummary?.account_id ?? expense.account_id
+  const originalCardId = groupSummary?.card_id ?? expense.card_id
+  const originalInstallments = groupSummary?.recorded_installments ?? (expense.installment_total ?? 1)
+  const originalDate = (groupSummary?.date ?? expense.date).substring(0, 10)
+  const originalIsWant = groupSummary?.is_want ?? expense.is_want
+
+  const isPagoTarjetas = category === 'Pago de Tarjetas'
   const needsCard = source === 'credit' || isPagoTarjetas
 
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
@@ -79,24 +111,51 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
     if (key !== 'credit') setCardId('')
   }
 
+  const handleEditGroup = useCallback(async () => {
+    setIsLoadingGroup(true)
+    setError(null)
+    try {
+      const res = await fetch(`/api/expenses/${expense.id}`)
+      if (!res.ok) throw new Error()
+      const payload = await res.json()
+      if (!payload.group) {
+        setEditingGroup(true)
+        return
+      }
+      const summary = payload.group as InstallmentGroupSummary
+      setGroupSummary(summary)
+      setDescription(summary.description)
+      setAmount(String(summary.total_amount))
+      setCurrency(summary.currency)
+      setCategory(summary.category)
+      setCardId(summary.card_id ?? '')
+      setInstallments(summary.recorded_installments)
+      setInstallmentsInput('')
+      setDate((summary.date ?? expense.date).substring(0, 10))
+      setIsWant(summary.is_want)
+      setSource(getInitialSource({ payment_method: summary.payment_method, account_id: summary.account_id }, accounts))
+      setEditingGroup(true)
+    } catch {
+      setError('No se pudo cargar la compra en cuotas.')
+    } finally {
+      setIsLoadingGroup(false)
+    }
+  }, [expense.id, expense.date, accounts])
+
   const isDirty =
-    description !== expense.description ||
-    Number(amount) !== expense.amount ||
-    currency !== expense.currency ||
-    category !== expense.category ||
-    derivePaymentMethod(source, accounts) !== expense.payment_method ||
-    deriveAccountId(source, accounts) !== expense.account_id ||
-    (cardId || null) !== expense.card_id ||
-    date !== expense.date.substring(0, 10) ||
-    isWant !== expense.is_want
+    description !== originalDescription ||
+    Number(amount) !== originalAmount ||
+    currency !== originalCurrency ||
+    category !== originalCategory ||
+    derivePaymentMethod(source, accounts) !== originalPaymentMethod ||
+    deriveAccountId(source, accounts) !== originalAccountId ||
+    (cardId || null) !== originalCardId ||
+    installments !== originalInstallments ||
+    date !== originalDate ||
+    isWant !== originalIsWant
 
   const handleSave = useCallback(async () => {
     if (isSaving) return
-    if (isInstallmentGroup) {
-      setOpen(false)
-      setError(null)
-      return
-    }
     if (!isDirty) {
       setOpen(false)
       setError(null)
@@ -118,9 +177,15 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           card_id: cardId || null,
           date: dateInputToISO(date),
           is_want: isWant,
+          installments: source === 'credit' && !isPagoTarjetas ? installments : 1,
         }),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const payload = await res.json().catch(() => null)
+        throw new Error(payload?.error ?? 'save_error')
+      }
+      setGroupSummary(null)
+      setEditingGroup(false)
       setOpen(false)
       setIsSaving(false)
       queryClient.invalidateQueries({ queryKey: ['analytics'] })
@@ -128,11 +193,33 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onUpdate?.()
-    } catch {
-      setError('Error al guardar. Intentá de nuevo.')
+    } catch (saveError) {
+      setError(
+        saveError instanceof Error && saveError.message !== 'save_error'
+          ? saveError.message
+          : 'Error al guardar. Intenta de nuevo.'
+      )
       setIsSaving(false)
     }
-  }, [isSaving, isInstallmentGroup, isDirty, expense.id, description, amount, currency, category, source, accounts, cardId, date, isWant, router, queryClient, onUpdate])
+  }, [
+    isSaving,
+    isDirty,
+    expense.id,
+    description,
+    amount,
+    currency,
+    category,
+    source,
+    accounts,
+    cardId,
+    date,
+    isWant,
+    installments,
+    isPagoTarjetas,
+    router,
+    queryClient,
+    onUpdate,
+  ])
 
   const handleDelete = async () => {
     setIsSaving(true)
@@ -158,10 +245,12 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
 
   return (
     <>
-      {/* Collapsed row */}
       <div
-        onClick={() => { setOpen(true); setError(null) }}
-        className="flex cursor-pointer items-center gap-3 py-[13px] border-b border-border-subtle transition-colors"
+        onClick={() => {
+          setOpen(true)
+          setError(null)
+        }}
+        className="flex cursor-pointer items-center gap-3 border-b border-border-subtle py-[13px] transition-colors"
       >
         <CategoryIcon category={expense.category} size={16} container />
         <div className="min-w-0 flex-1">
@@ -169,10 +258,10 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             {expense.description || expense.category}
           </p>
           <p className="text-xs text-text-tertiary">
-            {expense.category} · {formatDate(expense.date)}
+            {expense.category} | {formatDate(expense.date)}
             {expense.installment_number != null && expense.installment_total != null && (
               <span className="ml-1 text-[10px] text-text-disabled">
-                · Cuota {expense.installment_number}/{expense.installment_total}
+                | Cuota {expense.installment_number}/{expense.installment_total}
               </span>
             )}
           </p>
@@ -187,29 +276,107 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
         </div>
       </div>
 
-      {/* Bottom sheet edit form */}
-      <Modal open={open} onClose={() => setOpen(false)}>
+      <Modal open={open} onClose={() => {
+        setOpen(false)
+        setEditingGroup(false)
+        setGroupSummary(null)
+        setDescription(expense.description)
+        setAmount(String(expense.amount))
+        setCurrency(expense.currency)
+        setCategory(expense.category)
+        setSource(getInitialSource(expense, accounts))
+        setCardId(expense.card_id ?? '')
+        setInstallments(expense.installment_total ?? 1)
+        setInstallmentsInput('')
+        setDate(expense.date.substring(0, 10))
+        setIsWant(expense.is_want)
+        setConfirmDelete(false)
+        setError(null)
+      }}>
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-        <h2 className="text-lg font-semibold text-text-primary">Editar gasto</h2>
+        <h2 className="text-lg font-semibold text-text-primary">
+          {isInstallmentGroup ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota') : 'Editar gasto'}
+        </h2>
 
+        {/* Vista read-only de cuota individual */}
+        {isInstallmentGroup && !editingGroup ? (
+          <div className="mt-5 space-y-5">
+            {error && <p className="text-xs text-danger">{error}</p>}
+
+            <div className="space-y-3 rounded-[14px] bg-bg-secondary px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-text-primary">
+                    {expense.description || expense.category}
+                  </p>
+                  <p className="mt-0.5 text-xs text-text-tertiary">{expense.category}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold tabular-nums text-text-primary">
+                    {formatAmount(expense.amount, expense.currency)}
+                  </p>
+                  {expense.installment_number != null && expense.installment_total != null && (
+                    <p className="text-[11px] text-text-tertiary">
+                      Cuota {expense.installment_number}/{expense.installment_total}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <p className="text-xs text-text-tertiary">{formatDate(expense.date)}</p>
+            </div>
+
+            <div className="rounded-[14px] border border-border-subtle bg-bg-secondary px-4 py-3">
+              <p className="text-xs text-text-secondary">
+                Este es el detalle de una sola cuota. Para corregir descripcion, monto o cantidad de cuotas, edita el gasto completo.
+              </p>
+              <button
+                onClick={() => void handleEditGroup()}
+                disabled={isLoadingGroup}
+                className="mt-3 w-full rounded-button bg-primary/10 py-2.5 text-sm font-semibold text-primary disabled:opacity-50"
+              >
+                {isLoadingGroup ? 'Cargando...' : 'Editar gasto completo'}
+              </button>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {confirmDelete ? (
+                <div className="flex gap-2">
+                  <button onClick={() => setConfirmDelete(false)} className="flex-1 rounded-button py-3 text-sm text-text-secondary">
+                    Cancelar
+                  </button>
+                  <button onClick={handleDelete} disabled={isSaving} className="flex-1 rounded-button bg-danger/20 py-3 text-sm font-semibold text-danger disabled:opacity-50">
+                    {isSaving ? '...' : 'Eliminar'}
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setConfirmDelete(true)} className="w-full rounded-button py-3 text-sm text-danger">
+                  Eliminar gasto
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+        <>
         <div className="mt-5 space-y-5">
           {error && <p className="text-xs text-danger">{error}</p>}
-          {isInstallmentGroup && (
+          {isInstallmentGroup && editingGroup && (
             <p className="text-xs text-text-secondary">
-              Las cuotas agrupadas no se pueden editar individualmente por ahora. Podés eliminarlas en grupo y volver a registrarlas.
+              {canEditInstallmentGroup
+                ? 'Editando la compra completa. El monto es el total de la operacion y las cuotas se regeneran completas.'
+                : 'Las cuotas en curso que arrancan en una cuota avanzada no se pueden editar. Podes eliminarlas y volver a cargarlas correctamente.'}
             </p>
           )}
 
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-                Descripción
+                Descripcion
               </label>
               <input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                disabled={isInstallmentGroup}
+                disabled={isInstallmentGroup && !canEditInstallmentGroup}
                 className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
@@ -222,12 +389,12 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                   type="number"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
                 />
                 <button
                   onClick={() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'))}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className="rounded-input bg-bg-tertiary px-2 py-2 text-[10px] font-semibold text-text-secondary"
                 >
                   {currency}
@@ -239,12 +406,12 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-                Categoría
+                Categoria
               </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                disabled={isInstallmentGroup}
+                disabled={isInstallmentGroup && !canEditInstallmentGroup}
                 className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
                 {CATEGORIES.map((c) => (
@@ -260,23 +427,22 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                 type="date"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
-                disabled={isInstallmentGroup}
+                disabled={isInstallmentGroup && !canEditInstallmentGroup}
                 className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
           </div>
 
-          {/* ¿De dónde sale? */}
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              ¿De dónde sale?
+              De donde sale?
             </label>
             <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               {bankDigital.map((acc) => (
                 <button
                   key={acc.id}
                   onClick={() => handleSourceChange(acc.id)}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className={`${chipBase} ${source === acc.id ? chipActive : chipInactive}`}
                 >
                   <AccountIcon type={acc.type} size={13} />
@@ -288,7 +454,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               ))}
               <button
                 onClick={() => handleSourceChange('cash')}
-                disabled={isInstallmentGroup}
+                disabled={isInstallmentGroup && !canEditInstallmentGroup}
                 className={`${chipBase} ${source === 'cash' ? chipActive : chipInactive}`}
               >
                 <Wallet weight="duotone" size={13} />
@@ -297,7 +463,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               {activeCards.length > 0 && (
                 <button
                   onClick={() => handleSourceChange('credit')}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className={`${chipBase} ${source === 'credit' || isPagoTarjetas ? chipActive : chipInactive}`}
                 >
                   <CreditCard weight="duotone" size={13} />
@@ -307,7 +473,6 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </div>
           </div>
 
-          {/* Tarjeta selector */}
           {needsCard && (
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
@@ -316,10 +481,10 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               <select
                 value={cardId}
                 onChange={(e) => setCardId(e.target.value)}
-                disabled={isInstallmentGroup}
+                disabled={isInstallmentGroup && !canEditInstallmentGroup}
                 className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
-                <option value="">— seleccioná —</option>
+                <option value="">- selecciona -</option>
                 {activeCards.map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
@@ -327,7 +492,6 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </div>
           )}
 
-          {/* Cuotas (solo tarjeta de crédito, no Pago de Tarjetas) */}
           {source === 'credit' && !isPagoTarjetas && (
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
@@ -341,7 +505,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                       setInstallments(n)
                       setInstallmentsInput('')
                     }}
-                    disabled={isInstallmentGroup}
+                    disabled={isInstallmentGroup && !canEditInstallmentGroup}
                     className={`${chipBase} ${installments === n && installmentsInput === '' ? chipActive : chipInactive}`}
                   >
                     {n === 1 ? 'Sin cuotas' : `${n}x`}
@@ -354,7 +518,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                   max={72}
                   placeholder="Otro"
                   value={installmentsInput}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   onChange={(e) => {
                     const v = e.target.value
                     setInstallmentsInput(v)
@@ -367,7 +531,6 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </div>
           )}
 
-          {/* Necesidad / Deseo */}
           {!isPagoTarjetas && (
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
@@ -376,7 +539,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               <div className="flex gap-2">
                 <button
                   onClick={() => setIsWant(false)}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
                     isWant === false ? 'bg-success/20 text-success' : 'bg-bg-tertiary text-text-secondary'
                   }`}
@@ -385,7 +548,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                 </button>
                 <button
                   onClick={() => setIsWant(true)}
-                  disabled={isInstallmentGroup}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
                     isWant === true ? 'bg-want/20 text-want' : 'bg-bg-tertiary text-text-secondary'
                   }`}
@@ -400,7 +563,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
         <div className="mt-6 flex flex-col gap-2">
           <button
             onClick={handleSave}
-            disabled={isSaving || isInstallmentGroup}
+            disabled={isSaving || (isInstallmentGroup && !canEditInstallmentGroup)}
             className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
             {isSaving && !confirmDelete ? 'Guardando...' : 'Guardar'}
@@ -430,6 +593,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
             </button>
           )}
         </div>
+        </>
+        )}
       </Modal>
     </>
   )

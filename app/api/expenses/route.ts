@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { ExpenseSchema } from '@/lib/validation/schemas'
 import { toDateOnly } from '@/lib/format'
+import { buildInstallmentRows } from '@/lib/expenses/installments'
 import { ZodError } from 'zod'
 
 export async function GET(request: Request) {
@@ -60,18 +61,6 @@ export async function GET(request: Request) {
   })
 }
 
-function addMonths(dateStr: string, n: number): string {
-  // dateStr is YYYY-MM-DD
-  const [year, month, day] = dateStr.split('-').map(Number)
-  const targetMonth = month - 1 + n // 0-indexed month
-  const targetYear = year + Math.floor(targetMonth / 12)
-  const normalizedMonth = ((targetMonth % 12) + 12) % 12 // handle negative
-  // Cap day to last day of target month
-  const lastDay = new Date(targetYear, normalizedMonth + 1, 0).getDate()
-  const targetDay = Math.min(day, lastDay)
-  return `${targetYear}-${String(normalizedMonth + 1).padStart(2, '0')}-${String(targetDay).padStart(2, '0')}`
-}
-
 export async function POST(request: Request) {
   const supabase = await createClient()
   const {
@@ -99,27 +88,16 @@ export async function POST(request: Request) {
       return NextResponse.json(data, { status: 201 })
     }
 
-    // Multi-row insert for installments
-    const baseDate = expenseFields.date.split('T')[0] // YYYY-MM-DD
-    const isInProgressInstallments = installment_start != null
-    const totalCents = Math.round(expenseFields.amount * 100)
-    const baseCents = Math.floor(totalCents / numInstallments)
-    const remainderCents = totalCents - baseCents * numInstallments
-    const startNumber = installment_start ?? 1
-    const grandTotal = installment_grand_total ?? numInstallments
-    const groupId = crypto.randomUUID()
-
-    const rows = Array.from({ length: numInstallments }, (_, i) => ({
-      user_id: user.id,
-      ...expenseFields,
-      amount: isInProgressInstallments
-        ? expenseFields.amount
-        : (baseCents + (i === numInstallments - 1 ? remainderCents : 0)) / 100,
-      date: addMonths(baseDate, i),
-      installment_group_id: groupId,
-      installment_number: startNumber + i,
-      installment_total: grandTotal,
-    }))
+    const rows = buildInstallmentRows({
+      userId: user.id,
+      expenseFields: {
+        ...expenseFields,
+        date: toDateOnly(expenseFields.date),
+      },
+      installments: numInstallments,
+      installmentStart: installment_start,
+      installmentGrandTotal: installment_grand_total,
+    })
 
     const { data, error } = await supabase.from('expenses').insert(rows).select()
     if (error) throw error

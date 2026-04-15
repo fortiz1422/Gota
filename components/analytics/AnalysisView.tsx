@@ -71,6 +71,7 @@ export function AnalysisView({
       <CompromisosCard
         data={compromisos}
         currency={currency}
+        selectedMonth={selectedMonth}
         onClick={() => setDrill('compromisos')}
       />
     </div>

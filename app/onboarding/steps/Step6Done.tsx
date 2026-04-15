@@ -1,15 +1,14 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import type { OnboardingData } from '../OnboardingFlow'
 
 interface Props {
   data: OnboardingData
+  onNext: () => void
 }
 
-export function Step6Done({ data }: Props) {
-  const router = useRouter()
+export function Step6Done({ data, onNext }: Props) {
   const [isReady, setIsReady] = useState(false)
 
   useEffect(() => {
@@ -70,7 +69,7 @@ export function Step6Done({ data }: Props) {
       </div>
 
       <button
-        onClick={() => router.push('/')}
+        onClick={onNext}
         disabled={!isReady}
         className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-all active:scale-95 disabled:opacity-40"
       >

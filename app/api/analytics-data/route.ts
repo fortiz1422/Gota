@@ -24,25 +24,32 @@ export async function GET(request: Request) {
   const selectedMonth = monthParam ?? getCurrentMonth()
   const startOfMonth = selectedMonth + '-01'
   const endOfMonth = addMonths(selectedMonth, 1) + '-01'
+  // 3-month window for resumen amount calculation (covers most pending debt cases)
+  const twoMonthsAgoStart = addMonths(selectedMonth, -2) + '-01'
 
   const [{ data: config }, { data: cardsData }] = await Promise.all([
     supabase.from('user_config').select('default_currency').eq('user_id', user.id).single(),
-    supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false).order('created_at', { ascending: true }),
+    supabase
+      .from('cards')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('archived', false)
+      .order('created_at', { ascending: true }),
   ])
 
   const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
   const cards = (cardsData ?? []) as Card[]
 
-  const prevMonthStart = addMonths(selectedMonth, -1) + '-01'
-
   const [
     { data: rawExpenses },
-    { data: prevCreditExpenses },
+    { data: compromisoExpensesData },
     { data: incomeEntries },
     { data: oldestExpense },
     { data: subscriptionsData },
-    { data: cardCyclesData, error: cardCyclesError },
+    { data: unpaidCyclesData, error: unpaidCyclesError },
+    { data: paidCyclesThisMonthData, error: paidCyclesError },
   ] = await Promise.all([
+    // Current month expenses — for computeMetrics and hero engine
     supabase
       .from('expenses')
       .select('*')
@@ -50,13 +57,19 @@ export async function GET(request: Request) {
       .eq('currency', currency)
       .gte('date', startOfMonth)
       .lt('date', endOfMonth),
+
+    // 3 months of CREDIT expenses — for computeCompromisos amount calculation
+    // Covers most pending resumen cases (debt up to ~2 months back)
     supabase
       .from('expenses')
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
-      .gte('date', prevMonthStart)
-      .lt('date', startOfMonth),
+      .eq('payment_method', 'CREDIT')
+      .neq('category', 'Pago de Tarjetas')
+      .gte('date', twoMonthsAgoStart)
+      .lt('date', endOfMonth),
+
     supabase
       .from('income_entries')
       .select('amount, currency')
@@ -64,6 +77,7 @@ export async function GET(request: Request) {
       .eq('currency', currency)
       .gte('date', startOfMonth)
       .lt('date', endOfMonth),
+
     supabase
       .from('expenses')
       .select('date')
@@ -71,32 +85,49 @@ export async function GET(request: Request) {
       .order('date', { ascending: true })
       .limit(1)
       .maybeSingle(),
+
     supabase.from('subscriptions').select('*').eq('user_id', user.id).eq('is_active', true),
+
+    // All non-paid cycles (any period) — for current month debt calculation
     supabase
       .from('card_cycles')
       .select('*')
       .eq('user_id', user.id)
-      .in('period_month', [startOfMonth, prevMonthStart]),
+      .neq('status', 'paid'),
+
+    // Paid cycles with due_date in selected month — for historical view
+    supabase
+      .from('card_cycles')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('status', 'paid')
+      .gte('due_date', startOfMonth)
+      .lt('due_date', endOfMonth),
   ])
 
-  if (cardCyclesError && !isMissingTableError(cardCyclesError.message)) {
-    return NextResponse.json({ error: cardCyclesError.message }, { status: 500 })
+  const cyclesError = unpaidCyclesError ?? paidCyclesError
+  if (cyclesError && !isMissingTableError(cyclesError.message)) {
+    return NextResponse.json({ error: cyclesError.message }, { status: 500 })
   }
 
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
+
   const currentMonthExpenses = ((rawExpenses ?? []) as Expense[]).filter(
     (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
   )
-  const previousMonthCreditExpenses = ((prevCreditExpenses ?? []) as Expense[]).filter(
-    (expense) => isCreditAccruedExpense(expense),
-  )
+
+  // Merge non-paid cycles + paid cycles in selected month
+  const allCardCycles: CardCycle[] = [
+    ...((unpaidCyclesError ? [] : (unpaidCyclesData ?? [])) as CardCycle[]),
+    ...((paidCyclesError ? [] : (paidCyclesThisMonthData ?? [])) as CardCycle[]),
+  ]
 
   return NextResponse.json({
     rawExpenses: currentMonthExpenses,
-    prevMonthExpenses: previousMonthCreditExpenses,
+    compromisoExpenses: (compromisoExpensesData ?? []) as Expense[],
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],
-    cardCycles: (cardCyclesError ? [] : (cardCyclesData ?? [])) as CardCycle[],
+    cardCycles: allCardCycles,
     cards,
     currency,
     earliestDataMonth: oldestExpense?.date?.substring(0, 7) ?? null,
