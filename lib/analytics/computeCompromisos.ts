@@ -317,6 +317,7 @@ export function computeCompromisos(
       })
     } else {
       const cs: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
+      if (amount === 0) continue   // ciclo sin deuda real — no mostrar en histórico
       tarjetas.push({
         id: card.id,
         name: card.name,
