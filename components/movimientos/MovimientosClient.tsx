@@ -57,10 +57,16 @@ const ORIGEN_LABELS: Record<string, string> = {
   pago_tarjeta: 'Pago tarjeta',
 }
 
-function buildFilterSummary(f: ActiveFilters, accounts: Account[]): string {
+function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
   const parts: string[] = []
   f.tipos.forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
   f.origenes.forEach((o) => parts.push(ORIGEN_LABELS[o] ?? o))
+
+  if (f.tarjetas.length === 1) {
+    parts.push(cards.find((c) => c.id === f.tarjetas[0])?.name ?? 'Tarjeta')
+  } else if (f.tarjetas.length > 1) {
+    parts.push(`${f.tarjetas.length} tarjetas`)
+  }
 
   if (f.cuentas.length === 1) {
     parts.push(accounts.find((a) => a.id === f.cuentas[0])?.name ?? 'Cuenta')
@@ -135,6 +141,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         const params = new URLSearchParams({ month, page: String(pg) })
         if (filters.tipos.length > 0) params.set('tipos', filters.tipos.join(','))
         if (filters.origenes.length > 0) params.set('origenes', filters.origenes.join(','))
+        if (filters.tarjetas.length > 0) params.set('tarjetas', filters.tarjetas.join(','))
         if (filters.cuentas.length > 0) params.set('cuentas', filters.cuentas.join(','))
         if (filters.categorias.length > 0)
           params.set('categorias', filters.categorias.join(','))
@@ -252,7 +259,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
               className="glass-1 flex min-w-0 max-w-[70%] items-center gap-1.5 rounded-pill py-1.5 pl-3 pr-2.5 transition-opacity active:opacity-60"
             >
               <span className="truncate text-[12px] font-medium text-primary">
-                {buildFilterSummary(activeFilters, accounts)}
+                {buildFilterSummary(activeFilters, accounts, cards)}
               </span>
               <X size={11} weight="bold" className="shrink-0 text-primary/60" />
             </button>
@@ -292,7 +299,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
             activeCount={activeCount}
             onOpenFilters={() => setFilterOpen(true)}
             onClearFilters={() => setActiveFilters(EMPTY_FILTERS)}
-            activeFilterSummary={buildFilterSummary(activeFilters, accounts)}
+            activeFilterSummary={buildFilterSummary(activeFilters, accounts, cards)}
             showActiveFilter={activeCount > 0}
           />
         )}
@@ -304,6 +311,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         onApply={setActiveFilters}
         initial={activeFilters}
         accounts={accounts}
+        cards={cards}
         categories={categories}
       />
     </div>

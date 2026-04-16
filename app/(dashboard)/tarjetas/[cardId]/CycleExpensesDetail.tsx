@@ -23,23 +23,23 @@ export function CycleExpensesDetail({ expenses, paidAt = null }: Props) {
               <div className="flex items-center gap-2">
                 {changedAfterPayment && (
                   <span
-                    aria-label="Cambiado despues del pago"
+                    aria-label="Cambiado después del pago"
                     className="h-2 w-2 shrink-0 rounded-full bg-danger"
-                    title="Cambiado despues del pago"
+                    title="Cambiado después del pago"
                   />
                 )}
-                <p className="truncate text-xs text-text-primary">
+                <p className="truncate type-meta text-text-primary">
                   {expense.description || expense.category}
                 </p>
               </div>
-              <p className="text-[10px] text-text-tertiary">
-                {formatDate(expense.date)} | {expense.category}
+              <p className="type-micro text-text-tertiary">
+                {formatDate(expense.date)} · {expense.category}
                 {expense.installment_number != null && expense.installment_total != null && (
-                  <span className="ml-1">| Cuota {expense.installment_number}/{expense.installment_total}</span>
+                  <span className="ml-1">· Cuota {expense.installment_number}/{expense.installment_total}</span>
                 )}
               </p>
             </div>
-            <span className="shrink-0 text-xs font-semibold tabular-nums text-text-primary">
+            <span className="shrink-0 type-meta font-semibold tabular-nums text-text-primary">
               {formatAmount(expense.amount, expense.currency)}
             </span>
           </div>

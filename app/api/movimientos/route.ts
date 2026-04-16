@@ -35,6 +35,7 @@ export async function GET(request: Request) {
 
   const tipos = (searchParams.get('tipos') ?? '').split(',').filter(Boolean) as TipoFilter[]
   const origenes = (searchParams.get('origenes') ?? '').split(',').filter(Boolean) as OrigenFilter[]
+  const tarjetas = (searchParams.get('tarjetas') ?? '').split(',').filter(Boolean)
   const cuentas = (searchParams.get('cuentas') ?? '').split(',').filter(Boolean)
   const categorias = (searchParams.get('categorias') ?? '').split(',').filter(Boolean)
   const monedas = (searchParams.get('monedas') ?? '').split(',').filter(Boolean) as MonedaFilter[]
@@ -175,6 +176,10 @@ export async function GET(request: Request) {
 
   if (monedas.length > 0) {
     filteredExpenses = filteredExpenses.filter((e) => monedas.includes(e.currency))
+  }
+
+  if (tarjetas.length > 0) {
+    filteredExpenses = filteredExpenses.filter((e) => e.card_id != null && tarjetas.includes(e.card_id))
   }
 
   if (cuentas.length > 0) {
