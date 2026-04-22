@@ -30,6 +30,20 @@ Este documento no reemplaza el audit ni el feedback estrategico. Es una herramie
 
 **Pendientes manuales no ejecutados:** SQL/manual Supabase de P0-01/P0-02/P0-04/P0-05, configurar/validar `SUPABASE_SERVICE_ROLE_KEY` para P0-07, prueba manual de borrado con usuario descartable y pruebas manuales de UI.
 
+Ver runbook operativo: `docs/p0-open-items-closure.md`.
+
+### Open items operativos P0
+
+- [ ] P0-01 Configurar `NEXT_PUBLIC_SENTRY_DSN` en local/preview/produccion.
+- [ ] P0-01 Validar evento real en Sentry sin PII ni datos financieros.
+- [ ] P0-02 Ejecutar SQL de `docs/supabase-product-events.sql` en Supabase.
+- [ ] P0-02 Validar eventos baseline en `product_events`.
+- [ ] P0-04/P0-05 Validar caso manual de gasto CREDIT + pago aplicable.
+- [ ] P0-04/P0-05 Validar pago legacy sin reducir deuda pendiente.
+- [ ] P0-07 Confirmar `SUPABASE_SERVICE_ROLE_KEY` en entorno real.
+- [ ] P0-07 Probar borrado con usuario descartable y verificar cero filas asociadas.
+- [ ] P0-07 Confirmar politica de retencion de logs externos.
+
 ---
 
 ## 1. Principios para ejecutar P0
