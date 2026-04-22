@@ -10,7 +10,7 @@ Este documento no reemplaza el audit ni el feedback estrategico. Es una herramie
 
 ## Estado de implementacion local
 
-**Actualizado:** 2026-04-21
+**Actualizado:** 2026-04-22
 
 | PBI                                  | Estado                              | Validacion / pendientes                                                                     |
 | ------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -20,7 +20,7 @@ Este documento no reemplaza el audit ni el feedback estrategico. Es una herramie
 | P0-04 Pagos legacy y Disponible Real | Implementado en codigo/schema local | Pendiente aplicar/verificar SQL en Supabase y validar manual con datos controlados.         |
 | P0-05 Consolidar `gastosTarjeta`     | Implementado                        | Helper `lib/card-debt.ts` cubierto por tests; pendiente validacion manual con tarjeta real. |
 | P0-06 Reemplazar `alert()` criticos  | Implementado                        | SmartInput, ParsePreview, CardPaymentPrompt, onboarding y login usan errores inline.        |
-| P0-07 Privacidad y borrado de cuenta | Pendiente                           | No iniciado.                                                                                |
+| P0-07 Privacidad y borrado de cuenta | Implementado en codigo             | Pendiente validar `SUPABASE_SERVICE_ROLE_KEY`, prueba manual con usuario descartable y retencion de logs externos. |
 
 **Validaciones tecnicas del bloque local:**
 
@@ -28,7 +28,7 @@ Este documento no reemplaza el audit ni el feedback estrategico. Es una herramie
 - `npm.cmd test`: OK con permiso elevado por `spawn EPERM` de esbuild dentro del sandbox.
 - `npm.cmd run lint`: OK, 0 errores; quedan 13 warnings preexistentes.
 
-**Pendientes manuales no ejecutados:** SQL/manual Supabase de P0-01/P0-02/P0-04/P0-05 y pruebas manuales de UI.
+**Pendientes manuales no ejecutados:** SQL/manual Supabase de P0-01/P0-02/P0-04/P0-05, configurar/validar `SUPABASE_SERVICE_ROLE_KEY` para P0-07, prueba manual de borrado con usuario descartable y pruebas manuales de UI.
 
 ---
 

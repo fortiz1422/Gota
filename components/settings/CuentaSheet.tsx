@@ -1,12 +1,14 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Bank, CreditCard, CaretRight, X, ArrowsClockwise } from '@phosphor-icons/react'
+import { ArrowsClockwise, Bank, CaretRight, CreditCard, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
-import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
+import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
 import { SubscriptionsSubSheet } from '@/components/settings/SubscriptionsSubSheet'
+import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
 import { createClient } from '@/lib/supabase/client'
 
 interface Props {
@@ -26,8 +28,6 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
   const [isSavingCurrency, setIsSavingCurrency] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
-  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -38,7 +38,11 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
       fetch('/api/user-config').then((r) => r.json()),
     ])
       .then(([accounts, cards, subscriptions, config]) => {
-        setAccountCount(Array.isArray(accounts) ? accounts.filter((a: { archived: boolean }) => !a.archived).length : 0)
+        setAccountCount(
+          Array.isArray(accounts)
+            ? accounts.filter((a: { archived: boolean }) => !a.archived).length
+            : 0,
+        )
         setCardCount(Array.isArray(cards) ? cards.length : 0)
         setSubscriptionCount(Array.isArray(subscriptions) ? subscriptions.length : 0)
         if (config?.default_currency) setCurrency(config.default_currency)
@@ -73,27 +77,12 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
     router.push('/login')
   }
 
-  const handleDeleteAccount = async () => {
-    setIsDeleting(true)
-    try {
-      const res = await fetch('/api/account', { method: 'DELETE' })
-      if (!res.ok) throw new Error()
-      const supabase = createClient()
-      await supabase.auth.signOut()
-      router.push('/login')
-    } catch {
-      alert('Error al eliminar la cuenta. Intentá de nuevo.')
-      setIsDeleting(false)
-      setShowDeleteConfirm(false)
-    }
-  }
-
   const initial = userEmail.charAt(0).toUpperCase()
+
   return (
     <>
       <Modal open={open} onClose={onClose}>
         <div className="space-y-6">
-          {/* Close button */}
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-text-primary">Mi cuenta</h2>
             <button onClick={onClose} className="text-text-tertiary hover:text-text-secondary">
@@ -101,20 +90,18 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
             </button>
           </div>
 
-          {/* Perfil */}
           <div className="flex items-center gap-3">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary">
               <span className="text-lg font-bold text-white">{initial}</span>
             </div>
             <div className="min-w-0">
-              <p className="text-sm font-semibold text-text-primary truncate">{userEmail}</p>
+              <p className="truncate text-sm font-semibold text-text-primary">{userEmail}</p>
               <p className="text-[11px] text-text-tertiary">Usuario</p>
             </div>
           </div>
 
-          {/* Configuración */}
           <div
-            className="rounded-card overflow-hidden"
+            className="overflow-hidden rounded-card"
             style={{
               background: 'rgba(255,255,255,0.38)',
               backdropFilter: 'blur(12px)',
@@ -122,13 +109,13 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
               border: '1px solid rgba(255,255,255,0.70)',
             }}
           >
-            <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
-              Configuración
+            <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
+              Configuracion
             </p>
 
             <button
               onClick={() => setCuentasOpen(true)}
-              className="flex w-full items-center gap-3 px-4 py-3 border-b border-border-subtle text-left transition-colors hover:bg-primary/5"
+              className="flex w-full items-center gap-3 border-b border-border-subtle px-4 py-3 text-left transition-colors hover:bg-primary/5"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
                 <Bank weight="duotone" size={15} className="text-text-label" />
@@ -141,7 +128,7 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
 
             <button
               onClick={() => setTarjetasOpen(true)}
-              className="flex w-full items-center gap-3 px-4 py-3 border-b border-border-subtle text-left transition-colors hover:bg-primary/5"
+              className="flex w-full items-center gap-3 border-b border-border-subtle px-4 py-3 text-left transition-colors hover:bg-primary/5"
             >
               <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
                 <CreditCard weight="duotone" size={15} className="text-text-label" />
@@ -166,9 +153,8 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
             </button>
           </div>
 
-          {/* Preferencias */}
           <div
-            className="rounded-card overflow-hidden"
+            className="overflow-hidden rounded-card"
             style={{
               background: 'rgba(255,255,255,0.38)',
               backdropFilter: 'blur(12px)',
@@ -176,12 +162,11 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
               border: '1px solid rgba(255,255,255,0.70)',
             }}
           >
-            <p className="px-4 pt-3 pb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
+            <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
               Preferencias
             </p>
 
-            {/* Moneda predeterminada */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle">
+            <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
               <span className="text-sm text-text-primary">Moneda predeterminada</span>
               <div
                 className="inline-flex items-center rounded-full border border-border-ocean p-0.5"
@@ -192,8 +177,10 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
                     key={c}
                     onClick={() => handleCurrencyChange(c)}
                     disabled={isSavingCurrency}
-                    className={`px-2.5 py-1 rounded-button text-[11px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
-                      currency === c ? 'bg-primary text-white' : 'text-text-tertiary hover:text-text-secondary'
+                    className={`rounded-button px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
+                      currency === c
+                        ? 'bg-primary text-white'
+                        : 'text-text-tertiary hover:text-text-secondary'
                     }`}
                   >
                     {c}
@@ -201,49 +188,30 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
                 ))}
               </div>
             </div>
-
           </div>
 
-          {/* Cuenta */}
           <div className="space-y-2">
+            <div className="rounded-input bg-bg-tertiary px-3 py-2.5">
+              <Link
+                href="/privacy"
+                className="block text-sm font-medium text-text-primary transition-colors hover:text-primary"
+              >
+                Privacidad y datos
+              </Link>
+              <p className="mt-1 text-xs text-text-tertiary">
+                SmartInput usa IA para interpretar el texto que escribis y proponer un gasto editable.
+              </p>
+            </div>
+
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
               className="w-full rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
             >
-              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesion'}
             </button>
 
-            {!showDeleteConfirm ? (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="w-full rounded-button bg-danger/10 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
-              >
-                Eliminar mi cuenta
-              </button>
-            ) : (
-              <div className="space-y-3 rounded-card bg-danger/10 p-3">
-                <p className="text-xs font-medium text-danger">
-                  ¿Estás seguro? Esta acción es irreversible. Se eliminarán todos tus datos.
-                </p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setShowDeleteConfirm(false)}
-                    disabled={isDeleting}
-                    className="flex-1 rounded-button py-2 text-xs text-text-secondary transition-colors hover:bg-primary/5 disabled:opacity-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={handleDeleteAccount}
-                    disabled={isDeleting}
-                    className="flex-1 rounded-button bg-danger py-2 text-xs font-semibold text-bg-primary disabled:opacity-50"
-                  >
-                    {isDeleting ? 'Eliminando...' : 'Confirmar'}
-                  </button>
-                </div>
-              </div>
-            )}
+            <DeleteAccountControl />
           </div>
         </div>
       </Modal>
