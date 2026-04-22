@@ -14,7 +14,7 @@ Este documento no reemplaza el audit ni el feedback estrategico. Es una herramie
 
 | PBI                                  | Estado                              | Validacion / pendientes                                                                     |
 | ------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------------------------- |
-| P0-01 Observabilidad minima          | Codigo implementado                 | Pendiente configurar DSN/env y validar evento real en proveedor.                            |
+| P0-01 Observabilidad minima          | Validado localmente                 | DSN local y evento real en Sentry OK; pendiente cargar envs en Vercel/produccion.           |
 | P0-02 Metricas baseline              | Codigo implementado                 | Pendiente SQL manual de `docs/supabase-product-events.sql` y validacion de eventos reales.  |
 | P0-03 Tests financieros iniciales    | Implementado                        | `npm.cmd test` OK: 4 archivos, 22 tests.                                                    |
 | P0-04 Pagos legacy y Disponible Real | Implementado en codigo/schema local | Pendiente aplicar/verificar SQL en Supabase y validar manual con datos controlados.         |
@@ -34,8 +34,10 @@ Ver runbook operativo: `docs/p0-open-items-closure.md`.
 
 ### Open items operativos P0
 
-- [ ] P0-01 Configurar `NEXT_PUBLIC_SENTRY_DSN` en local/preview/produccion.
-- [ ] P0-01 Validar evento real en Sentry sin PII ni datos financieros.
+- [x] P0-01 Configurar `NEXT_PUBLIC_SENTRY_DSN` en local.
+- [x] P0-01 Validar evento real en Sentry local.
+- [ ] P0-01 Configurar `NEXT_PUBLIC_SENTRY_DSN` y `SENTRY_DSN` en Vercel preview/produccion.
+- [ ] P0-01 Validar evento real en Sentry desde preview/produccion sin PII ni datos financieros.
 - [ ] P0-02 Ejecutar SQL de `docs/supabase-product-events.sql` en Supabase.
 - [ ] P0-02 Validar eventos baseline en `product_events`.
 - [ ] P0-04/P0-05 Validar caso manual de gasto CREDIT + pago aplicable.

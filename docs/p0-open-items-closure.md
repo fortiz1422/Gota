@@ -14,17 +14,96 @@ Chequeo hecho sin imprimir secretos:
 | `NEXT_PUBLIC_SUPABASE_URL` en `.env.local` | Presente |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` en `.env.local` | Presente |
 | `SUPABASE_SERVICE_ROLE_KEY` en `.env.local` | Presente |
-| `NEXT_PUBLIC_SENTRY_DSN` en `.env.local` | Pendiente |
+| `NEXT_PUBLIC_SENTRY_DSN` en `.env.local` | Presente |
+| `SENTRY_DSN` en `.env.local` | Presente |
+| Smoke test local Sentry | OK, issue visible en Sentry |
 | Variables cargadas en el proceso de shell | No cargadas |
 | Supabase CLI local | No instalado |
 
 ## P0-01 Observabilidad
 
+### URLs
+
+- Sign up: `https://sentry.io/signup/`
+- Login: `https://sentry.io/auth/login/`
+- DSN docs: `https://docs.sentry.io/product/sentry-basics/dsn-explainer/`
+
 ### Pendiente
 
-- Configurar `NEXT_PUBLIC_SENTRY_DSN` en local/preview/produccion.
-- Validar que un error controlado llegue al proyecto de Sentry.
+- Configurar `NEXT_PUBLIC_SENTRY_DSN` y `SENTRY_DSN` en Vercel preview/produccion.
+- Validar que un error controlado llegue al proyecto de Sentry desde preview/produccion.
 - Confirmar que no se envian montos, descripciones, emails ni payloads financieros completos.
+
+### Crear proyecto Sentry
+
+1. Entrar a Sentry.
+2. Ir a `Projects` -> `Create Project`.
+3. Elegir plataforma `Next.js`.
+4. Usar nombre sugerido `gota-web`.
+5. En alerts, elegir `I'll create my own alerts later` por ahora.
+6. No correr el wizard ni instalar nada: el repo ya tiene `@sentry/nextjs` y configuracion.
+
+### Copiar DSN
+
+1. Ir a `Project Settings`.
+2. Abrir `SDK Setup`.
+3. Entrar a `Client Keys (DSN)`.
+4. Copiar el DSN del proyecto.
+
+### Configurar env vars
+
+En `.env.local` agregar:
+
+```env
+NEXT_PUBLIC_SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+SENTRY_DSN=https://xxxxx@xxxxx.ingest.sentry.io/xxxxx
+```
+
+En Vercel:
+
+1. Abrir el proyecto.
+2. Ir a `Settings` -> `Environment Variables`.
+3. Agregar `NEXT_PUBLIC_SENTRY_DSN`.
+4. Agregar `SENTRY_DSN`.
+5. Marcar `Production`, `Preview` y `Development`.
+6. Guardar y redeployar.
+
+Usamos ambas variables porque el cliente lee `NEXT_PUBLIC_SENTRY_DSN` y server/edge leen `SENTRY_DSN` con fallback a `NEXT_PUBLIC_SENTRY_DSN`.
+
+### Smoke test local
+
+1. Reiniciar el dev server despues de editar `.env.local`.
+2. Abrir la app en el navegador.
+3. Abrir DevTools -> Console.
+4. Ejecutar:
+
+```js
+setTimeout(() => {
+  throw new Error('gota sentry smoke test')
+}, 0)
+```
+
+5. Ir a Sentry -> `Issues`.
+6. Buscar `gota sentry smoke test`.
+
+Resultado esperado:
+
+- aparece un issue/evento nuevo;
+- environment correcto;
+- no aparecen emails, montos, descripciones libres ni payloads financieros completos.
+
+### Regla P0
+
+No activar Session Replay en este cierre. Para P0 solo se valida error tracking basico sin PII.
+
+### Business trial
+
+La organizacion puede quedar en Business trial por 14 dias al crearla. Segun Sentry, no se cobra al terminar el trial y vuelve al plan Developer/Free salvo upgrade manual. Para mantenerlo sin costo:
+
+- no agregar tarjeta;
+- no usar `Manage Plan` / `Upgrade`;
+- no activar Session Replay, Logs, Profiling ni Performance;
+- esperar el vencimiento del trial.
 
 ### Validacion
 
