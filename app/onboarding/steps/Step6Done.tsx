@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { trackEvent } from '@/lib/product-analytics/client'
 import type { OnboardingData } from '../OnboardingFlow'
 
 interface Props {
@@ -18,10 +19,13 @@ export function Step6Done({ data, onNext }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ onboarding_completed: true }),
       })
+      trackEvent('onboarding_completed', {
+        has_initial_balance: Boolean(data.balanceARS || data.balanceUSD),
+      })
       setIsReady(true)
     }
     complete()
-  }, [])
+  }, [data.balanceARS, data.balanceUSD])
 
   const completedItems = [
     data.accountName && `Cuenta "${data.accountName}" creada`,

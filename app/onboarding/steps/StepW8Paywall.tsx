@@ -38,7 +38,7 @@ export function StepW8Paywall() {
           </div>
           {/* TODO: reemplazar con testimonio real */}
           <p className="text-sm text-text-secondary leading-relaxed">
-            "Con Gota Pro finalmente entiendo mis tendencias mes a mes."
+            &quot;Con Gota Pro finalmente entiendo mis tendencias mes a mes.&quot;
           </p>
           <p className="mt-2 text-[10px] text-text-tertiary">— Usuario Pro</p>
         </div>

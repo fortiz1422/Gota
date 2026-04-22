@@ -5,6 +5,7 @@ import { geminiModel } from '@/lib/gemini/client'
 import { createExpensePrompt } from '@/lib/gemini/prompts'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { captureRouteError } from '@/lib/observability/sentry'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -50,6 +51,10 @@ export async function POST(request: Request) {
 
     return NextResponse.json(validated)
   } catch (error) {
+    captureRouteError(error, {
+      route: 'POST /api/parse-expense',
+      operation: 'parse_expense',
+    })
     console.error('Parse expense error:', error)
     if (error instanceof ZodError) {
       return NextResponse.json({

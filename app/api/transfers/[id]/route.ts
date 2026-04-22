@@ -1,6 +1,18 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
+type TransferUpdateBody = {
+  from_account_id: string
+  to_account_id: string
+  amount_from: number
+  amount_to: number
+  currency_from: 'ARS' | 'USD'
+  currency_to: 'ARS' | 'USD'
+  exchange_rate?: number | null
+  note?: string | null
+  date: string
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -12,7 +24,7 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
-  const body = await request.json()
+  const body = (await request.json()) as TransferUpdateBody
   const {
     from_account_id,
     to_account_id,
@@ -29,7 +41,6 @@ export async function PATCH(
     return NextResponse.json({ error: 'Origen y destino no pueden ser la misma cuenta' }, { status: 400 })
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { error } = await supabase
     .from('transfers')
     .update({
@@ -42,7 +53,7 @@ export async function PATCH(
       exchange_rate: exchange_rate ?? null,
       note: note ?? null,
       date,
-    } as any)
+    })
     .eq('id', id)
     .eq('user_id', user.id)
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { StepW1Welcome } from './steps/StepW1Welcome'
 import { StepW2Goal } from './steps/StepW2Goal'
 import { StepW3Pain } from './steps/StepW3Pain'
@@ -14,6 +14,7 @@ import { Step2Cuenta } from './steps/Step2Cuenta'
 import { Step4SaldoInicial } from './steps/Step4SaldoInicial'
 import { Step5SmartInput } from './steps/Step5SmartInput'
 import { Step6Done } from './steps/Step6Done'
+import { trackEvent } from '@/lib/product-analytics/client'
 
 export type OnboardingData = {
   accountId: string | null
@@ -44,12 +45,16 @@ interface Props {
 // Steps 7-11: setup (configuration)
 // Step 12: paywall
 
-export function OnboardingFlow({ initialCurrency, currentMonth: _currentMonth }: Props) {
+export function OnboardingFlow({ initialCurrency }: Props) {
   const [step, setStep] = useState(0)
   const [data, setData] = useState<OnboardingData>({
     ...initialData,
     preferredCurrency: initialCurrency,
   })
+
+  useEffect(() => {
+    trackEvent('onboarding_started', { initial_currency: initialCurrency })
+  }, [initialCurrency])
 
   // Wizard: Welcome
   if (step === 0) {

@@ -107,6 +107,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           account_id: accountId,
           date: fecha,
           is_want: null,
+          is_legacy_card_payment: false,
         }),
       })
       if (!expRes.ok) throw new Error('Error al registrar el movimiento')

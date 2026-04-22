@@ -4,6 +4,8 @@ import { ExpenseSchema } from '@/lib/validation/schemas'
 import { toDateOnly } from '@/lib/format'
 import { buildInstallmentRows } from '@/lib/expenses/installments'
 import { ZodError } from 'zod'
+import { captureRouteError } from '@/lib/observability/sentry'
+import { recordProductEvent } from '@/lib/product-analytics/server'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -49,6 +51,10 @@ export async function GET(request: Request) {
 
   const { data, count, error } = await query
   if (error) {
+    captureRouteError(error, {
+      route: 'GET /api/expenses',
+      operation: 'list_expenses',
+    })
     console.error('Get expenses error:', error)
     return NextResponse.json({ error: 'Error al obtener gastos' }, { status: 500 })
   }
@@ -74,9 +80,29 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
     const validated = ExpenseSchema.parse(body)
+    const { count: existingExpenseCount } = await supabase
+      .from('expenses')
+      .select('id', { count: 'exact', head: true })
+      .eq('user_id', user.id)
 
     const { installments, installment_start, installment_grand_total, ...expenseFields } = validated
     const numInstallments = installments ?? 1
+    const isFirstExpense = existingExpenseCount === 0
+
+    const recordFirstExpense = async () => {
+      if (!isFirstExpense) return
+      await recordProductEvent(
+        supabase,
+        user.id,
+        'first_expense_created',
+        {
+          currency: expenseFields.currency ?? 'ARS',
+          has_installments: numInstallments > 1,
+          payment_method: expenseFields.payment_method,
+        },
+        { isAnonymous: user.is_anonymous === true },
+      )
+    }
 
     if (numInstallments === 1) {
       const { data, error } = await supabase
@@ -85,6 +111,7 @@ export async function POST(request: Request) {
         .select()
         .single()
       if (error) throw error
+      await recordFirstExpense()
       return NextResponse.json(data, { status: 201 })
     }
 
@@ -101,6 +128,7 @@ export async function POST(request: Request) {
 
     const { data, error } = await supabase.from('expenses').insert(rows).select()
     if (error) throw error
+    await recordFirstExpense()
 
     return NextResponse.json(data?.[0] ?? {}, { status: 201 })
   } catch (error) {
@@ -110,6 +138,10 @@ export async function POST(request: Request) {
         { status: 400 }
       )
     }
+    captureRouteError(error, {
+      route: 'POST /api/expenses',
+      operation: 'create_expense',
+    })
     console.error('Create expense error:', error)
     return NextResponse.json(
       { error: 'Error al guardar el gasto' },

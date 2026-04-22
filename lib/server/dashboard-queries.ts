@@ -7,10 +7,7 @@ import {
   sumActiveInstrumentCapital,
   sumCrossCurrencyTransferAdjustment,
 } from '@/lib/live-balance'
-import {
-  isApplicableCardPayment,
-  isCreditAccruedExpense,
-} from '@/lib/movement-classification'
+import { calculateCardDebtSummary, type CardDebtMovement } from '@/lib/card-debt'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
 import type {
   Account,
@@ -116,7 +113,7 @@ export async function readDashboardData({
     { data: liveIncomeData },
     { data: liveDebitExpenseData },
     { data: liveCardPaymentData },
-    { data: liveAppliedCardPaymentData },
+    { data: liveCardDebtPaymentData },
     { data: liveCreditExpenseData },
     { data: liveTransfersData },
     { data: liveYieldData },
@@ -200,8 +197,7 @@ export async function readDashboardData({
       .eq('user_id', userId)
       .eq('currency', viewCurrency)
       .lte('date', todayDate)
-      .eq('category', 'Pago de Tarjetas')
-      .or('is_legacy_card_payment.is.null,is_legacy_card_payment.eq.false'),
+      .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
       .select('amount, category, payment_method')
@@ -342,25 +338,27 @@ export async function readDashboardData({
     : []
 
   const rawData = dashboardRaw as DashboardData | null
-  const livePagoTarjetasAplicables = (liveAppliedCardPaymentData ?? [])
-    .filter((row: { is_legacy_card_payment: boolean | null }) =>
-      isApplicableCardPayment({
+  const cardDebtMovements: CardDebtMovement[] = [
+    ...(liveCardDebtPaymentData ?? []).map(
+      (row: { amount: number; is_legacy_card_payment: boolean | null }) => ({
+        amount: row.amount,
+        currency: viewCurrency,
         category: 'Pago de Tarjetas',
-        payment_method: 'DEBIT',
+        payment_method: 'DEBIT' as const,
         is_legacy_card_payment: row.is_legacy_card_payment,
       }),
-    )
-    .reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
-  const liveCreditoDevengado = (liveCreditExpenseData ?? [])
-    .filter((row: { category: string; payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' }) =>
-      isCreditAccruedExpense({
+    ),
+    ...(liveCreditExpenseData ?? []).map(
+      (row: { amount: number; category: string; payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' }) => ({
+        amount: row.amount,
+        currency: viewCurrency,
         category: row.category,
         payment_method: row.payment_method,
         is_legacy_card_payment: null,
       }),
-    )
-    .reduce((sum: number, row: { amount: number }) => sum + row.amount, 0)
-  const liveGastosTarjeta = Math.max(0, liveCreditoDevengado - livePagoTarjetasAplicables)
+    ),
+  ]
+  const liveGastosTarjeta = calculateCardDebtSummary(cardDebtMovements, viewCurrency).pendingDebt
 
   let dashboardData: DashboardData | null = rawData
   if (dashboardData?.saldo_vivo) {

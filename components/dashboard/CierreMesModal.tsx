@@ -22,6 +22,22 @@ function getMonthLabel(ym: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+function SummaryRow({ label, value, sub }: { label: string; value: string; sub?: boolean }) {
+  return (
+    <div className={`flex justify-between ${sub ? 'pl-4' : ''}`}>
+      <span className={`text-xs text-text-tertiary ${sub ? 'text-text-disabled' : ''}`}>
+        {sub ? '\u2514 ' : ''}
+        {label}
+      </span>
+      <span
+        className={`text-sm font-medium text-text-primary ${sub ? 'text-xs text-text-tertiary' : ''}`}
+      >
+        {value}
+      </span>
+    </div>
+  )
+}
+
 export function CierreMesModal({ summary, toMonth, currency, accounts }: Props) {
   const router = useRouter()
   const [editMode, setEditMode] = useState(false)
@@ -69,20 +85,6 @@ export function CierreMesModal({ summary, toMonth, currency, accounts }: Props) 
     }
   }
 
-  const Row = ({ label, value, sub }: { label: string; value: string; sub?: boolean }) => (
-    <div className={`flex justify-between ${sub ? 'pl-4' : ''}`}>
-      <span className={`text-xs text-text-tertiary ${sub ? 'text-text-disabled' : ''}`}>
-        {sub ? '└ ' : ''}
-        {label}
-      </span>
-      <span
-        className={`text-sm font-medium text-text-primary ${sub ? 'text-xs text-text-tertiary' : ''}`}
-      >
-        {value}
-      </span>
-    </div>
-  )
-
   return (
     <>
       {/* Overlay */}
@@ -102,12 +104,12 @@ export function CierreMesModal({ summary, toMonth, currency, accounts }: Props) 
 
         {/* Summary */}
         <div className="mb-5 space-y-2 rounded-card bg-bg-tertiary px-4 py-3">
-          <Row label="Saldo final" value={fmt(summary.saldoFinal)} />
+          <SummaryRow label="Saldo final" value={fmt(summary.saldoFinal)} />
           <div className="h-px bg-border-subtle" />
-          <Row label="Ingresos" value={fmt(summary.ingresos)} />
-          <Row label="Total gastado" value={fmt(summary.gastosMes + summary.pagosTarjeta)} />
-          <Row label="Gastos directos" value={fmt(summary.gastosMes)} sub />
-          <Row label="Pagos de tarjeta" value={fmt(summary.pagosTarjeta)} sub />
+          <SummaryRow label="Ingresos" value={fmt(summary.ingresos)} />
+          <SummaryRow label="Total gastado" value={fmt(summary.gastosMes + summary.pagosTarjeta)} />
+          <SummaryRow label="Gastos directos" value={fmt(summary.gastosMes)} sub />
+          <SummaryRow label="Pagos de tarjeta" value={fmt(summary.pagosTarjeta)} sub />
         </div>
 
         <div className="mb-5 h-px bg-border-subtle" />

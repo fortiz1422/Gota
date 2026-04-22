@@ -546,7 +546,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
           <div className="pb-8 pt-2 text-center">
             {isDeletingConfirm ? (
               <div className="space-y-2 rounded-card bg-danger/5 px-4 py-3 text-left">
-                <p className="type-meta font-medium text-danger">¿Eliminar "{currentCard.name}"?</p>
+                <p className="type-meta font-medium text-danger">¿Eliminar &quot;{currentCard.name}&quot;?</p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setIsDeletingConfirm(false)}

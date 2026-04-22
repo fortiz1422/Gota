@@ -1,7 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { InlineError } from '@/components/ui/InlineError'
 import { formatAmount } from '@/lib/format'
+import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card, Currency } from '@/types/database'
 
 interface Props {
@@ -31,15 +33,33 @@ export function CardPaymentPrompt({
   const [editMode, setEditMode] = useState(false)
   const [editValue, setEditValue] = useState(String(amount))
   const [isSaving, setIsSaving] = useState(false)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const seenTrackedRef = useRef(false)
 
   const fmt = (n: number) => formatAmount(n, currency)
 
+  useEffect(() => {
+    if (seenTrackedRef.current) return
+    seenTrackedRef.current = true
+    trackEvent('card_payment_prompt_seen', { currency })
+  }, [currency])
+
+  const handleDismiss = () => {
+    trackEvent('card_payment_prompt_dismissed', { currency })
+    onDismiss()
+  }
+
   const handleConfirm = async (finalAmount: number) => {
+    setSubmitError(null)
     setIsSaving(true)
     try {
       await onConfirm(finalAmount)
+      trackEvent('card_payment_prompt_confirmed', {
+        currency,
+        edited_amount: finalAmount !== amount,
+      })
     } catch {
-      alert('Error al registrar el pago. Intentá de nuevo.')
+      setSubmitError('Error al registrar el pago. Intenta de nuevo.')
       setIsSaving(false)
     }
   }
@@ -49,7 +69,7 @@ export function CardPaymentPrompt({
       {/* Overlay */}
       <div
         className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-        onClick={onDismiss}
+        onClick={handleDismiss}
       />
 
       {/* Sheet */}
@@ -76,11 +96,15 @@ export function CardPaymentPrompt({
                 type="number"
                 inputMode="numeric"
                 value={editValue}
-                onChange={(e) => setEditValue(e.target.value)}
+                onChange={(e) => {
+                  setEditValue(e.target.value)
+                  setSubmitError(null)
+                }}
                 autoFocus
                 className="flex-1 bg-transparent text-sm text-text-primary outline-none"
               />
             </div>
+            <InlineError message={submitError} className="mb-3" />
             <button
               onClick={() => handleConfirm(Math.max(1, Number(editValue) || 0))}
               disabled={isSaving}
@@ -95,6 +119,8 @@ export function CardPaymentPrompt({
               <p className="text-xs text-text-tertiary mb-1">Monto sugerido</p>
               <p className="text-2xl font-light text-primary">{fmt(amount)}</p>
             </div>
+
+            <InlineError message={submitError} className="mb-3" />
 
             <div className="space-y-2">
               <button
@@ -112,7 +138,7 @@ export function CardPaymentPrompt({
                 Editar monto
               </button>
               <button
-                onClick={onDismiss}
+                onClick={handleDismiss}
                 disabled={isSaving}
                 className="w-full py-2.5 text-sm text-text-tertiary"
               >

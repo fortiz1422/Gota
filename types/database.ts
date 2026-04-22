@@ -9,6 +9,36 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      product_events: {
+        Row: {
+          id: string
+          user_id: string
+          event_name: string
+          properties: Json
+          session_id: string | null
+          path: string | null
+          is_anonymous: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          event_name: string
+          properties?: Json
+          session_id?: string | null
+          path?: string | null
+          is_anonymous?: boolean
+          created_at?: string
+        }
+        Update: {
+          event_name?: string
+          properties?: Json
+          session_id?: string | null
+          path?: string | null
+          is_anonymous?: boolean
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           id: string
@@ -204,7 +234,18 @@ export type Database = {
           created_at?: string
         }
         Update: {
+          id?: string
+          user_id?: string
+          from_account_id?: string
+          to_account_id?: string
+          amount_from?: number
+          amount_to?: number
+          currency_from?: 'ARS' | 'USD'
+          currency_to?: 'ARS' | 'USD'
+          exchange_rate?: number | null
+          date?: string
           note?: string | null
+          created_at?: string
         }
         Relationships: []
       }
@@ -595,6 +636,7 @@ export type Database = {
 export type Expense = Database['public']['Tables']['expenses']['Row']
 export type ExpenseInsert = Database['public']['Tables']['expenses']['Insert']
 export type ExpenseUpdate = Database['public']['Tables']['expenses']['Update']
+export type ProductEvent = Database['public']['Tables']['product_events']['Row']
 
 export type MonthlyIncome =
   Database['public']['Tables']['monthly_income']['Row']

@@ -3,8 +3,10 @@
 import { useState } from 'react'
 import { Bank, Wallet, CreditCard, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatDate, todayAR, dateInputToISO } from '@/lib/format'
+import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
 
 type Duplicate = { id: string; description: string; created_at: string }
@@ -91,6 +93,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
   const [cardError, setCardError] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [foundDuplicates, setFoundDuplicates] = useState<Duplicate[]>([])
@@ -105,6 +108,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
 
   const set = <K extends keyof ParsedData>(key: K, value: ParsedData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
+    setSaveError(null)
     if (key === 'card_id') setCardError(false)
     if (key === 'amount' || key === 'category' || key === 'date') {
       setDuplicatesChecked(false)
@@ -119,6 +123,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
   }
 
   const handleSave = async () => {
+    setSaveError(null)
     if (needsCard && !form.card_id) {
       setCardError(true)
       return
@@ -151,6 +156,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
         ...form,
         payment_method: derivePaymentMethod(source, accounts),
         account_id: deriveAccountId(source, accounts),
+        is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
         date: fromDateInput(form.date),
       }
       if (installments > 1) payload.installments = installments
@@ -162,9 +168,16 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
       })
 
       if (!res.ok) throw new Error('Error al guardar')
+      const paymentMethod = derivePaymentMethod(source, accounts)
+      trackEvent('parsepreview_confirmed', {
+        currency: form.currency,
+        has_installments: installments > 1,
+        is_credit: paymentMethod === 'CREDIT',
+        payment_method: paymentMethod,
+      })
       onSave()
     } catch {
-      alert('No se pudo guardar el gasto. Intentá de nuevo.')
+      setSaveError('No se pudo guardar el gasto. Intenta de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -174,8 +187,19 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
   const chipActive = 'border-primary bg-primary/15 text-primary'
   const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
 
+  const handleCancel = () => {
+    const paymentMethod = derivePaymentMethod(source, accounts)
+    trackEvent('parsepreview_cancelled', {
+      currency: form.currency,
+      has_installments: installments > 1,
+      is_credit: paymentMethod === 'CREDIT',
+      payment_method: paymentMethod,
+    })
+    onCancel()
+  }
+
   return (
-    <Modal open onClose={onCancel}>
+    <Modal open onClose={handleCancel}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
       <h2 className="text-lg font-semibold text-text-primary">Confirmar gasto</h2>
@@ -415,6 +439,8 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
         </div>
       )}
 
+      <InlineError message={saveError} className="mt-5" />
+
       {/* Botones */}
       <div className="mt-6 flex flex-col gap-2">
         <button
@@ -431,7 +457,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
                 : 'Guardar gasto ✓'}
         </button>
         <button
-          onClick={onCancel}
+          onClick={handleCancel}
           disabled={isSaving}
           className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
         >

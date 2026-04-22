@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Analytics Page Migration Workplan
+
+> Contiene tokens Gota Glass/Dark obsoletos. No usar como fuente visual vigente.
+
 # Gota — Analytics Page Migration Workplan
 ## Contexto para Claude Code
 

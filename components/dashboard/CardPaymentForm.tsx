@@ -65,6 +65,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
           account_id: accountId,
           date: fecha,
           is_want: null,
+          is_legacy_card_payment: false,
         }),
       })
 

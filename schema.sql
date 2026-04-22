@@ -830,6 +830,8 @@ BEGIN
         WHERE user_id = p_user_id AND currency = p_currency
           AND date <= v_saldo_cutoff
           AND category = 'Pago de Tarjetas'
+          -- Legacy payments lower Saldo Vivo but do not reduce pending card debt.
+          AND COALESCE(is_legacy_card_payment, false) = false
       ), 0)
     ),
     'filtro_estoico', (
@@ -877,9 +879,59 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================
+-- PRODUCT_EVENTS TABLE
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS product_events (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  event_name TEXT NOT NULL CHECK (
+    event_name IN (
+      'onboarding_started',
+      'onboarding_completed',
+      'first_account_created',
+      'first_expense_created',
+      'smartinput_parse_started',
+      'smartinput_parse_succeeded',
+      'smartinput_parse_failed',
+      'parsepreview_confirmed',
+      'parsepreview_cancelled',
+      'anonymous_banner_seen',
+      'anonymous_link_started',
+      'anonymous_link_completed',
+      'card_payment_prompt_seen',
+      'card_payment_prompt_confirmed',
+      'card_payment_prompt_dismissed',
+      'dashboard_loaded_with_data'
+    )
+  ),
+  properties JSONB NOT NULL DEFAULT '{}'::jsonb,
+  session_id TEXT,
+  path TEXT,
+  is_anonymous BOOLEAN NOT NULL DEFAULT false,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_product_events_user_created
+  ON product_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_events_name_created
+  ON product_events(event_name, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_product_events_created
+  ON product_events(created_at DESC);
+
+ALTER TABLE product_events ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "product_events_insert_own" ON product_events;
+CREATE POLICY "product_events_insert_own" ON product_events
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (auth.uid() = user_id);
+
+-- No SELECT policy by design: product analytics is queried directly in Supabase.
+
+-- ============================================
 -- VERIFY
 -- ============================================
 
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
--- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes, cards, card_cycles
+-- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes, cards, card_cycles, product_events

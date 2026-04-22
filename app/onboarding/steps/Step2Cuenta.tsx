@@ -3,6 +3,8 @@
 import { useState } from 'react'
 import { ProgressDots } from '../components/ProgressDots'
 import { BackButton } from '../components/BackButton'
+import { InlineError } from '@/components/ui/InlineError'
+import { trackEvent } from '@/lib/product-analytics/client'
 
 type AccountType = 'bank' | 'digital' | 'cash'
 
@@ -32,17 +34,20 @@ export function Step2Cuenta({ onBack, onNext }: Props) {
   const [name, setName] = useState('')
   const [type, setType] = useState<AccountType>('bank')
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const canContinue = name.trim().length > 0
 
   const handlePillName = (pill: string) => {
     setName(pill)
+    setSaveError(null)
     if (NAME_TO_TYPE[pill]) setType(NAME_TO_TYPE[pill])
   }
 
   const handleContinue = async () => {
     if (!canContinue || isSaving) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/accounts', {
         method: 'POST',
@@ -51,9 +56,10 @@ export function Step2Cuenta({ onBack, onNext }: Props) {
       })
       if (!res.ok) throw new Error()
       const account = await res.json()
+      trackEvent('first_account_created', { account_type: type })
       onNext(account.id, name.trim(), type)
     } catch {
-      alert('Error al crear la cuenta. Intentá de nuevo.')
+      setSaveError('Error al crear la cuenta. Intenta de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -86,7 +92,10 @@ export function Step2Cuenta({ onBack, onNext }: Props) {
             <input
               type="text"
               value={name}
-              onChange={(e) => setName(e.target.value)}
+              onChange={(e) => {
+                setName(e.target.value)
+                setSaveError(null)
+              }}
               placeholder="Ej. Banco Nación"
               autoFocus
               className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-dim outline-none"
@@ -120,7 +129,10 @@ export function Step2Cuenta({ onBack, onNext }: Props) {
             {TYPE_PILLS.map((pill) => (
               <button
                 key={pill.value}
-                onClick={() => setType(pill.value)}
+                onClick={() => {
+                  setType(pill.value)
+                  setSaveError(null)
+                }}
                 className={`rounded-full border px-4 py-2 text-sm transition-colors ${
                   type === pill.value
                     ? 'border-primary bg-primary/10 text-primary font-medium'
@@ -133,6 +145,8 @@ export function Step2Cuenta({ onBack, onNext }: Props) {
           </div>
         </div>
       </div>
+
+      <InlineError message={saveError} className="mb-3" />
 
       <button
         onClick={handleContinue}

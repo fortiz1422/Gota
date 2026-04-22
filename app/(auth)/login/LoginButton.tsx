@@ -1,15 +1,18 @@
 'use client'
 
 import { useState } from 'react'
+import { InlineError } from '@/components/ui/InlineError'
 import { createClient } from '@/lib/supabase/client'
 import { signInAnonymously } from '@/lib/auth'
 
 export function LoginButton() {
   const [exploring, setExploring] = useState(false)
+  const [loginError, setLoginError] = useState<string | null>(null)
   const [exploreError, setExploreError] = useState<string | null>(null)
 
   const handleExplore = async () => {
     setExploring(true)
+    setLoginError(null)
     setExploreError(null)
     const { error } = await signInAnonymously()
     if (error) {
@@ -24,6 +27,8 @@ export function LoginButton() {
 
   const handleLogin = async () => {
     console.log('Login button clicked')
+    setLoginError(null)
+    setExploreError(null)
     try {
       const supabase = createClient()
       console.log('Supabase client created')
@@ -38,7 +43,7 @@ export function LoginButton() {
       console.log('OAuth result:', { data, error })
 
       if (error) {
-        alert('OAuth error: ' + error.message)
+        setLoginError(error.message || 'No se pudo iniciar sesion con Google.')
         return
       }
 
@@ -47,7 +52,7 @@ export function LoginButton() {
       }
     } catch (e) {
       console.error('Login exception:', e)
-      alert('Excepción: ' + String(e))
+      setLoginError('No se pudo iniciar sesion. Intenta de nuevo.')
     }
   }
 
@@ -77,6 +82,8 @@ export function LoginButton() {
       </svg>
       Continuar con Google
     </button>
+
+    <InlineError message={loginError} className="mt-3" />
 
     <div className="flex items-center gap-3 my-4">
       <div className="h-px flex-1 bg-[rgba(255,255,255,0.70)]" />

@@ -7,5 +7,5 @@ export const signInAnonymously = () => createClient().auth.signInAnonymously()
 export const linkGoogleAccount = () =>
   createClient().auth.linkIdentity({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: { redirectTo: `${window.location.origin}/auth/callback?auth_intent=link_google` },
   })

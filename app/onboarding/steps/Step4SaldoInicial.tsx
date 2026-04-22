@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ProgressDots } from '../components/ProgressDots'
 import { BackButton } from '../components/BackButton'
+import { InlineError } from '@/components/ui/InlineError'
 
 interface Props {
   accountId: string
@@ -15,6 +16,7 @@ export function Step4SaldoInicial({ accountId, accountName, onBack, onNext }: Pr
   const [arsAmount, setArsAmount] = useState('')
   const [usdAmount, setUsdAmount] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const arsNum = parseFloat(arsAmount) || 0
   const usdNum = parseFloat(usdAmount) || 0
@@ -27,6 +29,7 @@ export function Step4SaldoInicial({ accountId, accountName, onBack, onNext }: Pr
       return
     }
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch(`/api/accounts/${accountId}`, {
         method: 'PATCH',
@@ -39,7 +42,7 @@ export function Step4SaldoInicial({ accountId, accountName, onBack, onNext }: Pr
       if (!res.ok) throw new Error()
       onNext(arsNum || null, usdNum || null)
     } catch {
-      alert('Error al guardar. Intentá de nuevo.')
+      setSaveError('Error al guardar. Intenta de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -75,7 +78,10 @@ export function Step4SaldoInicial({ accountId, accountName, onBack, onNext }: Pr
               type="number"
               inputMode="numeric"
               value={arsAmount}
-              onChange={(e) => setArsAmount(e.target.value)}
+              onChange={(e) => {
+                setArsAmount(e.target.value)
+                setSaveError(null)
+              }}
               placeholder="0"
               autoFocus
               className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-dim outline-none"
@@ -94,13 +100,18 @@ export function Step4SaldoInicial({ accountId, accountName, onBack, onNext }: Pr
               type="number"
               inputMode="numeric"
               value={usdAmount}
-              onChange={(e) => setUsdAmount(e.target.value)}
+              onChange={(e) => {
+                setUsdAmount(e.target.value)
+                setSaveError(null)
+              }}
               placeholder="0"
               className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-dim outline-none"
             />
           </div>
         </div>
       </div>
+
+      <InlineError message={saveError} className="mb-3" />
 
       <button
         onClick={handleContinue}

@@ -1,23 +1,35 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { linkGoogleAccount } from '@/lib/auth'
+import { trackEvent } from '@/lib/product-analytics/client'
 
 export function AnonymousBanner() {
   const [isAnon, setIsAnon] = useState(false)
   const [loading, setLoading] = useState(false)
+  const seenTrackedRef = useRef(false)
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
     const check = async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      setIsAnon(user?.is_anonymous === true)
+      const nextIsAnon = user?.is_anonymous === true
+      setIsAnon(nextIsAnon)
+      if (nextIsAnon && !seenTrackedRef.current) {
+        seenTrackedRef.current = true
+        trackEvent('anonymous_banner_seen')
+      }
     }
     check()
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_, session) => {
-      setIsAnon(session?.user?.is_anonymous === true)
+      const nextIsAnon = session?.user?.is_anonymous === true
+      setIsAnon(nextIsAnon)
+      if (nextIsAnon && !seenTrackedRef.current) {
+        seenTrackedRef.current = true
+        trackEvent('anonymous_banner_seen')
+      }
     })
     return () => subscription.unsubscribe()
   }, [supabase])
@@ -26,6 +38,7 @@ export function AnonymousBanner() {
 
   const handleLink = async () => {
     setLoading(true)
+    trackEvent('anonymous_link_started', { provider: 'google' })
     await linkGoogleAccount()
     setLoading(false)
   }

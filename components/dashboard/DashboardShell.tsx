@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
@@ -15,6 +15,7 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
+import { trackEvent } from '@/lib/product-analytics/client'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 
 interface Props {
@@ -53,6 +54,7 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
+  const dashboardLoadedTrackedRef = useRef(false)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return
@@ -78,6 +80,25 @@ export function DashboardShell({ selectedMonth, viewCurrency, userEmail, initial
     },
     initialData,
   })
+
+  useEffect(() => {
+    if (dashboardLoadedTrackedRef.current || !data) return
+    const hasData =
+      data.accounts.length > 0 ||
+      data.allUltimos.length > 0 ||
+      data.incomeEntries.length > 0 ||
+      data.cards.length > 0
+    if (!hasData) return
+
+    dashboardLoadedTrackedRef.current = true
+    trackEvent('dashboard_loaded_with_data', {
+      currency: viewCurrency,
+      has_accounts: data.accounts.length > 0,
+      has_cards: data.cards.length > 0,
+      has_expenses: data.allUltimos.length > 0 || Boolean(data.dashboardData?.ultimos_5?.length),
+      has_income: data.incomeEntries.length > 0,
+    })
+  }, [data, viewCurrency])
 
   const invalidateDashboardData = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedMonth, viewCurrency] })

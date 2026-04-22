@@ -4,6 +4,8 @@ import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from '@phosphor-icons/react'
 import { ParsePreview } from './ParsePreview'
+import { InlineError } from '@/components/ui/InlineError'
+import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
 
 interface ParsedData {
@@ -26,6 +28,12 @@ interface SmartInputProps {
   variant?: 'default' | 'bottom-zone'
 }
 
+function inputLengthBucket(length: number): 'short' | 'medium' | 'long' {
+  if (length <= 24) return 'short'
+  if (length <= 80) return 'medium'
+  return 'long'
+}
+
 export function SmartInput({
   cards,
   accounts,
@@ -36,6 +44,7 @@ export function SmartInput({
   const router = useRouter()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
+  const [parseError, setParseError] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedData | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<number | null>(null)
@@ -52,6 +61,11 @@ export function SmartInput({
     if (!trimmed || isParsing) return
 
     setIsParsing(true)
+    setParseError(null)
+    trackEvent('smartinput_parse_started', {
+      input_length: inputLengthBucket(trimmed.length),
+      variant,
+    })
     try {
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
@@ -62,12 +76,27 @@ export function SmartInput({
       const data = await res.json()
 
       if (data.is_valid) {
+        trackEvent('smartinput_parse_succeeded', {
+          currency: data.currency,
+          has_card: Boolean(data.card_id),
+          has_installments: Boolean(data.installments && data.installments > 1),
+          payment_method: data.payment_method,
+          variant,
+        })
         setParsed(data)
       } else {
-        alert(data.reason ?? 'El input no parece ser un gasto')
+        trackEvent('smartinput_parse_failed', {
+          failure_type: 'invalid_input',
+          variant,
+        })
+        setParseError(data.reason ?? 'El input no parece ser un gasto')
       }
     } catch {
-      alert('Error al procesar. Revisá tu conexión.')
+      trackEvent('smartinput_parse_failed', {
+        failure_type: 'network_or_server',
+        variant,
+      })
+      setParseError('Error al procesar. Revisa tu conexion.')
     } finally {
       setIsParsing(false)
     }
@@ -105,7 +134,10 @@ export function SmartInput({
           ref={inputRef}
           type="text"
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={(e) => {
+            setInput(e.target.value)
+            setParseError(null)
+          }}
           onFocus={() => {
             clearPendingBlur()
             onFocusChange?.(true)
@@ -146,6 +178,7 @@ export function SmartInput({
           )}
         </button>
       </div>
+      <InlineError message={parseError} className={isBottomZone ? 'mt-2' : 'mt-3'} />
 
       {parsed && (
         <ParsePreview

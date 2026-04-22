@@ -42,6 +42,22 @@ function SectionLabel({ children }) {
   );
 }
 
+function SettingsRow({ label, value, chevron, danger }) {
+  return (
+    <div style={{
+      display: "flex", justifyContent: "space-between", alignItems: "center",
+      padding: "16px 0",
+      borderBottom: `1px solid ${C.borderLight}`,
+    }}>
+      <span style={{ fontSize: 14, fontWeight: 500, color: danger || C.textPrimary }}>{label}</span>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        {value && <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, letterSpacing: "-0.01em" }}>{value}</span>}
+        {chevron && <ChevronRight size={15} style={{ color: C.textDim }} />}
+      </div>
+    </div>
+  );
+}
+
 function MonthHeader() {
   return (
     <div style={{ padding: "20px 24px 0" }}>
@@ -404,20 +420,6 @@ function ConfigScreen() {
     { label: "Saldo inicial USD", val: "USD 0" },
   ];
 
-  const Row = ({ label, value, chevron, danger }) => (
-    <div style={{
-      display: "flex", justifyContent: "space-between", alignItems: "center",
-      padding: "16px 0",
-      borderBottom: `1px solid ${C.borderLight}`,
-    }}>
-      <span style={{ fontSize: 14, fontWeight: 500, color: danger || C.textPrimary }}>{label}</span>
-      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        {value && <span style={{ fontSize: 13, fontWeight: 600, color: C.textPrimary, letterSpacing: "-0.01em" }}>{value}</span>}
-        {chevron && <ChevronRight size={15} style={{ color: C.textDim }} />}
-      </div>
-    </div>
-  );
-
   return (
     <div style={{ flex: 1, overflowY: "auto", padding: "32px 24px 32px" }}>
       {/* Title */}
@@ -453,7 +455,7 @@ function ConfigScreen() {
             Marzo 2026 <ChevronDown size={11} style={{ marginTop: 1 }} />
           </button>
         </div>
-        {ingresos.map((f, i) => (
+        {ingresos.map((f) => (
           <div key={f.label} style={{
             display: "flex", justifyContent: "space-between", alignItems: "center",
             padding: "14px 0",
@@ -483,12 +485,12 @@ function ConfigScreen() {
 
       {/* Preferencias */}
       <SectionLabel>Preferencias</SectionLabel>
-      <Row label="Tarjetas vinculadas" value="4" chevron />
+      <SettingsRow label="Tarjetas vinculadas" value="4" chevron />
 
       {/* Cuenta */}
       <div style={{ marginTop: 28 }}>
         <SectionLabel>Cuenta</SectionLabel>
-        <Row label="Email" value="facundortiz.14@gmail.com" />
+        <SettingsRow label="Email" value="facundortiz.14@gmail.com" />
       </div>
 
       {/* Danger zone */}

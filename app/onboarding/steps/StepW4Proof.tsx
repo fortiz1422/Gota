@@ -63,7 +63,7 @@ export function StepW4Proof({ onBack, onNext }: Props) {
                 <p className="text-[10px] text-text-tertiary">{tag}</p>
               </div>
             </div>
-            <p className="text-sm leading-relaxed text-text-secondary">"{quote}"</p>
+            <p className="text-sm leading-relaxed text-text-secondary">&quot;{quote}&quot;</p>
           </div>
         ))}
       </div>
