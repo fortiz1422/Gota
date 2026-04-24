@@ -311,16 +311,16 @@ export function Ultimos5({
                     />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <p className="m-0 truncate text-[15px] font-medium text-text-primary">
+                    <p className="m-0 truncate text-sm text-text-primary">
                       {fromName} → {toName}
                     </p>
-                    <span className="text-[12px] text-text-dim">
+                    <span className="text-xs text-text-dim">
                       {transfer.note ? `${transfer.note} · ` : ''}
                       {formatDate(transfer.date)}
                     </span>
                   </div>
                   <div className="shrink-0 text-right">
-                    <p className="text-[16px] font-bold tracking-[-0.01em] tabular-nums text-text-secondary">
+                    <p className="text-sm font-medium tabular-nums text-text-secondary">
                       {formatAmount(transfer.amount_from, transfer.currency_from)}
                     </p>
                     {!sameCurrency && (
