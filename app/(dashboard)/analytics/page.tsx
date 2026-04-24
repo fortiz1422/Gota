@@ -6,7 +6,7 @@ import { getCurrentMonth } from '@/lib/dates'
 export default async function AnalyticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string }>
+  searchParams: Promise<{ month?: string; drill?: string }>
 }) {
   const supabase = await createClient()
   const {
@@ -14,13 +14,20 @@ export default async function AnalyticsPage({
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
-  const { month } = await searchParams
+  const { month, drill } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
+  const initialDrill =
+    drill === 'fuga' || drill === 'habitos' || drill === 'compromisos'
+      ? drill
+      : undefined
 
   return (
     <div className="min-h-screen bg-bg-primary overflow-x-hidden">
       <div className="mx-auto max-w-md pt-safe pb-tab-bar">
-        <AnalyticsDataLoader selectedMonth={selectedMonth} />
+        <AnalyticsDataLoader
+          selectedMonth={selectedMonth}
+          initialDrill={initialDrill}
+        />
       </div>
     </div>
   )

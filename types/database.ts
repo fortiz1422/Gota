@@ -561,6 +561,7 @@ export type Database = {
         Row: {
           user_id: string
           default_currency: 'ARS' | 'USD'
+          hero_balance_mode: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards: Json
           onboarding_completed: boolean
           rollover_mode: 'auto' | 'off'
@@ -570,6 +571,7 @@ export type Database = {
         Insert: {
           user_id: string
           default_currency?: 'ARS' | 'USD'
+          hero_balance_mode?: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards?: Json
           onboarding_completed?: boolean
           rollover_mode?: 'auto' | 'off'
@@ -579,6 +581,7 @@ export type Database = {
         Update: {
           user_id?: string
           default_currency?: 'ARS' | 'USD'
+          hero_balance_mode?: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards?: Json
           onboarding_completed?: boolean
           rollover_mode?: 'auto' | 'off'
@@ -647,6 +650,7 @@ export type MonthlyIncomeUpdate =
 
 export type UserConfig = Database['public']['Tables']['user_config']['Row']
 export type RolloverMode = 'auto' | 'off'
+export type HeroBalanceMode = 'combined_ars' | 'combined_usd' | 'default_currency'
 
 export type Account = Database['public']['Tables']['accounts']['Row']
 export type AccountInsert = Database['public']['Tables']['accounts']['Insert']

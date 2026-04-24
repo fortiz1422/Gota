@@ -169,7 +169,7 @@ export function Ultimos5({
       if (dateB !== dateA) return dateB.localeCompare(dateA)
       return getMovementSortDate(b) - getMovementSortDate(a)
     })
-    .slice(0, 5)
+    .slice(0, 4)
 
   const inputClass =
     'w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none'

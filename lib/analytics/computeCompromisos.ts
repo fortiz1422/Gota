@@ -2,6 +2,7 @@ import { buildCycleDate, buildLegacyCardCycle } from '@/lib/card-cycles'
 import { addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
+import { isApplicableCardPayment, isCreditAccruedExpense } from '@/lib/movement-classification'
 import type { Expense, Card, CardCycle, Subscription } from '@/types/database'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -51,9 +52,9 @@ export type CompromisoTarjeta = {
 export type CompromisosData = {
   /** 'current' = live debt view; 'historical' = resúmenes del mes seleccionado */
   mode: 'current' | 'historical'
-  /** Sum of unpaid debt across all cards */
+  /** Sum of unpaid closed debt across all cards */
   totalDebt: number
-  /** totalDebt as % of monthly income (null if no income set) */
+  /** total pendiente neto (cerrado/vencido + en curso neto) as % of monthly income (null if no income set) */
   pctComprometido: number | null
   ingresoMes: number | null
   tarjetas: CompromisoTarjeta[]
@@ -111,6 +112,27 @@ function computeCycleAmount(
   )
 }
 
+function buildNetPendingByCard(expenses: Expense[]): Map<string, number> {
+  const totals = new Map<string, number>()
+
+  for (const expense of expenses) {
+    if (!expense.card_id) continue
+
+    const current = totals.get(expense.card_id) ?? 0
+
+    if (isCreditAccruedExpense(expense)) {
+      totals.set(expense.card_id, current + expense.amount)
+      continue
+    }
+
+    if (isApplicableCardPayment(expense)) {
+      totals.set(expense.card_id, current - expense.amount)
+    }
+  }
+
+  return totals
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function computeCompromisos(
@@ -126,12 +148,14 @@ export function computeCompromisos(
 ): CompromisosData {
   const today = todayAR()
   const hasCards = cards.length > 0
-  const hasCreditExpenses = expenses.length > 0
+  const hasCreditExpenses = expenses.some((expense) => isCreditAccruedExpense(expense))
   const tarjetasSinVencimiento: { id: string; name: string }[] = []
   const tarjetas: CompromisoTarjeta[] = []
 
   // ── Current month: show live debt + en_curso context ─────────────────────
   if (isCurrentMonth) {
+    const netPendingByCard = buildNetPendingByCard(expenses)
+
     for (const card of cards) {
       const forThisCard = cardCycles.filter((c) => c.card_id === card.id)
       const unpaid = forThisCard.filter((c) => c.status !== 'paid')
@@ -206,6 +230,8 @@ export function computeCompromisos(
       }
 
       const debtTotal = debtCycles.reduce((s, c) => s + c.amount, 0)
+      const netPending = Math.max(0, netPendingByCard.get(card.id) ?? 0)
+      currentSpend = Math.max(0, netPending - debtTotal)
 
       // Determine dominant status: vencido > cerrado > pagado > en_curso
       let cycleStatus: CompromisoTarjeta['cycleStatus']
@@ -264,8 +290,9 @@ export function computeCompromisos(
     })
 
     const totalDebt = tarjetas.reduce((s, t) => s + t.debtTotal, 0)
+    const totalComprometido = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.debtTotal + tarjeta.currentSpend, 0)
     const pctComprometido =
-      ingresoMes && ingresoMes > 0 ? Math.round((totalDebt / ingresoMes) * 100) : null
+      ingresoMes && ingresoMes > 0 ? Math.round((totalComprometido / ingresoMes) * 100) : null
 
     return {
       mode: 'current',
@@ -276,7 +303,7 @@ export function computeCompromisos(
       tarjetasSinVencimiento,
       hasCards,
       hasCreditExpenses,
-      totalComprometido: totalDebt,
+      totalComprometido,
       unassignedCreditSpend: 0,
     }
   }

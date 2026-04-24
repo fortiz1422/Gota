@@ -10,9 +10,16 @@ interface Props {
   cards: Card[]
   keyboardOffset?: number
   onAfterSave?: () => void
+  focusSignal?: number
 }
 
-export function BottomZone({ accounts, cards, keyboardOffset = 0, onAfterSave }: Props) {
+export function BottomZone({
+  accounts,
+  cards,
+  keyboardOffset = 0,
+  onAfterSave,
+  focusSignal = 0,
+}: Props) {
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const scrollYRef = useRef(0)
 
@@ -66,6 +73,7 @@ export function BottomZone({ accounts, cards, keyboardOffset = 0, onAfterSave }:
           onAfterSave={onAfterSave}
           onFocusChange={setIsComposerOpen}
           variant="bottom-zone"
+          focusSignal={focusSignal}
         />
         {!isComposerOpen && <TabBar integrated />}
       </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, DeviceMobileSpeaker } from '@phosphor-icons/react'
@@ -17,6 +17,23 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
   if (type === 'cash') return <Wallet weight="duotone" size={size} />
   if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
   return <Bank weight="duotone" size={size} />
+}
+
+/** "1234.56" → "1.234,56" */
+function toAR(raw: string): string {
+  if (!raw) return ''
+  const [int, dec] = raw.split('.')
+  const intFmt = int.replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return dec !== undefined ? `${intFmt},${dec}` : intFmt
+}
+
+/** "1.234,56" → "1234.56" */
+function fromAR(display: string): string {
+  const clean = display.replace(/[^\d,]/g, '').replace(',', '.')
+  // Prevent multiple decimals
+  const parts = clean.split('.')
+  if (parts.length > 2) return parts[0] + '.' + parts.slice(1).join('')
+  return clean
 }
 
 export function TransferForm({ accounts, onClose }: Props) {
@@ -38,25 +55,60 @@ export function TransferForm({ accounts, onClose }: Props) {
 
   const sameCurrency = currencyFrom === currencyTo
 
-  // Sincronizar amount_to con amount_from si misma moneda
-  const handleAmountFromChange = (v: string) => {
-    setAmountFrom(v)
-    if (sameCurrency) setAmountTo(v)
+  // Fetch cotización oficial cuando las monedas son distintas
+  useEffect(() => {
+    if (sameCurrency) return
+    let cancelled = false
+    fetch('/api/cotizaciones')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.venta) return
+        const rate = data.venta
+        setExchangeRate(String(rate))
+        if (amountFrom) {
+          const from = Number(amountFrom)
+          if (from > 0) {
+            // ARS→USD: dividir por TC, USD→ARS: multiplicar por TC
+            const to = currencyFrom === 'ARS' ? from / rate : from * rate
+            setAmountTo(to.toFixed(2))
+          }
+        }
+      })
+      .catch(() => {}) // silencioso: el usuario puede ingresarlo manual
+    return () => { cancelled = true }
+  }, [sameCurrency, currencyFrom, currencyTo]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Sincronizar amount_to con amount_from
+  const handleAmountFromChange = (display: string) => {
+    const raw = fromAR(display)
+    setAmountFrom(raw)
+    if (sameCurrency) {
+      setAmountTo(raw)
+    } else if (exchangeRate && raw) {
+      const from = Number(raw)
+      const rate = Number(exchangeRate)
+      if (from > 0 && rate > 0) {
+        const to = currencyFrom === 'ARS' ? from / rate : from * rate
+        setAmountTo(to.toFixed(2))
+      }
+    }
   }
 
   // Calcular TC automático si se ingresan ambos montos
-  const handleAmountToChange = (v: string) => {
-    setAmountTo(v)
-    if (!sameCurrency && amountFrom && v) {
-      const tc = Number(amountFrom) / Number(v)
+  const handleAmountToChange = (display: string) => {
+    const raw = fromAR(display)
+    setAmountTo(raw)
+    if (!sameCurrency && amountFrom && raw) {
+      const tc = Number(amountFrom) / Number(raw)
       if (!isNaN(tc) && tc > 0) setExchangeRate(tc.toFixed(2))
     }
   }
 
-  const handleExchangeRateChange = (v: string) => {
-    setExchangeRate(v)
-    if (!sameCurrency && amountFrom && v) {
-      const to = Number(amountFrom) / Number(v)
+  const handleExchangeRateChange = (display: string) => {
+    const raw = fromAR(display)
+    setExchangeRate(raw)
+    if (!sameCurrency && amountFrom && raw) {
+      const to = Number(amountFrom) / Number(raw)
       if (!isNaN(to) && to > 0) setAmountTo(to.toFixed(2))
     }
   }
@@ -161,10 +213,10 @@ export function TransferForm({ accounts, onClose }: Props) {
             {currencyToggle(currencyFrom, handleCurrencyFromChange)}
           </div>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
             placeholder={currencyFrom === 'ARS' ? '$ 0' : 'USD 0'}
-            value={amountFrom}
+            value={toAR(amountFrom)}
             onChange={(e) => handleAmountFromChange(e.target.value)}
             className={`${inputCls} mt-2`}
           />
@@ -188,10 +240,10 @@ export function TransferForm({ accounts, onClose }: Props) {
             {currencyToggle(currencyTo, handleCurrencyToChange)}
           </div>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
             placeholder={currencyTo === 'ARS' ? '$ 0' : 'USD 0'}
-            value={amountTo}
+            value={toAR(amountTo)}
             onChange={(e) => handleAmountToChange(e.target.value)}
             disabled={sameCurrency}
             className={`${inputCls} mt-2 ${sameCurrency ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -203,15 +255,15 @@ export function TransferForm({ accounts, onClose }: Props) {
           <div>
             <label className={labelCls}>Tipo de cambio · 1 USD = $ ____</label>
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
-              placeholder="Ej: 1050"
-              value={exchangeRate}
+              placeholder="Ej: 1.050"
+              value={toAR(exchangeRate)}
               onChange={(e) => handleExchangeRateChange(e.target.value)}
               className={inputCls}
             />
             <p className="mt-1 text-[11px] text-text-tertiary">
-              Se calcula automático si ingresás ambos montos
+              TC oficial BNA · podés modificarlo
             </p>
           </div>
         )}

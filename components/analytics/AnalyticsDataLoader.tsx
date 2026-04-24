@@ -7,7 +7,7 @@ import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
 
-type AnalyticsApiData = {
+export type AnalyticsApiData = {
   rawExpenses: Expense[]
   compromisoExpenses: Expense[]
   ingresoMes: number | null
@@ -21,23 +21,23 @@ type AnalyticsApiData = {
 
 interface Props {
   selectedMonth: string
+  initialDrill?: 'fuga' | 'habitos' | 'compromisos'
 }
 
 function AnalyticsSkeleton() {
   return (
     <div className="px-5 pt-safe" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="h-10 w-32 skeleton rounded mt-5" />
-      <div className="h-48 skeleton rounded-card" />
-      <div className="h-32 skeleton rounded-card" />
-      <div className="h-64 skeleton rounded-card" />
+      <div className="mt-5 h-10 w-32 rounded skeleton" />
+      <div className="h-48 rounded-card skeleton" />
+      <div className="h-32 rounded-card skeleton" />
+      <div className="h-64 rounded-card skeleton" />
     </div>
   )
 }
 
-export function AnalyticsDataLoader({ selectedMonth }: Props) {
+export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
   const queryClient = useQueryClient()
 
-  // Prefetch Home dashboard in background so the tab is instant on return
   useEffect(() => {
     queryClient.prefetchQuery({
       queryKey: ['dashboard', selectedMonth, 'ARS'],
@@ -53,14 +53,22 @@ export function AnalyticsDataLoader({ selectedMonth }: Props) {
       if (!res.ok) throw new Error('analytics fetch failed')
       return res.json()
     },
-    // Refetch on window focus so Analytics reflects payments made in other tabs/pages
     staleTime: 0,
     refetchOnWindowFocus: true,
   })
 
   if (isLoading || !data) return <AnalyticsSkeleton />
 
-  const { rawExpenses, compromisoExpenses, ingresoMes, subscriptions, cardCycles, cards, currency, earliestDataMonth } = data
+  const {
+    rawExpenses,
+    compromisoExpenses,
+    ingresoMes,
+    subscriptions,
+    cardCycles,
+    cards,
+    currency,
+    earliestDataMonth,
+  } = data
 
   const today = new Date()
   const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
@@ -87,6 +95,7 @@ export function AnalyticsDataLoader({ selectedMonth }: Props) {
       cards={cards}
       selectedMonth={selectedMonth}
       earliestDataMonth={earliestDataMonth ?? undefined}
+      initialDrill={initialDrill}
     />
   )
 }

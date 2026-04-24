@@ -4,6 +4,7 @@ import { z } from 'zod'
 
 const UpdateSchema = z.object({
   default_currency: z.enum(['ARS', 'USD']).optional(),
+  hero_balance_mode: z.enum(['combined_ars', 'combined_usd', 'default_currency']).optional(),
   onboarding_completed: z.boolean().optional(),
   rollover_mode: z.enum(['auto', 'off']).optional(),
 })
@@ -17,7 +18,7 @@ export async function GET() {
 
   const { data, error } = await supabase
     .from('user_config')
-    .select('default_currency')
+    .select('default_currency, hero_balance_mode')
     .eq('user_id', user.id)
     .single()
 

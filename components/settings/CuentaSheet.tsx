@@ -7,17 +7,29 @@ import { ArrowsClockwise, Bank, CaretRight, CreditCard, X } from '@phosphor-icon
 import { Modal } from '@/components/ui/Modal'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
+import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
 import { SubscriptionsSubSheet } from '@/components/settings/SubscriptionsSubSheet'
 import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
 import { createClient } from '@/lib/supabase/client'
+import type { HeroBalanceMode } from '@/types/database'
 
 interface Props {
   open: boolean
   onClose: () => void
   userEmail: string
+  heroBalanceMode: HeroBalanceMode
+  onHeroBalanceModeChange: (next: HeroBalanceMode) => void
 }
 
-export function CuentaSheet({ open, onClose, userEmail }: Props) {
+const HERO_BALANCE_MODE_STORAGE_KEY = 'gota.hero_balance_mode'
+
+export function CuentaSheet({
+  open,
+  onClose,
+  userEmail,
+  heroBalanceMode,
+  onHeroBalanceModeChange,
+}: Props) {
   const router = useRouter()
   const [cuentasOpen, setCuentasOpen] = useState(false)
   const [tarjetasOpen, setTarjetasOpen] = useState(false)
@@ -27,7 +39,9 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
   const [subscriptionCount, setSubscriptionCount] = useState(0)
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
   const [isSavingCurrency, setIsSavingCurrency] = useState(false)
+  const [isSavingHeroMode, setIsSavingHeroMode] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
+  const [heroBalanceModeOpen, setHeroBalanceModeOpen] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -67,6 +81,36 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
       setCurrency(prev)
     } finally {
       setIsSavingCurrency(false)
+    }
+  }
+
+  const heroBalanceModeLabel = (() => {
+    if (heroBalanceMode === 'combined_usd') return 'Total USD'
+    if (heroBalanceMode === 'default_currency') return 'Moneda principal'
+    return 'Total ARS'
+  })()
+
+  const handleHeroBalanceModeChange = async (next: HeroBalanceMode) => {
+    if (next === heroBalanceMode) {
+      setHeroBalanceModeOpen(false)
+      return
+    }
+    onHeroBalanceModeChange(next)
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(HERO_BALANCE_MODE_STORAGE_KEY, next)
+    }
+    setIsSavingHeroMode(true)
+    try {
+      const res = await fetch('/api/user-config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ hero_balance_mode: next }),
+      })
+      if (!res.ok) return
+      router.refresh()
+      setHeroBalanceModeOpen(false)
+    } finally {
+      setIsSavingHeroMode(false)
     }
   }
 
@@ -188,6 +232,15 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
                 ))}
               </div>
             </div>
+
+            <button
+              onClick={() => setHeroBalanceModeOpen(true)}
+              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary/5"
+            >
+              <span className="flex-1 text-sm text-text-primary">Saldo Vivo</span>
+              <span className="text-xs font-medium text-text-tertiary">{heroBalanceModeLabel}</span>
+              <CaretRight size={14} className="text-text-dim" />
+            </button>
           </div>
 
           <div className="space-y-2">
@@ -222,6 +275,13 @@ export function CuentaSheet({ open, onClose, userEmail }: Props) {
         open={subscriptionsOpen}
         onClose={() => setSubscriptionsOpen(false)}
         defaultCurrency={currency}
+      />
+      <HeroBalanceModeSheet
+        open={heroBalanceModeOpen}
+        onClose={() => setHeroBalanceModeOpen(false)}
+        value={heroBalanceMode}
+        onChange={handleHeroBalanceModeChange}
+        isSaving={isSavingHeroMode}
       />
     </>
   )

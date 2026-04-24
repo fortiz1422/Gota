@@ -9,6 +9,7 @@ import {
 } from '@/lib/live-balance'
 import { calculateCardDebtSummary, type CardDebtMovement } from '@/lib/card-debt'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
+import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
   Card,
@@ -27,6 +28,9 @@ type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 export type DashboardApiData = {
   dashboardData: DashboardData | null
+  heroBalanceMode: HeroBalanceMode
+  heroBreakdown: Record<'ARS' | 'USD', number>
+  availableBreakdown: Record<'ARS' | 'USD', number>
   accounts: Account[]
   cards: Card[]
   currency: 'ARS' | 'USD'
@@ -76,7 +80,7 @@ export async function readDashboardData({
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
       .from('user_config')
-      .select('default_currency, rollover_mode')
+      .select('default_currency, rollover_mode, hero_balance_mode')
       .eq('user_id', userId)
       .single(),
     supabase
@@ -95,6 +99,7 @@ export async function readDashboardData({
   ])
 
   const userCurrency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const heroBalanceMode = (config?.hero_balance_mode ?? 'combined_ars') as HeroBalanceMode
   const currency = userCurrency
   const cards = (cardsData ?? []) as Card[]
   const accounts = (accountsData ?? []) as Account[]
@@ -172,37 +177,32 @@ export async function readDashboardData({
       .eq('is_active', true),
     supabase
       .from('income_entries')
-      .select('amount')
+      .select('amount, currency')
       .eq('user_id', userId)
-      .eq('currency', viewCurrency)
       .lte('date', todayDate),
     supabase
       .from('expenses')
-      .select('amount')
+      .select('amount, currency')
       .eq('user_id', userId)
-      .eq('currency', viewCurrency)
       .lte('date', todayDate)
       .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
       .neq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
-      .select('amount')
+      .select('amount, currency')
       .eq('user_id', userId)
-      .eq('currency', viewCurrency)
       .lte('date', todayDate)
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
-      .select('amount, is_legacy_card_payment')
+      .select('amount, currency, is_legacy_card_payment')
       .eq('user_id', userId)
-      .eq('currency', viewCurrency)
       .lte('date', todayDate)
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
-      .select('amount, category, payment_method')
+      .select('amount, currency, category, payment_method')
       .eq('user_id', userId)
-      .eq('currency', viewCurrency)
       .lte('date', todayDate)
       .eq('payment_method', 'CREDIT')
       .neq('category', 'Pago de Tarjetas'),
@@ -303,17 +303,17 @@ export async function readDashboardData({
 
   const liveHeroSummary = buildLiveBalanceHeroSummary({
     accounts,
-    incomes: (liveIncomeData ?? []).map((row: { amount: number }) => ({
+    incomes: (liveIncomeData ?? []).map((row: { amount: number; currency: 'ARS' | 'USD' }) => ({
       amount: row.amount,
-      currency: viewCurrency,
+      currency: row.currency,
     })),
-    debitExpenses: (liveDebitExpenseData ?? []).map((row: { amount: number }) => ({
+    debitExpenses: (liveDebitExpenseData ?? []).map((row: { amount: number; currency: 'ARS' | 'USD' }) => ({
       amount: row.amount,
-      currency: viewCurrency,
+      currency: row.currency,
     })),
-    cardPayments: (liveCardPaymentData ?? []).map((row: { amount: number }) => ({
+    cardPayments: (liveCardPaymentData ?? []).map((row: { amount: number; currency: 'ARS' | 'USD' }) => ({
       amount: row.amount,
-      currency: viewCurrency,
+      currency: row.currency,
     })),
     yields: FF_YIELD ? ((liveYieldData ?? []) as { accumulated: number }[]) : [],
   })
@@ -340,25 +340,91 @@ export async function readDashboardData({
   const rawData = dashboardRaw as DashboardData | null
   const cardDebtMovements: CardDebtMovement[] = [
     ...(liveCardDebtPaymentData ?? []).map(
-      (row: { amount: number; is_legacy_card_payment: boolean | null }) => ({
+      (row: { amount: number; currency: 'ARS' | 'USD'; is_legacy_card_payment: boolean | null }) => ({
         amount: row.amount,
-        currency: viewCurrency,
+        currency: row.currency,
         category: 'Pago de Tarjetas',
         payment_method: 'DEBIT' as const,
         is_legacy_card_payment: row.is_legacy_card_payment,
       }),
     ),
     ...(liveCreditExpenseData ?? []).map(
-      (row: { amount: number; category: string; payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' }) => ({
+      (row: {
+        amount: number
+        currency: 'ARS' | 'USD'
+        category: string
+        payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
+      }) => ({
         amount: row.amount,
-        currency: viewCurrency,
+        currency: row.currency,
         category: row.category,
         payment_method: row.payment_method,
         is_legacy_card_payment: null,
       }),
     ),
   ]
-  const liveGastosTarjeta = calculateCardDebtSummary(cardDebtMovements, viewCurrency).pendingDebt
+  const liveGastosTarjetaByCurrency = {
+    ARS: calculateCardDebtSummary(cardDebtMovements, 'ARS').pendingDebt,
+    USD: calculateCardDebtSummary(cardDebtMovements, 'USD').pendingDebt,
+  }
+  const liveGastosTarjeta = liveGastosTarjetaByCurrency[viewCurrency]
+
+  const transferAdjustmentByCurrency = {
+    ARS: sumCrossCurrencyTransferAdjustment(
+      (liveTransfersData ?? []) as {
+        amount_from: number
+        amount_to: number
+        currency_from: 'ARS' | 'USD'
+        currency_to: 'ARS' | 'USD'
+      }[],
+      'ARS',
+    ),
+    USD: sumCrossCurrencyTransferAdjustment(
+      (liveTransfersData ?? []) as {
+        amount_from: number
+        amount_to: number
+        currency_from: 'ARS' | 'USD'
+        currency_to: 'ARS' | 'USD'
+      }[],
+      'USD',
+    ),
+  }
+  const capitalInstrumentosByCurrency = FF_INSTRUMENTS
+    ? {
+        ARS: sumActiveInstrumentCapital(
+          (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
+          'ARS',
+        ),
+        USD: sumActiveInstrumentCapital(
+          (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
+          'USD',
+        ),
+      }
+    : { ARS: 0, USD: 0 }
+
+  const heroBreakdown = {
+    ARS:
+      liveHeroSummary.ARS.saldoInicial +
+      liveHeroSummary.ARS.ingresos +
+      liveHeroSummary.ARS.rendimientos -
+      liveHeroSummary.ARS.gastosPercibidos -
+      liveHeroSummary.ARS.pagoTarjetas +
+      transferAdjustmentByCurrency.ARS -
+      capitalInstrumentosByCurrency.ARS,
+    USD:
+      liveHeroSummary.USD.saldoInicial +
+      liveHeroSummary.USD.ingresos +
+      liveHeroSummary.USD.rendimientos -
+      liveHeroSummary.USD.gastosPercibidos -
+      liveHeroSummary.USD.pagoTarjetas +
+      transferAdjustmentByCurrency.USD -
+      capitalInstrumentosByCurrency.USD,
+  }
+
+  const availableBreakdown = {
+    ARS: heroBreakdown.ARS - liveGastosTarjetaByCurrency.ARS,
+    USD: heroBreakdown.USD - liveGastosTarjetaByCurrency.USD,
+  }
 
   let dashboardData: DashboardData | null = rawData
   if (dashboardData?.saldo_vivo) {
@@ -380,6 +446,9 @@ export async function readDashboardData({
 
   return {
     dashboardData,
+    heroBalanceMode,
+    heroBreakdown,
+    availableBreakdown,
     accounts,
     cards,
     currency,

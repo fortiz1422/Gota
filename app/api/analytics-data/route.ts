@@ -24,8 +24,6 @@ export async function GET(request: Request) {
   const selectedMonth = monthParam ?? getCurrentMonth()
   const startOfMonth = selectedMonth + '-01'
   const endOfMonth = addMonths(selectedMonth, 1) + '-01'
-  // 3-month window for resumen amount calculation (covers most pending debt cases)
-  const twoMonthsAgoStart = addMonths(selectedMonth, -2) + '-01'
 
   const [{ data: config }, { data: cardsData }] = await Promise.all([
     supabase.from('user_config').select('default_currency').eq('user_id', user.id).single(),
@@ -58,17 +56,13 @@ export async function GET(request: Request) {
       .gte('date', startOfMonth)
       .lt('date', endOfMonth),
 
-    // 3 months of CREDIT expenses — for computeCompromisos amount calculation
-    // Covers most pending resumen cases (debt up to ~2 months back)
+    // Credit expenses + card payments in selected currency — for net commitments by card
     supabase
       .from('expenses')
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
-      .eq('payment_method', 'CREDIT')
-      .neq('category', 'Pago de Tarjetas')
-      .gte('date', twoMonthsAgoStart)
-      .lt('date', endOfMonth),
+      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
 
     supabase
       .from('income_entries')

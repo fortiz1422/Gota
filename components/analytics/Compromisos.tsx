@@ -164,7 +164,7 @@ interface CardProps {
 }
 
 export function CompromisosCard({ data, currency, selectedMonth, onClick }: CardProps) {
-  const { mode, totalDebt, pctComprometido, tarjetas } = data
+  const { mode, totalComprometido, pctComprometido, tarjetas } = data
   const color = arcColor(pctComprometido)
   const isCurrentMonth = mode === 'current'
 
@@ -173,7 +173,8 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
     (t) => t.cycleStatus === 'cerrado' || t.cycleStatus === 'vencido',
   ).length
   const paidCount = tarjetas.filter((t) => t.cycleStatus === 'pagado').length
-  const allGood = totalDebt === 0 && (paidCount > 0 || tarjetas.every((t) => t.cycleStatus === 'en_curso'))
+  const allGood =
+    totalComprometido === 0 && (paidCount > 0 || tarjetas.every((t) => t.cycleStatus === 'en_curso'))
 
   return (
     <button
@@ -229,7 +230,12 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
 
             <div className="min-w-0">
               <p className="text-[22px] font-extrabold tracking-tight text-text-primary tabular-nums">
-                {formatAmount(isCurrentMonth ? totalDebt : tarjetas.reduce((s, t) => s + t.debtTotal + (t.amountPaid ?? 0), 0), currency)}
+                {formatAmount(
+                  isCurrentMonth
+                    ? totalComprometido
+                    : tarjetas.reduce((s, t) => s + t.debtTotal + (t.amountPaid ?? 0), 0),
+                  currency,
+                )}
               </p>
               <p className="type-meta text-text-dim">
                 {isCurrentMonth
@@ -304,7 +310,7 @@ interface DrillProps {
 }
 
 export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) {
-  const { mode, totalDebt, pctComprometido, tarjetas, tarjetasSinVencimiento, hasCards } = data
+  const { mode, totalComprometido, pctComprometido, tarjetas, tarjetasSinVencimiento, hasCards } = data
   const isCurrentMonth = mode === 'current'
   const color = arcColor(pctComprometido)
 
@@ -326,7 +332,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
     )
   }
 
-  const allGoodCurrent = isCurrentMonth && totalDebt === 0 && tarjetas.length > 0
+  const allGoodCurrent = isCurrentMonth && totalComprometido === 0 && tarjetas.length > 0
 
   return (
     <div className="space-y-4 px-5">
@@ -347,7 +353,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
             )}
             <div>
               <p className="text-[22px] font-extrabold tracking-tight text-text-primary tabular-nums">
-                {formatAmount(totalDebt, currency)}
+                {formatAmount(totalComprometido, currency)}
               </p>
               <p className="type-meta text-text-dim">
                 deuda pendiente en tarjetas

@@ -1,11 +1,11 @@
 'use client'
 
 import { useState } from 'react'
-import { Bank, Wallet, CreditCard, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
+import { Bank, CreditCard, DeviceMobileSpeaker, Star, Wallet } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
 import { CATEGORIES } from '@/lib/validation/schemas'
-import { formatDate, todayAR, dateInputToISO } from '@/lib/format'
+import { dateInputToISO, formatDate, todayAR } from '@/lib/format'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
 
@@ -31,35 +31,32 @@ interface ParsePreviewProps {
   onCancel: () => void
 }
 
-// Source key: account UUID | 'cash' | 'credit'
 type SourceKey = string
 
 function getDefaultSource(data: ParsedData, accounts: Account[]): SourceKey {
   if (data.payment_method === 'CREDIT') return 'credit'
-  // Priorizar siempre la cuenta marcada como primaria
-  const primary = accounts.find((a) => a.is_primary && a.type !== 'cash')
+  const primary = accounts.find((account) => account.is_primary && account.type !== 'cash')
   if (primary) return primary.id
-  // Fallback: usar hint de Gemini o primera cuenta disponible
   if (data.payment_method === 'CASH') return 'cash'
-  const bankDigital = accounts.filter((a) => a.type !== 'cash')
+  const bankDigital = accounts.filter((account) => account.type !== 'cash')
   if (bankDigital.length > 0) return bankDigital[0].id
   return 'cash'
 }
 
 function derivePaymentMethod(
   source: SourceKey,
-  accounts: Account[]
+  accounts: Account[],
 ): 'CASH' | 'DEBIT' | 'CREDIT' {
   if (source === 'credit') return 'CREDIT'
   if (source === 'cash') return 'CASH'
-  const acc = accounts.find((a) => a.id === source)
-  return acc?.type === 'cash' ? 'CASH' : 'DEBIT'
+  const account = accounts.find((candidate) => candidate.id === source)
+  return account?.type === 'cash' ? 'CASH' : 'DEBIT'
 }
 
 function deriveAccountId(source: SourceKey, accounts: Account[]): string | null {
   if (source === 'credit') return null
   if (source === 'cash') {
-    return accounts.find((a) => a.type === 'cash')?.id ?? null
+    return accounts.find((account) => account.type === 'cash')?.id ?? null
   }
   return source
 }
@@ -102,9 +99,9 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
   const isCredit = source === 'credit' || isPagoTarjetas
   const needsCard = isCredit
 
-  const bankDigital = accounts.filter((a) => a.type !== 'cash')
-  const cashAccount = accounts.find((a) => a.type === 'cash') ?? null
-  const activeCards = cards.filter((c) => !c.archived)
+  const bankDigital = accounts.filter((account) => account.type !== 'cash')
+  const cashAccount = accounts.find((account) => account.type === 'cash') ?? null
+  const activeCards = cards.filter((card) => !card.archived)
 
   const set = <K extends keyof ParsedData>(key: K, value: ParsedData[K]) => {
     setForm((prev) => ({ ...prev, [key]: value }))
@@ -138,11 +135,11 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
           date: form.date,
         })
         const res = await fetch(`/api/expenses/duplicates?${params}`)
-        const data = await res.json()
-        const dupes: Duplicate[] = data.duplicates ?? []
-        setFoundDuplicates(dupes)
+        const duplicateData = await res.json()
+        const duplicates: Duplicate[] = duplicateData.duplicates ?? []
+        setFoundDuplicates(duplicates)
         setDuplicatesChecked(true)
-        if (dupes.length > 0) return
+        if (duplicates.length > 0) return
       } catch {
         setDuplicatesChecked(true)
       } finally {
@@ -159,6 +156,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
         is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
         date: fromDateInput(form.date),
       }
+
       if (installments > 1) payload.installments = installments
 
       const res = await fetch('/api/expenses', {
@@ -168,6 +166,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
       })
 
       if (!res.ok) throw new Error('Error al guardar')
+
       const paymentMethod = derivePaymentMethod(source, accounts)
       trackEvent('parsepreview_confirmed', {
         currency: form.currency,
@@ -183,7 +182,8 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
     }
   }
 
-  const chipBase = 'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
+  const chipBase =
+    'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors'
   const chipActive = 'border-primary bg-primary/15 text-primary'
   const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
 
@@ -203,10 +203,9 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
       <h2 className="text-lg font-semibold text-text-primary">Confirmar gasto</h2>
-      <p className="mb-5 mt-1 text-xs text-text-tertiary">Revisá los datos antes de guardar</p>
+      <p className="mb-5 mt-1 text-xs text-text-tertiary">Revisa los datos antes de guardar</p>
 
       <div className="space-y-5">
-        {/* Monto + Moneda */}
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             Monto
@@ -220,43 +219,44 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
               className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((c) => (
+              {(['ARS', 'USD'] as const).map((currency) => (
                 <button
-                  key={c}
-                  onClick={() => set('currency', c)}
+                  key={currency}
+                  onClick={() => set('currency', currency)}
                   className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    form.currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'
+                    form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
                   }`}
                 >
-                  {c}
+                  {currency}
                 </button>
               ))}
             </div>
           </div>
         </div>
 
-        {/* ¿De dónde sale? */}
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            ¿De dónde sale?
+            De donde sale
           </label>
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {/* Cuentas banco/digital */}
-            {bankDigital.map((acc) => (
+            {bankDigital.map((account) => (
               <button
-                key={acc.id}
-                onClick={() => handleSourceChange(acc.id)}
-                className={`${chipBase} ${source === acc.id ? chipActive : chipInactive}`}
+                key={account.id}
+                onClick={() => handleSourceChange(account.id)}
+                className={`${chipBase} ${source === account.id ? chipActive : chipInactive}`}
               >
-                <AccountIcon type={acc.type} size={13} />
-                <span>{acc.name}</span>
-                {acc.is_primary && (
-                  <Star weight="fill" size={9} className={source === acc.id ? 'text-primary' : 'text-text-disabled'} />
+                <AccountIcon type={account.type} size={13} />
+                <span>{account.name}</span>
+                {account.is_primary && (
+                  <Star
+                    weight="fill"
+                    size={9}
+                    className={source === account.id ? 'text-primary' : 'text-text-disabled'}
+                  />
                 )}
               </button>
             ))}
 
-            {/* Efectivo */}
             <button
               onClick={() => handleSourceChange('cash')}
               className={`${chipBase} ${source === 'cash' ? chipActive : chipInactive}`}
@@ -265,11 +265,12 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
               <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
             </button>
 
-            {/* Tarjeta */}
             {activeCards.length > 0 && (
               <button
                 onClick={() => handleSourceChange('credit')}
-                className={`${chipBase} ${source === 'credit' || isPagoTarjetas ? chipActive : chipInactive}`}
+                className={`${chipBase} ${
+                  source === 'credit' || isPagoTarjetas ? chipActive : chipInactive
+                }`}
               >
                 <CreditCard weight="duotone" size={13} />
                 <span>Tarjeta</span>
@@ -278,7 +279,6 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
           </div>
         </div>
 
-        {/* Tarjeta selector (condicional) */}
         {needsCard && (
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
@@ -293,36 +293,35 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
                   : 'border-transparent focus:border-primary'
               }`}
             >
-              <option value="">— Seleccioná una tarjeta —</option>
+              <option value="">Selecciona una tarjeta</option>
               {activeCards.map((card) => (
                 <option key={card.id} value={card.id}>
                   {card.name}
                 </option>
               ))}
             </select>
-            {cardError && (
-              <p className="mt-1 text-[11px] text-danger">⚠️ Seleccioná una tarjeta</p>
-            )}
+            {cardError && <p className="mt-1 text-[11px] text-danger">Selecciona una tarjeta</p>}
           </div>
         )}
 
-        {/* Cuotas (solo tarjeta de crédito) */}
         {source === 'credit' && !isPagoTarjetas && (
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               Cuotas
             </label>
             <div className="flex flex-wrap gap-2">
-              {[1, 3, 6, 12, 18, 24].map((n) => (
+              {[1, 3, 6, 12, 18, 24].map((count) => (
                 <button
-                  key={n}
+                  key={count}
                   onClick={() => {
-                    setInstallments(n)
+                    setInstallments(count)
                     setInstallmentsInput('')
                   }}
-                  className={`${chipBase} ${installments === n && installmentsInput === '' ? chipActive : chipInactive}`}
+                  className={`${chipBase} ${
+                    installments === count && installmentsInput === '' ? chipActive : chipInactive
+                  }`}
                 >
-                  {n === 1 ? 'Sin cuotas' : `${n}x`}
+                  {count === 1 ? 'Sin cuotas' : `${count}x`}
                 </button>
               ))}
               <input
@@ -333,10 +332,10 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
                 placeholder="Otro"
                 value={installmentsInput}
                 onChange={(e) => {
-                  const v = e.target.value
-                  setInstallmentsInput(v)
-                  const n = parseInt(v)
-                  if (!isNaN(n) && n >= 2 && n <= 72) setInstallments(n)
+                  const value = e.target.value
+                  setInstallmentsInput(value)
+                  const count = parseInt(value, 10)
+                  if (!Number.isNaN(count) && count >= 2 && count <= 72) setInstallments(count)
                 }}
                 className="w-16 rounded-input border border-transparent bg-bg-tertiary px-2 py-1.5 text-xs text-text-primary focus:border-primary focus:outline-none placeholder:text-text-disabled"
               />
@@ -348,7 +347,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
                   currency: form.currency === 'USD' ? 'USD' : 'ARS',
                   maximumFractionDigits: 2,
                 }).format(Math.round((form.amount / installments) * 100) / 100)}
-                /mes × {installments} ={' '}
+                /mes x {installments} ={' '}
                 {new Intl.NumberFormat('es-AR', {
                   style: 'currency',
                   currency: form.currency === 'USD' ? 'USD' : 'ARS',
@@ -359,10 +358,9 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
           </div>
         )}
 
-        {/* Categoría */}
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Categoría
+            Categoria
           </label>
           <select
             value={form.category}
@@ -374,15 +372,14 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
             }}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           >
-            {CATEGORIES.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
+            {CATEGORIES.map((category) => (
+              <option key={category} value={category}>
+                {category}
               </option>
             ))}
           </select>
         </div>
 
-        {/* Fecha */}
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             Fecha
@@ -395,53 +392,57 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
           />
         </div>
 
-        {/* Need / Want */}
         {!isPagoTarjetas && (
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              ¿Necesidad o deseo?
+              Etiquetas
             </label>
-            <div className="flex rounded-input bg-bg-tertiary p-1">
+            <div className="flex flex-wrap gap-2">
               <button
-                onClick={() => set('is_want', false)}
-                className={`flex-1 rounded-button py-2 text-sm font-medium transition-colors ${
-                  form.is_want === false ? 'bg-success text-bg-primary' : 'text-text-secondary'
-                }`}
-              >
-                Necesidad
-              </button>
-              <button
-                onClick={() => set('is_want', true)}
-                className={`flex-1 rounded-button py-2 text-sm font-medium transition-colors ${
-                  form.is_want === true ? 'bg-want text-bg-primary' : 'text-text-secondary'
-                }`}
+                type="button"
+                onClick={() => set('is_want', !form.is_want)}
+                className={`${chipBase} ${form.is_want === true ? chipActive : chipInactive}`}
               >
                 Deseo
+              </button>
+              <button
+                type="button"
+                disabled
+                className={`${chipBase} cursor-not-allowed opacity-50 ${chipInactive}`}
+              >
+                Recurrente
+              </button>
+              <button
+                type="button"
+                disabled
+                className={`${chipBase} cursor-not-allowed opacity-50 ${chipInactive}`}
+              >
+                Extraordinario
               </button>
             </div>
           </div>
         )}
       </div>
 
-      {/* Duplicate warning */}
       {duplicatesChecked && foundDuplicates.length > 0 && (
         <div className="mt-5 rounded-input bg-warning/10 p-3">
           <p className="mb-2 text-xs font-medium text-warning">Posible gasto duplicado:</p>
           <ul className="mb-2 space-y-1">
-            {foundDuplicates.map((d) => (
-              <li key={d.id} className="text-xs text-text-secondary">
-                · {d.description}{' '}
-                <span className="text-text-tertiary">({formatDate(d.created_at)})</span>
+            {foundDuplicates.map((duplicate) => (
+              <li key={duplicate.id} className="text-xs text-text-secondary">
+                - {duplicate.description}{' '}
+                <span className="text-text-tertiary">({formatDate(duplicate.created_at)})</span>
               </li>
             ))}
           </ul>
-          <p className="text-xs text-text-tertiary">Si es un gasto distinto, guardalo de todas formas.</p>
+          <p className="text-xs text-text-tertiary">
+            Si es un gasto distinto, guardalo de todas formas.
+          </p>
         </div>
       )}
 
       <InlineError message={saveError} className="mt-5" />
 
-      {/* Botones */}
       <div className="mt-6 flex flex-col gap-2">
         <button
           onClick={handleSave}

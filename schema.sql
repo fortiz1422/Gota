@@ -95,6 +95,7 @@ CREATE TABLE user_config (
   user_id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
 
   default_currency VARCHAR(3) NOT NULL DEFAULT 'ARS' CHECK (default_currency IN ('ARS', 'USD')),
+  hero_balance_mode VARCHAR(20) NOT NULL DEFAULT 'combined_ars' CHECK (hero_balance_mode IN ('combined_ars', 'combined_usd', 'default_currency')),
 
   cards JSONB NOT NULL DEFAULT '[
     {"id": "bbva_visa", "name": "BBVA VISA", "archived": false},
@@ -373,13 +374,20 @@ ALTER TABLE monthly_income
 
 ALTER TABLE user_config
   ADD COLUMN IF NOT EXISTS onboarding_completed BOOLEAN NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS rollover_mode VARCHAR(10) NOT NULL DEFAULT 'off';
+  ADD COLUMN IF NOT EXISTS rollover_mode VARCHAR(10) NOT NULL DEFAULT 'off',
+  ADD COLUMN IF NOT EXISTS hero_balance_mode VARCHAR(20) NOT NULL DEFAULT 'combined_ars';
 
 ALTER TABLE user_config
   DROP CONSTRAINT IF EXISTS user_config_rollover_mode_check;
 ALTER TABLE user_config
   ADD CONSTRAINT user_config_rollover_mode_check
     CHECK (rollover_mode IN ('auto', 'manual', 'off'));
+
+ALTER TABLE user_config
+  DROP CONSTRAINT IF EXISTS user_config_hero_balance_mode_check;
+ALTER TABLE user_config
+  ADD CONSTRAINT user_config_hero_balance_mode_check
+    CHECK (hero_balance_mode IN ('combined_ars', 'combined_usd', 'default_currency'));
 
 -- Mark existing users with data as onboarding complete
 UPDATE user_config

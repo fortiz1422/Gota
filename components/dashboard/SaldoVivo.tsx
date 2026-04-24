@@ -1,172 +1,209 @@
 'use client'
 
-import { useState } from 'react'
 import type { CSSProperties } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import { CaretRight, Eye, EyeSlash } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
-import { ArrowsDownUp, CaretRight } from '@phosphor-icons/react'
 import { DisponibleRealSheet } from './DisponibleRealSheet'
-import { getCurrentMonth } from '@/lib/dates'
-import type { DashboardData } from '@/types/database'
+import type { DashboardData, HeroBalanceMode } from '@/types/database'
 
 interface Props {
   data: DashboardData['saldo_vivo']
   currency: 'ARS' | 'USD'
+  heroBalanceMode: HeroBalanceMode
+  heroBreakdown: Record<'ARS' | 'USD', number>
+  availableBreakdown: Record<'ARS' | 'USD', number>
+  valuationRate?: number | null
+  valuationDate?: string | null
   gastosTarjeta?: number
   transferAdjustment?: number
   capitalInstrumentos?: number
   onBreakdownOpen?: () => void
   selectedMonth?: string
   isProjected?: boolean
+  amountsVisible: boolean
+  onToggleAmounts: () => void
 }
 
-type HeroMode = 'saldo_vivo' | 'disponible_real'
-type AnimPhase = 'idle' | 'exit' | 'pre-enter' | 'enter'
+function maskAmount(currency: 'ARS' | 'USD') {
+  return currency === 'USD' ? 'USD ****' : '$ ******'
+}
 
-export function SaldoVivo({ data, currency, gastosTarjeta = 0, transferAdjustment = 0, capitalInstrumentos = 0, onBreakdownOpen, selectedMonth = '', isProjected = false }: Props) {
-  const router = useRouter()
-  const currentMonth = getCurrentMonth()
-  const [mode, setMode] = useState<HeroMode>('saldo_vivo')
-  const [displayedMode, setDisplayedMode] = useState<HeroMode>('saldo_vivo')
-  const [animPhase, setAnimPhase] = useState<AnimPhase>('idle')
+function breakdownLine(amountsVisible: boolean, heroBreakdown: Record<'ARS' | 'USD', number>) {
+  if (!amountsVisible) {
+    return {
+      ars: maskAmount('ARS'),
+      usd: maskAmount('USD'),
+    }
+  }
+
+  return {
+    ars: formatAmount(heroBreakdown.ARS, 'ARS').replace(/^\$\s*/, ''),
+    usd: formatAmount(heroBreakdown.USD, 'USD').replace(/^USD\s*/, ''),
+  }
+}
+
+function resolveHeroValues({
+  mode,
+  defaultCurrency,
+  heroBreakdown,
+  availableBreakdown,
+  rate,
+}: {
+  mode: HeroBalanceMode
+  defaultCurrency: 'ARS' | 'USD'
+  heroBreakdown: Record<'ARS' | 'USD', number>
+  availableBreakdown: Record<'ARS' | 'USD', number>
+  rate: number | null
+}) {
+  if (mode === 'combined_ars' && rate && rate > 0) {
+    return {
+      displayCurrency: 'ARS' as const,
+      heroValue: heroBreakdown.ARS + heroBreakdown.USD * rate,
+      availableValue: availableBreakdown.ARS + availableBreakdown.USD * rate,
+    }
+  }
+
+  if (mode === 'combined_usd' && rate && rate > 0) {
+    return {
+      displayCurrency: 'USD' as const,
+      heroValue: heroBreakdown.USD + heroBreakdown.ARS / rate,
+      availableValue: availableBreakdown.USD + availableBreakdown.ARS / rate,
+    }
+  }
+
+  const resolvedCurrency = defaultCurrency
+  return {
+    displayCurrency: resolvedCurrency,
+    heroValue: heroBreakdown[resolvedCurrency],
+    availableValue: availableBreakdown[resolvedCurrency],
+  }
+}
+
+export function SaldoVivo({
+  data,
+  currency,
+  heroBalanceMode,
+  heroBreakdown,
+  availableBreakdown,
+  valuationRate = null,
+  onBreakdownOpen,
+  selectedMonth = '',
+  isProjected = false,
+  amountsVisible,
+  onToggleAmounts,
+}: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   if (!data) {
     return (
-      <div className="px-2 py-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-secondary">
-          Disponible
+      <div className="px-1 py-2">
+        <p className="type-label text-text-secondary">Saldo Vivo</p>
+        <p className="mt-3 text-[28px] font-extrabold tracking-[-0.03em] text-text-primary">
+          $ ******
         </p>
-        <p className="mt-2 text-sm text-text-tertiary">
-          Configurá tu ingreso mensual para ver cuánto te queda disponible.
+        <p className="mt-3 max-w-[24rem] text-sm text-text-secondary">
+          Configura una cuenta y tu saldo inicial para ver el estado financiero del mes.
         </p>
       </div>
     )
   }
 
-  const saldoInicial = (data.saldo_inicial as number | undefined) ?? 0
-  const computedSaldoVivo =
-    saldoInicial +
-    data.ingresos +
-    (data.rendimientos ?? 0) -
-    data.gastos_percibidos -
-    data.pago_tarjetas +
-    transferAdjustment -
-    capitalInstrumentos
-  const disponible = computedSaldoVivo
-  const disponibleReal = disponible - gastosTarjeta
+  const { displayCurrency, heroValue, availableValue } = resolveHeroValues({
+    mode: heroBalanceMode,
+    defaultCurrency: currency,
+    heroBreakdown,
+    availableBreakdown,
+    rate: valuationRate,
+  })
 
-  const heroValue = displayedMode === 'saldo_vivo' ? disponible : disponibleReal
   const isNegative = heroValue < 0
-
-  const handleToggle = () => {
-    const newMode = mode === 'saldo_vivo' ? 'disponible_real' : 'saldo_vivo'
-    setMode(newMode)
-    setAnimPhase('exit')
-    setTimeout(() => {
-      setDisplayedMode(newMode)
-      setAnimPhase('pre-enter')
-      requestAnimationFrame(() => {
-        requestAnimationFrame(() => {
-          setAnimPhase('enter')
-          setTimeout(() => setAnimPhase('idle'), 200)
-        })
-      })
-    }, 150)
+  const heroStyle: CSSProperties = {
+    transition: 'opacity 180ms ease, transform 180ms ease',
   }
-
-  const handleHeroTap = () => {
-    if (mode === 'saldo_vivo') {
-      onBreakdownOpen?.()
-    } else {
-      setSheetOpen(true)
-    }
-  }
-
-  const isTappable = mode === 'saldo_vivo' ? !!onBreakdownOpen : true
-
-  const handleCurrencyToggle = (next: 'ARS' | 'USD') => {
-    if (next === currency) return
-    const params = new URLSearchParams()
-    if (selectedMonth !== currentMonth) params.set('month', selectedMonth)
-    if (next !== 'ARS') params.set('currency', next)
-    const query = params.toString()
-    router.push(query ? `/?${query}` : '/')
-  }
-
-  const heroStyle: CSSProperties = animPhase === 'exit'
-    ? { opacity: 0, transform: 'translateY(-8px)', transition: 'opacity 150ms ease, transform 150ms ease' }
-    : animPhase === 'pre-enter'
-    ? { opacity: 0, transform: 'translateY(8px)' }
-    : { opacity: 1, transform: 'translateY(0)', transition: 'opacity 200ms ease, transform 200ms ease' }
-
-  const heroColorClass = isNegative
-    ? 'text-danger'
-    : displayedMode === 'disponible_real'
-    ? 'text-primary'
-    : 'text-text-primary'
+  const availableDebt = Math.max(0, heroValue - availableValue)
+  const showValuationFallback =
+    (heroBalanceMode === 'combined_ars' || heroBalanceMode === 'combined_usd') &&
+    (!valuationRate || valuationRate <= 0)
+  const breakdown = breakdownLine(amountsVisible, heroBreakdown)
 
   return (
-    <div className="px-2 py-3">
-      <div>
-        {/* Toggle label + ARS/USD inline */}
-        <div className="flex items-center justify-between mb-1.5">
-          <button
-            onClick={handleToggle}
-            className="flex items-center gap-1.5"
-          >
-            <span className="type-label text-text-secondary uppercase">
-              {mode === 'saldo_vivo' ? 'SALDO VIVO' : 'DISPONIBLE REAL'}
-            </span>
-            <ArrowsDownUp size={13} weight="light" className="text-text-dim opacity-50" />
-          </button>
-
-          <div className="flex items-center gap-2">
-            {(['ARS', 'USD'] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => handleCurrencyToggle(c)}
-                className={`rounded text-[11px] font-medium transition-colors ${
-                  currency === c
-                    ? 'text-primary'
-                    : 'text-text-dim opacity-70 hover:opacity-100'
-                }`}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Animated hero number + hint */}
-        <div style={heroStyle}>
-          <p
-            onClick={isTappable ? handleHeroTap : undefined}
-            className={`type-hero tabular-nums m-0 ${heroColorClass} ${isTappable ? 'cursor-pointer select-none active:opacity-70' : ''}`}
-          >
-            {heroValue < 0 ? '−' : ''}
-            {formatAmount(Math.abs(heroValue), currency)}
-          </p>
-
-          {isTappable && (
-            <button
-              onClick={handleHeroTap}
-              className="mt-2 flex items-center gap-0.5 text-[12px] font-semibold leading-none text-primary"
-            >
-              Ver detalle
-              <CaretRight size={11} weight="light" />
-            </button>
+    <div className="px-1 py-2">
+      <div className="flex items-center justify-between">
+        <span className="type-label text-text-secondary">Saldo Vivo</span>
+        <button
+          type="button"
+          onClick={onToggleAmounts}
+          aria-label={amountsVisible ? 'Ocultar montos' : 'Mostrar montos'}
+          className="flex h-8 w-8 items-center justify-center rounded-full text-text-dim transition-colors hover:bg-bg-secondary hover:text-text-secondary"
+        >
+          {amountsVisible ? (
+            <Eye size={16} weight="regular" />
+          ) : (
+            <EyeSlash size={16} weight="regular" />
           )}
-        </div>
-
+        </button>
       </div>
+
+      <button
+        type="button"
+        onClick={onBreakdownOpen}
+        disabled={!onBreakdownOpen}
+        className={`mt-3 block text-left ${onBreakdownOpen ? 'cursor-pointer active:opacity-80' : ''}`}
+      >
+        <p
+          className={`type-hero m-0 tabular-nums ${isNegative ? 'text-danger' : 'text-text-primary'}`}
+          style={heroStyle}
+        >
+          {amountsVisible
+            ? `${heroValue < 0 ? '−' : ''}${formatAmount(Math.abs(heroValue), displayCurrency)}`
+            : maskAmount(displayCurrency)}
+        </p>
+      </button>
+
+      <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 type-meta">
+        <span className="text-text-dim">
+          <span className="font-semibold text-primary">ARS</span>{' '}
+          <span>{breakdown.ars}</span>
+        </span>
+        <span className="text-text-dim">|</span>
+        <span className="text-text-dim">
+          <span className="font-semibold text-primary">USD</span>{' '}
+          <span>{breakdown.usd}</span>
+        </span>
+      </div>
+
+      {showValuationFallback && (
+        <p className="mt-1 type-meta text-text-dim">
+          Sin cotizacion disponible. Se muestra tu moneda principal.
+        </p>
+      )}
+
+      <button
+        type="button"
+        onClick={() => setSheetOpen(true)}
+        className="mt-5 flex w-full items-start justify-between gap-3 border-t border-[color:var(--color-separator)] pt-4 text-left transition-opacity hover:opacity-90"
+      >
+        <div>
+          <p className="type-body text-text-secondary">Disponible real</p>
+          <p className="mt-1 type-meta text-text-dim">
+            Ya descuenta deuda y consumos en tarjeta.
+          </p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <span className="type-body-lg tabular-nums text-text-primary">
+            {amountsVisible ? formatAmount(availableValue, displayCurrency) : maskAmount(displayCurrency)}
+          </span>
+          <CaretRight size={13} weight="bold" className="mt-0.5 text-text-dim" />
+        </div>
+      </button>
 
       <DisponibleRealSheet
         open={sheetOpen}
         onClose={() => setSheetOpen(false)}
-        saldoVivo={disponible}
-        gastosTarjeta={gastosTarjeta}
-        currency={currency}
+        saldoVivo={heroValue}
+        gastosTarjeta={availableDebt}
+        currency={displayCurrency}
         selectedMonth={selectedMonth}
         isProjected={isProjected}
       />

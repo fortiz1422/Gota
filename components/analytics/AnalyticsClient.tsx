@@ -33,6 +33,7 @@ interface Props {
   cards: Card[]
   selectedMonth: string
   earliestDataMonth?: string
+  initialDrill?: Drill | null
 }
 
 export function AnalyticsClient({
@@ -43,12 +44,13 @@ export function AnalyticsClient({
   cards,
   selectedMonth,
   earliestDataMonth,
+  initialDrill,
 }: Props) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [soloPercibidos, setSoloPercibidos] = useState(false)
-  const [insightsOpen, setInsightsOpen] = useState(false)
-  const [drill, setDrill] = useState<Drill | null>(null)
+  const [insightsOpen, setInsightsOpen] = useState(Boolean(initialDrill))
+  const [drill, setDrill] = useState<Drill | null>(initialDrill ?? null)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
   const [hero, setHero] = useState<InsightResult | null>(() => {
     const cached = readHeroCache()
@@ -73,9 +75,9 @@ export function AnalyticsClient({
 
   const visibleCategorias = expanded ? displayCategorias : displayCategorias.slice(0, 5)
 
-  function handleSetDrill(d: Drill | null) {
-    setDrill(d)
-    if (d !== 'habitos') setSelDay(null)
+  function handleSetDrill(nextDrill: Drill | null) {
+    setDrill(nextDrill)
+    if (nextDrill !== 'habitos') setSelDay(null)
   }
 
   return (
@@ -191,7 +193,7 @@ export function AnalyticsClient({
                         soloPercibidos={soloPercibidos}
                         onClick={() =>
                           router.push(
-                            `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${soloPercibidos}`
+                            `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${soloPercibidos}`,
                           )
                         }
                       />

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight } from '@phosphor-icons/react'
 import { ParsePreview } from './ParsePreview'
@@ -26,6 +26,7 @@ interface SmartInputProps {
   onAfterSave?: () => void
   onFocusChange?: (focused: boolean) => void
   variant?: 'default' | 'bottom-zone'
+  focusSignal?: number
 }
 
 function inputLengthBucket(length: number): 'short' | 'medium' | 'long' {
@@ -40,14 +41,17 @@ export function SmartInput({
   onAfterSave,
   onFocusChange,
   variant = 'default',
+  focusSignal = 0,
 }: SmartInputProps) {
   const router = useRouter()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
+  const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedData | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<number | null>(null)
+  const statusTimeoutRef = useRef<number | null>(null)
 
   const clearPendingBlur = () => {
     if (blurTimeoutRef.current !== null) {
@@ -55,6 +59,21 @@ export function SmartInput({
       blurTimeoutRef.current = null
     }
   }
+
+  useEffect(() => {
+    if (focusSignal <= 0) return
+    clearPendingBlur()
+    inputRef.current?.focus()
+    onFocusChange?.(true)
+  }, [focusSignal, onFocusChange])
+
+  useEffect(() => {
+    return () => {
+      if (statusTimeoutRef.current !== null) {
+        window.clearTimeout(statusTimeoutRef.current)
+      }
+    }
+  }, [])
 
   const handleSubmit = async () => {
     const trimmed = input.trim()
@@ -66,6 +85,7 @@ export function SmartInput({
       input_length: inputLengthBucket(trimmed.length),
       variant,
     })
+
     try {
       const res = await fetch('/api/parse-expense', {
         method: 'POST',
@@ -89,22 +109,34 @@ export function SmartInput({
           failure_type: 'invalid_input',
           variant,
         })
-        setParseError(data.reason ?? 'El input no parece ser un gasto')
+        setParseError(
+          data.reason ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".',
+        )
       }
     } catch {
       trackEvent('smartinput_parse_failed', {
         failure_type: 'network_or_server',
         variant,
       })
-      setParseError('Error al procesar. Revisa tu conexion.')
+      setParseError('No pudimos entenderlo. Proba con algo como "cafe 2500".')
     } finally {
       setIsParsing(false)
+      setStatusMessage(null)
     }
   }
 
   const handleSave = () => {
     setParsed(null)
     setInput('')
+    setParseError(null)
+    setStatusMessage('Guardado')
+    if (statusTimeoutRef.current !== null) {
+      window.clearTimeout(statusTimeoutRef.current)
+    }
+    statusTimeoutRef.current = window.setTimeout(() => {
+      setStatusMessage(null)
+      statusTimeoutRef.current = null
+    }, 1200)
     inputRef.current?.focus()
     if (onAfterSave) {
       onAfterSave()
@@ -126,9 +158,7 @@ export function SmartInput({
       <div
         className={`surface-glass flex items-center gap-2.5 transition-colors duration-200 ${
           isBottomZone ? 'rounded-[14px] px-3 py-[9px]' : 'rounded-card px-4 py-3'
-        } ${
-          hasInput ? 'border-primary/35' : ''
-        }`}
+        } ${hasInput ? 'border-primary/35' : ''}`}
       >
         <input
           ref={inputRef}
@@ -149,10 +179,12 @@ export function SmartInput({
               blurTimeoutRef.current = null
             }, 120)
           }}
-          onKeyDown={(e) => { if (e.key === 'Enter') handleSubmit() }}
-          placeholder="café 2500"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter') handleSubmit()
+          }}
+          placeholder="cafe 2500"
           disabled={isParsing}
-          className={`flex-1 bg-transparent border-none outline-none type-body text-text-primary caret-primary placeholder:text-text-dim transition-opacity duration-200 ${
+          className={`type-body flex-1 border-none bg-transparent text-text-primary caret-primary outline-none placeholder:text-text-dim transition-opacity duration-200 ${
             isParsing ? 'opacity-50' : 'opacity-100'
           }`}
         />
@@ -163,9 +195,7 @@ export function SmartInput({
           aria-label="Agregar gasto"
           className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
             isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
-          } ${
-            hasInput ? 'bg-primary' : 'bg-[color:var(--color-border-subtle)]'
-          }`}
+          } ${hasInput ? 'bg-primary' : 'bg-[color:var(--color-border-subtle)]'}`}
         >
           {isParsing ? (
             <span className="spinner" style={{ width: 16, height: 16 }} />
@@ -173,11 +203,20 @@ export function SmartInput({
             <ArrowRight
               size={15}
               weight="bold"
-              className={`transition-colors duration-200 ${hasInput ? 'text-white' : 'text-text-label'}`}
+              className={`transition-colors duration-200 ${
+                hasInput ? 'text-white' : 'text-text-label'
+              }`}
             />
           )}
         </button>
       </div>
+      {statusMessage && !parseError && (
+        <div
+          className="mt-2 rounded-card bg-primary/8 px-3 py-2 text-xs font-medium text-primary"
+        >
+          {statusMessage}
+        </div>
+      )}
       <InlineError message={parseError} className={isBottomZone ? 'mt-2' : 'mt-3'} />
 
       {parsed && (
