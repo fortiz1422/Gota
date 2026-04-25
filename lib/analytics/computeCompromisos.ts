@@ -2,7 +2,7 @@ import { buildCycleDate, buildLegacyCardCycle } from '@/lib/card-cycles'
 import { addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
-import { isApplicableCardPayment, isCreditAccruedExpense } from '@/lib/movement-classification'
+import { isCreditAccruedExpense } from '@/lib/movement-classification'
 import type { Expense, Card, CardCycle, Subscription } from '@/types/database'
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -112,26 +112,6 @@ function computeCycleAmount(
   )
 }
 
-function buildNetPendingByCard(expenses: Expense[]): Map<string, number> {
-  const totals = new Map<string, number>()
-
-  for (const expense of expenses) {
-    if (!expense.card_id) continue
-
-    const current = totals.get(expense.card_id) ?? 0
-
-    if (isCreditAccruedExpense(expense)) {
-      totals.set(expense.card_id, current + expense.amount)
-      continue
-    }
-
-    if (isApplicableCardPayment(expense)) {
-      totals.set(expense.card_id, current - expense.amount)
-    }
-  }
-
-  return totals
-}
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -154,8 +134,6 @@ export function computeCompromisos(
 
   // ── Current month: show live debt + en_curso context ─────────────────────
   if (isCurrentMonth) {
-    const netPendingByCard = buildNetPendingByCard(expenses)
-
     for (const card of cards) {
       const forThisCard = cardCycles.filter((c) => c.card_id === card.id)
       const unpaid = forThisCard.filter((c) => c.status !== 'paid')
@@ -230,8 +208,6 @@ export function computeCompromisos(
       }
 
       const debtTotal = debtCycles.reduce((s, c) => s + c.amount, 0)
-      const netPending = Math.max(0, netPendingByCard.get(card.id) ?? 0)
-      currentSpend = Math.max(0, netPending - debtTotal)
 
       // Determine dominant status: vencido > cerrado > pagado > en_curso
       let cycleStatus: CompromisoTarjeta['cycleStatus']
