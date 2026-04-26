@@ -81,6 +81,7 @@ function TarjetaRow({ t, currency, showLink = false }: {
 }) {
   const isPaid = t.cycleStatus === 'pagado'
   const isDebt = t.cycleStatus === 'cerrado' || t.cycleStatus === 'vencido'
+  const isEnCursoSinConsumos = t.cycleStatus === 'en_curso' && t.currentSpend === 0
   const displayAmount = isDebt ? t.debtTotal : isPaid ? (t.amountPaid ?? 0) : t.currentSpend
 
   return (
@@ -128,7 +129,7 @@ function TarjetaRow({ t, currency, showLink = false }: {
 
         {/* Amount */}
         <span className={`shrink-0 type-body font-bold tabular-nums ${isPaid ? 'text-text-tertiary' : 'text-text-primary'}`}>
-          {formatAmount(displayAmount, currency)}
+          {isEnCursoSinConsumos ? '—' : formatAmount(displayAmount, currency)}
         </span>
       </div>
 
@@ -149,6 +150,13 @@ function TarjetaRow({ t, currency, showLink = false }: {
           Ir a pagar
           <ArrowRight size={11} weight="bold" />
         </Link>
+      )}
+
+      {/* En curso sin actividad */}
+      {isEnCursoSinConsumos && (
+        <p className="mt-2 type-micro text-text-dim">
+          Sin consumos registrados en este ciclo
+        </p>
       )}
     </div>
   )
@@ -262,6 +270,7 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
             <div className="mt-3 space-y-1.5 border-t border-border-ocean pt-3">
               {tarjetas.slice(0, 3).map((t) => {
                 const isPaid = t.cycleStatus === 'pagado'
+                const isEnCursoSinConsumos = t.cycleStatus === 'en_curso' && t.currentSpend === 0
                 const amt = t.cycleStatus === 'pagado' ? (t.amountPaid ?? 0)
                   : t.cycleStatus === 'en_curso' ? t.currentSpend
                   : t.debtTotal
@@ -283,7 +292,7 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
                       </span>
                     </div>
                     <span className={`type-meta tabular-nums ${isPaid ? 'text-text-tertiary' : 'text-text-primary'}`}>
-                      {formatAmount(amt, currency)}
+                      {isEnCursoSinConsumos ? '—' : formatAmount(amt, currency)}
                     </span>
                   </div>
                 )
