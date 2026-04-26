@@ -2,7 +2,7 @@
 
 import type { CSSProperties } from 'react'
 import { useState } from 'react'
-import { CaretRight, Eye, EyeSlash } from '@phosphor-icons/react'
+import { CaretRight, Eye, EyeSlash, Wallet } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 import { DisponibleRealSheet } from './DisponibleRealSheet'
 import type { DashboardData, HeroBalanceMode } from '@/types/database'
@@ -184,14 +184,17 @@ export function SaldoVivo({
         onClick={() => setSheetOpen(true)}
         className="mt-5 flex w-full items-start justify-between gap-3 border-t border-[color:var(--color-separator)] pt-4 text-left transition-opacity hover:opacity-90"
       >
-        <div>
-          <p className="type-body text-text-secondary">Disponible real</p>
-          <p className="mt-1 type-meta text-text-dim">
-            Ya descuenta deuda y consumos en tarjeta.
-          </p>
+        <div className="flex min-w-0 items-start gap-3">
+          <Wallet size={24} weight="regular" className="mt-0.5 shrink-0 text-primary" />
+          <div className="min-w-0">
+            <p className="type-body text-text-secondary">Disponible real</p>
+            <p className="mt-1 type-meta text-text-dim">
+              Ya descuenta deuda y consumos en tarjeta.
+            </p>
+          </div>
         </div>
-        <div className="flex items-center gap-1.5">
-          <span className="type-body-lg tabular-nums text-text-primary">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <span className="whitespace-nowrap type-body-lg tabular-nums text-text-primary">
             {amountsVisible ? formatAmount(availableValue, displayCurrency) : maskAmount(displayCurrency)}
           </span>
           <CaretRight size={13} weight="bold" className="mt-0.5 text-text-dim" />
