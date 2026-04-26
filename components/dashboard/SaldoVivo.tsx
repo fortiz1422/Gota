@@ -182,10 +182,12 @@ export function SaldoVivo({
       <button
         type="button"
         onClick={() => setSheetOpen(true)}
-        className="mt-5 flex w-full items-start justify-between gap-3 border-t border-[color:var(--color-separator)] pt-4 text-left transition-opacity hover:opacity-90"
+        className="mt-5 flex w-full items-center justify-between gap-3 border-t border-[color:var(--color-separator)] pt-4 text-left transition-opacity hover:opacity-90"
       >
-        <div className="flex min-w-0 items-start gap-3">
-          <Wallet size={24} weight="regular" className="mt-0.5 shrink-0 text-primary" />
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+            <Wallet size={22} weight="regular" className="text-primary" />
+          </div>
           <div className="min-w-0">
             <p className="type-body text-text-secondary">Disponible real</p>
             <p className="mt-1 type-meta text-text-dim">

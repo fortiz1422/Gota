@@ -71,9 +71,11 @@ export function CommitmentsSummary({
           </div>
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <div className="flex min-w-0 items-start gap-3">
-                <CreditCard size={24} weight="regular" className="mt-0.5 shrink-0 text-primary" />
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+                  <CreditCard size={22} weight="regular" className="text-primary" />
+                </div>
                 <div className="min-w-0">
                   <p className="type-body text-text-secondary">Comprometido en tarjetas</p>
                   <p className="mt-1 type-meta text-text-dim">{footerText}</p>
