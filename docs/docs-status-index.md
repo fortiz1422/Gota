@@ -24,8 +24,12 @@
 
 ## Historicos o transicionales
 
+- [../DESIGN.md](/C:/Users/Admin/Documents/gota/DESIGN.md)
+- [../gota-lightmodedesign.md](/C:/Users/Admin/Documents/gota/gota-lightmodedesign.md)
+- [../ui-review-plan.md](/C:/Users/Admin/Documents/gota/ui-review-plan.md)
 - [gota-design-system.md](/C:/Users/Admin/Documents/gota/docs/gota-design-system.md)
 - [gota-design-specv2.md](/C:/Users/Admin/Documents/gota/docs/gota-design-specv2.md)
+- [gota-design-philosophy.md](/C:/Users/Admin/Documents/gota/docs/gota-design-philosophy.md)
 - [ui-product-upgrade-plan-2026-04-11.md](/C:/Users/Admin/Documents/gota/docs/ui-product-upgrade-plan-2026-04-11.md)
 - [saldo-vivo-diagnostico-2026-04.md](/C:/Users/Admin/Documents/gota/docs/saldo-vivo-diagnostico-2026-04.md)
 - [saldo-vivo-modelo-y-transicion-2026-04.md](/C:/Users/Admin/Documents/gota/docs/saldo-vivo-modelo-y-transicion-2026-04.md)

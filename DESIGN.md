@@ -1,3 +1,7 @@
+# Gota Design - Resumen descriptivo, no fuente de verdad
+
+> Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
+
 # Gota Design
 
 ## UI Patterns And Component Structure

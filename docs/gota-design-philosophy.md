@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Still Depth Design Philosophy
+
+> Filosofia visual del sistema oscuro anterior. No usar como fuente visual vigente.
+
 # Still Depth — A Design Philosophy
 
 **Movement:** Still Depth

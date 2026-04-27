@@ -1,3 +1,7 @@
+# HISTORICO - REFERENCIA BASE - Gota Design System v2.0
+
+> Base previa del sistema light. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
+
 # Gota — Design System v2.0
 > Spec de referencia para implementación. Refleja todas las decisiones tomadas en la sesión de diseño de abril 2026.
 

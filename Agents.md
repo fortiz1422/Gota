@@ -7,7 +7,9 @@ Gemini Flash (SmartInput), Vercel. Solo developer.
 npm run dev | npm run build | npm run lint | npx tsc --noEmit
 
 ## Docs de referencia
-- Design system: docs/design-system-final.md
+- Design system vigente: docs/design-system-final.md
+- Tokens reales: app/globals.css
+- Docs de diseno viejos: historicos/no vigentes para decisiones visuales
 - Frontend patterns: docs/gota-frontend-guidelines.md
 - Backend / schema: docs/gota-backend-structure.md
 - Features / PRD: docs/gota-prd.md

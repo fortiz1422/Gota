@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Plan de Migracion a Light Mode
+
+> Superado por `docs/design-system-final.md` v4.0 y `app/globals.css`.
+
 # Gota — Plan de Migración a Light Mode
 ## Documento único de implementación
 

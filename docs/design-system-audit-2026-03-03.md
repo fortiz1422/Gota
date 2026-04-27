@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Informe stack de diseno Gota
+
+> Auditoria del sistema anterior. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
+
 # INFORME — STACK DE DISEÑO GOTA · Estado actual
 **Fecha de referencia:** 2026-03-03
 

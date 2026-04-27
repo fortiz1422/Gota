@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Gota UI Review Fix Plan
+
+> Plan de marzo con referencias visuales anteriores. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
+
 # Gota UI Review — Fix Plan
 _Generated 2026-03-10_
 

@@ -1,3 +1,7 @@
+# HISTORICO - NO VIGENTE - Gota Design System
+
+> No usar como fuente visual vigente. Fuente actual: `docs/design-system-final.md` + `app/globals.css`.
+
 # Gota — Design System
 
 **Versión:** 2.1 (fusión post-MVP)

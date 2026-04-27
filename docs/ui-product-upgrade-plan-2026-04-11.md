@@ -1,3 +1,7 @@
+# HISTORICO - PLAN TRANSICIONAL - UI Product Upgrade Plan
+
+> Plan de upgrade previo. Fuente visual vigente: `docs/design-system-final.md` v4.0 + `app/globals.css`.
+
 # Gota — UI Product Upgrade Plan
 
 **Fecha:** 2026-04-11
