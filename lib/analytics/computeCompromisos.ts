@@ -1,4 +1,5 @@
 import { buildCycleDate, buildLegacyCardCycle } from '@/lib/card-cycles'
+import { getAccumulatedPaidAmount, getRemainingCardCycleAmount } from '@/lib/card-cycle-payments'
 import { addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
@@ -95,13 +96,12 @@ function getPeriodFrom(cycle: CardCycle, card: Card, allCycles: CardCycle[]): st
   return addOneDay(prevClosingDate)
 }
 
-function computeCycleAmount(
+function computeStatementAmount(
   cycle: CardCycle,
   card: Card,
   expenses: Expense[],
   allCycles: CardCycle[],
 ): number {
-  if (cycle.amount_paid !== null) return cycle.amount_paid
   if (cycle.amount_draft !== null) return cycle.amount_draft
   const periodFrom = getPeriodFrom(cycle, card, allCycles)
   return calcularMontoResumen(
@@ -110,6 +110,16 @@ function computeCycleAmount(
     new Date(`${periodFrom}T12:00:00Z`),
     new Date(`${cycle.closing_date}T12:00:00Z`),
   )
+}
+
+function computeRemainingCycleAmount(
+  cycle: CardCycle,
+  card: Card,
+  expenses: Expense[],
+  allCycles: CardCycle[],
+): number {
+  const statementAmount = computeStatementAmount(cycle, card, expenses, allCycles)
+  return getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
 }
 
 
@@ -153,17 +163,18 @@ export function computeCompromisos(
           // En curso — compute live spend within this cycle's date range
           foundEnCurso = true
           const periodFrom = getPeriodFrom(cycle, card, cardCycles)
-          currentSpend = calcularMontoResumen(
+          const liveSpend = calcularMontoResumen(
             expenses,
             card.id,
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${cycle.closing_date}T12:00:00Z`),
           )
+          currentSpend = getRemainingCardCycleAmount(liveSpend, cycle.amount_paid)
           daysUntilClosing = daysDiff(today, cycle.closing_date)
           enCursoClosingDay = parseInt(cycle.closing_date.substring(8, 10), 10)
         } else {
           // Closed — cerrado if due_date is still future, vencido if past
-          const amount = computeCycleAmount(cycle, card, expenses, cardCycles)
+          const amount = computeRemainingCycleAmount(cycle, card, expenses, cardCycles)
           if (amount === 0) continue  // ciclo sin deuda real — no mostrar
           const cs: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
           debtCycles.push({
@@ -180,12 +191,13 @@ export function computeCompromisos(
         const legacy = buildLegacyCardCycle(card, selectedMonth)
         if (legacy.closing_date >= today) {
           const periodFrom = getPeriodFrom(legacy, card, cardCycles)
-          currentSpend = calcularMontoResumen(
+          const liveSpend = calcularMontoResumen(
             expenses,
             card.id,
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${legacy.closing_date}T12:00:00Z`),
           )
+          currentSpend = getRemainingCardCycleAmount(liveSpend, legacy.amount_paid)
           daysUntilClosing = daysDiff(today, legacy.closing_date)
           enCursoClosingDay = parseInt(legacy.closing_date.substring(8, 10), 10)
         }
@@ -230,7 +242,7 @@ export function computeCompromisos(
         dueDate = soonest?.dueDate ?? null
       } else if (paidThisMonth) {
         cycleStatus = 'pagado'
-        amountPaid = paidThisMonth.amount_paid
+        amountPaid = getAccumulatedPaidAmount(paidThisMonth.amount_paid)
         paidAt = paidThisMonth.paid_at
         dueDate = paidThisMonth.due_date
       } else {
@@ -299,7 +311,8 @@ export function computeCompromisos(
     // No cycle recorded for this month — skip silently
     if (!cycle) continue
 
-    const amount = computeCycleAmount(cycle, card, expenses, cardCycles)
+    const statementAmount = computeStatementAmount(cycle, card, expenses, cardCycles)
+    const amount = getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
     const dueDate = cycle.due_date
     const daysUntilDue = daysDiff(today, dueDate)
 
@@ -316,7 +329,7 @@ export function computeCompromisos(
         cycleStatus: 'pagado',
         dueDate,
         daysUntilDue,
-        amountPaid: cycle.amount_paid,
+        amountPaid: getAccumulatedPaidAmount(cycle.amount_paid),
         paidAt: cycle.paid_at,
         pendingSubs: [],
       })

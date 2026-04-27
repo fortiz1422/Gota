@@ -1,8 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CaretDown, CaretUp } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { EnrichedCycle } from '@/lib/card-summaries'
@@ -34,11 +35,16 @@ function formatARS(n: number): string {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
-const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((c) => c !== 'Pago de Tarjetas')
+const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((category) => category !== 'Pago de Tarjetas')
 
 export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accounts, expenses }: Props) {
-  const [montoRaw, setMontoRaw] = useState(Math.round(cycle.amount))
-  const [accountId, setAccountId] = useState(card.account_id ?? (accounts[0]?.id ?? ''))
+  const remainingAmount = cycle.remaining_amount > 0
+    ? cycle.remaining_amount
+    : Math.max(cycle.amount - (cycle.amount_paid ?? 0), 0)
+  const defaultAccountId = card.account_id ?? (accounts[0]?.id ?? '')
+
+  const [montoRaw, setMontoRaw] = useState(Math.round(remainingAmount))
+  const [accountId, setAccountId] = useState(defaultAccountId)
   const [fecha, setFecha] = useState(todayAR())
   const [motivo, setMotivo] = useState<Motivo>('no_detallar')
   const [categoriaExtra, setCategoriaExtra] = useState<string>('Otros')
@@ -46,101 +52,109 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const montoNum = montoRaw
-  const diff = Math.round((montoNum - cycle.amount) * 100) / 100
-  const hasDiff = Math.abs(diff) >= 1
+  useEffect(() => {
+    setMontoRaw(Math.round(remainingAmount))
+    setAccountId(defaultAccountId)
+    setFecha(todayAR())
+    setMotivo('no_detallar')
+    setCategoriaExtra('Otros')
+    setDetailOpen(false)
+    setError(null)
+  }, [cycle.id, remainingAmount, defaultAccountId])
 
-  const isEqualToTotal = Math.abs(montoNum - cycle.amount) < 1
-  const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasDiff || motivo !== null)
+  const selectedAccount = accounts.find((account) => account.id === accountId) ?? null
+  const isOpenCycle = cycle.cycleStatus === 'en_curso'
+  const montoNum = montoRaw
+  const extraAmount = !isOpenCycle
+    ? Math.round((montoNum - remainingAmount) * 100) / 100
+    : 0
+  const hasAdjustment = extraAmount >= 1
+  const isEqualToRemaining = Math.abs(montoNum - remainingAmount) < 1
+  const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasAdjustment || motivo !== null)
 
   const ctaLabel = (() => {
     if (isSaving) return 'Registrando...'
-    if (isEqualToTotal) return 'Registrar pago total'
-    if (montoNum > 0) return 'Registrar pago parcial'
+    if (isOpenCycle) return cycle.has_partial_payment ? 'Registrar otro pago' : 'Registrar pago'
+    if (isEqualToRemaining) return cycle.has_partial_payment ? 'Completar pago' : 'Registrar pago total'
+    if (montoNum > 0 && montoNum < remainingAmount) return 'Registrar pago parcial'
+    if (hasAdjustment) return 'Registrar pago y ajuste'
     return 'Registrar pago'
   })()
 
   const cycleExpenses = useMemo(
     () =>
       expenses.filter(
-        (e) =>
-          e.payment_method === 'CREDIT' &&
-          e.category !== 'Pago de Tarjetas' &&
-          e.date >= cycle.period_from &&
-          e.date <= cycle.closing_date,
+        (expense) =>
+          expense.payment_method === 'CREDIT' &&
+          expense.category !== 'Pago de Tarjetas' &&
+          expense.date >= cycle.period_from &&
+          expense.date <= cycle.closing_date,
       ),
     [expenses, cycle.period_from, cycle.closing_date],
   )
 
-  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const stripped = e.target.value.replace(/\D/g, '')
+  const handleMontoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const stripped = event.target.value.replace(/\D/g, '')
     setMontoRaw(stripped === '' ? 0 : parseInt(stripped, 10))
   }
 
   const handleSubmit = async () => {
     if (!canSubmit) return
+
     setIsSaving(true)
     setError(null)
 
     try {
-      const cycleRes = await fetch(`/api/card-cycles/${cycle.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount_paid: montoNum,
-          paid_at: `${fecha}T12:00:00.000Z`,
-          status: 'paid',
-        }),
-      })
-      if (!cycleRes.ok) throw new Error('Error al registrar el resumen')
+      const payment_method = selectedAccount
+        ? paymentMethodFromAccountType(selectedAccount.type)
+        : 'DEBIT'
+      const adjustment = hasAdjustment && motivo !== 'no_detallar'
+        ? {
+            amount: extraAmount,
+            category: motivo === 'cargo_banco' ? 'Cargos Bancarios' : categoriaExtra,
+            description: motivo === 'cargo_banco' ? 'Cargo bancario' : 'Gasto no registrado',
+            is_want: false,
+          }
+        : null
 
-      const expRes = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: montoNum,
-          currency: 'ARS',
-          category: 'Pago de Tarjetas',
-          description: `Pago ${card.name}`,
-          payment_method: 'DEBIT',
-          card_id: card.id,
-          account_id: accountId,
-          date: fecha,
-          is_want: null,
-          is_legacy_card_payment: false,
-        }),
-      })
-      if (!expRes.ok) throw new Error('Error al registrar el movimiento')
+      const body: Record<string, unknown> = {
+        amount: montoNum,
+        currency: 'ARS',
+        card_id: card.id,
+        account_id: accountId,
+        payment_method,
+        date: fecha,
+        description: `Pago ${card.name}`,
+      }
 
-      if (hasDiff && diff > 0 && motivo !== 'no_detallar') {
-        const extraCategory = motivo === 'cargo_banco' ? 'Cargos Bancarios' : categoriaExtra
-        const extraDate = cycle.closing_date
-        const extraBody: Record<string, unknown> = {
-          amount: diff,
-          currency: 'ARS',
-          category: extraCategory,
-          description: motivo === 'cargo_banco' ? 'Cargo bancario' : 'Gasto no registrado',
-          payment_method: 'CREDIT',
-          card_id: card.id,
-          account_id: null,
-          date: extraDate,
-          is_want: false,
-        }
-
-        const adjRes = await fetch('/api/expenses', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(extraBody),
-        })
-        if (!adjRes.ok) {
-          const errorText = await adjRes.text()
-          throw new Error(errorText || 'Error al registrar el ajuste')
+      if (cycle.source === 'stored') {
+        body.cycle_id = cycle.id
+      } else {
+        body.cycle = {
+          period_month: cycle.period_month.substring(0, 7),
+          closing_date: cycle.closing_date,
+          due_date: cycle.due_date,
         }
       }
 
+      if (adjustment) {
+        body.adjustment = adjustment
+      }
+
+      const response = await fetch('/api/card-payments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      })
+
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
+        throw new Error(data?.error ?? 'Error al registrar el pago')
+      }
+
       onSuccess()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error inesperado')
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : 'Error inesperado')
     } finally {
       setIsSaving(false)
     }
@@ -175,6 +189,23 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
               placeholder="0"
             />
           </div>
+          <div className="mt-2 space-y-1">
+            {(cycle.amount_paid ?? 0) > 0 && (
+              <p className="text-xs text-text-tertiary">
+                Ya registraste {formatAmount(cycle.amount_paid ?? 0, 'ARS')}.
+              </p>
+            )}
+            {!isOpenCycle && remainingAmount > 0 && (
+              <p className="text-xs text-text-tertiary">
+                Si pagas {formatAmount(remainingAmount, 'ARS')} completas este resumen.
+              </p>
+            )}
+            {isOpenCycle && (
+              <p className="text-xs text-text-tertiary">
+                Hoy tenes cargado {formatAmount(cycle.amount, 'ARS')} en este ciclo.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
@@ -182,17 +213,17 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
             <div className="border-b border-border-subtle px-4 py-3.5">
               <p className="mb-2 text-xs text-text-secondary">Cuenta</p>
               <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {accounts.map((a) => (
+                {accounts.map((account) => (
                   <button
-                    key={a.id}
-                    onClick={() => setAccountId(a.id)}
+                    key={account.id}
+                    onClick={() => setAccountId(account.id)}
                     className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      accountId === a.id
+                      accountId === account.id
                         ? 'border-primary bg-primary/15 text-primary'
                         : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
                     }`}
                   >
-                    {a.name}
+                    {account.name}
                   </button>
                 ))}
               </div>
@@ -203,7 +234,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
             <input
               type="date"
               value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
+              onChange={(event) => setFecha(event.target.value)}
               className="border-0 appearance-none bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50"
             />
           </div>
@@ -211,7 +242,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
 
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
           <button
-            onClick={() => setDetailOpen((o) => !o)}
+            onClick={() => setDetailOpen((current) => !current)}
             className="flex w-full items-center justify-between px-4 py-3.5"
           >
             <span className="text-sm text-text-secondary">Gastos registrados</span>
@@ -233,44 +264,46 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           )}
         </div>
 
-        {hasDiff && (
+        {hasAdjustment && (
           <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-              {diff > 0
-                ? `Pagas ${formatAmount(diff, 'ARS')} de mas`
-                : `Pagas ${formatAmount(Math.abs(diff), 'ARS')} de menos`} | Por que?
+              Pagas {formatAmount(extraAmount, 'ARS')} de mas | Por que?
             </p>
 
-            {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((m) => (
-              <button key={m} onClick={() => setMotivo(m)} className="flex w-full items-center gap-3 text-left">
+            {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((option) => (
+              <button
+                key={option}
+                onClick={() => setMotivo(option)}
+                className="flex w-full items-center gap-3 text-left"
+              >
                 <div
                   className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                    motivo === m ? 'border-primary bg-primary' : 'border-border-strong'
+                    motivo === option ? 'border-primary bg-primary' : 'border-border-strong'
                   }`}
                 >
-                  {motivo === m && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                  {motivo === option && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
                 </div>
                 <span className="text-sm text-text-primary">
-                  {m === 'gasto_olvidado'
+                  {option === 'gasto_olvidado'
                     ? 'Gasto olvidado'
-                    : m === 'cargo_banco'
+                    : option === 'cargo_banco'
                       ? 'Cargo del banco'
                       : 'No detallar'}
                 </span>
               </button>
             ))}
 
-            {motivo === 'gasto_olvidado' && diff > 0 && (
+            {motivo === 'gasto_olvidado' && (
               <div className="mt-1 border-t border-border-subtle pt-3">
                 <p className="mb-2 text-[11px] text-text-tertiary">Categoria del gasto olvidado</p>
                 <select
                   value={categoriaExtra}
-                  onChange={(e) => setCategoriaExtra(e.target.value)}
+                  onChange={(event) => setCategoriaExtra(event.target.value)}
                   className="w-full rounded-input border border-border-strong bg-bg-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
                 >
-                  {ADJUSTABLE_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
+                  {ADJUSTABLE_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
                     </option>
                   ))}
                 </select>

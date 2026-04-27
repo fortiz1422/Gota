@@ -385,6 +385,32 @@ export type Database = {
         }
         Relationships: []
       }
+      card_payment_allocations: {
+        Row: {
+          id: string
+          user_id: string
+          expense_id: string
+          card_cycle_id: string
+          amount_applied: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          expense_id: string
+          card_cycle_id: string
+          amount_applied: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          expense_id?: string
+          card_cycle_id?: string
+          amount_applied?: number
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           id: string

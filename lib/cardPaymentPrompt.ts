@@ -4,6 +4,8 @@ export type ActiveDueCycle = {
   periodoDesde: Date
   periodoHasta: Date
   cycleKey: string // YYYY-MM-DD of periodoHasta (closing date)
+  periodMonth: string
+  dueDate: string
 }
 
 export type PromptState = {
@@ -32,7 +34,7 @@ function toYMD(d: Date): string {
  *   periodoDesde = closing_day de dos meses atrás
  */
 export function findActiveDueCycle(card: Card, today: Date): ActiveDueCycle | null {
-  if (card.closing_day === null) return null
+  if (card.closing_day === null || card.due_day === null) return null
 
   const closingDay = card.closing_day
   const dueDay = card.due_day
@@ -63,8 +65,10 @@ export function findActiveDueCycle(card: Card, today: Date): ActiveDueCycle | nu
   }
 
   const cycleKey = toYMD(periodoHasta)
+  const periodMonth = cycleKey.substring(0, 7)
+  const dueDate = toYMD(new Date(todayYear, todayMonth - 1, dueDay))
 
-  return { periodoDesde, periodoHasta, cycleKey }
+  return { periodoDesde, periodoHasta, cycleKey, periodMonth, dueDate }
 }
 
 // ---------------------------------------------------------------------------

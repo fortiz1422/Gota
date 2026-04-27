@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
+import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { todayAR } from '@/lib/format'
 import type { Account, Card } from '@/types/database'
 
@@ -27,6 +28,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
   const [cardId, setCardId] = useState(activeCards[0]?.id ?? '')
   const selectedCard = activeCards.find((card) => card.id === cardId) ?? null
   const [accountId, setAccountId] = useState(selectedCard?.account_id ?? (activeAccounts[0]?.id ?? ''))
+  const selectedAccount = activeAccounts.find((account) => account.id === accountId) ?? null
   const [montoRaw, setMontoRaw] = useState(0)
   const [fecha, setFecha] = useState(todayAR())
   const [isSaving, setIsSaving] = useState(false)
@@ -37,49 +39,53 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
     setAccountId(selectedCard.account_id ?? (activeAccounts[0]?.id ?? ''))
     // Solo se resetea cuando cambia la tarjeta seleccionada.
     // Si depende de activeAccounts, se pisa la cuenta elegida en cada render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId, selectedCard])
 
   const canSubmit = !!selectedCard && !!accountId && !!fecha && montoRaw > 0
 
-  const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const stripped = e.target.value.replace(/\D/g, '')
+  const handleMontoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const stripped = event.target.value.replace(/\D/g, '')
     setMontoRaw(stripped === '' ? 0 : parseInt(stripped, 10))
   }
 
   const handleSubmit = async () => {
     if (!selectedCard || !canSubmit) return
+
     setIsSaving(true)
     setError(null)
 
     try {
-      const res = await fetch('/api/expenses', {
+      const payment_method = selectedAccount
+        ? paymentMethodFromAccountType(selectedAccount.type)
+        : 'DEBIT'
+
+      const response = await fetch('/api/card-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: montoRaw,
           currency: 'ARS',
-          category: 'Pago de Tarjetas',
-          description: `Pago ${selectedCard.name}`,
-          payment_method: 'DEBIT',
           card_id: selectedCard.id,
           account_id: accountId,
+          payment_method,
+          description: `Pago ${selectedCard.name}`,
           date: fecha,
-          is_want: null,
-          is_legacy_card_payment: false,
         }),
       })
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
         throw new Error(data?.error ?? 'Error al registrar el pago')
       }
 
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onClose()
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error al registrar el pago')
+    } catch (submissionError) {
+      setError(submissionError instanceof Error ? submissionError.message : 'Error al registrar el pago')
     } finally {
       setIsSaving(false)
     }
@@ -93,7 +99,9 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
     <Modal open onClose={onClose}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
       <h2 className="text-lg font-semibold text-text-primary">Pago de tarjeta</h2>
-      <p className="mb-5 mt-1 text-xs text-text-tertiary">Registrá un pago desde una de tus cuentas</p>
+      <p className="mb-5 mt-1 text-xs text-text-tertiary">
+        Se aplica primero al resumen pendiente mas cercano. Si no hay uno, queda como adelanto.
+      </p>
 
       {activeCards.length === 0 ? (
         <div className="space-y-4">
@@ -114,7 +122,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
               <label className={labelCls}>Tarjeta</label>
               <select
                 value={cardId}
-                onChange={(e) => setCardId(e.target.value)}
+                onChange={(event) => setCardId(event.target.value)}
                 className={inputCls}
               >
                 {activeCards.map((card) => (
@@ -129,7 +137,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
               <label className={labelCls}>Cuenta</label>
               <select
                 value={accountId}
-                onChange={(e) => setAccountId(e.target.value)}
+                onChange={(event) => setAccountId(event.target.value)}
                 className={inputCls}
                 disabled={activeAccounts.length === 0}
               >
@@ -140,7 +148,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
                 ))}
               </select>
               {activeAccounts.length === 0 && (
-                <p className="mt-1 text-[11px] text-danger">Necesitás al menos una cuenta activa.</p>
+                <p className="mt-1 text-[11px] text-danger">Necesitas al menos una cuenta activa.</p>
               )}
             </div>
 
@@ -164,7 +172,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
               <input
                 type="date"
                 value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
+                onChange={(event) => setFecha(event.target.value)}
                 className={inputCls}
               />
             </div>

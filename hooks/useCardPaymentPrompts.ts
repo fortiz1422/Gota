@@ -8,7 +8,7 @@ import {
   setPromptState,
   paymentMethodFromAccountType,
 } from '@/lib/cardPaymentPrompt'
-import { todayAR, dateInputToISO } from '@/lib/format'
+import { todayAR } from '@/lib/format'
 import type { Account, Card, Currency } from '@/types/database'
 
 export type ResolvedPrompt = {
@@ -26,6 +26,8 @@ type Candidate = {
   periodoDesde: Date
   periodoHasta: Date
   cycleKey: string
+  periodMonth: string
+  dueDate: string
 }
 
 function toYMD(d: Date): string {
@@ -68,6 +70,8 @@ export function useCardPaymentPrompts(
         periodoDesde: cycle.periodoDesde,
         periodoHasta: cycle.periodoHasta,
         cycleKey: cycle.cycleKey,
+        periodMonth: cycle.periodMonth,
+        dueDate: cycle.dueDate,
       })
     }
 
@@ -107,7 +111,7 @@ export function useCardPaymentPrompts(
     return { activePrompt: null }
   }
 
-  const { card, periodoDesde, periodoHasta, cycleKey } = activeCandidate
+  const { card, periodoDesde, periodoHasta, cycleKey, periodMonth, dueDate } = activeCandidate
 
   const onDismiss = () => {
     const state = getPromptState(card.id, cycleKey)
@@ -122,19 +126,22 @@ export function useCardPaymentPrompts(
     const account = accounts.find((a) => a.id === card.account_id)
     const payment_method = account ? paymentMethodFromAccountType(account.type) : 'DEBIT'
 
-    const res = await fetch('/api/expenses', {
+    const res = await fetch('/api/card-payments', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         amount: finalAmount,
         currency: viewCurrency,
-        category: 'Pago de Tarjetas',
-        description: `Pago ${card.name}`,
-        is_want: false,
-        payment_method,
         card_id: card.id,
         account_id: card.account_id ?? null,
-        date: dateInputToISO(todayAR()),
+        payment_method,
+        date: todayAR(),
+        description: `Pago ${card.name}`,
+        cycle: {
+          period_month: periodMonth,
+          closing_date: cycleKey,
+          due_date: dueDate,
+        },
       }),
     })
 
@@ -142,12 +149,20 @@ export function useCardPaymentPrompts(
       throw new Error('Error al registrar el pago')
     }
 
-    setPromptState(card.id, cycleKey, { dismissCount: 0, confirmed: true })
+    const data = (await res.json()) as { fullySettled?: boolean }
+
+    setPromptState(card.id, cycleKey, {
+      dismissCount: 0,
+      confirmed: data.fullySettled === true,
+    })
     setRefreshKey((k) => k + 1)
 
     queryClient.invalidateQueries({
       queryKey: ['card-resumen', card.id, cycleKey, viewCurrency],
     })
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+    queryClient.invalidateQueries({ queryKey: ['analytics'] })
+    queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
   }
 
   return {

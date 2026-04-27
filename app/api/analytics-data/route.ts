@@ -35,7 +35,8 @@ export async function GET(request: Request) {
       .order('created_at', { ascending: true }),
   ])
 
-  const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const currencyParam = searchParams.get('currency')
+  const currency = (currencyParam ?? config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
   const cards = (cardsData ?? []) as Card[]
 
   const [

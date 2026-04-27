@@ -43,7 +43,7 @@ export function DisponibleRealSheet({ open, onClose, saldoVivo, gastosTarjeta, c
         </div>
 
         <div className="flex items-center justify-between py-3.5">
-          <span className="text-sm text-text-secondary">Deuda pendiente de tarjetas</span>
+          <span className="text-sm text-text-secondary">Lo ya registrado en tarjetas</span>
           <span className="text-sm font-semibold tabular-nums text-warning">
             −{formatAmount(gastosTarjeta, currency)}
           </span>
@@ -63,8 +63,8 @@ export function DisponibleRealSheet({ open, onClose, saldoVivo, gastosTarjeta, c
       <div className="mt-5 flex gap-3 rounded-[14px] bg-bg-secondary px-4 py-3.5">
         <Info size={16} weight="light" className="text-text-dim shrink-0 mt-0.5" />
         <p className="text-[12px] text-text-secondary leading-[1.55]">
-          El Disponible Real descuenta toda tu deuda pendiente de tarjetas, incluyendo resúmenes del mes actual y
-          anteriores que todavía no pagaste. Es lo que podés usar sin sorpresas.
+          Comprometido en tarjetas te muestra lo que llevás consumido. Disponible Real te muestra cuánto de tu plata
+          sigue libre hoy.
         </p>
       </div>
     </Modal>

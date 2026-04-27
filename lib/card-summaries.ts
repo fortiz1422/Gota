@@ -1,5 +1,6 @@
 import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
 import { buildCycleDate, mergeResolvedCycles } from '@/lib/card-cycles'
+import { getRemainingCardCycleAmount, hasPartialCardCyclePayment } from '@/lib/card-cycle-payments'
 import { addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import type { Card, CardCycle, Expense } from '@/types/database'
@@ -15,6 +16,8 @@ export type EnrichedCycle = {
   amount: number
   paid_at: string | null
   amount_paid: number | null
+  remaining_amount: number
+  has_partial_payment: boolean
   changed_after_payment: boolean
 }
 
@@ -63,6 +66,8 @@ export function buildEnrichedCardCycles({
 
     const paidAt = cycle.paid_at
     const isPaid = paidAt !== null || cycle.status === 'paid'
+    const remainingAmount = getRemainingCardCycleAmount(amount, cycle.amount_paid)
+    const hasPartialPayment = hasPartialCardCyclePayment(amount, cycle.amount_paid)
     const changedAfterPayment =
       paidAt != null &&
       expenses.some(
@@ -93,6 +98,8 @@ export function buildEnrichedCardCycles({
       amount,
       paid_at: paidAt,
       amount_paid: cycle.amount_paid,
+      remaining_amount: remainingAmount,
+      has_partial_payment: hasPartialPayment,
       changed_after_payment: changedAfterPayment,
     }
   })
@@ -102,5 +109,5 @@ export function sumPendingResumenes(cycles: EnrichedCycle[], currentMonth: strin
   return cycles
     .filter((cycle) => cycle.period_month.substring(0, 7) <= currentMonth)
     .filter((cycle) => cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido')
-    .reduce((sum, cycle) => sum + cycle.amount, 0)
+    .reduce((sum, cycle) => sum + cycle.remaining_amount, 0)
 }

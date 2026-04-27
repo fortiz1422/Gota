@@ -139,11 +139,14 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
     setRevertError(null)
     try {
       const res = await fetch(`/api/card-cycles/${cycleId}/revert`, { method: 'POST' })
-      if (!res.ok) throw new Error()
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Error al revertir el pago.')
+      }
       setRevertingCycleId(null)
       router.refresh()
-    } catch {
-      setRevertError('Error al revertir el pago.')
+    } catch (error) {
+      setRevertError(error instanceof Error ? error.message : 'Error al revertir el pago.')
     } finally {
       setIsReverting(false)
     }
@@ -204,9 +207,11 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
   }
 
   const renderCycleCard = (cycle: EnrichedCycle, isEnCurso: boolean) => {
-    const hasRecordedPayment = cycle.cycleStatus === 'pagado' && cycle.amount_paid != null
-    const paymentDiff = hasRecordedPayment ? cycle.amount - (cycle.amount_paid ?? 0) : 0
-    const showPaymentDiff = hasRecordedPayment && Math.abs(paymentDiff) >= 1
+    const hasRecordedPayment = (cycle.amount_paid ?? 0) > 0
+    const paymentDiff = cycle.amount - (cycle.amount_paid ?? 0)
+    const showPaymentDiff =
+      cycle.cycleStatus === 'pagado' &&
+      Math.abs(paymentDiff) >= 1
 
     return (
       <div key={cycle.id} className="surface-module rounded-card px-4 py-4">
@@ -224,9 +229,13 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                 <p className="type-meta text-text-tertiary">
                   Pago registrado: {formatAmount(cycle.amount_paid ?? 0, 'ARS')}
                 </p>
-                {showPaymentDiff && (
+                {cycle.has_partial_payment ? (
+                  <p className="type-meta font-medium text-warning">
+                    Resta: {formatAmount(cycle.remaining_amount, 'ARS')}
+                  </p>
+                ) : showPaymentDiff && (
                   <p className={`type-meta font-medium ${paymentDiff > 0 ? 'text-warning' : 'text-text-tertiary'}`}>
-                    Diferencia: {formatDiff(paymentDiff)}
+                    Diferencia: {formatDiff(cycle.amount - (cycle.amount_paid ?? 0))}
                   </p>
                 )}
               </div>
@@ -237,6 +246,11 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
               {formatAmount(cycle.amount, 'ARS')}
             </span>
             <CycleStatusPill status={cycle.cycleStatus} />
+            {cycle.has_partial_payment && (
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold text-warning">
+                Pago parcial
+              </span>
+            )}
             {cycle.cycleStatus === 'pagado' && cycle.changed_after_payment && (
               <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold text-warning">
                 Modificado
@@ -340,7 +354,7 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
             onClick={() => setPayingCycle(cycle)}
             className="mt-3 w-full rounded-button border border-primary py-2 text-[13px] font-semibold text-primary transition-opacity active:opacity-70"
           >
-            Pagar resumen
+            {cycle.has_partial_payment ? 'Registrar otro pago' : 'Pagar resumen'}
           </button>
         )}
 
@@ -515,7 +529,12 @@ export function CardDetailClient({ card, accounts, resumenes, upcomingClosingDat
                   onClick={() => setPayingCycle(enCursoCycle)}
                   className="w-full rounded-button bg-primary py-3 text-[13px] font-semibold text-white transition-opacity active:opacity-70"
                 >
-                  Pagar resumen — {formatAmount(enCursoCycle.amount, 'ARS')}
+                  {enCursoCycle.has_partial_payment ? 'Registrar otro pago' : 'Pagar resumen'}
+                  {' — '}
+                  {formatAmount(
+                    enCursoCycle.remaining_amount > 0 ? enCursoCycle.remaining_amount : enCursoCycle.amount,
+                    'ARS',
+                  )}
                 </button>
               )}
 

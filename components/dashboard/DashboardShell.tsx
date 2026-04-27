@@ -120,9 +120,9 @@ export function DashboardShell({
   })
 
   const analyticsQuery = useQuery<AnalyticsApiData>({
-    queryKey: ['analytics', selectedMonth],
+    queryKey: ['analytics', selectedMonth, viewCurrency],
     queryFn: async () => {
-      const res = await fetch(`/api/analytics-data?month=${selectedMonth}`)
+      const res = await fetch(`/api/analytics-data?month=${selectedMonth}&currency=${viewCurrency}`)
       if (!res.ok) throw new Error('analytics fetch failed')
       return res.json()
     },
@@ -162,7 +162,7 @@ export function DashboardShell({
   const invalidateDashboardData = () => {
     queryClient.invalidateQueries({ queryKey: ['dashboard', selectedMonth, viewCurrency] })
     queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
-    queryClient.invalidateQueries({ queryKey: ['analytics', selectedMonth] })
+    queryClient.invalidateQueries({ queryKey: ['analytics', selectedMonth, viewCurrency] })
   }
 
   const { activePrompt } = useCardPaymentPrompts(
@@ -174,10 +174,10 @@ export function DashboardShell({
 
   useEffect(() => {
     queryClient.prefetchQuery({
-      queryKey: ['analytics', selectedMonth],
-      queryFn: () => fetch(`/api/analytics-data?month=${selectedMonth}`).then((r) => r.json()),
+      queryKey: ['analytics', selectedMonth, viewCurrency],
+      queryFn: () => fetch(`/api/analytics-data?month=${selectedMonth}&currency=${viewCurrency}`).then((r) => r.json()),
     })
-  }, [selectedMonth, queryClient])
+  }, [selectedMonth, viewCurrency, queryClient])
 
   useEffect(() => {
     const otherCurrency = viewCurrency === 'ARS' ? 'USD' : 'ARS'
@@ -310,9 +310,9 @@ export function DashboardShell({
             {compromisos && (
               <CommitmentsSummary
                 compromisos={compromisos}
-                totalCommitments={dashboardData?.gastos_tarjeta ?? 0}
+                totalCommitments={compromisos.totalComprometido}
                 pendingStatements={compromisos.totalDebt}
-                currentSpend={Math.max((dashboardData?.gastos_tarjeta ?? 0) - compromisos.totalDebt, 0)}
+                currentSpend={Math.max(compromisos.totalComprometido - compromisos.totalDebt, 0)}
                 currency={viewCurrency}
                 selectedMonth={selectedMonth}
                 amountsVisible={amountsVisible}

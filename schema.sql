@@ -763,6 +763,38 @@ CREATE POLICY "card_cycles_update" ON card_cycles FOR UPDATE
 CREATE POLICY "card_cycles_delete" ON card_cycles FOR DELETE USING (auth.uid() = user_id);
 
 -- ============================================
+-- v2.4.1 — Card Payment Allocations
+-- ============================================
+
+CREATE TABLE IF NOT EXISTS card_payment_allocations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  expense_id UUID NOT NULL REFERENCES expenses(id) ON DELETE CASCADE,
+  card_cycle_id UUID NOT NULL REFERENCES card_cycles(id) ON DELETE CASCADE,
+  amount_applied NUMERIC(12,2) NOT NULL CHECK (amount_applied > 0),
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_card_payment_allocation UNIQUE (expense_id, card_cycle_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_payment_allocations_user_cycle
+  ON card_payment_allocations(user_id, card_cycle_id, created_at DESC);
+
+CREATE INDEX IF NOT EXISTS idx_card_payment_allocations_user_expense
+  ON card_payment_allocations(user_id, expense_id, created_at DESC);
+
+CREATE TRIGGER card_payment_allocations_updated_at
+  BEFORE UPDATE ON card_payment_allocations
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE card_payment_allocations ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "card_payment_allocations_select" ON card_payment_allocations FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "card_payment_allocations_insert" ON card_payment_allocations FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_payment_allocations_update" ON card_payment_allocations FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_payment_allocations_delete" ON card_payment_allocations FOR DELETE USING (auth.uid() = user_id);
+
+-- ============================================
 -- v2.5 — Card Cycles: montos de resumen y pago
 -- ============================================
 

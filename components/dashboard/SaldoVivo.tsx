@@ -187,7 +187,7 @@ export function SaldoVivo({
         <div>
           <p className="type-body text-text-secondary">Disponible real</p>
           <p className="mt-1 type-meta text-text-dim">
-            Ya descuenta deuda y consumos en tarjeta.
+            La plata que realmente te queda para usar hoy.
           </p>
         </div>
         <div className="flex items-center gap-1.5">
