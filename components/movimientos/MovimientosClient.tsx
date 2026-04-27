@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CaretLeft, CaretRight, X } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, SlidersHorizontal, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
-import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
+import { FiltroSheet, EMPTY_FILTERS, countFilters, countAdvancedGroups } from './FiltroSheet'
 import type { ActiveFilters, OrigenFilter } from './FiltroSheet'
 import type {
   Account,
@@ -44,17 +44,33 @@ function formatMonthLabel(ym: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
-const TIPO_LABELS: Record<string, string> = {
-  gasto: 'Gasto',
-  ingreso: 'Ingreso',
-  transferencia: 'Transferencia',
-  suscripcion: 'Suscripción',
+// ─── Quick filter ──────────────────────────────────────────────────────────────
+
+type QuickFilter = 'todos' | 'gastos' | 'ingresos' | 'tarjetas'
+
+const QUICK_FILTER_LABELS: Record<QuickFilter, string> = {
+  todos:    'Todos',
+  gastos:   'Gastos',
+  ingresos: 'Ingresos',
+  tarjetas: 'Tarjetas',
 }
 
+function deriveQuickFilter(f: ActiveFilters): QuickFilter {
+  const { tipos, origenes } = f
+  if (tipos.length === 1 && tipos[0] === 'gasto'   && origenes.length === 0) return 'gastos'
+  if (tipos.length === 1 && tipos[0] === 'ingreso'  && origenes.length === 0) return 'ingresos'
+  if (origenes.length === 1 && origenes[0] === 'tarjeta' && tipos.length === 0) return 'tarjetas'
+  if (tipos.length === 0 && origenes.length === 0) return 'todos'
+  return 'todos'
+}
+
+// ─── Filter summary ────────────────────────────────────────────────────────────
+
+const TIPO_LABELS: Record<string, string> = {
+  gasto: 'Gasto', ingreso: 'Ingreso', transferencia: 'Transferencia', suscripcion: 'Suscripción',
+}
 const ORIGEN_LABELS: Record<string, string> = {
-  percibido: 'Percibido',
-  tarjeta: 'Tarjeta',
-  pago_tarjeta: 'Pago tarjeta',
+  percibido: 'Percibido', tarjeta: 'Tarjeta', pago_tarjeta: 'Pago tarjeta',
 }
 
 function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
@@ -82,8 +98,14 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]
 
   f.monedas.forEach((m) => parts.push(m))
   if (f.quincena) parts.push(f.quincena === 1 ? '1ra quincena' : '2da quincena')
+  if (f.fecha === 'este_mes')    parts.push('Este mes')
+  if (f.fecha === 'ultimos_7')   parts.push('Últ. 7 días')
+  if (f.montoMin)                parts.push(`Mín $${f.montoMin}`)
+  if (f.montoMax)                parts.push(`Máx $${f.montoMax}`)
   return parts.join(' · ')
 }
+
+// ─── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   initialMonth: string
@@ -139,14 +161,14 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
 
       try {
         const params = new URLSearchParams({ month, page: String(pg) })
-        if (filters.tipos.length > 0) params.set('tipos', filters.tipos.join(','))
-        if (filters.origenes.length > 0) params.set('origenes', filters.origenes.join(','))
-        if (filters.tarjetas.length > 0) params.set('tarjetas', filters.tarjetas.join(','))
-        if (filters.cuentas.length > 0) params.set('cuentas', filters.cuentas.join(','))
-        if (filters.categorias.length > 0)
-          params.set('categorias', filters.categorias.join(','))
-        if (filters.monedas.length > 0) params.set('monedas', filters.monedas.join(','))
-        if (filters.quincena) params.set('quincena', String(filters.quincena))
+        if (filters.tipos.length > 0)      params.set('tipos', filters.tipos.join(','))
+        if (filters.origenes.length > 0)   params.set('origenes', filters.origenes.join(','))
+        if (filters.tarjetas.length > 0)   params.set('tarjetas', filters.tarjetas.join(','))
+        if (filters.cuentas.length > 0)    params.set('cuentas', filters.cuentas.join(','))
+        if (filters.categorias.length > 0) params.set('categorias', filters.categorias.join(','))
+        if (filters.monedas.length > 0)    params.set('monedas', filters.monedas.join(','))
+        if (filters.quincena)              params.set('quincena', String(filters.quincena))
+        // fecha / monto / ordenar: UI-only por ahora; pendiente de soporte en API
 
         const res = await fetch(`/api/movimientos?${params}`)
         if (!res.ok) throw new Error('fetch failed')
@@ -203,7 +225,18 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     })
   }
 
-  const activeCount = countFilters(activeFilters)
+  const handleQuickFilter = (qf: QuickFilter) => {
+    setActiveFilters((prev) => ({
+      ...prev,
+      tipos:    qf === 'gastos' ? ['gasto'] : qf === 'ingresos' ? ['ingreso'] : [],
+      origenes: qf === 'tarjetas' ? ['tarjeta'] : [],
+    }))
+  }
+
+  const activeCount    = countFilters(activeFilters)
+  const advancedCount  = countAdvancedGroups(activeFilters)
+  const currentQuickFilter = deriveQuickFilter(activeFilters)
+
   const activeOrigen: OrigenFilter | null =
     activeFilters.origenes.length === 1 ? activeFilters.origenes[0] : null
 
@@ -213,6 +246,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         className="mx-auto flex max-w-md flex-col gap-5 px-4 pt-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
       >
+        {/* Month nav */}
         <div className="flex items-center justify-between pt-5">
           <div className="flex items-center gap-1">
             <button
@@ -243,6 +277,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           />
         </div>
 
+        {/* Hero: 3 pills paralelos */}
         <StripOperativo
           percibidos={stats.percibidos}
           tarjeta={stats.tarjeta}
@@ -252,6 +287,44 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           onOrigenClick={handleOrigenClick}
         />
 
+        {/* Quick filter pills + sliders button */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
+          {(Object.keys(QUICK_FILTER_LABELS) as QuickFilter[]).map((qf) => (
+            <button
+              key={qf}
+              onClick={() => handleQuickFilter(qf)}
+              className={[
+                'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-medium border transition-colors',
+                currentQuickFilter === qf
+                  ? 'bg-primary/10 border-primary/35 text-primary font-semibold'
+                  : 'bg-bg-primary border-[color:var(--color-border-strong)] text-text-secondary',
+              ].join(' ')}
+            >
+              {QUICK_FILTER_LABELS[qf]}
+            </button>
+          ))}
+
+          {/* Filtros avanzados */}
+          <button
+            onClick={() => setFilterOpen(true)}
+            aria-label="Filtros avanzados"
+            className={[
+              'relative ml-auto shrink-0 flex h-8 w-8 items-center justify-center rounded-full border transition-colors',
+              advancedCount > 0
+                ? 'bg-primary/10 border-primary/35 text-primary'
+                : 'bg-bg-primary border-[color:var(--color-border-strong)] text-text-secondary',
+            ].join(' ')}
+          >
+            <SlidersHorizontal size={15} weight="bold" />
+            {advancedCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
+                {advancedCount}
+              </span>
+            )}
+          </button>
+        </div>
+
+        {/* Active filter summary chip */}
         {activeCount > 0 && (
           <div className="flex items-center justify-between py-0.5">
             <button
@@ -274,6 +347,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           </div>
         )}
 
+        {/* Movement list */}
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
