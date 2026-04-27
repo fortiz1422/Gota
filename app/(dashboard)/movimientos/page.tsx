@@ -93,7 +93,7 @@ export default async function MovimientosPage({
   >[]
   const statsCurrency: 'ARS' | 'USD' = 'ARS'
   const percibidos = statsExpenses
-    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
+    .filter((e) => (isPerceivedExpense(e) || isCardPayment(e)) && e.currency === statsCurrency)
     .reduce((s, e) => s + e.amount, 0)
   const tarjeta = statsExpenses
     .filter((e) => isCreditAccruedExpense(e) && e.currency === statsCurrency)
@@ -112,7 +112,7 @@ export default async function MovimientosPage({
 
   let filteredExpenses = allExpenses
   if (soloPercibidos === 'true') {
-    filteredExpenses = filteredExpenses.filter((e) => isPerceivedExpense(e))
+    filteredExpenses = filteredExpenses.filter((e) => isPerceivedExpense(e) || isCardPayment(e))
   }
   if (categoria) {
     filteredExpenses = filteredExpenses.filter((e) => e.category === categoria)

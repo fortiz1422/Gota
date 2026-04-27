@@ -70,6 +70,10 @@ function toggle<T>(arr: T[], val: T): T[] {
   return arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]
 }
 
+function toggleExclusive<T>(arr: T[], val: T): T[] {
+  return arr.length === 1 && arr[0] === val ? [] : [val]
+}
+
 function origenVisible(tipos: TipoFilter[]): boolean {
   return tipos.length === 0 || tipos.some((t) => t === 'gasto' || t === 'suscripcion')
 }
@@ -137,11 +141,16 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
   const total        = countFilters(f)
 
   const setTipos = (tipos: TipoFilter[]) =>
-    setF((prev) => ({
-      ...prev,
-      tipos,
-      origenes: origenVisible(tipos) ? prev.origenes : [],
-    }))
+    setF((prev) => {
+      const supportsExpenseFilters = origenVisible(tipos)
+      return {
+        ...prev,
+        tipos,
+        origenes: supportsExpenseFilters ? prev.origenes : [],
+        tarjetas: supportsExpenseFilters ? prev.tarjetas : [],
+        categorias: supportsExpenseFilters ? prev.categorias : [],
+      }
+    })
 
   // Al cambiar origen: si se pasa a modo tarjeta limpia cuentas (y viceversa)
   const setOrigenes = (newOrigenes: OrigenFilter[]) => {
@@ -271,7 +280,7 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
         )}
 
         {/* 4. Categoría */}
-        {categories.length > 0 && (
+        {showOrigen && categories.length > 0 && (
           <div>
             <SectionHeader
               label="Categoría"
@@ -302,7 +311,7 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
             {MONEDA_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() => setF((prev) => ({ ...prev, monedas: toggle(prev.monedas, value) }))}
+                onClick={() => setF((prev) => ({ ...prev, monedas: toggleExclusive(prev.monedas, value) }))}
                 className={f.monedas.includes(value) ? CHIP_SELECTED : CHIP_DEFAULT}
               >
                 {label}

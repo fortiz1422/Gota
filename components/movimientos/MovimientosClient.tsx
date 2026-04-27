@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CaretLeft, CaretRight, X } from '@phosphor-icons/react'
+import { ArrowCircleDown, ArrowCircleUp, CaretLeft, CaretRight, CreditCard, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
@@ -23,6 +23,8 @@ type ApiMovement =
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
   | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+
+type QuickFilterKey = 'all' | 'gastos' | 'ingresos' | 'tarjetas'
 
 export interface ApiResponse {
   movements: ApiMovement[]
@@ -57,10 +59,26 @@ const ORIGEN_LABELS: Record<string, string> = {
   pago_tarjeta: 'Pago tarjeta',
 }
 
+function isPercibidosOrigen(origenes: OrigenFilter[]): boolean {
+  return (
+    origenes.length === 2 &&
+    origenes.includes('percibido') &&
+    origenes.includes('pago_tarjeta')
+  )
+}
+
+function matchesSet<T extends string>(current: T[], target: T[]): boolean {
+  return current.length === target.length && target.every((item) => current.includes(item))
+}
+
 function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
   const parts: string[] = []
   f.tipos.forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
-  f.origenes.forEach((o) => parts.push(ORIGEN_LABELS[o] ?? o))
+  if (isPercibidosOrigen(f.origenes)) {
+    parts.push('Percibidos')
+  } else {
+    f.origenes.forEach((o) => parts.push(ORIGEN_LABELS[o] ?? o))
+  }
 
   if (f.tarjetas.length === 1) {
     parts.push(cards.find((c) => c.id === f.tarjetas[0])?.name ?? 'Tarjeta')
@@ -80,7 +98,11 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]
     parts.push(`${f.categorias.length} categ.`)
   }
 
-  f.monedas.forEach((m) => parts.push(m))
+  if (f.monedas.length > 0) {
+    f.monedas.forEach((m) => parts.push(m))
+  } else if (parts.length > 0) {
+    parts.push('Ambas')
+  }
   if (f.quincena) parts.push(f.quincena === 1 ? '1ra quincena' : '2da quincena')
   return parts.join(' · ')
 }
@@ -99,7 +121,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     return {
       ...EMPTY_FILTERS,
       categorias: [initialCategoria],
-      origenes: initialSoloPercibidos ? ['percibido' as const] : [],
+      origenes: initialSoloPercibidos ? ['percibido', 'pago_tarjeta'] : [],
     }
   })
   const [filterOpen, setFilterOpen] = useState(false)
@@ -198,14 +220,77 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
 
   const handleOrigenClick = (origen: OrigenFilter) => {
     setActiveFilters((prev) => {
+      if (origen === 'percibido') {
+        return {
+          ...prev,
+          origenes: isPercibidosOrigen(prev.origenes) ? [] : ['percibido', 'pago_tarjeta'],
+        }
+      }
       const already = prev.origenes.length === 1 && prev.origenes[0] === origen
       return { ...prev, origenes: already ? [] : [origen] }
     })
   }
 
+  const handleQuickFilter = (quick: QuickFilterKey) => {
+    setActiveFilters((prev) => {
+      const preservedBase = {
+        cuentas: prev.cuentas,
+        monedas: prev.monedas,
+        quincena: prev.quincena,
+      }
+
+      switch (quick) {
+        case 'all':
+          return EMPTY_FILTERS
+        case 'gastos':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['gasto', 'suscripcion'],
+            categorias: prev.categorias,
+          }
+        case 'ingresos':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['ingreso'],
+          }
+        case 'tarjetas':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['gasto', 'suscripcion'],
+            origenes: ['tarjeta', 'pago_tarjeta'],
+            tarjetas: prev.tarjetas,
+            categorias: prev.categorias,
+          }
+      }
+    })
+  }
+
   const activeCount = countFilters(activeFilters)
   const activeOrigen: OrigenFilter | null =
-    activeFilters.origenes.length === 1 ? activeFilters.origenes[0] : null
+    isPercibidosOrigen(activeFilters.origenes)
+      ? 'percibido'
+      : activeFilters.origenes.length === 1
+        ? activeFilters.origenes[0]
+        : null
+  const isAllQuick = activeCount === 0
+  const isGastosQuick =
+    matchesSet(activeFilters.tipos, ['gasto', 'suscripcion']) &&
+    activeFilters.origenes.length === 0
+  const isIngresosQuick =
+    matchesSet(activeFilters.tipos, ['ingreso']) &&
+    activeFilters.origenes.length === 0
+  const isTarjetasQuick =
+    matchesSet(activeFilters.tipos, ['gasto', 'suscripcion']) &&
+    matchesSet(activeFilters.origenes, ['tarjeta', 'pago_tarjeta'])
+
+  const quickChipClass = (active: boolean) =>
+    [
+      'glass-1 shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
+      active ? 'bg-primary text-white border-primary' : 'text-text-secondary',
+    ].join(' ')
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -252,6 +337,57 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           onOrigenClick={handleOrigenClick}
         />
 
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('all')}
+            className={quickChipClass(isAllQuick)}
+          >
+            Todos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('gastos')}
+            className={`${quickChipClass(isGastosQuick)} flex items-center gap-1.5`}
+          >
+            <ArrowCircleDown weight="regular" size={14} />
+            Gastos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('ingresos')}
+            className={`${quickChipClass(isIngresosQuick)} flex items-center gap-1.5`}
+          >
+            <ArrowCircleUp weight="regular" size={14} />
+            Ingresos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('tarjetas')}
+            className={`${quickChipClass(isTarjetasQuick)} flex items-center gap-1.5`}
+          >
+            <CreditCard weight="regular" size={14} />
+            Tarjetas
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="glass-1 relative shrink-0 rounded-pill px-3.5 py-1.5 text-text-secondary transition-colors active:opacity-60"
+            aria-label="Abrir filtros avanzados"
+          >
+            <Funnel weight="regular" size={14} />
+            {activeCount > 0 && (
+              <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
+                {activeCount}
+              </span>
+            )}
+          </button>
+        </div>
+
         {activeCount > 0 && (
           <div className="flex items-center justify-between py-0.5">
             <button
@@ -296,11 +432,6 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
             accounts={accounts}
             cards={cards}
             onRefresh={handleRefresh}
-            activeCount={activeCount}
-            onOpenFilters={() => setFilterOpen(true)}
-            onClearFilters={() => setActiveFilters(EMPTY_FILTERS)}
-            activeFilterSummary={buildFilterSummary(activeFilters, accounts, cards)}
-            showActiveFilter={activeCount > 0}
           />
         )}
       </div>

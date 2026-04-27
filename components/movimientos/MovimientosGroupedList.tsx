@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowCircleUp, ArrowsLeftRight, Funnel, TrendUp } from '@phosphor-icons/react'
+import { ArrowCircleUp, ArrowsLeftRight, TrendUp } from '@phosphor-icons/react'
 import { formatAmount, formatDate, todayAR } from '@/lib/format'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
@@ -67,11 +67,6 @@ interface Props {
   accounts: Account[]
   cards: Card[]
   onRefresh: () => void
-  activeCount: number
-  onOpenFilters: () => void
-  onClearFilters: () => void
-  activeFilterSummary: string
-  showActiveFilter: boolean
 }
 
 export function MovimientosGroupedList({
@@ -82,11 +77,6 @@ export function MovimientosGroupedList({
   accounts,
   cards,
   onRefresh,
-  activeCount,
-  onOpenFilters,
-  onClearFilters,
-  activeFilterSummary,
-  showActiveFilter,
 }: Props) {
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null)
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null)
@@ -105,22 +95,8 @@ export function MovimientosGroupedList({
     <div>
       {grouped.map(([date, items], groupIndex) => (
         <div key={date}>
-          <div className="flex items-center justify-between py-3">
+          <div className="py-3">
             <span className="text-[12px] capitalize text-text-dim">{formatDayLabel(date)}</span>
-            {groupIndex === 0 && (
-              <button
-                onClick={onOpenFilters}
-                className="relative flex h-8 w-8 items-center justify-center rounded-full text-text-secondary transition-opacity hover:opacity-70 active:opacity-50"
-                aria-label="Filtrar movimientos"
-              >
-                <Funnel size={18} weight="light" />
-                {activeCount > 0 && (
-                  <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
-                    {activeCount}
-                  </span>
-                )}
-              </button>
-            )}
           </div>
 
           <div>

@@ -39,6 +39,7 @@ export async function GET(request: Request) {
   const cuentas = (searchParams.get('cuentas') ?? '').split(',').filter(Boolean)
   const categorias = (searchParams.get('categorias') ?? '').split(',').filter(Boolean)
   const monedas = (searchParams.get('monedas') ?? '').split(',').filter(Boolean) as MonedaFilter[]
+  const activeMonedas = monedas.length >= 2 ? [] : monedas
   const quincenaParam = parseInt(searchParams.get('quincena') ?? '0', 10)
   const quincena = quincenaParam === 1 || quincenaParam === 2 ? (quincenaParam as 1 | 2) : null
 
@@ -139,10 +140,11 @@ export async function GET(request: Request) {
     'amount' | 'currency' | 'payment_method' | 'category'
   >[]
 
-  const statsCurrency: 'ARS' | 'USD' = monedas.length === 1 && monedas[0] === 'USD' ? 'USD' : 'ARS'
+  const statsCurrency: 'ARS' | 'USD' =
+    activeMonedas.length === 1 && activeMonedas[0] === 'USD' ? 'USD' : 'ARS'
 
   const percibidos = statsExpenses
-    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
+    .filter((e) => (isPerceivedExpense(e) || isCardPayment(e)) && e.currency === statsCurrency)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const tarjeta = statsExpenses
@@ -174,8 +176,8 @@ export async function GET(request: Request) {
     })
   }
 
-  if (monedas.length > 0) {
-    filteredExpenses = filteredExpenses.filter((e) => monedas.includes(e.currency))
+  if (activeMonedas.length > 0) {
+    filteredExpenses = filteredExpenses.filter((e) => activeMonedas.includes(e.currency))
   }
 
   if (tarjetas.length > 0) {
@@ -198,17 +200,17 @@ export async function GET(request: Request) {
   }
 
   let filteredIncome = allIncome
-  if (monedas.length > 0) {
-    filteredIncome = filteredIncome.filter((e) => monedas.includes(e.currency))
+  if (activeMonedas.length > 0) {
+    filteredIncome = filteredIncome.filter((e) => activeMonedas.includes(e.currency))
   }
   if (cuentas.length > 0) {
     filteredIncome = filteredIncome.filter((e) => e.account_id != null && cuentas.includes(e.account_id))
   }
 
   let filteredTransfers = allTransfers
-  if (monedas.length > 0) {
+  if (activeMonedas.length > 0) {
     filteredTransfers = filteredTransfers.filter(
-      (t) => monedas.includes(t.currency_from) || monedas.includes(t.currency_to)
+      (t) => activeMonedas.includes(t.currency_from) || activeMonedas.includes(t.currency_to)
     )
   }
   if (cuentas.length > 0) {
@@ -227,7 +229,16 @@ export async function GET(request: Request) {
     filteredTransfers = []
   }
 
-  const filteredYield = categorias.length > 0 ? [] : allYield
+  let filteredYield = allYield
+  if (origenes.length > 0 || categorias.length > 0 || tarjetas.length > 0) {
+    filteredYield = []
+  }
+  if (cuentas.length > 0) {
+    filteredYield = filteredYield.filter((ya) => cuentas.includes(ya.account_id))
+  }
+  if (activeMonedas.length > 0 && !activeMonedas.includes('ARS')) {
+    filteredYield = []
+  }
   const yieldMovements: ApiMovement[] = filteredYield.map((ya) => ({
     kind: 'yield' as const,
     data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' },
@@ -262,7 +273,8 @@ export async function GET(request: Request) {
   const offset = (page - 1) * PAGE_SIZE
   const movements = allMovements.slice(offset, offset + PAGE_SIZE)
 
-  const sumCurrency: 'ARS' | 'USD' = monedas.length === 1 && monedas[0] === 'USD' ? 'USD' : 'ARS'
+  const sumCurrency: 'ARS' | 'USD' =
+    activeMonedas.length === 1 && activeMonedas[0] === 'USD' ? 'USD' : 'ARS'
 
   const expenseAmtTotal = filteredExpenses
     .filter((e) => e.currency === sumCurrency)
