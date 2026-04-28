@@ -171,26 +171,24 @@ export function AnalyticsClient({
 
           {displayCategorias.length > 0 && (
             <section className="mt-6 px-5">
-              <div className={movers.featuredInsight ? '' : 'mb-3'}>
-                <h3 className="type-title text-text-primary whitespace-nowrap overflow-hidden text-ellipsis">
+              <div className="mb-3 flex items-center gap-2">
+                <h3 className="type-title text-text-primary">
                   Qué movió el mes
                 </h3>
                 {movers.featuredInsight ? (
-                  <p
+                  <span
+                    className="ml-auto flex-shrink-0"
                     style={{
-                      display: 'inline-block',
-                      marginTop: 6,
-                      marginBottom: 12,
-                      fontSize: 11,
-                      fontWeight: 500,
-                      color: '#7A3010',
-                      background: '#FAEEDA',
+                      fontSize: 10,
+                      fontWeight: 700,
+                      color: 'var(--color-warning)',
+                      background: 'var(--color-warning-soft)',
                       borderRadius: 20,
-                      padding: '5px 12px',
+                      padding: '3px 8px',
                     }}
                   >
                     {movers.featuredInsight.label}
-                  </p>
+                  </span>
                 ) : null}
               </div>
 
