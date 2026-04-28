@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { CaretRight } from '@phosphor-icons/react'
+import { CaretRight, CreditCard } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 
@@ -71,13 +71,18 @@ export function CommitmentsSummary({
           </div>
         ) : (
           <>
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <p className="type-body text-text-secondary">Comprometido en tarjetas</p>
-                <p className="mt-1 type-meta text-text-dim">{footerText}</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+                  <CreditCard size={22} weight="regular" className="text-primary" />
+                </div>
+                <div className="min-w-0">
+                  <p className="type-body text-text-secondary">Comprometido en tarjetas</p>
+                  <p className="mt-1 type-meta text-text-dim">{footerText}</p>
+                </div>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="type-body-lg tabular-nums text-text-primary">
+              <div className="flex shrink-0 items-center gap-1.5">
+                <span className="whitespace-nowrap type-body-lg tabular-nums text-text-primary">
                   {amountsVisible ? formatAmount(total, currency) : maskAmount(currency)}
                 </span>
                 <CaretRight size={13} weight="bold" className="mt-0.5 text-text-dim" />

@@ -1,21 +1,27 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { ArrowLineDown, CaretLeft } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
-import { TitularHero } from './TitularHero'
-import { InsightChips } from './InsightChips'
-import { CategoriaRow } from './CategoriaRow'
 import { AnalysisView } from './AnalysisView'
-import { buildHeroOutput } from '@/lib/heroEngine'
-import { readHeroCache } from '@/lib/heroEngine/cache'
-import type { InsightResult } from '@/lib/heroEngine'
+import { AnalyticsEvolution } from './AnalyticsEvolution'
+import { AnalyticsHero } from './AnalyticsHero'
+import { AnalyticsModeToggle } from './AnalyticsModeToggle'
+import { CategoriaRow } from './CategoriaRow'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
-import type { Expense, Card, Subscription } from '@/types/database'
+import {
+  resolveAnalyticsEvolution,
+  resolveAnalyticsHero,
+  resolveAnalyticsMovers,
+  type AnalyticsComparisonContext,
+  type AnalyticsMode,
+  type MonthlySeriesPoint,
+} from '@/lib/analytics/analytics-overview'
+import type { Card, Expense, Subscription } from '@/types/database'
 
 type Drill = 'fuga' | 'habitos' | 'compromisos'
 
@@ -33,6 +39,8 @@ interface Props {
   cards: Card[]
   selectedMonth: string
   earliestDataMonth?: string
+  monthlySeries: MonthlySeriesPoint[]
+  comparisonContext: AnalyticsComparisonContext
   initialDrill?: Drill | null
 }
 
@@ -40,40 +48,61 @@ export function AnalyticsClient({
   metrics,
   compromisos,
   rawExpenses,
-  subscriptions,
-  cards,
   selectedMonth,
   earliestDataMonth,
+  monthlySeries,
+  comparisonContext,
   initialDrill,
 }: Props) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
-  const [soloPercibidos, setSoloPercibidos] = useState(false)
+  const [mode, setMode] = useState<AnalyticsMode>('percibido_devengado')
   const [insightsOpen, setInsightsOpen] = useState(Boolean(initialDrill))
   const [drill, setDrill] = useState<Drill | null>(initialDrill ?? null)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
-  const [hero, setHero] = useState<InsightResult | null>(() => {
-    const cached = readHeroCache()
-    return cached
-      ? { titular: cached.titular, sentiment: cached.sentiment, chips: cached.chips }
-      : null
-  })
-
-  useEffect(() => {
-    const result = buildHeroOutput(metrics, rawExpenses, cards, subscriptions, compromisos)
-    setHero(result)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedMonth])
 
   const { currency } = metrics
+  const isPercibido = mode === 'percibido'
 
   const displayCategorias = useMemo(() => {
-    if (!soloPercibidos) return metrics.categorias
-    const filtered = rawExpenses.filter((e) => e.payment_method !== 'CREDIT')
+    if (!isPercibido) return metrics.categorias
+    const filtered = rawExpenses.filter((expense) => expense.payment_method !== 'CREDIT')
     return computeMetrics(filtered, metrics.ingresoMes, metrics.currency, selectedMonth).categorias
-  }, [soloPercibidos, rawExpenses, metrics, selectedMonth])
+  }, [isPercibido, rawExpenses, metrics, selectedMonth])
 
   const visibleCategorias = expanded ? displayCategorias : displayCategorias.slice(0, 5)
+
+  const hero = useMemo(
+    () =>
+      resolveAnalyticsHero({
+        mode,
+        monthlySeries,
+        comparisonContext,
+        metrics,
+        compromisos,
+      }),
+    [mode, monthlySeries, comparisonContext, metrics, compromisos],
+  )
+
+  const evolution = useMemo(
+    () =>
+      resolveAnalyticsEvolution({
+        mode,
+        monthlySeries,
+        comparisonContext,
+      }),
+    [mode, monthlySeries, comparisonContext],
+  )
+
+  const movers = useMemo(
+    () =>
+      resolveAnalyticsMovers({
+        metrics,
+        rows: displayCategorias,
+        compromisos,
+      }),
+    [metrics, displayCategorias, compromisos],
+  )
 
   function handleSetDrill(nextDrill: Drill | null) {
     setDrill(nextDrill)
@@ -92,7 +121,7 @@ export function AnalyticsClient({
             className="flex items-center gap-1 text-[15px] font-semibold text-primary"
           >
             <CaretLeft weight="bold" size={16} />
-            Diario
+            Análisis
           </button>
           <h2 className="type-title text-text-primary">
             {drill !== null ? drillTitles[drill] : 'Insights'}
@@ -117,102 +146,84 @@ export function AnalyticsClient({
 
       {!insightsOpen ? (
         <>
-          {hero ? (
-            <TitularHero titular={hero.titular} sentiment={hero.sentiment} />
-          ) : (
-            <div className="px-5 pb-2 pt-4">
-              <div className="mt-2 h-7 w-3/4 animate-pulse rounded-lg bg-bg-tertiary" />
-              <div className="mt-2 h-7 w-1/2 animate-pulse rounded-lg bg-bg-tertiary" />
+          <AnalyticsHero hero={hero} currency={currency} />
+
+          <AnalyticsModeToggle
+            mode={mode}
+            onChange={(nextMode) => {
+              setMode(nextMode)
+              setExpanded(false)
+            }}
+          />
+
+          <AnalyticsEvolution evolution={evolution} currency={currency} comparisonContext={comparisonContext} />
+
+          {!metrics.hasIngreso && (
+            <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
+              <p className="type-meta text-text-primary">
+                Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
+                <Link href="/settings" className="underline">
+                  Ir a configuración
+                </Link>
+              </p>
             </div>
           )}
 
-          {!metrics.esPrimerosDias && (
-            <>
-              {hero && <InsightChips chips={hero.chips} />}
-
-              {!metrics.hasIngreso && (
-                <div className="mx-5 mb-3 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
-                  <p className="type-meta text-text-primary">
-                    Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
-                    <Link href="/settings" className="underline">
-                      Ir a configuración
-                    </Link>
+          {displayCategorias.length > 0 && (
+            <section className="mt-6 px-5">
+              <div className={movers.featuredInsight ? '' : 'mb-3'}>
+                <h3 className="type-title text-text-primary whitespace-nowrap overflow-hidden text-ellipsis">
+                  Qué movió el mes
+                </h3>
+                {movers.featuredInsight ? (
+                  <p
+                    style={{
+                      display: 'inline-block',
+                      marginTop: 6,
+                      marginBottom: 12,
+                      fontSize: 11,
+                      fontWeight: 500,
+                      color: '#7A3010',
+                      background: '#FAEEDA',
+                      borderRadius: 20,
+                      padding: '5px 12px',
+                    }}
+                  >
+                    {movers.featuredInsight.label}
                   </p>
+                ) : null}
+              </div>
+
+              {visibleCategorias.map((cat, idx) => (
+                <div
+                  key={cat.category}
+                  className={idx >= 5 ? 'slide-up' : undefined}
+                  style={idx >= 5 ? { animationDelay: `${(idx - 5) * 40}ms` } : undefined}
+                >
+                  <CategoriaRow
+                    cat={cat}
+                    currency={currency}
+                    mode={mode}
+                    onClick={() =>
+                      router.push(
+                        `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${isPercibido}`,
+                      )
+                    }
+                  />
+                </div>
+              ))}
+
+              {displayCategorias.length > 5 && (
+                <div className="mb-4 mt-2 flex justify-center">
+                  <button
+                    onClick={() => setExpanded(!expanded)}
+                    className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
+                  >
+                    {expanded ? 'Ver menos' : `Ver todas (${displayCategorias.length})`}
+                  </button>
                 </div>
               )}
-
-              {displayCategorias.length > 0 && (
-                <section className="mt-2 px-5">
-                  <div className="mb-3 flex items-center justify-between">
-                    <p className="type-label text-text-secondary">Este mes gastaste en</p>
-                    <button
-                      onClick={() => {
-                        setSoloPercibidos(!soloPercibidos)
-                        setExpanded(false)
-                      }}
-                      className="flex items-center gap-1.5"
-                      aria-pressed={soloPercibidos}
-                    >
-                      <span
-                        className="text-[11px] font-medium transition-colors"
-                        style={{ color: soloPercibidos ? '#2178A8' : '#90A4B0' }}
-                      >
-                        Solo percibidos
-                      </span>
-                      <span
-                        className="relative inline-flex shrink-0 rounded-full transition-colors duration-200"
-                        style={{
-                          width: 28,
-                          height: 16,
-                          backgroundColor: soloPercibidos ? '#2178A8' : '#C8D6DF',
-                        }}
-                      >
-                        <span
-                          className="absolute top-px rounded-full bg-white shadow transition-transform duration-200"
-                          style={{
-                            width: 14,
-                            height: 14,
-                            transform: soloPercibidos ? 'translateX(13px)' : 'translateX(1px)',
-                          }}
-                        />
-                      </span>
-                    </button>
-                  </div>
-
-                  {visibleCategorias.map((cat, idx) => (
-                    <div
-                      key={cat.category}
-                      className={idx >= 5 ? 'slide-up' : undefined}
-                      style={
-                        idx >= 5 ? { animationDelay: `${(idx - 5) * 40}ms` } : undefined
-                      }
-                    >
-                      <CategoriaRow
-                        cat={cat}
-                        currency={currency}
-                        soloPercibidos={soloPercibidos}
-                        onClick={() =>
-                          router.push(
-                            `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${soloPercibidos}`,
-                          )
-                        }
-                      />
-                    </div>
-                  ))}
-
-                  {displayCategorias.length > 5 && (
-                    <div className="mb-4 mt-2 flex justify-center">
-                      <button
-                        onClick={() => setExpanded(!expanded)}
-                        className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
-                      >
-                        {expanded ? 'Ver menos' : `Ver todas (${displayCategorias.length})`}
-                      </button>
-                    </div>
-                  )}
-                </section>
-              )}
-            </>
+            </section>
           )}
         </>
       ) : (

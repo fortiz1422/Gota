@@ -3,8 +3,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { AnalyticsClient } from './AnalyticsClient'
-import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
+import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import type {
+  AnalyticsComparisonContext,
+  MonthlySeriesPoint,
+} from '@/lib/analytics/analytics-overview'
 import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
 
 export type AnalyticsApiData = {
@@ -17,6 +21,8 @@ export type AnalyticsApiData = {
   currency: 'ARS' | 'USD'
   earliestDataMonth: string | null
   selectedMonth: string
+  monthlySeries: MonthlySeriesPoint[]
+  comparisonContext: AnalyticsComparisonContext
 }
 
 interface Props {
@@ -68,6 +74,8 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     cards,
     currency,
     earliestDataMonth,
+    monthlySeries,
+    comparisonContext,
   } = data
 
   const today = new Date()
@@ -95,6 +103,8 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
       cards={cards}
       selectedMonth={selectedMonth}
       earliestDataMonth={earliestDataMonth ?? undefined}
+      monthlySeries={monthlySeries}
+      comparisonContext={comparisonContext}
       initialDrill={initialDrill}
     />
   )

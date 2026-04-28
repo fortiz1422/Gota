@@ -22,11 +22,11 @@ function getCategoryNote(cat: CategoriaMetric, currency: 'ARS' | 'USD'): string 
 interface Props {
   cat: CategoriaMetric
   currency: 'ARS' | 'USD'
-  soloPercibidos: boolean
+  mode: 'percibido' | 'percibido_devengado'
   onClick: () => void
 }
 
-export function CategoriaRow({ cat, currency, soloPercibidos, onClick }: Props) {
+export function CategoriaRow({ cat, currency, mode, onClick }: Props) {
   const tipoMeta = TIPO_LABEL[cat.tipo]
 
   return (
@@ -59,17 +59,26 @@ export function CategoriaRow({ cat, currency, soloPercibidos, onClick }: Props) 
             className="ml-2 shrink-0 text-right"
             style={{ color: colors.primary, fontSize: 11, fontWeight: 500, lineHeight: 1.35 }}
           >
-            {Math.round(cat.pctDelTotal)}% del {soloPercibidos ? 'percibido' : 'mes'}
+            {Math.round(cat.pctDelTotal)}% del {mode === 'percibido' ? 'percibido' : 'mes'}
           </span>
         </div>
 
-        {tipoMeta && (
-          <div className="mt-0.5">
+        <div className="mt-2 flex items-center gap-2">
+          <div
+            className="flex-1 rounded-[2px]"
+            style={{ height: 3, background: '#E6ECF2' }}
+          >
+            <div
+              className="bar-grow h-full rounded-[2px] bg-primary"
+              style={{ width: `${cat.pctDelTotal}%` }}
+            />
+          </div>
+          {tipoMeta && (
             <span style={{ color: tipoMeta.color, fontSize: 11, fontWeight: 500 }}>
               {tipoMeta.text}
             </span>
-          </div>
-        )}
+          )}
+        </div>
       </div>
     </div>
   )
