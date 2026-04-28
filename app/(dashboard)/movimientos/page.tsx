@@ -93,7 +93,7 @@ export default async function MovimientosPage({
   >[]
   const statsCurrency: 'ARS' | 'USD' = 'ARS'
   const percibidos = statsExpenses
-    .filter((e) => (isPerceivedExpense(e) || isCardPayment(e)) && e.currency === statsCurrency)
+    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
     .reduce((s, e) => s + e.amount, 0)
   const tarjeta = statsExpenses
     .filter((e) => isCreditAccruedExpense(e) && e.currency === statsCurrency)
