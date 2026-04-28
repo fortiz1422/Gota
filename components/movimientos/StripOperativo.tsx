@@ -63,7 +63,7 @@ export function StripOperativo({
       valueClassName: 'type-amount-sm text-warning',
       iconClassName: 'text-warning',
       iconWrapClassName: 'border-warning/20 bg-warning/10',
-      activeClassName: 'bg-warning/6',
+      activeClassName: 'bg-warning/10',
     },
     {
       key: 'tarjeta',
@@ -71,10 +71,10 @@ export function StripOperativo({
       value: tarjeta > 0 ? formatCompact(tarjeta, currency) : '—',
       description: 'Aun sin pagar',
       icon: CreditCard,
-      valueClassName: 'type-amount-sm text-success',
-      iconClassName: 'text-success',
-      iconWrapClassName: 'border-success/20 bg-success/10',
-      activeClassName: 'bg-success/6',
+      valueClassName: 'type-amount-sm text-primary',
+      iconClassName: 'text-primary',
+      iconWrapClassName: 'border-primary/20 bg-primary/10',
+      activeClassName: 'bg-primary/10',
     },
     {
       key: 'pago_tarjeta',
@@ -82,15 +82,15 @@ export function StripOperativo({
       value: pagoTarjeta > 0 ? formatCompact(pagoTarjeta, currency) : '—',
       description: 'Pagos del mes',
       icon: ArrowCircleDown,
-      valueClassName: 'type-amount-sm text-primary',
-      iconClassName: 'text-primary',
-      iconWrapClassName: 'border-primary/20 bg-primary/10',
-      activeClassName: 'bg-primary/6',
+      valueClassName: 'type-amount-sm text-success',
+      iconClassName: 'text-success',
+      iconWrapClassName: 'border-success/20 bg-success/10',
+      activeClassName: 'bg-success/10',
     },
   ]
 
   return (
-    <div className="surface-module rounded-[22px] px-2 py-2">
+    <div className="surface-module overflow-hidden rounded-[22px] px-2 py-2">
       <div className="flex divide-x divide-[color:var(--color-separator)]">
         {segments.map((segment) => {
           const Icon = segment.icon

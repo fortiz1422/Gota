@@ -2,7 +2,7 @@ import type { NextConfig } from 'next'
 import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  serverExternalPackages: ['require-in-the-middle', 'import-in-the-middle', '@prisma/instrumentation'],
 }
 
 export default withSentryConfig(nextConfig, {

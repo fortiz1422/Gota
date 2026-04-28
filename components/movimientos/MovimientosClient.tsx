@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { ArrowCircleDown, ArrowCircleUp, CaretLeft, CaretRight, CreditCard, Funnel, X } from '@phosphor-icons/react'
+import { CaretLeft, CaretRight, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
@@ -73,7 +73,7 @@ function matchesSet<T extends string>(current: T[], target: T[]): boolean {
 
 function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
   const parts: string[] = []
-  f.tipos.forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
+  f.tipos.filter((t) => t !== 'suscripcion').forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
   if (isPercibidosOrigen(f.origenes)) {
     parts.push('Percibidos')
   } else {
@@ -100,8 +100,6 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]
 
   if (f.monedas.length > 0) {
     f.monedas.forEach((m) => parts.push(m))
-  } else if (parts.length > 0) {
-    parts.push('Ambas')
   }
   if (f.quincena) parts.push(f.quincena === 1 ? '1ra quincena' : '2da quincena')
   return parts.join(' · ')
@@ -260,7 +258,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
             ...EMPTY_FILTERS,
             ...preservedBase,
             tipos: ['gasto', 'suscripcion'],
-            origenes: ['tarjeta', 'pago_tarjeta'],
+            origenes: ['tarjeta'],
             tarjetas: prev.tarjetas,
             categorias: prev.categorias,
           }
@@ -284,12 +282,21 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     activeFilters.origenes.length === 0
   const isTarjetasQuick =
     matchesSet(activeFilters.tipos, ['gasto', 'suscripcion']) &&
-    matchesSet(activeFilters.origenes, ['tarjeta', 'pago_tarjeta'])
+    matchesSet(activeFilters.origenes, ['tarjeta'])
+
+  const sheetFilterCount =
+    activeFilters.tarjetas.length +
+    activeFilters.cuentas.length +
+    activeFilters.categorias.length +
+    activeFilters.monedas.length +
+    (activeFilters.quincena ? 1 : 0)
 
   const quickChipClass = (active: boolean) =>
     [
-      'glass-1 shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
-      active ? 'bg-primary text-white border-primary' : 'text-text-secondary',
+      'shrink-0 rounded-[20px] px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
+      active
+        ? 'bg-primary text-white'
+        : 'border border-bg-secondary text-text-primary',
     ].join(' ')
 
   return (
@@ -337,52 +344,51 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           onOrigenClick={handleOrigenClick}
         />
 
-        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
-          <button
-            type="button"
-            onClick={() => handleQuickFilter('all')}
-            className={quickChipClass(isAllQuick)}
-          >
-            Todos
-          </button>
+        <div className="flex items-center gap-2">
+          <div className="flex flex-1 gap-2 overflow-x-auto pb-1 scrollbar-none">
+            <button
+              type="button"
+              onClick={() => handleQuickFilter('all')}
+              className={quickChipClass(isAllQuick)}
+            >
+              Todos
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickFilter('gastos')}
-            className={`${quickChipClass(isGastosQuick)} flex items-center gap-1.5`}
-          >
-            <ArrowCircleDown weight="regular" size={14} />
-            Gastos
-          </button>
+            <button
+              type="button"
+              onClick={() => handleQuickFilter('gastos')}
+              className={quickChipClass(isGastosQuick)}
+            >
+              Gastos
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickFilter('ingresos')}
-            className={`${quickChipClass(isIngresosQuick)} flex items-center gap-1.5`}
-          >
-            <ArrowCircleUp weight="regular" size={14} />
-            Ingresos
-          </button>
+            <button
+              type="button"
+              onClick={() => handleQuickFilter('ingresos')}
+              className={quickChipClass(isIngresosQuick)}
+            >
+              Ingresos
+            </button>
 
-          <button
-            type="button"
-            onClick={() => handleQuickFilter('tarjetas')}
-            className={`${quickChipClass(isTarjetasQuick)} flex items-center gap-1.5`}
-          >
-            <CreditCard weight="regular" size={14} />
-            Tarjetas
-          </button>
+            <button
+              type="button"
+              onClick={() => handleQuickFilter('tarjetas')}
+              className={quickChipClass(isTarjetasQuick)}
+            >
+              Tarjetas
+            </button>
+          </div>
 
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="glass-1 relative shrink-0 rounded-pill px-3.5 py-1.5 text-text-secondary transition-colors active:opacity-60"
+            className="relative shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-text-secondary transition-colors hover:text-text-primary active:opacity-60"
             aria-label="Abrir filtros avanzados"
           >
-            <Funnel weight="regular" size={14} />
-            {activeCount > 0 && (
-              <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
-                {activeCount}
+            <Funnel weight="regular" size={16} />
+            {sheetFilterCount > 0 && (
+              <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
+                {sheetFilterCount}
               </span>
             )}
           </button>
