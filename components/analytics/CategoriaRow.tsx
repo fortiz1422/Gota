@@ -6,9 +6,9 @@ import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import type { CategoriaMetric } from '@/lib/analytics/computeMetrics'
 
 const TIPO_LABEL: Record<string, { text: string; color: string }> = {
-  need: { text: 'Necesidad', color: colors.success },
-  want: { text: 'Deseo', color: colors.warning },
-  mixed: { text: 'Mixto', color: colors.data },
+  need: { text: 'Necesidad', color: 'var(--color-data)' },
+  want: { text: 'Deseo', color: 'var(--color-warning)' },
+  mixed: { text: 'Mixto', color: 'var(--color-text-secondary)' },
 }
 
 function getCategoryNote(cat: CategoriaMetric, currency: 'ARS' | 'USD'): string {
@@ -74,7 +74,10 @@ export function CategoriaRow({ cat, currency, mode, onClick }: Props) {
             />
           </div>
           {tipoMeta && (
-            <span style={{ color: tipoMeta.color, fontSize: 11, fontWeight: 500 }}>
+            <span
+              className="flex-shrink-0"
+              style={{ color: tipoMeta.color, fontSize: 10, fontWeight: 700 }}
+            >
               {tipoMeta.text}
             </span>
           )}
