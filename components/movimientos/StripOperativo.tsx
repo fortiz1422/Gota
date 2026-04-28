@@ -58,7 +58,7 @@ export function StripOperativo({
       key: 'percibido',
       label: 'Percibidos',
       value: formatCompact(percibidos, currency),
-      description: 'Salio de tu cuenta',
+      description: 'Gasto directo del mes',
       icon: Wallet,
       valueClassName: 'type-amount-sm text-warning',
       iconClassName: 'text-warning',

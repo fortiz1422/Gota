@@ -144,7 +144,7 @@ export async function GET(request: Request) {
     activeMonedas.length === 1 && activeMonedas[0] === 'USD' ? 'USD' : 'ARS'
 
   const percibidos = statsExpenses
-    .filter((e) => (isPerceivedExpense(e) || isCardPayment(e)) && e.currency === statsCurrency)
+    .filter((e) => isPerceivedExpense(e) && e.currency === statsCurrency)
     .reduce((sum, e) => sum + e.amount, 0)
 
   const tarjeta = statsExpenses
