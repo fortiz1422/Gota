@@ -7,10 +7,9 @@ import type { Account, Card } from '@/types/database'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
-export type TipoFilter   = 'gasto' | 'ingreso' | 'transferencia' | 'suscripcion'
-export type OrigenFilter = 'percibido' | 'tarjeta' | 'pago_tarjeta'
-export type MonedaFilter = 'ARS' | 'USD'
-export type FechaFilter  = 'este_mes' | 'ultimos_7' | 'personalizado'
+export type TipoFilter    = 'gasto' | 'ingreso' | 'transferencia' | 'suscripcion'
+export type OrigenFilter  = 'percibido' | 'tarjeta' | 'pago_tarjeta'
+export type MonedaFilter  = 'ARS' | 'USD'
 
 export interface ActiveFilters {
   tipos:      TipoFilter[]
@@ -20,17 +19,10 @@ export interface ActiveFilters {
   categorias: string[]
   monedas:    MonedaFilter[]
   quincena:   1 | 2 | null
-  // UI-ready; pendiente de wiring a API
-  fecha:    FechaFilter | null
-  montoMin: string
-  montoMax: string
-  ordenar:  string
 }
 
 export const EMPTY_FILTERS: ActiveFilters = {
-  tipos: [], origenes: [], cuentas: [], tarjetas: [], categorias: [],
-  monedas: [], quincena: null,
-  fecha: null, montoMin: '', montoMax: '', ordenar: 'recientes',
+  tipos: [], origenes: [], cuentas: [], tarjetas: [], categorias: [], monedas: [], quincena: null,
 }
 
 export function countFilters(f: ActiveFilters): number {
@@ -45,31 +37,19 @@ export function countFilters(f: ActiveFilters): number {
   )
 }
 
-/** Cuenta grupos activos en filtros avanzados (excluye tipos/origenes, que maneja el filtro rápido). */
-export function countAdvancedGroups(f: ActiveFilters): number {
-  let n = 0
-  if (f.fecha) n++
-  if (f.cuentas.length + f.tarjetas.length > 0) n++
-  if (f.categorias.length > 0) n++
-  if (f.monedas.length > 0) n++
-  if ((f.montoMin && f.montoMin.trim() !== '') || (f.montoMax && f.montoMax.trim() !== '')) n++
-  if (f.quincena) n++
-  return n
-}
-
 // ─── Options ──────────────────────────────────────────────────────────────────
 
-const FECHA_OPTIONS: { value: FechaFilter; label: string }[] = [
-  { value: 'este_mes',    label: 'Este mes' },
-  { value: 'ultimos_7',   label: 'Últimos 7 días' },
-  { value: 'personalizado', label: 'Personalizado' },
+const TIPO_OPTIONS: { value: TipoFilter; label: string }[] = [
+  { value: 'gasto',         label: 'Gasto' },
+  { value: 'ingreso',       label: 'Ingreso' },
+  { value: 'transferencia', label: 'Transferencia' },
+  { value: 'suscripcion',   label: 'Suscripción' },
 ]
 
-const TIPO_MOV_OPTIONS: { label: string; tipo: TipoFilter | null; origen: OrigenFilter | null }[] = [
-  { label: 'Gastos',       tipo: 'gasto',   origen: null },
-  { label: 'Ingresos',     tipo: 'ingreso', origen: null },
-  { label: 'Tarjetas',     tipo: null,      origen: 'tarjeta' },
-  { label: 'Pago tarjeta', tipo: null,      origen: 'pago_tarjeta' },
+const ORIGEN_OPTIONS: { value: OrigenFilter; label: string }[] = [
+  { value: 'percibido',    label: 'Percibido' },
+  { value: 'tarjeta',      label: 'Tarjeta' },
+  { value: 'pago_tarjeta', label: 'Pago tarjeta' },
 ]
 
 const MONEDA_OPTIONS: { value: MonedaFilter; label: string }[] = [
@@ -80,14 +60,27 @@ const MONEDA_OPTIONS: { value: MonedaFilter; label: string }[] = [
 // ─── Chip styles ──────────────────────────────────────────────────────────────
 
 const CHIP_DEFAULT =
-  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-medium border transition-colors bg-bg-primary border-[color:var(--color-border-strong)] text-text-secondary'
+  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-medium border transition-colors bg-white/60 border-bg-secondary text-text-secondary'
 const CHIP_SELECTED =
-  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold border-[1.5px] transition-colors bg-primary/10 border-primary/35 text-primary'
+  'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold border-[1.5px] transition-colors bg-[rgba(33,120,168,0.10)] border-[rgba(33,120,168,0.35)] text-primary'
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 function toggle<T>(arr: T[], val: T): T[] {
   return arr.includes(val) ? arr.filter((x) => x !== val) : [...arr, val]
+}
+
+function toggleExclusive<T>(arr: T[], val: T): T[] {
+  return arr.length === 1 && arr[0] === val ? [] : [val]
+}
+
+function origenVisible(tipos: TipoFilter[]): boolean {
+  return tipos.length === 0 || tipos.some((t) => t === 'gasto' || t === 'suscripcion')
+}
+
+/** Origen = solo "tarjeta" seleccionado → mostrar filtro de tarjetas */
+function isTarjetaMode(origenes: OrigenFilter[]): boolean {
+  return origenes.length === 1 && origenes[0] === 'tarjeta'
 }
 
 // ─── Props ────────────────────────────────────────────────────────────────────
@@ -127,60 +120,72 @@ function SectionHeader({
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, categories }: Props) {
-  const [f, setF]                         = useState<ActiveFilters>(initial)
-  const [cuentaMedioOpen, setCuentaMedioOpen] = useState(false)
-  const [catsOpen, setCatsOpen]           = useState(false)
+  const [f, setF]                       = useState<ActiveFilters>(initial)
+  const [cuentasOpen, setCuentasOpen]   = useState(false)
+  const [tarjetasOpen, setTarjetasOpen] = useState(false)
+  const [catsOpen, setCatsOpen]         = useState(false)
 
+  // Sync pending state each time the sheet opens; collapse secondary sections
   useEffect(() => {
     if (open) {
       setF(initial)
-      setCuentaMedioOpen(false)
+      setCuentasOpen(false)
+      setTarjetasOpen(false)
       setCatsOpen(false)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
-  const total = countFilters(f)
-  const advancedGroupTotal = countAdvancedGroups(f)
+  const showOrigen   = origenVisible(f.tipos)
+  const tarjetaMode  = isTarjetaMode(f.origenes)
+  const total        = countFilters(f)
 
-  const toggleTipoMov = (tipo: TipoFilter | null, origen: OrigenFilter | null) => {
+  const setTipos = (tipos: TipoFilter[]) =>
+    setF((prev) => {
+      const supportsExpenseFilters = origenVisible(tipos)
+      return {
+        ...prev,
+        tipos,
+        origenes: supportsExpenseFilters ? prev.origenes : [],
+        tarjetas: supportsExpenseFilters ? prev.tarjetas : [],
+        categorias: supportsExpenseFilters ? prev.categorias : [],
+      }
+    })
+
+  // Al cambiar origen: si se pasa a modo tarjeta limpia cuentas (y viceversa)
+  const setOrigenes = (newOrigenes: OrigenFilter[]) => {
+    const willBeTarjeta = isTarjetaMode(newOrigenes)
+    if (willBeTarjeta) setCuentasOpen(false)
+    else setTarjetasOpen(false)
     setF((prev) => ({
       ...prev,
-      tipos:    tipo   ? toggle(prev.tipos,   tipo)   : prev.tipos,
-      origenes: origen ? toggle(prev.origenes, origen) : prev.origenes,
+      origenes:  newOrigenes,
+      cuentas:   willBeTarjeta ? [] : prev.cuentas,
+      tarjetas:  willBeTarjeta ? prev.tarjetas : [],
     }))
   }
-
-  const isTipoMovActive = (tipo: TipoFilter | null, origen: OrigenFilter | null) => {
-    if (tipo)   return f.tipos.includes(tipo)
-    if (origen) return f.origenes.includes(origen)
-    return false
-  }
-
-  const cuentaMedioCount = f.cuentas.length + f.tarjetas.length
-  const hasCuentaMedio   = accounts.length > 0 || cards.length > 0
 
   return (
     <Modal open={open} onClose={onClose}>
       {/* Drag handle */}
-      <div className="pointer-events-none absolute inset-x-0 top-2.5 flex justify-center">
+      <div className="absolute top-2.5 inset-x-0 flex justify-center pointer-events-none">
         <div className="h-1 w-10 rounded-full bg-text-disabled" />
       </div>
 
       {/* Header */}
-      <div className="mb-5 mt-2 flex items-center justify-between">
+      <div className="flex items-center justify-between mb-5 mt-2">
         <div className="flex items-center gap-2">
-          <h2 className="text-[16px] font-bold text-text-primary">Filtros avanzados</h2>
-          {(total > 0 || advancedGroupTotal > 0) && (
+          <h2 className="text-[16px] font-bold text-text-primary">Filtrar</h2>
+          {total > 0 && (
             <span className="flex h-5 min-w-[20px] items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-white">
-              {advancedGroupTotal > 0 ? advancedGroupTotal : total}
+              {total}
             </span>
           )}
         </div>
         {total > 0 && (
           <button
             onClick={() => setF(EMPTY_FILTERS)}
-            className="text-[12px] font-medium text-text-tertiary transition-colors hover:text-text-secondary"
+            className="text-[12px] font-medium text-text-tertiary hover:text-text-secondary transition-colors"
           >
             Limpiar
           </button>
@@ -190,17 +195,15 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
       {/* Sections */}
       <div className="space-y-6 pb-20">
 
-        {/* A. Fecha */}
+        {/* 1. Tipo */}
         <div>
-          <p className="type-label mb-3 text-text-tertiary">Fecha</p>
+          <p className="type-label text-text-tertiary mb-3">Tipo</p>
           <div className="flex flex-wrap gap-2">
-            {FECHA_OPTIONS.map(({ value, label }) => (
+            {TIPO_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() =>
-                  setF((prev) => ({ ...prev, fecha: prev.fecha === value ? null : value }))
-                }
-                className={f.fecha === value ? CHIP_SELECTED : CHIP_DEFAULT}
+                onClick={() => setTipos(toggle(f.tipos, value))}
+                className={f.tipos.includes(value) ? CHIP_SELECTED : CHIP_DEFAULT}
               >
                 {label}
               </button>
@@ -208,34 +211,39 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
           </div>
         </div>
 
-        {/* B. Cuenta / medio */}
-        {hasCuentaMedio && (
+        {/* 2. Origen */}
+        {showOrigen && (
+          <div>
+            <p className="type-label text-text-tertiary mb-3">Origen</p>
+            <div className="flex flex-wrap gap-2">
+              {ORIGEN_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  onClick={() => setOrigenes(toggle(f.origenes, value))}
+                  className={f.origenes.includes(value) ? CHIP_SELECTED : CHIP_DEFAULT}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* 3a. Tarjeta — visible solo cuando origen = "tarjeta" */}
+        {tarjetaMode && cards.length > 0 && (
           <div>
             <SectionHeader
-              label="Cuenta / medio"
-              count={cuentaMedioCount}
-              isOpen={cuentaMedioOpen}
-              onToggle={() => setCuentaMedioOpen((o) => !o)}
+              label="Tarjeta"
+              count={f.tarjetas.length}
+              isOpen={tarjetasOpen}
+              onToggle={() => setTarjetasOpen((o) => !o)}
             />
-            {cuentaMedioOpen && (
-              <div className="mt-3 flex flex-wrap gap-2">
-                {accounts.map((acc) => (
-                  <button
-                    key={acc.id}
-                    onClick={() =>
-                      setF((prev) => ({ ...prev, cuentas: toggle(prev.cuentas, acc.id) }))
-                    }
-                    className={f.cuentas.includes(acc.id) ? CHIP_SELECTED : CHIP_DEFAULT}
-                  >
-                    {acc.name}
-                  </button>
-                ))}
+            {tarjetasOpen && (
+              <div className="flex flex-wrap gap-2 mt-3">
                 {cards.map((card) => (
                   <button
                     key={card.id}
-                    onClick={() =>
-                      setF((prev) => ({ ...prev, tarjetas: toggle(prev.tarjetas, card.id) }))
-                    }
+                    onClick={() => setF((prev) => ({ ...prev, tarjetas: toggle(prev.tarjetas, card.id) }))}
                     className={f.tarjetas.includes(card.id) ? CHIP_SELECTED : CHIP_DEFAULT}
                   >
                     {card.name}
@@ -246,8 +254,33 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
           </div>
         )}
 
-        {/* C. Categoría */}
-        {categories.length > 0 && (
+        {/* 3b. Cuenta — visible cuando origen NO es solo "tarjeta" */}
+        {!tarjetaMode && accounts.length > 0 && (
+          <div>
+            <SectionHeader
+              label="Cuenta"
+              count={f.cuentas.length}
+              isOpen={cuentasOpen}
+              onToggle={() => setCuentasOpen((o) => !o)}
+            />
+            {cuentasOpen && (
+              <div className="flex flex-wrap gap-2 mt-3">
+                {accounts.map((acc) => (
+                  <button
+                    key={acc.id}
+                    onClick={() => setF((prev) => ({ ...prev, cuentas: toggle(prev.cuentas, acc.id) }))}
+                    className={f.cuentas.includes(acc.id) ? CHIP_SELECTED : CHIP_DEFAULT}
+                  >
+                    {acc.name}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* 4. Categoría */}
+        {showOrigen && categories.length > 0 && (
           <div>
             <SectionHeader
               label="Categoría"
@@ -256,13 +289,11 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
               onToggle={() => setCatsOpen((o) => !o)}
             />
             {catsOpen && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 mt-3">
                 {categories.map((cat) => (
                   <button
                     key={cat}
-                    onClick={() =>
-                      setF((prev) => ({ ...prev, categorias: toggle(prev.categorias, cat) }))
-                    }
+                    onClick={() => setF((prev) => ({ ...prev, categorias: toggle(prev.categorias, cat) }))}
                     className={f.categorias.includes(cat) ? CHIP_SELECTED : CHIP_DEFAULT}
                   >
                     {cat}
@@ -273,61 +304,14 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
           </div>
         )}
 
-        {/* D. Monto */}
+        {/* 5. Moneda */}
         <div>
-          <p className="type-label mb-3 text-text-tertiary">Monto</p>
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="mb-1.5 block text-[11px] text-text-tertiary">Mínimo</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                placeholder="0"
-                value={f.montoMin}
-                onChange={(e) => setF((prev) => ({ ...prev, montoMin: e.target.value }))}
-                className="w-full rounded-input border border-[color:var(--color-border-strong)] bg-bg-primary px-3 py-2 text-[14px] text-text-primary placeholder:text-text-disabled focus:border-primary/50 focus:outline-none"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="mb-1.5 block text-[11px] text-text-tertiary">Máximo</label>
-              <input
-                type="number"
-                inputMode="numeric"
-                placeholder="∞"
-                value={f.montoMax}
-                onChange={(e) => setF((prev) => ({ ...prev, montoMax: e.target.value }))}
-                className="w-full rounded-input border border-[color:var(--color-border-strong)] bg-bg-primary px-3 py-2 text-[14px] text-text-primary placeholder:text-text-disabled focus:border-primary/50 focus:outline-none"
-              />
-            </div>
-          </div>
-        </div>
-
-        {/* E. Tipo de movimiento */}
-        <div>
-          <p className="type-label mb-3 text-text-tertiary">Tipo de movimiento</p>
-          <div className="flex flex-wrap gap-2">
-            {TIPO_MOV_OPTIONS.map(({ label, tipo, origen }) => (
-              <button
-                key={label}
-                onClick={() => toggleTipoMov(tipo, origen)}
-                className={isTipoMovActive(tipo, origen) ? CHIP_SELECTED : CHIP_DEFAULT}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Moneda */}
-        <div>
-          <p className="type-label mb-3 text-text-tertiary">Moneda</p>
+          <p className="type-label text-text-tertiary mb-3">Moneda</p>
           <div className="flex gap-2">
             {MONEDA_OPTIONS.map(({ value, label }) => (
               <button
                 key={value}
-                onClick={() =>
-                  setF((prev) => ({ ...prev, monedas: toggle(prev.monedas, value) }))
-                }
+                onClick={() => setF((prev) => ({ ...prev, monedas: toggleExclusive(prev.monedas, value) }))}
                 className={f.monedas.includes(value) ? CHIP_SELECTED : CHIP_DEFAULT}
               >
                 {label}
@@ -336,27 +320,13 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
           </div>
         </div>
 
-        {/* F. Ordenar por */}
-        <div>
-          <p className="type-label mb-3 text-text-tertiary">Ordenar por</p>
-          <div className="flex gap-2">
-            <button className={CHIP_SELECTED}>Más recientes</button>
-          </div>
-        </div>
-
       </div>
 
       {/* Sticky footer */}
-      <div className="sticky bottom-0 -mx-6 -mb-6 flex gap-3 bg-bg-secondary px-6 pb-6 pt-4">
-        <button
-          onClick={() => setF(EMPTY_FILTERS)}
-          className="rounded-button border border-[color:var(--color-border-strong)] px-4 py-3 text-[14px] font-medium text-text-secondary transition-colors hover:bg-bg-tertiary active:opacity-70"
-        >
-          Limpiar
-        </button>
+      <div className="sticky bottom-0 -mx-6 -mb-6 bg-bg-secondary px-6 pb-6 pt-4">
         <button
           onClick={() => { onApply(f); onClose() }}
-          className="flex-1 rounded-button bg-primary py-3 text-[14px] font-semibold text-white transition-all duration-150 hover:brightness-110 active:scale-95"
+          className="w-full rounded-button bg-primary py-3 text-[14px] font-semibold text-white transition-all duration-150 hover:brightness-110 active:scale-95"
         >
           Aplicar filtros
         </button>

@@ -243,6 +243,13 @@ body {
   line-height: 1;
 }
 
+@utility type-amount-sm {
+  font-size: 19px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
 /* 22px — título de mes en DashboardHeader */
 @utility type-month {
   font-size: 22px;

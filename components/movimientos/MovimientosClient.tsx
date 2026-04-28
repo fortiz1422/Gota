@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { CaretLeft, CaretRight, SlidersHorizontal, X } from '@phosphor-icons/react'
+import { ArrowCircleDown, ArrowCircleUp, CaretLeft, CaretRight, CreditCard, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
-import { FiltroSheet, EMPTY_FILTERS, countFilters, countAdvancedGroups } from './FiltroSheet'
+import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
 import type { ActiveFilters, OrigenFilter } from './FiltroSheet'
 import type {
   Account,
@@ -23,6 +23,8 @@ type ApiMovement =
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
   | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+
+type QuickFilterKey = 'all' | 'gastos' | 'ingresos' | 'tarjetas'
 
 export interface ApiResponse {
   movements: ApiMovement[]
@@ -44,39 +46,39 @@ function formatMonthLabel(ym: string): string {
   return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
-// ─── Quick filter ──────────────────────────────────────────────────────────────
-
-type QuickFilter = 'todos' | 'gastos' | 'ingresos' | 'tarjetas'
-
-const QUICK_FILTER_LABELS: Record<QuickFilter, string> = {
-  todos:    'Todos',
-  gastos:   'Gastos',
-  ingresos: 'Ingresos',
-  tarjetas: 'Tarjetas',
-}
-
-function deriveQuickFilter(f: ActiveFilters): QuickFilter {
-  const { tipos, origenes } = f
-  if (tipos.length === 1 && tipos[0] === 'gasto'   && origenes.length === 0) return 'gastos'
-  if (tipos.length === 1 && tipos[0] === 'ingreso'  && origenes.length === 0) return 'ingresos'
-  if (origenes.length === 1 && origenes[0] === 'tarjeta' && tipos.length === 0) return 'tarjetas'
-  if (tipos.length === 0 && origenes.length === 0) return 'todos'
-  return 'todos'
-}
-
-// ─── Filter summary ────────────────────────────────────────────────────────────
-
 const TIPO_LABELS: Record<string, string> = {
-  gasto: 'Gasto', ingreso: 'Ingreso', transferencia: 'Transferencia', suscripcion: 'Suscripción',
+  gasto: 'Gasto',
+  ingreso: 'Ingreso',
+  transferencia: 'Transferencia',
+  suscripcion: 'Suscripción',
 }
+
 const ORIGEN_LABELS: Record<string, string> = {
-  percibido: 'Percibido', tarjeta: 'Tarjeta', pago_tarjeta: 'Pago tarjeta',
+  percibido: 'Percibido',
+  tarjeta: 'Tarjeta',
+  pago_tarjeta: 'Pago tarjeta',
+}
+
+function isPercibidosOrigen(origenes: OrigenFilter[]): boolean {
+  return (
+    origenes.length === 2 &&
+    origenes.includes('percibido') &&
+    origenes.includes('pago_tarjeta')
+  )
+}
+
+function matchesSet<T extends string>(current: T[], target: T[]): boolean {
+  return current.length === target.length && target.every((item) => current.includes(item))
 }
 
 function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
   const parts: string[] = []
   f.tipos.forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
-  f.origenes.forEach((o) => parts.push(ORIGEN_LABELS[o] ?? o))
+  if (isPercibidosOrigen(f.origenes)) {
+    parts.push('Percibidos')
+  } else {
+    f.origenes.forEach((o) => parts.push(ORIGEN_LABELS[o] ?? o))
+  }
 
   if (f.tarjetas.length === 1) {
     parts.push(cards.find((c) => c.id === f.tarjetas[0])?.name ?? 'Tarjeta')
@@ -96,16 +98,14 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]
     parts.push(`${f.categorias.length} categ.`)
   }
 
-  f.monedas.forEach((m) => parts.push(m))
+  if (f.monedas.length > 0) {
+    f.monedas.forEach((m) => parts.push(m))
+  } else if (parts.length > 0) {
+    parts.push('Ambas')
+  }
   if (f.quincena) parts.push(f.quincena === 1 ? '1ra quincena' : '2da quincena')
-  if (f.fecha === 'este_mes')    parts.push('Este mes')
-  if (f.fecha === 'ultimos_7')   parts.push('Últ. 7 días')
-  if (f.montoMin)                parts.push(`Mín $${f.montoMin}`)
-  if (f.montoMax)                parts.push(`Máx $${f.montoMax}`)
   return parts.join(' · ')
 }
-
-// ─── Props ─────────────────────────────────────────────────────────────────────
 
 interface Props {
   initialMonth: string
@@ -121,7 +121,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     return {
       ...EMPTY_FILTERS,
       categorias: [initialCategoria],
-      origenes: initialSoloPercibidos ? ['percibido' as const] : [],
+      origenes: initialSoloPercibidos ? ['percibido', 'pago_tarjeta'] : [],
     }
   })
   const [filterOpen, setFilterOpen] = useState(false)
@@ -161,14 +161,14 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
 
       try {
         const params = new URLSearchParams({ month, page: String(pg) })
-        if (filters.tipos.length > 0)      params.set('tipos', filters.tipos.join(','))
-        if (filters.origenes.length > 0)   params.set('origenes', filters.origenes.join(','))
-        if (filters.tarjetas.length > 0)   params.set('tarjetas', filters.tarjetas.join(','))
-        if (filters.cuentas.length > 0)    params.set('cuentas', filters.cuentas.join(','))
-        if (filters.categorias.length > 0) params.set('categorias', filters.categorias.join(','))
-        if (filters.monedas.length > 0)    params.set('monedas', filters.monedas.join(','))
-        if (filters.quincena)              params.set('quincena', String(filters.quincena))
-        // fecha / monto / ordenar: UI-only por ahora; pendiente de soporte en API
+        if (filters.tipos.length > 0) params.set('tipos', filters.tipos.join(','))
+        if (filters.origenes.length > 0) params.set('origenes', filters.origenes.join(','))
+        if (filters.tarjetas.length > 0) params.set('tarjetas', filters.tarjetas.join(','))
+        if (filters.cuentas.length > 0) params.set('cuentas', filters.cuentas.join(','))
+        if (filters.categorias.length > 0)
+          params.set('categorias', filters.categorias.join(','))
+        if (filters.monedas.length > 0) params.set('monedas', filters.monedas.join(','))
+        if (filters.quincena) params.set('quincena', String(filters.quincena))
 
         const res = await fetch(`/api/movimientos?${params}`)
         if (!res.ok) throw new Error('fetch failed')
@@ -220,25 +220,77 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
 
   const handleOrigenClick = (origen: OrigenFilter) => {
     setActiveFilters((prev) => {
+      if (origen === 'percibido') {
+        return {
+          ...prev,
+          origenes: isPercibidosOrigen(prev.origenes) ? [] : ['percibido', 'pago_tarjeta'],
+        }
+      }
       const already = prev.origenes.length === 1 && prev.origenes[0] === origen
       return { ...prev, origenes: already ? [] : [origen] }
     })
   }
 
-  const handleQuickFilter = (qf: QuickFilter) => {
-    setActiveFilters((prev) => ({
-      ...prev,
-      tipos:    qf === 'gastos' ? ['gasto'] : qf === 'ingresos' ? ['ingreso'] : [],
-      origenes: qf === 'tarjetas' ? ['tarjeta'] : [],
-    }))
+  const handleQuickFilter = (quick: QuickFilterKey) => {
+    setActiveFilters((prev) => {
+      const preservedBase = {
+        cuentas: prev.cuentas,
+        monedas: prev.monedas,
+        quincena: prev.quincena,
+      }
+
+      switch (quick) {
+        case 'all':
+          return EMPTY_FILTERS
+        case 'gastos':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['gasto', 'suscripcion'],
+            categorias: prev.categorias,
+          }
+        case 'ingresos':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['ingreso'],
+          }
+        case 'tarjetas':
+          return {
+            ...EMPTY_FILTERS,
+            ...preservedBase,
+            tipos: ['gasto', 'suscripcion'],
+            origenes: ['tarjeta', 'pago_tarjeta'],
+            tarjetas: prev.tarjetas,
+            categorias: prev.categorias,
+          }
+      }
+    })
   }
 
-  const activeCount    = countFilters(activeFilters)
-  const advancedCount  = countAdvancedGroups(activeFilters)
-  const currentQuickFilter = deriveQuickFilter(activeFilters)
-
+  const activeCount = countFilters(activeFilters)
   const activeOrigen: OrigenFilter | null =
-    activeFilters.origenes.length === 1 ? activeFilters.origenes[0] : null
+    isPercibidosOrigen(activeFilters.origenes)
+      ? 'percibido'
+      : activeFilters.origenes.length === 1
+        ? activeFilters.origenes[0]
+        : null
+  const isAllQuick = activeCount === 0
+  const isGastosQuick =
+    matchesSet(activeFilters.tipos, ['gasto', 'suscripcion']) &&
+    activeFilters.origenes.length === 0
+  const isIngresosQuick =
+    matchesSet(activeFilters.tipos, ['ingreso']) &&
+    activeFilters.origenes.length === 0
+  const isTarjetasQuick =
+    matchesSet(activeFilters.tipos, ['gasto', 'suscripcion']) &&
+    matchesSet(activeFilters.origenes, ['tarjeta', 'pago_tarjeta'])
+
+  const quickChipClass = (active: boolean) =>
+    [
+      'glass-1 shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
+      active ? 'bg-primary text-white border-primary' : 'text-text-secondary',
+    ].join(' ')
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -246,7 +298,6 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         className="mx-auto flex max-w-md flex-col gap-5 px-4 pt-safe"
         style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
       >
-        {/* Month nav */}
         <div className="flex items-center justify-between pt-5">
           <div className="flex items-center gap-1">
             <button
@@ -277,7 +328,6 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           />
         </div>
 
-        {/* Hero: 3 pills paralelos */}
         <StripOperativo
           percibidos={stats.percibidos}
           tarjeta={stats.tarjeta}
@@ -287,44 +337,57 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           onOrigenClick={handleOrigenClick}
         />
 
-        {/* Quick filter pills + sliders button */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-0.5">
-          {(Object.keys(QUICK_FILTER_LABELS) as QuickFilter[]).map((qf) => (
-            <button
-              key={qf}
-              onClick={() => handleQuickFilter(qf)}
-              className={[
-                'shrink-0 rounded-pill px-3.5 py-1.5 text-[12px] font-medium border transition-colors',
-                currentQuickFilter === qf
-                  ? 'bg-primary/10 border-primary/35 text-primary font-semibold'
-                  : 'bg-bg-primary border-[color:var(--color-border-strong)] text-text-secondary',
-              ].join(' ')}
-            >
-              {QUICK_FILTER_LABELS[qf]}
-            </button>
-          ))}
-
-          {/* Filtros avanzados */}
+        <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none">
           <button
-            onClick={() => setFilterOpen(true)}
-            aria-label="Filtros avanzados"
-            className={[
-              'relative ml-auto shrink-0 flex h-8 w-8 items-center justify-center rounded-full border transition-colors',
-              advancedCount > 0
-                ? 'bg-primary/10 border-primary/35 text-primary'
-                : 'bg-bg-primary border-[color:var(--color-border-strong)] text-text-secondary',
-            ].join(' ')}
+            type="button"
+            onClick={() => handleQuickFilter('all')}
+            className={quickChipClass(isAllQuick)}
           >
-            <SlidersHorizontal size={15} weight="bold" />
-            {advancedCount > 0 && (
+            Todos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('gastos')}
+            className={`${quickChipClass(isGastosQuick)} flex items-center gap-1.5`}
+          >
+            <ArrowCircleDown weight="regular" size={14} />
+            Gastos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('ingresos')}
+            className={`${quickChipClass(isIngresosQuick)} flex items-center gap-1.5`}
+          >
+            <ArrowCircleUp weight="regular" size={14} />
+            Ingresos
+          </button>
+
+          <button
+            type="button"
+            onClick={() => handleQuickFilter('tarjetas')}
+            className={`${quickChipClass(isTarjetasQuick)} flex items-center gap-1.5`}
+          >
+            <CreditCard weight="regular" size={14} />
+            Tarjetas
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="glass-1 relative shrink-0 rounded-pill px-3.5 py-1.5 text-text-secondary transition-colors active:opacity-60"
+            aria-label="Abrir filtros avanzados"
+          >
+            <Funnel weight="regular" size={14} />
+            {activeCount > 0 && (
               <span className="absolute -right-1 -top-1 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-primary px-0.5 text-[9px] font-bold text-white">
-                {advancedCount}
+                {activeCount}
               </span>
             )}
           </button>
         </div>
 
-        {/* Active filter summary chip */}
         {activeCount > 0 && (
           <div className="flex items-center justify-between py-0.5">
             <button
@@ -347,7 +410,6 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           </div>
         )}
 
-        {/* Movement list */}
         {isLoading ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
@@ -370,11 +432,6 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
             accounts={accounts}
             cards={cards}
             onRefresh={handleRefresh}
-            activeCount={activeCount}
-            onOpenFilters={() => setFilterOpen(true)}
-            onClearFilters={() => setActiveFilters(EMPTY_FILTERS)}
-            activeFilterSummary={buildFilterSummary(activeFilters, accounts, cards)}
-            showActiveFilter={activeCount > 0}
           />
         )}
       </div>
