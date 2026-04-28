@@ -35,15 +35,15 @@ export function AnalyticsModeToggle({ mode, onChange }: Props) {
             style={{
               flex: 1,
               fontSize: 12,
-              fontWeight: active ? 600 : 500,
+              fontWeight: active ? 600 : 400,
               padding: '6px 16px',
               borderRadius: 16,
               border: 'none',
               cursor: 'pointer',
               transition: 'all 0.15s ease',
-              color: active ? '#0D1829' : '#90A4B0',
-              background: active ? '#fff' : 'transparent',
-              boxShadow: active ? '0 1px 3px rgba(13,24,41,0.10)' : 'none',
+              color: active ? '#fff' : 'var(--color-text-secondary)',
+              background: active ? 'var(--color-primary)' : 'transparent',
+              boxShadow: 'none',
             }}
           >
             {option.label}
