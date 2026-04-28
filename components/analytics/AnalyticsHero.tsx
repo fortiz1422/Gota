@@ -11,7 +11,7 @@ interface Props {
 function splitSubcopy(text: string): { label: string; delta: string | null } {
   const parts = text.split(' ')
   const last = parts[parts.length - 1]
-  if (/^[+\-−]?\d+%$/.test(last)) {
+  if (/^[+\-\u2212]?\d+%$/.test(last)) {
     return { label: parts.slice(0, -1).join(' '), delta: last }
   }
   return { label: text, delta: null }
@@ -22,8 +22,11 @@ export function AnalyticsHero({ hero, currency }: Props) {
     <section className="px-[22px] py-[18px]">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-text-secondary truncate">
-            {hero.headline.length > 28 ? `${hero.headline.slice(0, 28)}…` : hero.headline}
+          <p
+            className="text-[22px] font-extrabold leading-[1.08] tracking-[-0.03em] text-text-primary"
+            style={{ textWrap: 'balance' }}
+          >
+            {hero.headline}
           </p>
           <p className="mt-4 type-hero tabular-nums text-text-primary">
             {formatAmount(hero.amount, currency)}
