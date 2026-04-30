@@ -4,6 +4,38 @@ import { DashboardShell } from '@/components/dashboard/DashboardShell'
 import { getCurrentMonth } from '@/lib/dates'
 import { readDashboardData } from '@/lib/server/dashboard-queries'
 
+type InitialQuote = {
+  compra: number
+  venta: number
+  fechaActualizacion: string
+  rate: number
+  effectiveDate: string
+  updatedAt: string
+  source: 'dolarapi'
+  kind: 'oficial'
+  stale: boolean
+}
+
+function normalizeQuote(raw: Partial<InitialQuote>): InitialQuote | null {
+  const venta = Number(raw.venta)
+  const compra = Number(raw.compra)
+  const fechaActualizacion = raw.fechaActualizacion
+  if (!Number.isFinite(venta) || venta <= 0 || !Number.isFinite(compra) || !fechaActualizacion) {
+    return null
+  }
+  return {
+    compra,
+    venta,
+    fechaActualizacion,
+    rate: venta,
+    effectiveDate: new Date(fechaActualizacion).toLocaleDateString('es-AR', { day: '2-digit', month: 'short' }),
+    updatedAt: new Date(fechaActualizacion).toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' }),
+    source: 'dolarapi',
+    kind: 'oficial',
+    stale: false,
+  }
+}
+
 export default async function DashboardPage({
   searchParams,
 }: {
@@ -27,12 +59,19 @@ export default async function DashboardPage({
   const { month, currency: currencyParam } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
   const viewCurrency = (currencyParam === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD'
-  const initialData = await readDashboardData({
-    supabase,
-    userId: user.id,
-    selectedMonth,
-    viewCurrency,
-  })
+  const [initialData, initialQuote] = await Promise.all([
+    readDashboardData({
+      supabase,
+      userId: user.id,
+      selectedMonth,
+      viewCurrency,
+    }),
+    fetch('https://dolarapi.com/v1/dolares/oficial', {
+      next: { revalidate: 300 },
+    })
+      .then(async (res) => (res.ok ? normalizeQuote((await res.json()) as Partial<InitialQuote>) : null))
+      .catch(() => null),
+  ])
 
   return (
     <DashboardShell
@@ -40,6 +79,7 @@ export default async function DashboardPage({
       viewCurrency={viewCurrency}
       userEmail={user.email ?? ''}
       initialData={initialData}
+      initialQuote={initialQuote}
     />
   )
 }
