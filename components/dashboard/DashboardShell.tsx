@@ -27,6 +27,7 @@ interface Props {
   viewCurrency: 'ARS' | 'USD'
   userEmail: string
   initialData: DashboardApiData
+  initialQuote: CotizacionApiData | null
 }
 
 type CotizacionApiData = {
@@ -72,6 +73,7 @@ export function DashboardShell({
   viewCurrency,
   userEmail,
   initialData,
+  initialQuote,
 }: Props) {
   const queryClient = useQueryClient()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
@@ -137,6 +139,7 @@ export function DashboardShell({
       return res.json()
     },
     staleTime: 300_000,
+    initialData: initialQuote,
   })
 
   useEffect(() => {
