@@ -161,6 +161,8 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
+      .gte('date', historyStartDate)
+      .lt('date', endOfMonth)
       .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
 
     supabase
