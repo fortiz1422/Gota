@@ -172,14 +172,14 @@ interface CardProps {
 }
 
 export function CompromisosCard({ data, currency, selectedMonth, onClick }: CardProps) {
-  const { mode, totalComprometido, pctComprometido, tarjetas } = data
+  const { mode, totalComprometido, pctComprometido, tarjetas, totalAPagar, totalEnCurso } = data
   const color = arcColor(pctComprometido)
   const isCurrentMonth = mode === 'current'
 
-  // Summary label
   const debtCount = tarjetas.filter(
     (t) => t.cycleStatus === 'cerrado' || t.cycleStatus === 'vencido',
   ).length
+  const enCursoCount = tarjetas.filter((t) => t.cycleStatus === 'en_curso' && t.currentSpend > 0).length
   const paidCount = tarjetas.filter((t) => t.cycleStatus === 'pagado').length
   const allGood =
     totalComprometido === 0 && (paidCount > 0 || tarjetas.every((t) => t.cycleStatus === 'en_curso'))
@@ -223,85 +223,59 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
       ) : (
         <>
           {/* Main metric */}
-          <div className="flex items-center gap-4">
-            {isCurrentMonth && pctComprometido !== null && (
-              <div className="relative shrink-0">
-                <ArcGauge pct={pctComprometido} size={68} />
-                <div
-                  className="absolute inset-0 flex items-center justify-center text-[11px] font-bold"
-                  style={{ color }}
-                >
-                  {pctComprometido}%
-                </div>
+          <div className="min-w-0">
+            <p className="text-[22px] font-extrabold tracking-tight text-text-primary tabular-nums">
+              {formatAmount(totalComprometido, currency)}
+            </p>
+            <p className="type-meta text-text-dim">pendiente en tarjetas</p>
+            {isCurrentMonth && tarjetas.some((t) => t.cycleStatus === 'vencido') && (
+              <div className="mt-1 flex items-center gap-1">
+                <Warning size={11} weight="fill" className="text-danger" />
+                <span className="type-micro font-semibold text-danger">
+                  {tarjetas.filter((t) => t.cycleStatus === 'vencido').length === 1
+                    ? 'Resumen vencido sin pagar'
+                    : `${tarjetas.filter((t) => t.cycleStatus === 'vencido').length} resúmenes vencidos`}
+                </span>
               </div>
             )}
-
-            <div className="min-w-0">
-              <p className="text-[22px] font-extrabold tracking-tight text-text-primary tabular-nums">
-                {formatAmount(
-                  isCurrentMonth
-                    ? totalComprometido
-                    : tarjetas.reduce((s, t) => s + t.debtTotal + (t.amountPaid ?? 0), 0),
-                  currency,
-                )}
-              </p>
-              <p className="type-meta text-text-dim">
-                {isCurrentMonth
-                  ? debtCount > 0
-                    ? `${debtCount} ${debtCount === 1 ? 'resumen pendiente' : 'resúmenes pendientes'}`
-                    : 'acumulado en tarjetas'
-                  : `${tarjetas.length} ${tarjetas.length === 1 ? 'tarjeta' : 'tarjetas'} · ${monthLabel(selectedMonth)}`}
-              </p>
-              {isCurrentMonth && tarjetas.some((t) => t.cycleStatus === 'vencido') && (
-                <div className="mt-1.5 flex items-center gap-1">
-                  <Warning size={11} weight="fill" className="text-danger" />
-                  <span className="type-micro font-semibold text-danger">
-                    {tarjetas.filter((t) => t.cycleStatus === 'vencido').length === 1
-                      ? 'Resumen vencido sin pagar'
-                      : `${tarjetas.filter((t) => t.cycleStatus === 'vencido').length} resúmenes vencidos`}
-                  </span>
-                </div>
-              )}
-            </div>
           </div>
 
-          {/* Mini list (up to 3 cards) */}
-          {tarjetas.length > 0 && (
+          {/* Breakdown */}
+          {(totalAPagar > 0 || totalEnCurso > 0) && (
             <div className="mt-3 space-y-1.5 border-t border-border-ocean pt-3">
-              {tarjetas.slice(0, 3).map((t) => {
-                const isPaid = t.cycleStatus === 'pagado'
-                const isEnCursoSinConsumos = t.cycleStatus === 'en_curso' && t.currentSpend === 0
-                const amt = t.cycleStatus === 'pagado' ? (t.amountPaid ?? 0)
-                  : t.cycleStatus === 'en_curso' ? t.currentSpend
-                  : t.debtTotal
-                return (
-                  <div key={t.id} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <div
-                        className="h-1.5 w-1.5 shrink-0 rounded-full"
-                        style={{
-                          backgroundColor:
-                            t.cycleStatus === 'vencido' ? 'var(--color-danger)'
-                            : t.cycleStatus === 'cerrado' ? 'var(--color-warning)'
-                            : t.cycleStatus === 'pagado' ? 'var(--color-success)'
-                            : 'var(--color-primary)',
-                        }}
-                      />
-                      <span className={`type-meta truncate max-w-[120px] ${isPaid ? 'text-text-tertiary' : 'text-text-secondary'}`}>
-                        {t.name}
-                      </span>
-                    </div>
-                    <span className={`type-meta tabular-nums ${isPaid ? 'text-text-tertiary' : 'text-text-primary'}`}>
-                      {isEnCursoSinConsumos ? '—' : formatAmount(amt, currency)}
+              <div className="flex items-center gap-3">
+                {totalAPagar > 0 && (
+                  <span className="type-meta text-text-dim">
+                    A pagar{' '}
+                    <span className="font-semibold text-text-primary tabular-nums">
+                      {formatAmount(totalAPagar, currency)}
                     </span>
-                  </div>
-                )
-              })}
-              {tarjetas.length > 3 && (
-                <p className="type-meta text-text-dim pt-0.5">
-                  +{tarjetas.length - 3} más
-                </p>
-              )}
+                  </span>
+                )}
+                {totalAPagar > 0 && totalEnCurso > 0 && (
+                  <span className="type-meta text-text-dim">·</span>
+                )}
+                {totalEnCurso > 0 && (
+                  <span className="type-meta text-text-dim">
+                    En curso{' '}
+                    <span className="font-semibold text-text-primary tabular-nums">
+                      {formatAmount(totalEnCurso, currency)}
+                    </span>
+                  </span>
+                )}
+              </div>
+              <div className="space-y-0.5">
+                {debtCount > 0 && (
+                  <p className="type-meta text-text-dim">
+                    {debtCount} {debtCount === 1 ? 'tarjeta con resumen pendiente' : 'tarjetas con resumen pendiente'}
+                  </p>
+                )}
+                {enCursoCount > 0 && (
+                  <p className="type-meta text-text-dim">
+                    {enCursoCount} {enCursoCount === 1 ? 'tarjeta con consumos en curso' : 'tarjetas con consumos en curso'}
+                  </p>
+                )}
+              </div>
             </div>
           )}
         </>
