@@ -319,7 +319,7 @@ interface DrillProps {
 }
 
 export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) {
-  const { mode, totalComprometido, pctComprometido, tarjetas, tarjetasSinVencimiento, hasCards } = data
+  const { mode, totalComprometido, pctComprometido, tarjetas, tarjetasSinVencimiento, hasCards, totalAPagar, totalEnCurso } = data
   const isCurrentMonth = mode === 'current'
   const color = arcColor(pctComprometido)
 
@@ -343,9 +343,20 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
 
   const allGoodCurrent = isCurrentMonth && totalComprometido === 0 && tarjetas.length > 0
 
+  // Split cards by status for current month sections
+  const aPagarCards = tarjetas.filter((t) => t.cycleStatus === 'cerrado' || t.cycleStatus === 'vencido')
+  const enCursoCards = tarjetas
+    .filter((t) => t.cycleStatus === 'en_curso')
+    .sort((a, b) => {
+      if (a.currentSpend === 0 && b.currentSpend > 0) return 1
+      if (b.currentSpend === 0 && a.currentSpend > 0) return -1
+      return b.currentSpend - a.currentSpend
+    })
+  const pagadoCards = tarjetas.filter((t) => t.cycleStatus === 'pagado')
+
   return (
     <div className="space-y-4 px-5">
-      {/* Summary header */}
+      {/* Summary header — current month with compromisos */}
       {isCurrentMonth && !allGoodCurrent && (
         <div className="surface-glass-neutral rounded-card p-4">
           <div className="flex items-center gap-4">
@@ -364,13 +375,33 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
               <p className="text-[22px] font-extrabold tracking-tight text-text-primary tabular-nums">
                 {formatAmount(totalComprometido, currency)}
               </p>
-              <p className="type-meta text-text-dim">
-                deuda pendiente en tarjetas
-              </p>
+              <p className="type-meta text-text-dim">pendiente en tarjetas</p>
               {pctComprometido !== null && data.ingresoMes && (
                 <p className="mt-0.5 type-meta text-text-dim">
                   {pctComprometido}% de tu ingreso de {monthLabel(selectedMonth)}
                 </p>
+              )}
+              {/* Breakdown A pagar / En curso */}
+              {(totalAPagar > 0 || totalEnCurso > 0) && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <div className="flex items-center gap-1.5 type-micro text-text-secondary">
+                    <div
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: totalAPagar > 0 ? 'var(--color-warning)' : 'var(--color-border-subtle)' }}
+                    />
+                    <span>A pagar</span>
+                    <span className="font-semibold text-text-primary tabular-nums">{formatAmount(totalAPagar, currency)}</span>
+                  </div>
+                  <span className="type-micro text-text-dim">·</span>
+                  <div className="flex items-center gap-1.5 type-micro text-text-secondary">
+                    <div
+                      className="h-1.5 w-1.5 shrink-0 rounded-full"
+                      style={{ backgroundColor: totalEnCurso > 0 ? 'var(--color-primary)' : 'var(--color-border-subtle)' }}
+                    />
+                    <span>En curso</span>
+                    <span className="font-semibold text-text-primary tabular-nums">{formatAmount(totalEnCurso, currency)}</span>
+                  </div>
+                </div>
               )}
             </div>
           </div>
@@ -396,7 +427,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
       {!isCurrentMonth && tarjetas.length > 0 && (
         <div className="surface-glass-neutral rounded-card p-4">
           <p className="type-label text-text-secondary mb-1">
-            Resúmenes de {monthLabel(selectedMonth)}
+            Resúmenes con vencimiento en {monthLabel(selectedMonth)}
           </p>
           <p className="text-[20px] font-extrabold tracking-tight text-text-primary tabular-nums">
             {formatAmount(
@@ -421,37 +452,81 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
         </div>
       )}
 
-      {/* Card list */}
-      {tarjetas.length > 0 && (
-        <div>
-          {isCurrentMonth && (
-            <p className="mb-2 type-label text-text-secondary">Por tarjeta</p>
+      {/* Current month: two sections */}
+      {isCurrentMonth && tarjetas.length > 0 && (
+        <>
+          {/* Note when no pending debt */}
+          {aPagarCards.length === 0 && enCursoCards.length > 0 && (
+            <p className="type-meta text-text-dim text-center">
+              No tenés resúmenes pendientes de pago.
+            </p>
           )}
-          <div className="divide-y divide-border-subtle rounded-card bg-bg-secondary px-4">
-            {tarjetas.map((t) => (
-              <div key={t.id}>
-                <TarjetaRow t={t} currency={currency} showLink={isCurrentMonth} />
 
-                {/* Pending subs for en_curso */}
-                {t.pendingSubs.length > 0 && (
-                  <div className="mb-3 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5">
-                    <p className="mb-1.5 type-micro font-semibold uppercase tracking-wide text-primary/70">
-                      Cargos antes del cierre
-                    </p>
-                    {t.pendingSubs.map((s) => (
-                      <div key={`${s.description}-${s.dayOfMonth}`} className="flex items-center justify-between py-0.5">
-                        <span className="type-micro text-text-secondary">
-                          {s.description}
-                          <span className="ml-1 text-text-dim">· día {s.dayOfMonth}</span>
-                        </span>
-                        <span className="type-micro text-text-primary">{formatAmount(s.amount, currency)}</span>
-                      </div>
-                    ))}
+          {/* A PAGAR section */}
+          {aPagarCards.length > 0 && (
+            <div>
+              <p className="mb-2 type-label text-text-secondary">A pagar</p>
+              <div className="divide-y divide-border-subtle rounded-card bg-bg-secondary px-4">
+                {aPagarCards.map((t) => (
+                  <div key={t.id}>
+                    <TarjetaRow t={t} currency={currency} showLink />
                   </div>
-                )}
+                ))}
               </div>
-            ))}
-          </div>
+            </div>
+          )}
+
+          {/* EN CURSO section */}
+          {enCursoCards.length > 0 && (
+            <div>
+              <p className="mb-2 type-label text-text-secondary">En curso</p>
+              <div className="divide-y divide-border-subtle rounded-card bg-bg-secondary px-4">
+                {enCursoCards.map((t) => (
+                  <div key={t.id}>
+                    <TarjetaRow t={t} currency={currency} showLink={false} />
+                    {t.pendingSubs.length > 0 && (
+                      <div className="mb-3 rounded-lg border border-primary/15 bg-primary/5 px-3 py-2.5">
+                        <p className="mb-1.5 type-micro font-semibold uppercase tracking-wide text-primary/70">
+                          Cargos antes del cierre
+                        </p>
+                        {t.pendingSubs.map((s) => (
+                          <div key={`${s.description}-${s.dayOfMonth}`} className="flex items-center justify-between py-0.5">
+                            <span className="type-micro text-text-secondary">
+                              {s.description}
+                              <span className="ml-1 text-text-dim">· día {s.dayOfMonth}</span>
+                            </span>
+                            <span className="type-micro text-text-primary">{formatAmount(s.amount, currency)}</span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* PAGADO section (no label) */}
+          {pagadoCards.length > 0 && (
+            <div className="divide-y divide-border-subtle rounded-card bg-bg-secondary px-4">
+              {pagadoCards.map((t) => (
+                <div key={t.id}>
+                  <TarjetaRow t={t} currency={currency} showLink={false} />
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Historical: single list */}
+      {!isCurrentMonth && tarjetas.length > 0 && (
+        <div className="divide-y divide-border-subtle rounded-card bg-bg-secondary px-4">
+          {tarjetas.map((t) => (
+            <div key={t.id}>
+              <TarjetaRow t={t} currency={currency} showLink={false} />
+            </div>
+          ))}
         </div>
       )}
 
@@ -499,7 +574,9 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
       <div className="rounded-card bg-bg-secondary px-4 py-3 text-center">
         <p className="type-meta text-text-tertiary">
           {isCurrentMonth
-            ? 'Resúmenes cerrados sin registrar el pago. Para pagar, ingresá a la tarjeta.'
+            ? allGoodCurrent
+              ? 'Sin resúmenes pendientes de pago. Tu disponible real está al día.'
+              : 'Los resúmenes pendientes y los consumos en curso ya impactan tu disponible real.'
             : `Resúmenes con vencimiento en ${monthLabel(selectedMonth)}. El pago se registra en la tarjeta.`}
         </p>
       </div>

@@ -63,7 +63,7 @@ export function CommitmentsSummary({
         {total <= 0 ? (
           <div className="space-y-1.5">
             <p className="text-[15px] font-semibold text-text-primary">
-              Sin compromisos en tarjeta
+              Sin compromisos en tarjetas
             </p>
             <p className="type-meta text-text-secondary">
               Tu Disponible Real coincide con tu Saldo Vivo.
@@ -77,7 +77,7 @@ export function CommitmentsSummary({
                   <CreditCard size={22} weight="regular" className="text-primary" />
                 </div>
                 <div className="min-w-0">
-                  <p className="type-body text-text-secondary">Comprometido en tarjetas</p>
+                  <p className="type-body text-text-secondary">Compromisos en tarjetas</p>
                   <p className="mt-1 type-meta text-text-dim">{footerText}</p>
                 </div>
               </div>
@@ -116,7 +116,7 @@ export function CommitmentsSummary({
                   className="h-2 w-2 rounded-full"
                   style={{ background: 'var(--color-warning)' }}
                 />
-                <span>Resúmenes</span>
+                <span>A pagar</span>
                 <span className="font-semibold tabular-nums text-text-primary">
                   {amountsVisible ? formatAmount(statements, currency) : maskAmount(currency)}
                 </span>

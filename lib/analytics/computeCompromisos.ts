@@ -66,6 +66,9 @@ export type CompromisosData = {
   // Legacy aliases kept for hero engine compatibility
   totalComprometido: number
   unassignedCreditSpend: number
+  // Breakdown for A pagar / En curso sections
+  totalAPagar: number
+  totalEnCurso: number
 }
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
@@ -278,6 +281,7 @@ export function computeCompromisos(
     })
 
     const totalDebt = tarjetas.reduce((s, t) => s + t.debtTotal, 0)
+    const totalEnCurso = tarjetas.reduce((s, t) => s + t.currentSpend, 0)
     const totalComprometido = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.debtTotal + tarjeta.currentSpend, 0)
     const pctComprometido =
       ingresoMes && ingresoMes > 0 ? Math.round((totalComprometido / ingresoMes) * 100) : null
@@ -293,6 +297,8 @@ export function computeCompromisos(
       hasCreditExpenses,
       totalComprometido,
       unassignedCreditSpend: 0,
+      totalAPagar: totalDebt,
+      totalEnCurso,
     }
   }
 
@@ -377,5 +383,7 @@ export function computeCompromisos(
     hasCreditExpenses,
     totalComprometido: totalDebt,
     unassignedCreditSpend: 0,
+    totalAPagar: totalDebt,
+    totalEnCurso: 0,
   }
 }

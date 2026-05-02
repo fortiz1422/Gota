@@ -313,9 +313,9 @@ export function DashboardShell({
             {compromisos && (
               <CommitmentsSummary
                 compromisos={compromisos}
-                totalCommitments={compromisos.totalComprometido}
-                pendingStatements={compromisos.totalDebt}
-                currentSpend={Math.max(compromisos.totalComprometido - compromisos.totalDebt, 0)}
+                totalCommitments={compromisos.totalAPagar + compromisos.totalEnCurso}
+                pendingStatements={compromisos.totalAPagar}
+                currentSpend={compromisos.totalEnCurso}
                 currency={viewCurrency}
                 selectedMonth={selectedMonth}
                 amountsVisible={amountsVisible}
