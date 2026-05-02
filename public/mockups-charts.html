@@ -1,0 +1,717 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockups — Hero & Evolución</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #FFFFFF;
+    --bg-secondary: #F8FBFD;
+    --bg-tertiary: #EEF4F8;
+    --primary: #2178A8;
+    --text-primary: #0D1829;
+    --text-secondary: #4A6070;
+    --text-tertiary: #90A4B0;
+    --success: #1A7A42;
+    --warning: #B84A12;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: #EEF4F8;
+    padding: 32px 24px 64px;
+    color: var(--text-primary);
+  }
+
+  h1 { font-size: 13px; font-weight: 600; color: var(--text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 32px; }
+  h2 { font-size: 11px; font-weight: 700; color: var(--text-tertiary); letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 16px; }
+
+  .section { margin-bottom: 48px; }
+
+  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); }
+
+  .card-wrap {
+    background: #fff;
+    border-radius: 20px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(15,30,60,0.06), 0 4px 16px rgba(33,120,168,0.05);
+  }
+
+  .option-label {
+    padding: 10px 16px 8px;
+    border-bottom: 1px solid rgba(33,120,168,0.07);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--primary);
+    background: rgba(33,120,168,0.04);
+  }
+
+  .phone-frame {
+    background: var(--bg);
+    padding: 0;
+    min-height: 180px;
+  }
+
+  /* ================================
+     HERO SECTION
+  ================================ */
+  .hero-wrap {
+    padding: 24px 20px 20px;
+  }
+
+  .hero-layout {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+  }
+
+  .hero-text { min-width: 0; flex: 1; }
+
+  .hero-headline {
+    font-size: 28px;
+    font-weight: 800;
+    line-height: 1.05;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+  }
+
+  .hero-amount {
+    margin-top: 14px;
+    font-size: 34px;
+    font-weight: 800;
+    letter-spacing: -0.03em;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .hero-sub {
+    margin-top: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-secondary);
+  }
+
+  /* -------------------------------- */
+  /* Option A — Current wide bars     */
+  /* -------------------------------- */
+  .sparkline-bars-wide {
+    display: flex;
+    align-items: flex-end;
+    gap: 6px;
+    height: 80px;
+    width: 72px;
+    align-self: flex-end;
+    padding-bottom: 4px;
+  }
+  .sparkline-bars-wide span {
+    flex: 1;
+    border-radius: 100px;
+    background: rgba(33,120,168,0.3);
+  }
+
+  /* -------------------------------- */
+  /* Option B — SVG Sparkline line    */
+  /* -------------------------------- */
+  .sparkline-svg-wrap {
+    width: 80px;
+    height: 48px;
+    align-self: flex-end;
+    padding-bottom: 4px;
+    opacity: 0.7;
+  }
+
+  /* -------------------------------- */
+  /* Option C — Thin stems (2px)      */
+  /* -------------------------------- */
+  .sparkline-stems {
+    display: flex;
+    align-items: flex-end;
+    gap: 7px;
+    height: 56px;
+    width: 64px;
+    align-self: flex-end;
+    padding-bottom: 4px;
+  }
+  .sparkline-stems span {
+    width: 2px;
+    border-radius: 2px;
+    flex-shrink: 0;
+  }
+
+  /* -------------------------------- */
+  /* Option D — Area chart SVG        */
+  /* -------------------------------- */
+  .sparkline-area-wrap {
+    width: 88px;
+    height: 56px;
+    align-self: flex-end;
+    padding-bottom: 4px;
+  }
+
+  /* ================================
+     EVOLUTION CHART
+  ================================ */
+  .evo-section {
+    padding: 20px;
+    background: var(--bg);
+  }
+
+  .evo-header {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    margin-bottom: 14px;
+  }
+
+  .evo-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+  .evo-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+  .evo-avg-label { font-size: 10px; color: var(--text-tertiary); text-align: right; }
+  .evo-avg-val { font-size: 12px; font-weight: 600; color: var(--text-secondary); }
+
+  .chart-card {
+    background: var(--bg-secondary);
+    border-radius: 16px;
+    padding: 16px;
+  }
+
+  /* Option A — Current vertical bars */
+  .bars-vertical {
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+  }
+  .bar-col {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+  }
+  .bar-container {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .bar-fill {
+    width: 100%;
+    border-radius: 14px 14px 0 0;
+  }
+  .bar-label {
+    font-size: 11px;
+    font-weight: 600;
+    text-align: center;
+  }
+  .avg-line {
+    position: absolute;
+    left: -4px; right: -4px;
+    border-top: 1px dashed rgba(33,120,168,0.25);
+  }
+
+  /* Option B — Horizontal bars */
+  .bars-horizontal { display: flex; flex-direction: column; gap: 0; }
+  .hbar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px solid rgba(33,120,168,0.06);
+  }
+  .hbar-row:last-child { border-bottom: none; }
+  .hbar-label { font-size: 11px; font-weight: 600; color: var(--text-secondary); width: 28px; flex-shrink: 0; }
+  .hbar-track { flex: 1; height: 8px; background: rgba(33,120,168,0.07); border-radius: 100px; overflow: hidden; }
+  .hbar-fill { height: 100%; border-radius: 100px; }
+  .hbar-value { font-size: 11px; font-weight: 600; color: var(--text-secondary); width: 36px; text-align: right; flex-shrink: 0; }
+
+  /* Option C — Dot timeline */
+  .dots-chart { position: relative; padding-top: 8px; }
+  .dots-line-wrap {
+    position: relative;
+    height: 64px;
+  }
+  .dots-baseline {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: rgba(33,120,168,0.1);
+  }
+  .dots-row {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-around;
+  }
+  .dot-col { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .dot-circle {
+    width: 9px; height: 9px;
+    border-radius: 50%;
+    background: rgba(33,120,168,0.25);
+    position: relative; z-index: 2;
+  }
+  .dot-circle.current {
+    background: var(--primary);
+    box-shadow: 0 0 0 3px rgba(33,120,168,0.18);
+  }
+  .dot-label-bottom { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin-top: 8px; }
+  .dot-label-bottom.current { color: var(--primary); }
+  .dot-connector {
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    pointer-events: none;
+  }
+
+  /* Option D — Thin stems */
+  .stems-chart { display: flex; gap: 0; align-items: flex-end; padding: 0 4px; }
+  .stem-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .stem-bar-wrap {
+    position: relative;
+    width: 100%;
+    display: flex;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .stem-bar {
+    width: 3px;
+    border-radius: 3px;
+    flex-shrink: 0;
+  }
+  .stem-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+  .stem-label.current { color: var(--primary); }
+</style>
+</head>
+<body>
+
+<h1>Gota — Opciones visuales de gráficos</h1>
+
+<!-- ========================
+     HERO SPARKLINE
+======================== -->
+<div class="section">
+  <h2>Hero — gráfico decorativo (esquina derecha)</h2>
+  <div class="grid">
+
+    <!-- HERO A — Current wide bars -->
+    <div class="card-wrap">
+      <div class="option-label">A · Barras anchas (actual)</div>
+      <div class="phone-frame">
+        <div class="hero-wrap">
+          <div class="hero-layout">
+            <div class="hero-text">
+              <p class="hero-headline">Abril viene 12%<br>abajo de tu promedio</p>
+              <p class="hero-amount">$ 284.500</p>
+              <p class="hero-sub">vs promedio 6m &nbsp;−12%</p>
+            </div>
+            <div class="sparkline-bars-wide">
+              <span style="height: 38%"></span>
+              <span style="height: 62%"></span>
+              <span style="height: 100%; background: rgba(33,120,168,0.5)"></span>
+              <span style="height: 78%"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO B — SVG line sparkline -->
+    <div class="card-wrap">
+      <div class="option-label">B · Línea SVG</div>
+      <div class="phone-frame">
+        <div class="hero-wrap">
+          <div class="hero-layout">
+            <div class="hero-text">
+              <p class="hero-headline">Abril viene 12%<br>abajo de tu promedio</p>
+              <p class="hero-amount">$ 284.500</p>
+              <p class="hero-sub">vs promedio 6m &nbsp;−12%</p>
+            </div>
+            <div class="sparkline-svg-wrap">
+              <svg width="80" height="48" viewBox="0 0 80 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polyline
+                  points="0,36 16,20 32,28 48,12 64,18 80,32"
+                  stroke="#2178A8"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                  opacity="0.45"
+                />
+                <circle cx="0" cy="36" r="2.5" fill="#2178A8" opacity="0.3"/>
+                <circle cx="16" cy="20" r="2.5" fill="#2178A8" opacity="0.3"/>
+                <circle cx="32" cy="28" r="2.5" fill="#2178A8" opacity="0.3"/>
+                <circle cx="48" cy="12" r="2.5" fill="#2178A8" opacity="0.3"/>
+                <circle cx="64" cy="18" r="2.5" fill="#2178A8" opacity="0.3"/>
+                <circle cx="80" cy="32" r="3.5" fill="#2178A8" opacity="0.7"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO C — Thin stems -->
+    <div class="card-wrap">
+      <div class="option-label">C · Stems finos (2px)</div>
+      <div class="phone-frame">
+        <div class="hero-wrap">
+          <div class="hero-layout">
+            <div class="hero-text">
+              <p class="hero-headline">Abril viene 12%<br>abajo de tu promedio</p>
+              <p class="hero-amount">$ 284.500</p>
+              <p class="hero-sub">vs promedio 6m &nbsp;−12%</p>
+            </div>
+            <div class="sparkline-stems">
+              <span style="height: 35%; background: rgba(33,120,168,0.22)"></span>
+              <span style="height: 55%; background: rgba(33,120,168,0.28)"></span>
+              <span style="height: 80%; background: rgba(33,120,168,0.35)"></span>
+              <span style="height: 100%; background: rgba(33,120,168,0.55)"></span>
+              <span style="height: 72%; background: rgba(33,120,168,0.30)"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO D — Area SVG -->
+    <div class="card-wrap">
+      <div class="option-label">D · Area chart SVG</div>
+      <div class="phone-frame">
+        <div class="hero-wrap">
+          <div class="hero-layout">
+            <div class="hero-text">
+              <p class="hero-headline">Abril viene 12%<br>abajo de tu promedio</p>
+              <p class="hero-amount">$ 284.500</p>
+              <p class="hero-sub">vs promedio 6m &nbsp;−12%</p>
+            </div>
+            <div class="sparkline-area-wrap">
+              <svg width="88" height="56" viewBox="0 0 88 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                  <linearGradient id="areaGrad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stop-color="#2178A8" stop-opacity="0.18"/>
+                    <stop offset="100%" stop-color="#2178A8" stop-opacity="0.02"/>
+                  </linearGradient>
+                </defs>
+                <path
+                  d="M0,42 L14,24 L28,32 L42,14 L56,20 L70,36 L84,28 L88,28 L88,56 L0,56 Z"
+                  fill="url(#areaGrad)"
+                />
+                <polyline
+                  points="0,42 14,24 28,32 42,14 56,20 70,36 84,28"
+                  stroke="#2178A8"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                  opacity="0.5"
+                />
+                <circle cx="84" cy="28" r="3" fill="#2178A8" opacity="0.6"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- HERO E — Sin gráfico -->
+    <div class="card-wrap">
+      <div class="option-label">E · Sin gráfico</div>
+      <div class="phone-frame">
+        <div class="hero-wrap">
+          <div class="hero-layout">
+            <div class="hero-text" style="max-width: 100%">
+              <p class="hero-headline">Abril viene 12%<br>abajo de tu promedio</p>
+              <p class="hero-amount">$ 284.500</p>
+              <p class="hero-sub">vs promedio 6m &nbsp;−12%</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ========================
+     EVOLUTION CHART
+======================== -->
+<div class="section">
+  <h2>Evolución mensual — opciones de chart</h2>
+  <div class="grid">
+
+    <!-- EVO A — Current vertical bars -->
+    <div class="card-wrap">
+      <div class="option-label">A · Barras verticales anchas (actual)</div>
+      <div class="phone-frame">
+        <div class="evo-section">
+          <div class="evo-header">
+            <div>
+              <p class="evo-title">Últimos 6 meses</p>
+              <p class="evo-sub">Tu promedio sirve como referencia.</p>
+            </div>
+            <div>
+              <p class="evo-avg-label">Promedio 6m</p>
+              <p class="evo-avg-val">$268k</p>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="bars-vertical">
+              <!-- Ene -->
+              <div class="bar-col">
+                <div class="bar-container" style="height: 120px">
+                  <div class="avg-line" style="bottom: 75px"></div>
+                  <div class="bar-fill" style="height: 63px; background: rgba(33,120,168,0.2)"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Ene</span>
+              </div>
+              <!-- Feb -->
+              <div class="bar-col">
+                <div class="bar-container" style="height: 120px">
+                  <div class="avg-line" style="bottom: 75px"></div>
+                  <div class="bar-fill" style="height: 80px; background: rgba(33,120,168,0.2)"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Feb</span>
+              </div>
+              <!-- Mar -->
+              <div class="bar-col">
+                <div class="bar-container" style="height: 120px">
+                  <div class="avg-line" style="bottom: 75px"></div>
+                  <div class="bar-fill" style="height: 95px; background: rgba(33,120,168,0.2)"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Mar</span>
+              </div>
+              <!-- Abr (current) -->
+              <div class="bar-col">
+                <div class="bar-container" style="height: 120px">
+                  <div class="avg-line" style="bottom: 75px"></div>
+                  <div class="bar-fill" style="height: 76px; background: var(--primary)"></div>
+                </div>
+                <span class="bar-label" style="color: var(--primary)">Abr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVO B — Horizontal bars -->
+    <div class="card-wrap">
+      <div class="option-label">B · Barras horizontales</div>
+      <div class="phone-frame">
+        <div class="evo-section">
+          <div class="evo-header">
+            <div>
+              <p class="evo-title">Últimos 6 meses</p>
+              <p class="evo-sub">Tu promedio sirve como referencia.</p>
+            </div>
+            <div>
+              <p class="evo-avg-label">Promedio 6m</p>
+              <p class="evo-avg-val">$268k</p>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="bars-horizontal">
+              <div class="hbar-row">
+                <span class="hbar-label">Ene</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width: 55%; background: rgba(33,120,168,0.25)"></div></div>
+                <span class="hbar-value">$210k</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Feb</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width: 72%; background: rgba(33,120,168,0.25)"></div></div>
+                <span class="hbar-value">$245k</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label">Mar</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width: 88%; background: rgba(33,120,168,0.25)"></div></div>
+                <span class="hbar-value">$310k</span>
+              </div>
+              <div class="hbar-row">
+                <span class="hbar-label" style="color: var(--primary); font-weight: 700">Abr</span>
+                <div class="hbar-track"><div class="hbar-fill" style="width: 64%; background: var(--primary)"></div></div>
+                <span class="hbar-value" style="color: var(--primary); font-weight: 700">$284k</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVO C — Dot timeline -->
+    <div class="card-wrap">
+      <div class="option-label">C · Dots + línea</div>
+      <div class="phone-frame">
+        <div class="evo-section">
+          <div class="evo-header">
+            <div>
+              <p class="evo-title">Últimos 6 meses</p>
+              <p class="evo-sub">Tu promedio sirve como referencia.</p>
+            </div>
+            <div>
+              <p class="evo-avg-label">Promedio 6m</p>
+              <p class="evo-avg-val">$268k</p>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div style="position: relative; height: 80px">
+              <!-- avg line -->
+              <div style="position:absolute; left:0; right:0; top: 28px; border-top: 1px dashed rgba(33,120,168,0.22)"></div>
+              <!-- SVG connector line -->
+              <svg style="position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;overflow:visible" viewBox="0 0 300 64" preserveAspectRatio="none">
+                <polyline
+                  points="38,48 112,32 188,22 262,38"
+                  stroke="#2178A8"
+                  stroke-width="1.5"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  fill="none"
+                  opacity="0.25"
+                />
+              </svg>
+              <!-- dots row -->
+              <div style="display:flex; justify-content: space-around; position:absolute; bottom:0; left:0; right:0; align-items:flex-end">
+                <div class="dot-col" style="bottom: calc(100% - 48px)">
+                  <div style="height:48px; display:flex; align-items:flex-end; padding-bottom:0">
+                    <div class="dot-circle"></div>
+                  </div>
+                  <span class="dot-label-bottom">Ene</span>
+                </div>
+                <div class="dot-col">
+                  <div style="height:48px; display:flex; align-items:flex-start; padding-top: 16px">
+                    <div class="dot-circle"></div>
+                  </div>
+                  <span class="dot-label-bottom">Feb</span>
+                </div>
+                <div class="dot-col">
+                  <div style="height:48px; display:flex; align-items:flex-start; padding-top: 6px">
+                    <div class="dot-circle"></div>
+                  </div>
+                  <span class="dot-label-bottom">Mar</span>
+                </div>
+                <div class="dot-col">
+                  <div style="height:48px; display:flex; align-items:flex-start; padding-top: 22px">
+                    <div class="dot-circle current"></div>
+                  </div>
+                  <span class="dot-label-bottom current">Abr</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVO D — Thin stems -->
+    <div class="card-wrap">
+      <div class="option-label">D · Stems finos (3px), sin card</div>
+      <div class="phone-frame">
+        <div class="evo-section">
+          <div class="evo-header">
+            <div>
+              <p class="evo-title">Últimos 6 meses</p>
+              <p class="evo-sub">Tu promedio sirve como referencia.</p>
+            </div>
+            <div>
+              <p class="evo-avg-label">Promedio 6m</p>
+              <p class="evo-avg-val">$268k</p>
+            </div>
+          </div>
+          <!-- no chart-card wrapper -->
+          <div style="padding: 4px 0">
+            <div class="stems-chart" style="align-items: flex-end; gap: 16px">
+              <div class="stem-col">
+                <div class="stem-bar-wrap" style="height: 90px">
+                  <div style="position:absolute; left:0; right:0; bottom: 58px; border-top: 1px dashed rgba(33,120,168,0.22)"></div>
+                  <div class="stem-bar" style="height: 52px; background: rgba(33,120,168,0.3); border-radius:3px 3px 0 0"></div>
+                </div>
+                <span class="stem-label">Ene</span>
+              </div>
+              <div class="stem-col">
+                <div class="stem-bar-wrap" style="height: 90px">
+                  <div style="position:absolute; left:0; right:0; bottom: 58px; border-top: 1px dashed rgba(33,120,168,0.22)"></div>
+                  <div class="stem-bar" style="height: 68px; background: rgba(33,120,168,0.3); border-radius:3px 3px 0 0"></div>
+                </div>
+                <span class="stem-label">Feb</span>
+              </div>
+              <div class="stem-col">
+                <div class="stem-bar-wrap" style="height: 90px">
+                  <div style="position:absolute; left:0; right:0; bottom: 58px; border-top: 1px dashed rgba(33,120,168,0.22)"></div>
+                  <div class="stem-bar" style="height: 82px; background: rgba(33,120,168,0.3); border-radius:3px 3px 0 0"></div>
+                </div>
+                <span class="stem-label">Mar</span>
+              </div>
+              <div class="stem-col">
+                <div class="stem-bar-wrap" style="height: 90px">
+                  <div style="position:absolute; left:0; right:0; bottom: 58px; border-top: 1px dashed rgba(33,120,168,0.22)"></div>
+                  <div class="stem-bar" style="height: 65px; background: var(--primary); border-radius:3px 3px 0 0"></div>
+                </div>
+                <span class="stem-label current" style="color: var(--primary)">Abr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- EVO E — Barras verticales, rounded full (pill) -->
+    <div class="card-wrap">
+      <div class="option-label">E · Barras verticales pill (rounded-full)</div>
+      <div class="phone-frame">
+        <div class="evo-section">
+          <div class="evo-header">
+            <div>
+              <p class="evo-title">Últimos 6 meses</p>
+              <p class="evo-sub">Tu promedio sirve como referencia.</p>
+            </div>
+            <div>
+              <p class="evo-avg-label">Promedio 6m</p>
+              <p class="evo-avg-val">$268k</p>
+            </div>
+          </div>
+          <div class="chart-card">
+            <div class="bars-vertical">
+              <div class="bar-col">
+                <div class="bar-container" style="height: 104px">
+                  <div class="avg-line" style="bottom: 65px"></div>
+                  <div style="width: 60%; height: 52px; background: rgba(33,120,168,0.22); border-radius: 100px"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Ene</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-container" style="height: 104px">
+                  <div class="avg-line" style="bottom: 65px"></div>
+                  <div style="width: 60%; height: 68px; background: rgba(33,120,168,0.22); border-radius: 100px"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Feb</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-container" style="height: 104px">
+                  <div class="avg-line" style="bottom: 65px"></div>
+                  <div style="width: 60%; height: 82px; background: rgba(33,120,168,0.22); border-radius: 100px"></div>
+                </div>
+                <span class="bar-label" style="color: var(--text-secondary)">Mar</span>
+              </div>
+              <div class="bar-col">
+                <div class="bar-container" style="height: 104px">
+                  <div class="avg-line" style="bottom: 65px"></div>
+                  <div style="width: 60%; height: 64px; background: var(--primary); border-radius: 100px"></div>
+                </div>
+                <span class="bar-label" style="color: var(--primary)">Abr</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="font-size: 11px; color: var(--text-tertiary); text-align: center; margin-top: 16px;">Abrí en el browser: localhost:3000/mockups-charts.html</p>
+
+</body>
+</html>

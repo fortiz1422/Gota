@@ -112,6 +112,7 @@ function computeStatementAmount(
     card.id,
     new Date(`${periodFrom}T12:00:00Z`),
     new Date(`${cycle.closing_date}T12:00:00Z`),
+    cycle.id,
   )
 }
 
@@ -150,6 +151,10 @@ export function computeCompromisos(
     for (const card of cards) {
       const forThisCard = cardCycles.filter((c) => c.card_id === card.id)
       const unpaid = forThisCard.filter((c) => c.status !== 'paid')
+      const enCursoCycle =
+        unpaid
+          .filter((cycle) => cycle.closing_date >= today)
+          .sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ?? null
       const paidThisMonth = forThisCard.find(
         (c) => c.status === 'paid' && c.due_date.startsWith(selectedMonth),
       )
@@ -163,6 +168,7 @@ export function computeCompromisos(
 
       for (const cycle of unpaid) {
         if (cycle.closing_date >= today) {
+          if (cycle !== enCursoCycle) continue
           // En curso — compute live spend within this cycle's date range
           foundEnCurso = true
           const periodFrom = getPeriodFrom(cycle, card, cardCycles)
@@ -171,6 +177,7 @@ export function computeCompromisos(
             card.id,
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${cycle.closing_date}T12:00:00Z`),
+            cycle.id,
           )
           currentSpend = getRemainingCardCycleAmount(liveSpend, cycle.amount_paid)
           daysUntilClosing = daysDiff(today, cycle.closing_date)
@@ -189,6 +196,30 @@ export function computeCompromisos(
         }
       }
 
+      // Detect implicit closed cycles: months with no stored record (paid or unpaid)
+      // but with expense-based debt. Covers resúmenes cerrados never registered as a payment.
+      for (let mBack = 1; mBack <= 4; mBack++) {
+        const prevMonth = addMonths(selectedMonth, -mBack)
+        const hasCycle = forThisCard.some(
+          (c) => c.period_month.substring(0, 7) === prevMonth,
+        )
+        if (hasCycle) continue
+
+        const implicitCycle = buildLegacyCardCycle(card, prevMonth)
+        if (implicitCycle.closing_date >= today) continue
+
+        const amount = computeStatementAmount(implicitCycle, card, expenses, cardCycles)
+        if (amount <= 0) continue
+
+        const cs: 'cerrado' | 'vencido' = implicitCycle.due_date < today ? 'vencido' : 'cerrado'
+        debtCycles.push({
+          periodMonth: prevMonth,
+          amount,
+          dueDate: implicitCycle.due_date,
+          cycleStatus: cs,
+        })
+      }
+
       // Fallback: no stored en_curso cycle — build from card config
       if (!foundEnCurso && card.closing_day !== null) {
         const legacy = buildLegacyCardCycle(card, selectedMonth)
@@ -199,6 +230,7 @@ export function computeCompromisos(
             card.id,
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${legacy.closing_date}T12:00:00Z`),
+            legacy.id,
           )
           currentSpend = getRemainingCardCycleAmount(liveSpend, legacy.amount_paid)
           daysUntilClosing = daysDiff(today, legacy.closing_date)

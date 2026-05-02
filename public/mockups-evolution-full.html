@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockups — Evolución completa</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #FFFFFF; --bg2: #F8FBFD; --bg3: #EEF4F8;
+  --p: #2178A8; --ps: rgba(33,120,168,0.09); --pm: rgba(33,120,168,0.22);
+  --t1: #0D1829; --t2: #4A6070; --t3: #90A4B0; --t4: #B8C9D4;
+  --ok: #1A7A42; --oks: rgba(26,122,66,0.10);
+  --warn: #B84A12;
+  --sep: rgba(33,120,168,0.07);
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg3); padding: 28px 16px 80px; color: var(--t1); }
+
+/* Layout */
+.group { margin-bottom: 56px; }
+.group-title { font-size: 11px; font-weight: 700; color: var(--t3); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 6px; }
+.group-desc  { font-size: 13px; color: var(--t2); margin-bottom: 20px; line-height: 1.5; }
+.row { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 4px; }
+.row::-webkit-scrollbar { display: none; }
+
+/* Phone */
+.phone { background: var(--bg); border-radius: 22px; overflow: hidden; flex-shrink: 0; width: 280px;
+  box-shadow: 0 2px 8px rgba(15,30,60,0.07), 0 6px 24px rgba(33,120,168,0.06); }
+.phone.wide { width: 320px; }
+.tag { padding: 8px 14px 7px; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: var(--p); background: rgba(33,120,168,0.05); border-bottom: 1px solid var(--sep); }
+.tag.rec { color: var(--ok); background: var(--oks); }
+.sp { padding: 18px 16px; }
+
+/* Common chart elements */
+.evo-hd { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+.evo-title { font-size: 15px; font-weight: 700; color: var(--t1); }
+.evo-sub { font-size: 11px; color: var(--t2); margin-top: 2px; }
+.evo-avg { text-align: right; }
+.evo-avg-l { font-size: 10px; color: var(--t3); }
+.evo-avg-v { font-size: 11px; font-weight: 600; color: var(--t2); }
+.chart-bg { background: var(--bg2); border-radius: 14px; padding: 14px; }
+
+/* ========================
+   PILL BARS (vertical)
+======================== */
+.pill-chart { display: flex; align-items: flex-end; gap: 8px; }
+.pill-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 6px; }
+.pill-container { position: relative; width: 100%; display: flex; align-items: flex-end; justify-content: center; }
+.pill-bar { width: 10px; border-radius: 100px; flex-shrink: 0; }
+.pill-lbl { font-size: 10px; font-weight: 600; color: var(--t3); }
+.pill-lbl.cur { color: var(--p); }
+.pill-partial { font-size: 9px; color: var(--t4); }
+.avg-dashed { position: absolute; left: -4px; right: -4px; border-top: 1px dashed rgba(33,120,168,0.22); }
+
+/* ========================
+   HORIZONTAL BARS
+======================== */
+.hbar-chart { display: flex; flex-direction: column; gap: 0; }
+.hbar-row { display: flex; align-items: center; gap: 8px; padding: 5px 0;
+  border-bottom: 1px solid var(--sep); }
+.hbar-row:last-child { border-bottom: none; }
+.hbar-lbl { font-size: 10px; font-weight: 600; color: var(--t3); width: 24px; flex-shrink: 0; }
+.hbar-lbl.cur { color: var(--p); }
+.hbar-track { flex: 1; height: 6px; background: rgba(33,120,168,0.07); border-radius: 100px; overflow: hidden; }
+.hbar-fill { height: 100%; border-radius: 100px; }
+.hbar-val { font-size: 10px; font-weight: 600; color: var(--t2); width: 32px; text-align: right; flex-shrink: 0; }
+.hbar-val.cur { color: var(--p); }
+
+/* ========================
+   2-MONTH: COMPARISON CARD
+======================== */
+.cmp-card { display: flex; align-items: center; gap: 0; }
+.cmp-cell { flex: 1; padding: 12px 14px; display: flex; flex-direction: column; gap: 3px; }
+.cmp-cell + .cmp-cell { border-left: 1px solid var(--sep); }
+.cmp-month { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: var(--t3); }
+.cmp-amount { font-size: 20px; font-weight: 800; letter-spacing: -0.02em; color: var(--t1); }
+.cmp-delta { font-size: 11px; font-weight: 700; margin-top: 1px; }
+.cmp-delta.down { color: var(--ok); }
+.cmp-delta.up { color: var(--warn); }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     GRUPO 1 — PILL BARS: 4 / 6 meses
+============================================================ -->
+<div class="group">
+  <p class="group-title">Opción 1 — Barras pill verticales</p>
+  <p class="group-desc">Las que están ahora. Ancho fijo 10px, rounded-full. ¿Escalan bien a 6 meses?</p>
+
+  <div class="row">
+
+    <!-- 4 meses -->
+    <div class="phone">
+      <div class="tag">4 meses</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Cómo viene evolucionando</p><p class="evo-sub">Empiezan a aparecer señales.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Prom. reciente</p><p class="evo-avg-v">$285k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="pill-chart">
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:52px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Ene</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:70px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Feb</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:86px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Mar</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:65px;background:var(--p)"></div>
+              </div>
+              <span class="pill-lbl cur">Abr</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 meses -->
+    <div class="phone wide">
+      <div class="tag">6 meses</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Últimos 6 meses</p><p class="evo-sub">Tu promedio sirve como referencia.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Promedio 6m</p><p class="evo-avg-v">$278k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="pill-chart">
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:48px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Nov</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:62px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Dic</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:52px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Ene</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:75px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Feb</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:88px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Mar</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:64px;background:var(--p)"></div>
+              </div>
+              <span class="pill-lbl cur">Abr</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     GRUPO 2 — HORIZONTAL BARS: 4 / 6 meses + 2 meses
+============================================================ -->
+<div class="group">
+  <p class="group-title">Opción 2 — Barras horizontales</p>
+  <p class="group-desc">Mes como fila. Label a la izquierda, monto a la derecha. Escala bien a cualquier cantidad. Para 2 meses: misma lógica, sin romper el patrón.</p>
+
+  <div class="row">
+
+    <!-- 2 meses -->
+    <div class="phone">
+      <div class="tag rec">2 meses (coherente)</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Tus primeros 2 meses</p><p class="evo-sub">Ya podés compararte.</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="hbar-chart">
+            <div class="hbar-row">
+              <span class="hbar-lbl">Mar</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:100%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$310k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl cur">Abr</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:92%;background:var(--p)"></div></div>
+              <span class="hbar-val cur">$285k</span>
+            </div>
+          </div>
+          <div style="margin-top:10px;text-align:center">
+            <span style="background:var(--oks);color:var(--ok);border-radius:100px;padding:3px 10px;font-size:11px;font-weight:700">−8% vs mes anterior</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 meses -->
+    <div class="phone">
+      <div class="tag rec">4 meses</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Cómo viene evolucionando</p><p class="evo-sub">Empiezan a aparecer señales.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Prom. reciente</p><p class="evo-avg-v">$285k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="hbar-chart">
+            <div class="hbar-row">
+              <span class="hbar-lbl">Ene</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:60%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$210k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Feb</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:80%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$245k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Mar</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:100%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$310k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl cur">Abr</span>
+              <div class="hbar-track">
+                <div class="hbar-fill" style="width:92%;background:var(--p)"></div>
+              </div>
+              <span class="hbar-val cur">$285k</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 meses -->
+    <div class="phone">
+      <div class="tag rec">6 meses</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Últimos 6 meses</p><p class="evo-sub">Tu promedio sirve como referencia.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Promedio 6m</p><p class="evo-avg-v">$278k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="hbar-chart">
+            <div class="hbar-row">
+              <span class="hbar-lbl">Nov</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:55%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$168k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Dic</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:72%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$220k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Ene</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:62%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$190k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Feb</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:84%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$257k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl">Mar</span>
+              <div class="hbar-track"><div class="hbar-fill" style="width:100%;background:var(--pm)"></div></div>
+              <span class="hbar-val">$310k</span>
+            </div>
+            <div class="hbar-row">
+              <span class="hbar-lbl cur">Abr</span>
+              <div class="hbar-track">
+                <div style="position:relative;height:100%">
+                  <div class="hbar-fill" style="width:92%;background:var(--p);height:100%"></div>
+                </div>
+              </div>
+              <span class="hbar-val cur">$285k</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ============================================================
+     GRUPO 3 — COMPARACIÓN CARD para 2m + PILLS para 3+
+============================================================ -->
+<div class="group">
+  <p class="group-title">Opción 3 — Estado especial para 2 meses, pills para 3+</p>
+  <p class="group-desc">2 meses = comparación directa (sin chart). 3+ meses = pill bars verticales. Cada estado tiene su propio tratamiento visual.</p>
+
+  <div class="row">
+
+    <!-- 2 meses — comparación -->
+    <div class="phone">
+      <div class="tag">2 meses (estado especial)</div>
+      <div class="sp">
+        <p class="evo-title" style="margin-bottom:12px">Tus primeros 2 meses</p>
+        <div class="chart-bg" style="padding:0;overflow:hidden">
+          <div class="cmp-card">
+            <div class="cmp-cell">
+              <span class="cmp-month">Mar</span>
+              <span class="cmp-amount">$310k</span>
+              <span style="font-size:10px;color:var(--t3)">mes anterior</span>
+            </div>
+            <div style="display:flex;align-items:center;padding:0 4px">
+              <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+                <path d="M5 10h10M12 7l3 3-3 3" stroke="#90A4B0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <div class="cmp-cell">
+              <span class="cmp-month" style="color:var(--p)">Abr</span>
+              <span class="cmp-amount" style="color:var(--p)">$285k</span>
+              <span class="cmp-delta down">↓ 8% menos</span>
+            </div>
+          </div>
+        </div>
+        <p style="font-size:11px;color:var(--t3);margin-top:10px;text-align:center;line-height:1.5">Con más meses vas a ver la tendencia completa.</p>
+      </div>
+    </div>
+
+    <!-- 4 meses — pills -->
+    <div class="phone">
+      <div class="tag">4 meses (pills)</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Cómo viene evolucionando</p><p class="evo-sub">Empiezan a aparecer señales.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Prom. reciente</p><p class="evo-avg-v">$285k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="pill-chart">
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:52px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Ene</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:70px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Feb</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:86px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Mar</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:58px"></span>
+                <div class="pill-bar" style="height:65px;background:var(--p)"></div>
+              </div>
+              <span class="pill-lbl cur">Abr</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 meses — pills -->
+    <div class="phone wide">
+      <div class="tag">6 meses (pills)</div>
+      <div class="sp">
+        <div class="evo-hd">
+          <div><p class="evo-title">Últimos 6 meses</p><p class="evo-sub">Tu promedio sirve como referencia.</p></div>
+          <div class="evo-avg"><p class="evo-avg-l">Promedio 6m</p><p class="evo-avg-v">$278k</p></div>
+        </div>
+        <div class="chart-bg">
+          <div class="pill-chart">
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:48px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Nov</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:62px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Dic</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:52px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Ene</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:75px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Feb</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:88px;background:var(--pm)"></div>
+              </div>
+              <span class="pill-lbl">Mar</span>
+            </div>
+            <div class="pill-col">
+              <div class="pill-container" style="height:96px">
+                <span class="avg-dashed" style="bottom:56px"></span>
+                <div class="pill-bar" style="height:64px;background:var(--p)"></div>
+              </div>
+              <span class="pill-lbl cur">Abr</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p style="font-size:11px;color:var(--t3);text-align:center">localhost:3000/mockups-evolution-full.html</p>
+</body>
+</html>

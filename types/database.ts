@@ -262,6 +262,7 @@ export type Database = {
           is_legacy_card_payment: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id: string | null
+          card_cycle_id: string | null
           account_id: string | null
           date: string
           created_at: string
@@ -282,6 +283,7 @@ export type Database = {
           is_legacy_card_payment?: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
+          card_cycle_id?: string | null
           account_id?: string | null
           date?: string
           created_at?: string
@@ -302,6 +304,7 @@ export type Database = {
           is_legacy_card_payment?: boolean | null
           payment_method?: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
+          card_cycle_id?: string | null
           account_id?: string | null
           date?: string
           created_at?: string

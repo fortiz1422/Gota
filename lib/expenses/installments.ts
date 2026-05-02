@@ -23,6 +23,7 @@ export function buildInstallmentRows({
   installments,
   installmentStart,
   installmentGrandTotal,
+  cycleAssignments,
   groupId = crypto.randomUUID(),
 }: {
   userId: string
@@ -30,6 +31,7 @@ export function buildInstallmentRows({
   installments: number
   installmentStart?: number
   installmentGrandTotal?: number
+  cycleAssignments?: { card_cycle_id: string; cycle_date: string }[]
   groupId?: string
 }): ExpenseInsert[] {
   const baseDate = toDateOnly(expenseFields.date ?? new Date().toISOString())
@@ -47,6 +49,7 @@ export function buildInstallmentRows({
       ? expenseFields.amount
       : (baseCents + (i === installments - 1 ? remainderCents : 0)) / 100,
     date: addMonthsPreservingDay(baseDate, i),
+    card_cycle_id: cycleAssignments?.[i]?.card_cycle_id ?? expenseFields.card_cycle_id ?? null,
     installment_group_id: groupId,
     installment_number: startNumber + i,
     installment_total: grandTotal,

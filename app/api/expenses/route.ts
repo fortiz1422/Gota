@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { ExpenseSchema } from '@/lib/validation/schemas'
 import { toDateOnly } from '@/lib/format'
 import { buildInstallmentRows } from '@/lib/expenses/installments'
+import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { ZodError } from 'zod'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { recordProductEvent } from '@/lib/product-analytics/server'
@@ -105,15 +106,42 @@ export async function POST(request: Request) {
     }
 
     if (numInstallments === 1) {
+      const cycleAssignments =
+        expenseFields.payment_method === 'CREDIT' && expenseFields.category !== 'Pago de Tarjetas'
+          ? await resolveCardCycleAssignments({
+              supabase,
+              userId: user.id,
+              cardId: expenseFields.card_id,
+              baseDate: toDateOnly(expenseFields.date),
+              installments: 1,
+            })
+          : []
+
       const { data, error } = await supabase
         .from('expenses')
-        .insert({ user_id: user.id, ...expenseFields, date: toDateOnly(expenseFields.date) })
+        .insert({
+          user_id: user.id,
+          ...expenseFields,
+          date: toDateOnly(expenseFields.date),
+          card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
+        })
         .select()
         .single()
       if (error) throw error
       await recordFirstExpense()
       return NextResponse.json(data, { status: 201 })
     }
+
+    const cycleAssignments =
+      expenseFields.payment_method === 'CREDIT' && expenseFields.category !== 'Pago de Tarjetas'
+        ? await resolveCardCycleAssignments({
+            supabase,
+            userId: user.id,
+            cardId: expenseFields.card_id,
+            baseDate: toDateOnly(expenseFields.date),
+            installments: numInstallments,
+          })
+        : []
 
     const rows = buildInstallmentRows({
       userId: user.id,
@@ -124,6 +152,7 @@ export async function POST(request: Request) {
       installments: numInstallments,
       installmentStart: installment_start,
       installmentGrandTotal: installment_grand_total,
+      cycleAssignments,
     })
 
     const { data, error } = await supabase.from('expenses').insert(rows).select()

@@ -8,6 +8,8 @@ import { readDashboardData } from '@/lib/server/dashboard-queries'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processSubscriptions(supabase: any, userId: string, currentMonth: string, currentDay: number) {
+  const monthDate = currentMonth + '-01'
+
   const { data: subs } = await supabase
     .from('subscriptions')
     .select('*')
@@ -18,15 +20,28 @@ async function processSubscriptions(supabase: any, userId: string, currentMonth:
 
   const { data: insertions } = await supabase
     .from('subscription_insertions')
-    .select('subscription_id')
-    .eq('month', currentMonth + '-01')
+    .select('subscription_id, expense_id')
+    .eq('month', monthDate)
 
-  const inserted = new Set((insertions ?? []).map((i: { subscription_id: string }) => i.subscription_id))
+  const inserted = new Set(
+    (insertions ?? [])
+      .filter((i: { expense_id: string | null }) => i.expense_id)
+      .map((i: { subscription_id: string }) => i.subscription_id),
+  )
 
   for (const sub of subs) {
     if (inserted.has(sub.id) || currentDay < sub.day_of_month) continue
+
+    const { data: reservation, error: reservationError } = await supabase
+      .from('subscription_insertions')
+      .insert({ subscription_id: sub.id, month: monthDate })
+      .select('id')
+      .single()
+
+    if (reservationError || !reservation) continue
+
     const expDate = `${currentMonth}-${String(sub.day_of_month).padStart(2, '0')}`
-    const { data: expense } = await supabase
+    const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
         user_id: userId,
@@ -42,11 +57,17 @@ async function processSubscriptions(supabase: any, userId: string, currentMonth:
       })
       .select('id')
       .single()
+
+    if (expenseError || !expense) {
+      await supabase.from('subscription_insertions').delete().eq('id', reservation.id)
+      continue
+    }
+
     if (expense) {
-      await supabase.from('subscription_insertions').upsert(
-        { subscription_id: sub.id, month: currentMonth + '-01', expense_id: expense.id },
-        { onConflict: 'subscription_id,month', ignoreDuplicates: true },
-      )
+      await supabase
+        .from('subscription_insertions')
+        .update({ expense_id: expense.id })
+        .eq('id', reservation.id)
     }
   }
 }

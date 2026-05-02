@@ -762,6 +762,9 @@ CREATE POLICY "card_cycles_update" ON card_cycles FOR UPDATE
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "card_cycles_delete" ON card_cycles FOR DELETE USING (auth.uid() = user_id);
 
+ALTER TABLE expenses ADD COLUMN IF NOT EXISTS card_cycle_id UUID REFERENCES card_cycles(id) ON DELETE SET NULL;
+CREATE INDEX IF NOT EXISTS idx_expenses_card_cycle_id ON expenses(card_cycle_id) WHERE card_cycle_id IS NOT NULL;
+
 -- ============================================
 -- v2.4.1 — Card Payment Allocations
 -- ============================================

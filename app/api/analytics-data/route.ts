@@ -138,7 +138,7 @@ export async function GET(request: Request) {
     { data: oldestExpense },
     { data: subscriptionsData },
     { data: unpaidCyclesData, error: unpaidCyclesError },
-    { data: paidCyclesThisMonthData, error: paidCyclesError },
+    { data: paidCyclesData, error: paidCyclesError },
   ] = await Promise.all([
     supabase
       .from('expenses')
@@ -194,8 +194,7 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('status', 'paid')
-      .gte('due_date', startOfMonth)
-      .lt('due_date', endOfMonth),
+      .gte('period_month', `${historyStartMonth}-01`),
   ])
 
   const cyclesError = unpaidCyclesError ?? paidCyclesError
@@ -230,7 +229,7 @@ export async function GET(request: Request) {
 
   const allCardCycles: CardCycle[] = [
     ...((unpaidCyclesError ? [] : (unpaidCyclesData ?? [])) as CardCycle[]),
-    ...((paidCyclesError ? [] : (paidCyclesThisMonthData ?? [])) as CardCycle[]),
+    ...((paidCyclesError ? [] : (paidCyclesData ?? [])) as CardCycle[]),
   ]
 
   return NextResponse.json({

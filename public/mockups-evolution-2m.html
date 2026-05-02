@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mockups — Evolución 2 meses</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #FFFFFF;
+    --bg2: #F8FBFD;
+    --bg3: #EEF4F8;
+    --primary: #2178A8;
+    --primary-soft: rgba(33,120,168,0.09);
+    --text-primary: #0D1829;
+    --text-secondary: #4A6070;
+    --text-tertiary: #90A4B0;
+    --success: #1A7A42;
+    --success-soft: rgba(26,122,66,0.10);
+    --warning: #B84A12;
+    --sep: rgba(33,120,168,0.07);
+  }
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg3);
+    padding: 32px 16px 80px;
+    color: var(--text-primary);
+  }
+  .page-title {
+    font-size: 11px; font-weight: 700; color: var(--text-tertiary);
+    letter-spacing: 0.08em; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .page-sub {
+    font-size: 13px; color: var(--text-secondary); margin-bottom: 32px;
+  }
+
+  /* Phone frame */
+  .phone {
+    background: var(--bg);
+    border-radius: 24px;
+    overflow: hidden;
+    box-shadow: 0 2px 8px rgba(15,30,60,0.08), 0 8px 32px rgba(33,120,168,0.06);
+    max-width: 390px;
+    margin: 0 auto 40px;
+  }
+  .option-tag {
+    padding: 9px 16px 8px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.07em; text-transform: uppercase;
+    color: var(--primary);
+    background: rgba(33,120,168,0.05);
+    border-bottom: 1px solid var(--sep);
+  }
+  .section-pad { padding: 20px 20px; }
+
+  .evo-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .evo-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+  .evo-sub { font-size: 12px; color: var(--text-secondary); margin-top: 2px; }
+
+  .chart-bg { background: var(--bg2); border-radius: 16px; padding: 16px; }
+
+  /* ================================
+     A — Dos barras pill anchas
+  ================================ */
+  .pills-wide { display: flex; gap: 24px; align-items: flex-end; justify-content: center; }
+  .pill-col { display: flex; flex-direction: column; align-items: center; gap: 8px; }
+  .pill-bar { width: 52px; border-radius: 100px; }
+  .pill-label { font-size: 12px; font-weight: 600; }
+  .pill-amount { font-size: 11px; font-weight: 500; color: var(--text-tertiary); }
+
+  /* ================================
+     B — Comparación horizontal (dos números)
+  ================================ */
+  .compare-row {
+    display: flex; gap: 0; align-items: stretch;
+  }
+  .compare-cell {
+    flex: 1; padding: 14px 16px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .compare-cell + .compare-cell { border-left: 1px solid var(--sep); }
+  .compare-month { font-size: 11px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: 0.05em; }
+  .compare-amount { font-size: 22px; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary); }
+  .compare-delta {
+    display: inline-flex; align-items: center; gap: 4px;
+    font-size: 12px; font-weight: 600;
+    margin-top: 2px;
+  }
+  .delta-down { color: var(--success); }
+  .delta-up { color: var(--warning); }
+  .compare-divider {
+    display: flex; align-items: center; justify-content: center;
+    padding: 0 2px;
+  }
+  .divider-arrow { color: var(--text-tertiary); font-size: 18px; }
+
+  /* ================================
+     C — Timeline lineal (2 nodos)
+  ================================ */
+  .timeline-wrap {
+    display: flex; align-items: center; gap: 0; padding: 8px 0;
+  }
+  .tl-node { display: flex; flex-direction: column; align-items: center; gap: 6px; }
+  .tl-dot {
+    width: 10px; height: 10px; border-radius: 50%;
+    background: rgba(33,120,168,0.3);
+    position: relative; z-index: 2;
+  }
+  .tl-dot.current {
+    width: 13px; height: 13px;
+    background: var(--primary);
+    box-shadow: 0 0 0 4px rgba(33,120,168,0.15);
+  }
+  .tl-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); }
+  .tl-label.current { color: var(--primary); }
+  .tl-amount { font-size: 13px; font-weight: 700; color: var(--text-primary); }
+  .tl-amount.prev { color: var(--text-tertiary); font-size: 12px; font-weight: 600; }
+  .tl-line {
+    flex: 1; height: 1.5px;
+    background: linear-gradient(to right, rgba(33,120,168,0.2), rgba(33,120,168,0.4));
+    margin: 0 8px;
+    margin-bottom: 20px; /* align with dot center */
+  }
+  .tl-delta-pill {
+    background: var(--success-soft);
+    color: var(--success);
+    border-radius: 100px;
+    padding: 3px 8px;
+    font-size: 11px; font-weight: 700;
+    margin-bottom: 20px;
+  }
+
+  /* ================================
+     D — Sin chart, solo texto
+  ================================ */
+  .no-chart-msg {
+    padding: 20px 16px;
+    background: var(--bg2);
+    border-radius: 16px;
+    text-align: center;
+  }
+  .no-chart-msg p { font-size: 13px; color: var(--text-tertiary); line-height: 1.5; }
+  .no-chart-compare {
+    display: flex; justify-content: space-around; margin-top: 16px;
+  }
+  .nc-cell { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  .nc-month { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-tertiary); }
+  .nc-val { font-size: 20px; font-weight: 800; color: var(--text-primary); letter-spacing: -0.02em; }
+  .nc-val.current { color: var(--primary); }
+  .nc-sep { width: 1px; background: var(--sep); align-self: stretch; margin: 4px 0; }
+
+  /* ================================
+     E — Barra única de progreso
+        (current vs anterior)
+  ================================ */
+  .single-bar-wrap { display: flex; flex-direction: column; gap: 12px; }
+  .sbar-row { display: flex; align-items: center; gap: 10px; }
+  .sbar-label { font-size: 11px; font-weight: 600; color: var(--text-tertiary); width: 32px; flex-shrink: 0; }
+  .sbar-label.current { color: var(--primary); }
+  .sbar-track { flex: 1; height: 6px; background: rgba(33,120,168,0.08); border-radius: 100px; overflow: hidden; }
+  .sbar-fill { height: 100%; border-radius: 100px; }
+  .sbar-val { font-size: 12px; font-weight: 700; color: var(--text-secondary); width: 44px; text-align: right; flex-shrink: 0; }
+  .sbar-val.current { color: var(--primary); }
+
+  .context-note {
+    margin-top: 10px;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .context-note span { font-size: 11px; color: var(--text-tertiary); }
+  .context-badge {
+    background: var(--success-soft); color: var(--success);
+    border-radius: 100px; padding: 2px 8px;
+    font-size: 11px; font-weight: 700;
+  }
+
+  .divider { height: 1px; background: var(--sep); margin: 0 20px; }
+</style>
+</head>
+<body>
+
+<p class="page-title">Evolución — 2 meses de datos</p>
+<p class="page-sub">Opciones para cuando hay solo mes anterior + mes actual.</p>
+
+<!-- ===========================
+     A — 2 barras pill anchas
+=========================== -->
+<div class="phone">
+  <div class="option-tag">A · Dos barras pill anchas</div>
+  <div class="section-pad">
+    <div class="evo-header">
+      <div>
+        <p class="evo-title">Tus primeros 2 meses</p>
+        <p class="evo-sub">Ya podés compararte con el mes anterior.</p>
+      </div>
+    </div>
+    <div class="chart-bg">
+      <div class="pills-wide">
+        <div class="pill-col">
+          <div style="height:96px; display:flex; align-items:flex-end; position:relative; width:52px">
+            <div style="position:absolute; left:-8px; right:-8px; bottom:62px; border-top: 1px dashed rgba(33,120,168,0); "></div>
+            <div class="pill-bar" style="height:62px; background:rgba(33,120,168,0.22)"></div>
+          </div>
+          <span class="pill-label" style="color:var(--text-secondary)">Mar</span>
+          <span class="pill-amount">$310k</span>
+        </div>
+        <div class="pill-col">
+          <div style="height:96px; display:flex; align-items:flex-end; width:52px">
+            <div class="pill-bar" style="height:78px; background:var(--primary)"></div>
+          </div>
+          <span class="pill-label" style="color:var(--primary)">Abr</span>
+          <span class="pill-amount" style="color:var(--primary); font-weight:700">$285k</span>
+        </div>
+      </div>
+      <div style="margin-top:12px; text-align:center">
+        <span style="background:var(--success-soft); color:var(--success); border-radius:100px; padding: 3px 10px; font-size:11px; font-weight:700">−8% vs mes anterior</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===========================
+     B — Comparación 2 números
+=========================== -->
+<div class="phone">
+  <div class="option-tag">B · Comparación de números</div>
+  <div class="section-pad">
+    <p class="evo-title" style="margin-bottom:14px">Tus primeros 2 meses</p>
+    <div class="chart-bg" style="padding:0; overflow:hidden">
+      <div class="compare-row">
+        <div class="compare-cell">
+          <span class="compare-month">Mar</span>
+          <span class="compare-amount">$310k</span>
+          <span class="compare-delta" style="color:var(--text-tertiary); font-size:11px">mes anterior</span>
+        </div>
+        <div class="compare-divider">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+            <path d="M6 10h8M11 7l3 3-3 3" stroke="#90A4B0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="compare-cell">
+          <span class="compare-month" style="color:var(--primary)">Abr</span>
+          <span class="compare-amount" style="color:var(--primary)">$285k</span>
+          <span class="compare-delta delta-down">↓ 8% menos</span>
+        </div>
+      </div>
+    </div>
+    <p style="font-size:11px; color:var(--text-tertiary); margin-top:10px; text-align:center">Con más meses vas a ver la tendencia completa.</p>
+  </div>
+</div>
+
+<!-- ===========================
+     C — Timeline lineal
+=========================== -->
+<div class="phone">
+  <div class="option-tag">C · Timeline lineal</div>
+  <div class="section-pad">
+    <div class="evo-header">
+      <div>
+        <p class="evo-title">Tus primeros 2 meses</p>
+        <p class="evo-sub">Ya podés compararte con el mes anterior.</p>
+      </div>
+    </div>
+    <div class="chart-bg">
+      <!-- amounts on top -->
+      <div style="display:flex; justify-content:space-between; margin-bottom:16px; padding: 0 8px">
+        <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-start">
+          <span style="font-size:10px;font-weight:600;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em">Mar</span>
+          <span style="font-size:18px;font-weight:800;color:var(--text-tertiary);letter-spacing:-0.02em">$310k</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:2px;align-items:flex-end">
+          <span style="font-size:10px;font-weight:600;color:var(--primary);text-transform:uppercase;letter-spacing:.05em">Abr</span>
+          <span style="font-size:18px;font-weight:800;color:var(--primary);letter-spacing:-0.02em">$285k</span>
+        </div>
+      </div>
+      <!-- line + dots -->
+      <div style="display:flex;align-items:center;padding:0 20px;gap:0">
+        <div style="width:12px;height:12px;border-radius:50%;background:rgba(33,120,168,0.25);flex-shrink:0"></div>
+        <div style="flex:1;position:relative;height:2px;background:linear-gradient(to right,rgba(33,120,168,0.2),rgba(33,120,168,0.5))">
+          <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--success-soft);color:var(--success);border-radius:100px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap">−8%</div>
+        </div>
+        <div style="width:14px;height:14px;border-radius:50%;background:var(--primary);box-shadow:0 0 0 4px rgba(33,120,168,0.15);flex-shrink:0"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===========================
+     D — Barras horizontales
+=========================== -->
+<div class="phone">
+  <div class="option-tag">D · Barras horizontales</div>
+  <div class="section-pad">
+    <div class="evo-header">
+      <div>
+        <p class="evo-title">Tus primeros 2 meses</p>
+        <p class="evo-sub">Ya podés compararte con el mes anterior.</p>
+      </div>
+    </div>
+    <div class="chart-bg">
+      <div class="single-bar-wrap">
+        <div class="sbar-row">
+          <span class="sbar-label">Mar</span>
+          <div class="sbar-track"><div class="sbar-fill" style="width:100%;background:rgba(33,120,168,0.22)"></div></div>
+          <span class="sbar-val">$310k</span>
+        </div>
+        <div class="sbar-row">
+          <span class="sbar-label current">Abr</span>
+          <div class="sbar-track"><div class="sbar-fill" style="width:91%;background:var(--primary)"></div></div>
+          <span class="sbar-val current">$285k</span>
+        </div>
+      </div>
+      <div class="context-note">
+        <span>vs mes anterior</span>
+        <span class="context-badge">−8%</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ===========================
+     E — Sin chart (solo texto + números grandes)
+=========================== -->
+<div class="phone">
+  <div class="option-tag">E · Solo números, sin chart</div>
+  <div class="section-pad">
+    <p class="evo-title" style="margin-bottom:14px">Tus primeros 2 meses</p>
+    <div class="chart-bg">
+      <div class="no-chart-compare">
+        <div class="nc-cell">
+          <span class="nc-month">Mar</span>
+          <span class="nc-val">$310k</span>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px">
+          <span style="font-size:11px;font-weight:700;color:var(--success)">−8%</span>
+          <svg width="24" height="16" viewBox="0 0 24 16" fill="none">
+            <path d="M4 8h16M13 3l5 5-5 5" stroke="#90A4B0" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </div>
+        <div class="nc-cell">
+          <span class="nc-month" style="color:var(--primary)">Abr</span>
+          <span class="nc-val current">$285k</span>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--text-tertiary);text-align:center;margin-top:14px;line-height:1.5">Con más meses vas a ver la tendencia completa.</p>
+    </div>
+  </div>
+</div>
+
+<p style="font-size:11px;color:var(--text-tertiary);text-align:center">localhost:3000/mockups-evolution-2m.html</p>
+
+</body>
+</html>

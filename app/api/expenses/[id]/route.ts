@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { toDateOnly } from '@/lib/format'
 import { ExpenseSchema } from '@/lib/validation/schemas'
 import { buildInstallmentRows, summarizeInstallmentGroup } from '@/lib/expenses/installments'
+import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { z } from 'zod'
 
 const UpdateSchema = z.object({
@@ -178,6 +179,17 @@ export async function PUT(
     }
 
     if (nextInstallments === 1) {
+      const cycleAssignments =
+        parsedExpense.data.payment_method === 'CREDIT' && parsedExpense.data.category !== 'Pago de Tarjetas'
+          ? await resolveCardCycleAssignments({
+              supabase,
+              userId: user.id,
+              cardId: parsedExpense.data.card_id,
+              baseDate: parsedExpense.data.date,
+              installments: 1,
+            })
+          : []
+
       if (!currentGroupId) {
         const { data, error } = await supabase
           .from('expenses')
@@ -189,6 +201,7 @@ export async function PUT(
             is_want: parsedExpense.data.is_want,
             payment_method: parsedExpense.data.payment_method,
             card_id: parsedExpense.data.card_id,
+            card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
             account_id: parsedExpense.data.account_id,
             date: parsedExpense.data.date,
           })
@@ -214,6 +227,7 @@ export async function PUT(
           is_legacy_card_payment: parsedExpense.data.is_legacy_card_payment,
           payment_method: parsedExpense.data.payment_method,
           card_id: parsedExpense.data.card_id,
+          card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
           account_id: parsedExpense.data.account_id,
           date: parsedExpense.data.date,
         })
@@ -237,6 +251,17 @@ export async function PUT(
       return NextResponse.json(insertedSingle)
     }
 
+    const cycleAssignments =
+      parsedExpense.data.payment_method === 'CREDIT' && parsedExpense.data.category !== 'Pago de Tarjetas'
+        ? await resolveCardCycleAssignments({
+            supabase,
+            userId: user.id,
+            cardId: parsedExpense.data.card_id,
+            baseDate: parsedExpense.data.date,
+            installments: nextInstallments,
+          })
+        : []
+
     const newRows = buildInstallmentRows({
       userId: user.id,
       expenseFields: {
@@ -253,6 +278,7 @@ export async function PUT(
         date: parsedExpense.data.date,
       },
       installments: nextInstallments,
+      cycleAssignments,
     })
 
     const newGroupId = newRows[0]?.installment_group_id

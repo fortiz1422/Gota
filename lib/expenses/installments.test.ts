@@ -71,4 +71,19 @@ describe('buildInstallmentRows', () => {
     expect(rows.map((row) => row.installment_number)).toEqual([4, 5])
     expect(rows.map((row) => row.installment_total)).toEqual([6, 6])
   })
+
+  it('stores explicit card cycle assignments when provided', () => {
+    const rows = buildInstallmentRows({
+      userId: 'user-1',
+      expenseFields: baseExpenseFields,
+      installments: 2,
+      cycleAssignments: [
+        { card_cycle_id: 'cycle-1', cycle_date: '2026-01-26' },
+        { card_cycle_id: 'cycle-2', cycle_date: '2026-02-26' },
+      ],
+      groupId: 'group-3',
+    })
+
+    expect(rows.map((row) => row.card_cycle_id)).toEqual(['cycle-1', 'cycle-2'])
+  })
 })

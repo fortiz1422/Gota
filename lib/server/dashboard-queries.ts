@@ -7,12 +7,13 @@ import {
   sumActiveInstrumentCapital,
   sumCrossCurrencyTransferAdjustment,
 } from '@/lib/live-balance'
-import { calculateCardDebtSummary, type CardDebtMovement } from '@/lib/card-debt'
+import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
   Card,
+  CardCycle,
   DashboardData,
   Expense,
   Instrument,
@@ -71,6 +72,8 @@ export async function readDashboardData({
   const currentMonth = getCurrentMonth()
   const selectedMonthDate = selectedMonth + '-01'
   const nextMonthDate = addMonths(selectedMonth, 1) + '-01'
+  const historyStartMonth = addMonths(selectedMonth, -5)
+  const historyStartDate = historyStartMonth + '-01'
   const isCurrentMonth = selectedMonth === currentMonth
   const todayDate = todayAR()
   const tomorrowDate = new Date(`${todayDate}T00:00:00-03:00`)
@@ -118,11 +121,12 @@ export async function readDashboardData({
     { data: liveIncomeData },
     { data: liveDebitExpenseData },
     { data: liveCardPaymentData },
-    { data: liveCardDebtPaymentData },
-    { data: liveCreditExpenseData },
     { data: liveTransfersData },
     { data: liveYieldData },
     { data: liveInstrumentsData },
+    { data: compromisoExpensesData },
+    { data: unpaidCyclesData },
+    { data: paidCyclesData },
   ] = await Promise.all([
     supabase
       .from('income_entries')
@@ -194,19 +198,6 @@ export async function readDashboardData({
       .lte('date', todayDate)
       .eq('category', 'Pago de Tarjetas'),
     supabase
-      .from('expenses')
-      .select('amount, currency, is_legacy_card_payment')
-      .eq('user_id', userId)
-      .lte('date', todayDate)
-      .eq('category', 'Pago de Tarjetas'),
-    supabase
-      .from('expenses')
-      .select('amount, currency, category, payment_method')
-      .eq('user_id', userId)
-      .lte('date', todayDate)
-      .eq('payment_method', 'CREDIT')
-      .neq('category', 'Pago de Tarjetas'),
-    supabase
       .from('transfers')
       .select('amount_from, amount_to, currency_from, currency_to')
       .eq('user_id', userId)
@@ -221,6 +212,24 @@ export async function readDashboardData({
       .select('amount, currency')
       .eq('user_id', userId)
       .eq('status', 'active'),
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', userId)
+      .gte('date', historyStartDate)
+      .lt('date', nextMonthDate)
+      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
+    supabase
+      .from('card_cycles')
+      .select('*')
+      .eq('user_id', userId)
+      .neq('status', 'paid'),
+    supabase
+      .from('card_cycles')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'paid')
+      .gte('period_month', historyStartDate),
   ])
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
@@ -338,34 +347,26 @@ export async function readDashboardData({
     : []
 
   const rawData = dashboardRaw as DashboardData | null
-  const cardDebtMovements: CardDebtMovement[] = [
-    ...(liveCardDebtPaymentData ?? []).map(
-      (row: { amount: number; currency: 'ARS' | 'USD'; is_legacy_card_payment: boolean | null }) => ({
-        amount: row.amount,
-        currency: row.currency,
-        category: 'Pago de Tarjetas',
-        payment_method: 'DEBIT' as const,
-        is_legacy_card_payment: row.is_legacy_card_payment,
-      }),
-    ),
-    ...(liveCreditExpenseData ?? []).map(
-      (row: {
-        amount: number
-        currency: 'ARS' | 'USD'
-        category: string
-        payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
-      }) => ({
-        amount: row.amount,
-        currency: row.currency,
-        category: row.category,
-        payment_method: row.payment_method,
-        is_legacy_card_payment: null,
-      }),
-    ),
+  const compromisoExpenses = (compromisoExpensesData ?? []) as Expense[]
+  const allCardCycles = [
+    ...((unpaidCyclesData ?? []) as CardCycle[]),
+    ...((paidCyclesData ?? []) as CardCycle[]),
   ]
+  const computeCardCommitmentDebt = (commitmentCurrency: 'ARS' | 'USD') => {
+    const compromisos = computeCompromisos(
+      compromisoExpenses.filter((expense) => expense.currency === commitmentCurrency),
+      cards,
+      allCardCycles,
+      null,
+      selectedMonth,
+      isCurrentMonth,
+      activeSubscriptions,
+    )
+    return compromisos.totalAPagar + compromisos.totalEnCurso
+  }
   const liveGastosTarjetaByCurrency = {
-    ARS: calculateCardDebtSummary(cardDebtMovements, 'ARS').pendingDebt,
-    USD: calculateCardDebtSummary(cardDebtMovements, 'USD').pendingDebt,
+    ARS: computeCardCommitmentDebt('ARS'),
+    USD: computeCardCommitmentDebt('USD'),
   }
   const liveGastosTarjeta = liveGastosTarjetaByCurrency[viewCurrency]
 

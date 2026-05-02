@@ -22,9 +22,11 @@ export function calcularMontoResumen(
   cardId: string,
   periodoDesde: Date,
   periodoHasta: Date,
+  cardCycleId?: string | null,
 ): number {
   const desdeStr = toDateStr(periodoDesde)
   const hastaStr = toDateStr(periodoHasta)
+  const canUseCycleId = cardCycleId != null && !cardCycleId.startsWith('legacy-')
 
   return expenses
     .filter(
@@ -32,8 +34,9 @@ export function calcularMontoResumen(
         e.card_id === cardId &&
         e.payment_method === 'CREDIT' &&
         e.category !== 'Pago de Tarjetas' &&
-        e.date.substring(0, 10) >= desdeStr &&
-        e.date.substring(0, 10) <= hastaStr,
+        (canUseCycleId && e.card_cycle_id
+          ? e.card_cycle_id === cardCycleId
+          : e.date.substring(0, 10) >= desdeStr && e.date.substring(0, 10) <= hastaStr),
     )
     .reduce((sum, e) => sum + e.amount, 0)
 }
