@@ -63,10 +63,18 @@ export async function resolveCardCycleAssignments({
   const periodMonths = Array.from({ length: installments }, (_, i) => addMonths(basePeriodMonth, i))
   const payloads = periodMonths.map((periodMonth) => buildCyclePayload(userId, card as Card, periodMonth))
 
+  // Insert only — never overwrite existing cycles (closing_date/due_date would be corrupted)
+  const { error: upsertError } = await supabase
+    .from('card_cycles')
+    .upsert(payloads, { onConflict: 'card_id,period_month', ignoreDuplicates: true })
+
+  if (upsertError) throw upsertError
+
   const { data: cycles, error: cycleError } = await supabase
     .from('card_cycles')
-    .upsert(payloads, { onConflict: 'card_id,period_month' })
     .select('*')
+    .eq('card_id', card.id)
+    .in('period_month', periodMonths.map((m) => `${m}-01`))
 
   if (cycleError) throw cycleError
 
