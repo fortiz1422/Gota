@@ -342,12 +342,19 @@ export function computeCompromisos(
       continue
     }
 
-    const cycle = cardCycles.find(
+    const cycleCandidates = cardCycles.filter(
       (c) => c.card_id === card.id && c.due_date.startsWith(selectedMonth),
     )
 
     // No cycle recorded for this month — skip silently
-    if (!cycle) continue
+    if (cycleCandidates.length === 0) continue
+
+    // Defensive resolution for inconsistent data (multiple cycles due in same month).
+    // Prefer paid cycles so a paid resumen is still shown in Insights even if another
+    // duplicate/unpaid draft cycle exists with monto 0.
+    const cycle =
+      cycleCandidates.find((candidate) => candidate.status === 'paid') ??
+      cycleCandidates.sort((a, b) => b.due_date.localeCompare(a.due_date))[0]
 
     const statementAmount = computeStatementAmount(cycle, card, expenses, cardCycles)
     const amount = getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
