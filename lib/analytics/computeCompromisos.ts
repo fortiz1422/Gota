@@ -126,6 +126,10 @@ function computeRemainingCycleAmount(
   return getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
 }
 
+function isPaidCycle(cycle: CardCycle): boolean {
+  return cycle.status === 'paid' || cycle.paid_at !== null
+}
+
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
@@ -150,13 +154,13 @@ export function computeCompromisos(
   if (isCurrentMonth) {
     for (const card of cards) {
       const forThisCard = cardCycles.filter((c) => c.card_id === card.id)
-      const unpaid = forThisCard.filter((c) => c.status !== 'paid')
+      const unpaid = forThisCard.filter((c) => !isPaidCycle(c))
       const enCursoCycle =
         unpaid
           .filter((cycle) => cycle.closing_date >= today)
           .sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ?? null
       const paidThisMonth = forThisCard.find(
-        (c) => c.status === 'paid' && c.due_date.startsWith(selectedMonth),
+        (c) => isPaidCycle(c) && c.due_date.startsWith(selectedMonth),
       )
 
       let currentSpend = 0
@@ -354,7 +358,7 @@ export function computeCompromisos(
     const dueDate = cycle.due_date
     const daysUntilDue = daysDiff(today, dueDate)
 
-    if (cycle.status === 'paid') {
+    if (isPaidCycle(cycle)) {
       tarjetas.push({
         id: card.id,
         name: card.name,
