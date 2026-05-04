@@ -17,9 +17,11 @@ interface Props {
   month: string
   category: string
   paymentMethod: string
+  recurring: string
+  extraordinary: string
 }
 
-export function ExpenseFilters({ month, category, paymentMethod }: Props) {
+export function ExpenseFilters({ month, category, paymentMethod, recurring, extraordinary }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
@@ -101,6 +103,28 @@ export function ExpenseFilters({ month, category, paymentMethod }: Props) {
                   : 'bg-bg-tertiary text-text-secondary hover:bg-primary/5'
               }`}
             >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block type-label text-text-label">Recurrencia</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[{ value: '', label: 'Todos' }, { value: 'true', label: 'Recurrentes' }, { value: 'false', label: 'No recurrentes' }].map((opt) => (
+            <button key={opt.value} onClick={() => update('is_recurring', opt.value)} className={`rounded-button px-3 py-1.5 text-xs font-medium transition-colors ${recurring === opt.value ? 'bg-primary text-bg-primary' : 'bg-bg-tertiary text-text-secondary hover:bg-primary/5'}`}>
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1 block type-label text-text-label">Tipo</label>
+        <div className="flex flex-wrap gap-1.5">
+          {[{ value: '', label: 'Todos' }, { value: 'true', label: 'Extraordinarios' }, { value: 'false', label: 'Ordinarios' }].map((opt) => (
+            <button key={opt.value} onClick={() => update('is_extraordinary', opt.value)} className={`rounded-button px-3 py-1.5 text-xs font-medium transition-colors ${extraordinary === opt.value ? 'bg-primary text-bg-primary' : 'bg-bg-tertiary text-text-secondary hover:bg-primary/5'}`}>
               {opt.label}
             </button>
           ))}

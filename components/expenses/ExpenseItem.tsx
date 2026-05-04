@@ -84,6 +84,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [date, setDate] = useState(expense.date.substring(0, 10))
   const [isWant, setIsWant] = useState(expense.is_want)
+  const [isRecurring, setIsRecurring] = useState(expense.is_recurring ?? false)
+  const [isExtraordinary, setIsExtraordinary] = useState(expense.is_extraordinary ?? false)
 
   const isInstallmentGroup = expense.installment_group_id != null
   const canEditInstallmentGroup = isInstallmentGroup && (groupSummary?.first_installment_number ?? 1) === 1
@@ -98,6 +100,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const originalInstallments = groupSummary?.recorded_installments ?? (expense.installment_total ?? 1)
   const originalDate = (groupSummary?.date ?? expense.date).substring(0, 10)
   const originalIsWant = groupSummary?.is_want ?? expense.is_want
+  const originalIsRecurring = groupSummary?.is_recurring ?? (expense.is_recurring ?? false)
+  const originalIsExtraordinary = groupSummary?.is_extraordinary ?? (expense.is_extraordinary ?? false)
 
   const isPagoTarjetas = category === 'Pago de Tarjetas'
   const needsCard = source === 'credit' || isPagoTarjetas
@@ -133,6 +137,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       setInstallmentsInput('')
       setDate((summary.date ?? expense.date).substring(0, 10))
       setIsWant(summary.is_want)
+      setIsRecurring(summary.is_recurring ?? false)
+      setIsExtraordinary(summary.is_extraordinary ?? false)
       setSource(getInitialSource({ payment_method: summary.payment_method, account_id: summary.account_id }, accounts))
       setEditingGroup(true)
     } catch {
@@ -152,7 +158,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
     (cardId || null) !== originalCardId ||
     installments !== originalInstallments ||
     date !== originalDate ||
-    isWant !== originalIsWant
+    isWant !== originalIsWant ||
+    isRecurring !== originalIsRecurring ||
+    isExtraordinary !== originalIsExtraordinary
 
   const handleSave = useCallback(async () => {
     if (isSaving) return
@@ -177,6 +185,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
           card_id: cardId || null,
           date: dateInputToISO(date),
           is_want: isWant,
+          is_recurring: isRecurring,
+          is_extraordinary: isExtraordinary,
           installments: source === 'credit' && !isPagoTarjetas ? installments : 1,
         }),
       })
@@ -214,6 +224,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
     cardId,
     date,
     isWant,
+    isRecurring,
+    isExtraordinary,
     installments,
     isPagoTarjetas,
     router,
@@ -290,6 +302,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
         setInstallmentsInput('')
         setDate(expense.date.substring(0, 10))
         setIsWant(expense.is_want)
+        setIsRecurring(expense.is_recurring ?? false)
+        setIsExtraordinary(expense.is_extraordinary ?? false)
         setConfirmDelete(false)
         setError(null)
       }}>
@@ -554,6 +568,22 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
                   }`}
                 >
                   Deseo
+                </button>
+              </div>
+              <div className="mt-2 flex gap-2">
+                <button
+                  onClick={() => setIsRecurring(!isRecurring)}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
+                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${isRecurring ? 'bg-primary/15 text-primary' : 'bg-bg-tertiary text-text-secondary'}`}
+                >
+                  Recurrente
+                </button>
+                <button
+                  onClick={() => setIsExtraordinary(!isExtraordinary)}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
+                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${isExtraordinary ? 'bg-primary/15 text-primary' : 'bg-bg-tertiary text-text-secondary'}`}
+                >
+                  Extraordinario
                 </button>
               </div>
             </div>

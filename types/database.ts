@@ -259,6 +259,8 @@ export type Database = {
           category: string
           description: string
           is_want: boolean | null
+          is_recurring: boolean | null
+          is_extraordinary: boolean | null
           is_legacy_card_payment: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id: string | null
@@ -280,6 +282,8 @@ export type Database = {
           category: string
           description: string
           is_want?: boolean | null
+          is_recurring?: boolean | null
+          is_extraordinary?: boolean | null
           is_legacy_card_payment?: boolean | null
           payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null
@@ -301,6 +305,8 @@ export type Database = {
           category?: string
           description?: string
           is_want?: boolean | null
+          is_recurring?: boolean | null
+          is_extraordinary?: boolean | null
           is_legacy_card_payment?: boolean | null
           payment_method?: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
           card_id?: string | null

@@ -46,6 +46,10 @@ export async function GET(request: Request) {
 
   const cardId = searchParams.get('card_id')
   if (cardId) query = query.eq('card_id', cardId)
+  const recurring = searchParams.get('is_recurring')
+  if (recurring === 'true' || recurring === 'false') query = query.eq('is_recurring', recurring === 'true')
+  const extraordinary = searchParams.get('is_extraordinary')
+  if (extraordinary === 'true' || extraordinary === 'false') query = query.eq('is_extraordinary', extraordinary === 'true')
 
   const currency = searchParams.get('currency')
   if (currency) query = query.eq('currency', currency as 'ARS' | 'USD')

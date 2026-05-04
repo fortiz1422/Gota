@@ -19,6 +19,8 @@ export default async function ExpensesPage({
     month?: string
     category?: string
     payment_method?: string
+    is_recurring?: string
+    is_extraordinary?: string
     page?: string
   }>
 }) {
@@ -34,6 +36,8 @@ export default async function ExpensesPage({
   const category = params.category ?? ''
   const paymentMethod = params.payment_method ?? ''
   const page = Math.max(1, parseInt(params.page ?? '1'))
+  const recurring = params.is_recurring ?? ''
+  const extraordinary = params.is_extraordinary ?? ''
   const pageSize = 20
   const offset = (page - 1) * pageSize
 
@@ -74,6 +78,8 @@ export default async function ExpensesPage({
       if (category) q = q.eq('category', category)
       if (paymentMethod)
         q = q.eq('payment_method', paymentMethod as 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT')
+      if (recurring === 'true' || recurring === 'false') q = q.eq('is_recurring', recurring === 'true')
+      if (extraordinary === 'true' || extraordinary === 'false') q = q.eq('is_extraordinary', extraordinary === 'true')
       return q
     })(),
     FF_YIELD
@@ -136,7 +142,7 @@ export default async function ExpensesPage({
         {/* Filters */}
         <div className="mb-4 rounded-card border border-border-ocean bg-bg-secondary p-4">
           <Suspense fallback={null}>
-            <ExpenseFilters month={month} category={category} paymentMethod={paymentMethod} />
+            <ExpenseFilters month={month} category={category} paymentMethod={paymentMethod} recurring={recurring} extraordinary={extraordinary} />
           </Suspense>
         </div>
 
@@ -162,11 +168,11 @@ export default async function ExpensesPage({
           <div className="rounded-card bg-bg-secondary px-4 py-10 text-center">
             <p className="mb-1 text-2xl">📭</p>
             <p className="text-sm font-medium text-text-secondary">
-              {category || paymentMethod
+              {category || paymentMethod || recurring || extraordinary
                 ? 'Sin gastos con estos filtros'
                 : 'Sin movimientos este mes'}
             </p>
-            {!category && !paymentMethod && (
+            {!category && !paymentMethod && !recurring && !extraordinary && (
               <p className="mt-1 text-xs text-text-tertiary">Registrá gastos desde Home</p>
             )}
           </div>
@@ -181,6 +187,8 @@ export default async function ExpensesPage({
                   ...(month !== currentMonth ? { month } : {}),
                   ...(category ? { category } : {}),
                   ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+                  ...(recurring ? { is_recurring: recurring } : {}),
+                  ...(extraordinary ? { is_extraordinary: extraordinary } : {}),
                   page: String(page - 1),
                 }).toString()}`}
                 className="flex items-center gap-1.5 rounded-button border border-border-ocean bg-bg-secondary px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-primary/5"
@@ -200,6 +208,8 @@ export default async function ExpensesPage({
                   ...(month !== currentMonth ? { month } : {}),
                   ...(category ? { category } : {}),
                   ...(paymentMethod ? { payment_method: paymentMethod } : {}),
+                  ...(recurring ? { is_recurring: recurring } : {}),
+                  ...(extraordinary ? { is_extraordinary: extraordinary } : {}),
                   page: String(page + 1),
                 }).toString()}`}
                 className="flex items-center gap-1.5 rounded-button border border-border-ocean bg-bg-secondary px-4 py-2 text-sm text-text-secondary transition-colors hover:bg-primary/5"
