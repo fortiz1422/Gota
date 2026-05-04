@@ -17,6 +17,8 @@ interface ParsedData {
   category: string
   description: string
   is_want: boolean | null
+  is_recurring?: boolean | null
+  is_extraordinary?: boolean | null
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_id: string | null
   installments?: number | null
@@ -84,6 +86,8 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
     ...data,
     date: toDateInput(data.date),
     is_want: data.is_want ?? false,
+    is_recurring: data.is_recurring ?? false,
+    is_extraordinary: data.is_extraordinary ?? false,
   })
   const [source, setSource] = useState<SourceKey>(() => getDefaultSource(data, accounts))
   const [installments, setInstallments] = useState(data.installments ?? 1)
@@ -407,15 +411,15 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
               </button>
               <button
                 type="button"
-                disabled
-                className={`${chipBase} cursor-not-allowed opacity-50 ${chipInactive}`}
+                onClick={() => set('is_recurring', !form.is_recurring)}
+                className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
               >
                 Recurrente
               </button>
               <button
                 type="button"
-                disabled
-                className={`${chipBase} cursor-not-allowed opacity-50 ${chipInactive}`}
+                onClick={() => set('is_extraordinary', !form.is_extraordinary)}
+                className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
               >
                 Extraordinario
               </button>
