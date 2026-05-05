@@ -28,6 +28,8 @@ type InstallmentGroupSummary = {
   account_id: string | null
   currency: Expense['currency']
   is_want: boolean | null
+  is_recurring: boolean | null
+  is_extraordinary: boolean | null
   total_amount: number
   date: string | null
   recorded_installments: number
