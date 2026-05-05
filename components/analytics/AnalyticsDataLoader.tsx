@@ -2,7 +2,9 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
+import { ChartLineUp } from '@phosphor-icons/react'
 import { AnalyticsClient } from './AnalyticsClient'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
 import type {
@@ -64,6 +66,21 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
   })
 
   if (isLoading || !data) return <AnalyticsSkeleton />
+
+  if (data.rawExpenses.length === 0 && data.compromisoExpenses.length === 0) {
+    return (
+      <div className="px-5 pt-safe">
+        <h1 className="mt-5 text-lg font-bold text-text-primary">Análisis</h1>
+        <div className="mt-6">
+          <EmptyState
+            icon={ChartLineUp}
+            title="Sin datos para analizar"
+            subtitle="Cuando registres gastos acá vas a ver patrones y tendencias"
+          />
+        </div>
+      </div>
+    )
+  }
 
   const {
     rawExpenses,

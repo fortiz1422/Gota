@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from 'react'
 import { trackEvent } from '@/lib/product-analytics/client'
-import type { OnboardingData } from '../OnboardingFlow'
+interface OnboardingData {
+  accountName: string
+  balanceARS: number | null
+  balanceUSD: number | null
+}
 
 interface Props {
   data: OnboardingData

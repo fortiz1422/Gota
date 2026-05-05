@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Check, CaretDown, CreditCard } from '@phosphor-icons/react'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { addMonths } from '@/lib/dates'
 import type { Account, Card } from '@/types/database'
 
@@ -171,6 +172,14 @@ export function CardsSection({
       title="Tarjetas"
       summary={summary}
     >
+      {cards.length === 0 && (
+        <EmptyState
+          icon={CreditCard}
+          title="Sin tarjetas"
+          subtitle="Agregá una tarjeta para trackear cuotas y vencimientos"
+        />
+      )}
+
       {cards.map((card) => {
         const info = card.closing_day ? closingInfo(card.closing_day, month) : null
         const isExpanded = expandedId === card.id

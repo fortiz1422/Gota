@@ -8,9 +8,11 @@ import {
   ArrowsClockwise,
   ArrowsLeftRight,
   CaretRight,
+  ClockCounterClockwise,
   TrendUp,
 } from '@phosphor-icons/react'
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { Modal } from '@/components/ui/Modal'
 import { FF_YIELD } from '@/lib/flags'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
@@ -194,9 +196,13 @@ export function Ultimos5({
       </div>
 
       {movements.length === 0 ? (
-        <p className="mt-3 text-[15px] text-text-secondary">
-          Sin movimientos registrados este mes.
-        </p>
+        <div className="mt-3">
+          <EmptyState
+            icon={ClockCounterClockwise}
+            title="Sin movimientos este mes"
+            subtitle="Usá el input de abajo para registrar tu primer gasto"
+          />
+        </div>
       ) : (
         <div>
           {movements.map((mv, idx) => {

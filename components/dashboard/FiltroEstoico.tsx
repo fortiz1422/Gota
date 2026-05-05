@@ -1,3 +1,5 @@
+import { Scales } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { DashboardData } from '@/types/database'
 
 interface Props {
@@ -5,7 +7,18 @@ interface Props {
 }
 
 export function FiltroEstoico({ data }: Props) {
-  if (!data || data.total_count === 0) return null
+  if (!data || data.total_count === 0) {
+    return (
+      <div className="px-2">
+        <p className="mb-3 type-label text-text-secondary">Tipo de gasto</p>
+        <EmptyState
+          icon={Scales}
+          title="Necesidad vs. Deseo"
+          subtitle="Cuando tengas gastos vas a ver cómo se reparten"
+        />
+      </div>
+    )
+  }
 
   const totalAmount = data.necesidad_amount + data.deseo_amount
   const necesidadPct =

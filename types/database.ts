@@ -599,6 +599,7 @@ export type Database = {
           hero_balance_mode: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards: Json
           onboarding_completed: boolean
+          tour_completed: boolean
           rollover_mode: 'auto' | 'off'
           created_at: string
           updated_at: string
@@ -609,6 +610,7 @@ export type Database = {
           hero_balance_mode?: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards?: Json
           onboarding_completed?: boolean
+          tour_completed?: boolean
           rollover_mode?: 'auto' | 'off'
           created_at?: string
           updated_at?: string
@@ -619,6 +621,7 @@ export type Database = {
           hero_balance_mode?: 'combined_ars' | 'combined_usd' | 'default_currency'
           cards?: Json
           onboarding_completed?: boolean
+          tour_completed?: boolean
           rollover_mode?: 'auto' | 'off'
           created_at?: string
           updated_at?: string

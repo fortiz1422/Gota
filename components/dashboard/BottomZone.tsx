@@ -66,7 +66,7 @@ export function BottomZone({
         transition: keyboardOffset > 0 ? 'none' : 'transform 0.25s ease',
       }}
     >
-      <div className={`mx-auto flex w-full max-w-md flex-col px-4 ${isComposerOpen ? 'pb-1 pt-2' : 'pt-3'}`}>
+      <div data-tour="smart-input" className={`mx-auto flex w-full max-w-md flex-col px-4 ${isComposerOpen ? 'pb-1 pt-2' : 'pt-3'}`}>
         <SmartInput
           cards={cards}
           accounts={accounts}

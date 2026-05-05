@@ -17,27 +17,31 @@ function TabBarContent() {
       icon: House,
       label: 'Home',
       isActive: pathname === '/',
+      tourId: undefined as string | undefined,
     },
     {
       href: `/movimientos`,
       icon: ListBullets,
       label: 'Movimientos',
       isActive: pathname.startsWith('/movimientos') || pathname.startsWith('/expenses'),
+      tourId: 'tab-movimientos',
     },
     {
       href: `/analytics${monthSuffix}`,
       icon: ChartBar,
       label: 'Análisis',
       isActive: pathname.startsWith('/analytics'),
+      tourId: 'tab-analytics',
     },
   ]
 
   return (
     <div className="flex items-center justify-around py-2">
-      {tabs.map(({ href, icon: Icon, label, isActive }) => (
+      {tabs.map(({ href, icon: Icon, label, isActive, tourId }) => (
         <Link
           key={label}
           href={href}
+          data-tour={tourId}
           className="flex min-w-0 flex-col items-center gap-1 rounded-xl px-3 py-1.5 transition-colors duration-200"
         >
           <Icon

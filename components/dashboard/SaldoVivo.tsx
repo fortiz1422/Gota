@@ -97,7 +97,7 @@ export function SaldoVivo({
 
   if (!data) {
     return (
-      <div className="px-1 py-2">
+      <div data-tour="saldo-vivo" className="px-1 py-2">
         <p className="type-label text-text-secondary">Saldo Vivo</p>
         <p className="mt-3 text-[28px] font-extrabold tracking-[-0.03em] text-text-primary">
           $ ******
@@ -128,7 +128,7 @@ export function SaldoVivo({
   const breakdown = breakdownLine(amountsVisible, heroBreakdown)
 
   return (
-    <div className="px-1 py-2">
+    <div data-tour="saldo-vivo" className="px-1 py-2">
       <div className="flex items-center justify-between">
         <span className="type-label text-text-secondary">Saldo Vivo</span>
         <button

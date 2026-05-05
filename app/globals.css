@@ -120,6 +120,16 @@ body {
   }
 }
 
+/* Onboarding animations */
+@keyframes onboardIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes popIn {
+  from { transform: scale(0.5); opacity: 0; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+
 /* ============================================
    GLASS ELEVATION SYSTEM
    ============================================ */

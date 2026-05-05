@@ -1,8 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowsClockwise, CaretRight, X } from '@phosphor-icons/react'
+import { ArrowsClockwise, CaretRight, Repeat, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { formatAmount } from '@/lib/format'
 import { SubscriptionBottomSheet } from '@/components/settings/SubscriptionBottomSheet'
 import type { Account, Card, Subscription } from '@/types/database'
@@ -64,7 +65,13 @@ export function SubscriptionsSubSheet({ open, onClose, defaultCurrency }: Props)
           </div>
 
           {subscriptions.length === 0 ? (
-            <p className="py-2 text-sm text-text-tertiary">Sin suscripciones activas.</p>
+            <EmptyState
+              icon={Repeat}
+              title="Sin suscripciones"
+              subtitle="Agregá suscripciones para no perderlas de vista"
+              ctaLabel="Agregar"
+              onCta={() => setEditing(null)}
+            />
           ) : (
             <div>
               {subscriptions.map((sub) => (

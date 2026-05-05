@@ -1,5 +1,7 @@
+import { ChartBar } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 import { CategoryIcon, getCategoryColors } from '@/components/ui/CategoryIcon'
+import { EmptyState } from '@/components/ui/EmptyState'
 import type { DashboardData } from '@/types/database'
 
 interface Props {
@@ -12,7 +14,13 @@ export function Top3({ data, currency }: Props) {
     return (
       <div className="px-2">
         <p className="type-label text-text-label">Top Categorías</p>
-        <p className="mt-2 text-sm text-text-tertiary">Sin gastos registrados este mes.</p>
+        <div className="mt-2">
+          <EmptyState
+            icon={ChartBar}
+            title="Sin categorías aún"
+            subtitle="Registrá gastos para ver tu top 3"
+          />
+        </div>
       </div>
     )
   }

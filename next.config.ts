@@ -3,6 +3,9 @@ import { withSentryConfig } from '@sentry/nextjs'
 
 const nextConfig: NextConfig = {
   serverExternalPackages: ['require-in-the-middle', 'import-in-the-middle', '@prisma/instrumentation'],
+  experimental: {
+    staleTimes: { dynamic: 0 },
+  },
 }
 
 export default withSentryConfig(nextConfig, {

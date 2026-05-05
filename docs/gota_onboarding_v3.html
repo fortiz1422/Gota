@@ -1,0 +1,577 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,700;0,9..40,800;1,9..40,300;1,9..40,400&display=swap');
+*{box-sizing:border-box;margin:0;padding:0;-webkit-font-smoothing:antialiased}
+:root{
+  --p:#2178A8;--p8:rgba(33,120,168,0.08);--p15:rgba(33,120,168,0.15);--p30:rgba(33,120,168,0.30);
+  --ink:#0D1829;--ink70:#2A3F52;--ink50:#4A6070;--ink30:#90A4B0;--ink10:#C8D8E2;--ink05:rgba(13,24,41,0.05);
+  --surface:#F4F8FB;--white:#FFFFFF;
+  --success:#1A7A42;--s10:rgba(26,122,66,0.10);--s30:rgba(26,122,66,0.30);
+  --warn:#B84A12;--w10:rgba(184,74,18,0.10);
+  --sep:rgba(33,120,168,0.07);
+}
+body{font-family:'DM Sans',sans-serif;background:#C8D8E4;display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:24px 0 48px}
+.shell{width:375px;min-height:812px;background:var(--white);border-radius:48px;overflow:hidden;box-shadow:0 40px 100px rgba(13,24,41,0.25),0 0 0 1px rgba(33,120,168,0.12);display:flex;flex-direction:column}
+.screen{display:none;flex-direction:column;min-height:812px;animation:sIn .22s cubic-bezier(.4,0,.2,1)}
+.screen.active{display:flex}
+@keyframes sIn{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+/* NOTCH */
+.notch{height:50px;flex-shrink:0;display:flex;align-items:center;padding:0 24px;justify-content:space-between}
+.notch-t{font-size:13px;font-weight:700;color:var(--ink)}
+.notch-r{display:flex;gap:4px;align-items:center}
+.nd{width:5px;height:5px;border-radius:50%;background:var(--ink)}
+
+/* NAV */
+.nav{height:48px;display:flex;align-items:center;padding:0 20px;position:relative;flex-shrink:0}
+.back{width:36px;height:36px;border-radius:50%;background:var(--surface);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s}
+.back:hover{background:var(--p8)}
+.back svg{width:18px;height:18px;stroke:var(--ink50)}
+.dots{position:absolute;left:50%;transform:translateX(-50%);display:flex;gap:5px;align-items:center}
+.dot{height:4px;border-radius:9999px;transition:all .3s cubic-bezier(.4,0,.2,1)}
+.dot.on{width:20px;background:var(--p)}
+.dot.off{width:4px;background:var(--ink10)}
+
+/* BTN */
+.cta{padding:16px 24px 36px;flex-shrink:0}
+.btn{width:100%;padding:17px;border-radius:9999px;border:none;font-family:'DM Sans',sans-serif;font-size:15px;font-weight:700;cursor:pointer;transition:all .15s;letter-spacing:.01em}
+.btn-dark{background:var(--ink);color:#fff}
+.btn-dark:hover{background:#1a2535;transform:translateY(-1px)}
+.btn-dark:active{transform:scale(.97)}
+.btn-dark:disabled{opacity:.25;cursor:not-allowed;transform:none}
+.btn-ghost{width:100%;padding:12px;background:none;border:none;color:var(--ink30);font-family:'DM Sans',sans-serif;font-size:14px;font-weight:500;cursor:pointer;margin-top:6px}
+
+/* ── S1 WELCOME ── */
+#s1{background:var(--white)}
+.w-hero{flex:1;display:flex;flex-direction:column;padding:0 26px}
+.wordmark{font-size:64px;font-weight:800;letter-spacing:-0.045em;color:var(--ink);line-height:1;margin-top:auto;margin-bottom:4px}
+.wordmark em{color:var(--p);font-style:normal}
+.tagline{font-size:26px;font-weight:300;font-style:italic;color:var(--ink50);letter-spacing:-0.01em;line-height:1.2;margin-bottom:28px}
+
+/* HOME PREVIEW — fiel al screenshot */
+.home-preview{background:var(--white);border-radius:24px;border:1px solid var(--sep);overflow:hidden;box-shadow:0 4px 20px rgba(13,24,41,0.08)}
+.hp-top{padding:18px 20px 14px}
+.hp-eyebrow{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--ink30);margin-bottom:6px}
+.hp-saldo{font-size:34px;font-weight:800;letter-spacing:-0.03em;color:var(--ink);line-height:1;margin-bottom:6px}
+.hp-breakdown{display:flex;gap:10px;align-items:center;margin-bottom:0}
+.hp-br-item{font-size:12px;font-weight:600}
+.hp-br-ars{color:var(--p)}
+.hp-br-sep{color:var(--ink10);font-size:11px}
+.hp-br-usd{color:var(--p)}
+.hp-divider{height:1px;background:var(--sep);margin:0 20px}
+.hp-row{display:flex;align-items:center;gap:12px;padding:14px 20px}
+.hp-ico{width:36px;height:36px;border-radius:50%;background:var(--p8);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.hp-ico svg{width:16px;height:16px;stroke:var(--p)}
+.hp-row-body{flex:1}
+.hp-row-title{font-size:13px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.hp-row-sub{font-size:11px;color:var(--ink30);font-weight:400}
+.hp-row-val{font-size:14px;font-weight:800;color:var(--ink);letter-spacing:-0.01em}
+
+/* ── S2 MONEDA ── */
+#s2{background:var(--white)}
+.s-head{padding:20px 26px 22px}
+.s-title{font-size:28px;font-weight:800;letter-spacing:-0.02em;color:var(--ink);line-height:1.1;margin-bottom:8px}
+.s-sub{font-size:14px;color:var(--ink30);font-weight:400;line-height:1.5}
+
+/* BIG OPTION CARDS */
+.big-opts{display:flex;flex-direction:column;gap:8px;padding:0 24px}
+.bopt{
+  border:1.5px solid var(--sep);border-radius:20px;padding:18px 20px;
+  background:var(--surface);cursor:pointer;transition:all .18s;
+  display:flex;align-items:center;gap:14px;
+}
+.bopt:hover{border-color:var(--p30);background:var(--white)}
+.bopt.sel{border-color:var(--p);background:var(--white);box-shadow:0 0 0 3px var(--p8)}
+.bopt-flag{font-size:26px;flex-shrink:0;line-height:1}
+.bopt-body{flex:1}
+.bopt-title{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:2px;transition:color .15s}
+.bopt.sel .bopt-title{color:var(--p)}
+.bopt-sub{font-size:12px;color:var(--ink30);line-height:1.4}
+.bopt-radio{width:22px;height:22px;border-radius:50%;border:2px solid var(--ink10);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .18s}
+.bopt.sel .bopt-radio{border-color:var(--p);background:var(--p)}
+.bopt-dot{width:8px;height:8px;border-radius:50%;background:#fff;transform:scale(0);transition:transform .18s cubic-bezier(.34,1.56,.64,1)}
+.bopt.sel .bopt-dot{transform:scale(1)}
+
+/* VISUALIZACION STEP (inline expansion) */
+.viz-step{
+  margin:16px 24px 0;
+  border-radius:20px;
+  background:var(--surface);
+  border:1.5px solid var(--sep);
+  overflow:hidden;
+  max-height:0;
+  opacity:0;
+  transition:max-height .35s cubic-bezier(.4,0,.2,1), opacity .25s ease, margin .3s ease;
+}
+.viz-step.show{max-height:300px;opacity:1}
+.viz-inner{padding:18px 20px}
+.viz-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--p);margin-bottom:14px}
+.viz-opts{display:flex;flex-direction:column;gap:8px}
+.vopt{
+  display:flex;align-items:center;gap:12px;
+  padding:14px 16px;border-radius:14px;
+  border:1.5px solid transparent;
+  background:var(--white);cursor:pointer;transition:all .15s;
+}
+.vopt:hover{border-color:var(--p30)}
+.vopt.sel{border-color:var(--p);background:var(--p8)}
+.vopt-icon{font-size:18px;flex-shrink:0}
+.vopt-body{flex:1}
+.vopt-title{font-size:14px;font-weight:700;color:var(--ink);margin-bottom:2px}
+.vopt.sel .vopt-title{color:var(--p)}
+.vopt-sub{font-size:11px;color:var(--ink30)}
+.vopt-radio{width:18px;height:18px;border-radius:50%;border:2px solid var(--ink10);display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .15s}
+.vopt.sel .vopt-radio{border-color:var(--p);background:var(--p)}
+.vopt-dot{width:6px;height:6px;border-radius:50%;background:#fff;transform:scale(0);transition:transform .15s cubic-bezier(.34,1.56,.64,1)}
+.vopt.sel .vopt-dot{transform:scale(1)}
+
+.oficial-note{
+  display:flex;align-items:center;gap:8px;
+  margin:14px 24px 0;
+  padding:10px 14px;
+  background:var(--p8);border-radius:12px;
+  font-size:12px;color:var(--ink50);font-weight:500;
+  opacity:0;transition:opacity .3s ease;
+}
+.oficial-note.show{opacity:1}
+.oficial-note-dot{width:6px;height:6px;border-radius:50%;background:var(--p);flex-shrink:0}
+
+/* ── S3 CUENTA ── */
+#s3{background:var(--white)}
+
+.cuenta-hero{
+  flex:1;display:flex;flex-direction:column;
+  padding:0 24px;
+}
+
+.big-input-wrap{
+  margin-bottom:20px;
+}
+.big-input-label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink30);margin-bottom:10px}
+.big-input{
+  width:100%;
+  font-family:'DM Sans',sans-serif;
+  font-size:28px;font-weight:800;
+  letter-spacing:-0.02em;
+  color:var(--ink);
+  background:transparent;
+  border:none;
+  border-bottom:2px solid var(--ink10);
+  padding:8px 0 12px;
+  outline:none;
+  transition:border-color .2s;
+}
+.big-input::placeholder{color:var(--ink10)}
+.big-input:focus{border-color:var(--p)}
+
+.shortcuts-label{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink30);margin-bottom:10px}
+.shortcuts{display:flex;flex-wrap:wrap;gap:7px;margin-bottom:24px}
+.chip{
+  padding:8px 16px;border-radius:9999px;
+  border:1.5px solid var(--sep);
+  background:var(--surface);
+  font-size:13px;font-weight:600;
+  color:var(--ink50);cursor:pointer;transition:all .15s;
+}
+.chip:hover{border-color:var(--p30);background:var(--white)}
+.chip.sel{border-color:var(--p);background:var(--p8);color:var(--p)}
+
+.tipo-section{margin-bottom:8px}
+.tipo-label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink30);margin-bottom:10px}
+.tipo-row{display:flex;gap:8px}
+.tbtn{
+  flex:1;padding:13px 8px;border-radius:14px;
+  border:1.5px solid var(--sep);
+  background:var(--surface);
+  font-family:'DM Sans',sans-serif;
+  font-size:13px;font-weight:700;
+  color:var(--ink50);cursor:pointer;transition:all .15s;text-align:center;
+}
+.tbtn:hover{border-color:var(--p30);background:var(--white)}
+.tbtn.sel{border-color:var(--p);background:var(--p8);color:var(--p)}
+
+/* ── S4 SALDO ── */
+#s4{background:var(--white)}
+
+.saldo-stage{
+  flex:1;display:flex;flex-direction:column;
+  padding:0 24px;justify-content:center;
+}
+.saldo-account-pill{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:8px 16px;border-radius:9999px;
+  background:var(--p8);
+  margin-bottom:28px;align-self:flex-start;
+}
+.saldo-account-name{font-size:13px;font-weight:700;color:var(--p)}
+
+.saldo-block{margin-bottom:16px}
+.saldo-block-label{font-size:11px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--ink30);margin-bottom:8px}
+.saldo-input-row{display:flex;align-items:baseline;gap:8px;padding-bottom:14px;border-bottom:2px solid var(--ink10);transition:border-color .2s;margin-bottom:8px}
+.saldo-input-row:focus-within{border-color:var(--p)}
+.saldo-currency-sym{font-size:32px;font-weight:800;color:var(--ink30);letter-spacing:-0.02em;flex-shrink:0}
+.saldo-num-input{
+  flex:1;border:none;background:transparent;
+  font-family:'DM Sans',sans-serif;
+  font-size:40px;font-weight:800;
+  color:var(--ink);letter-spacing:-0.03em;
+  outline:none;width:100%;min-width:0;
+}
+.saldo-num-input::placeholder{color:var(--ink10)}
+.saldo-hint{font-size:12px;color:var(--ink30);font-weight:400}
+
+/* ── S5 DONE ── */
+#s5{background:var(--white)}
+
+.done-stage{
+  flex:1;display:flex;flex-direction:column;
+  padding:0 26px;justify-content:center;
+}
+.done-check{
+  width:64px;height:64px;border-radius:50%;
+  background:var(--s10);
+  display:flex;align-items:center;justify-content:center;
+  margin-bottom:24px;
+  animation:pop .5s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes pop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+.done-tag{font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--success);margin-bottom:8px}
+.done-title{font-size:36px;font-weight:800;letter-spacing:-0.025em;color:var(--ink);line-height:1.05;margin-bottom:10px}
+.done-sub{font-size:15px;color:var(--ink50);line-height:1.5;margin-bottom:32px}
+
+/* SUMMARY CARD */
+.summary-card{
+  background:var(--surface);
+  border-radius:20px;
+  border:1px solid var(--sep);
+  overflow:hidden;
+}
+.summary-row{
+  display:flex;align-items:center;gap:14px;
+  padding:16px 20px;
+}
+.summary-row+.summary-row{border-top:1px solid var(--sep)}
+.sum-ico{
+  width:36px;height:36px;border-radius:50%;
+  background:var(--s10);
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;
+}
+.sum-ico svg{width:16px;height:16px;stroke:var(--success)}
+.sum-body{flex:1}
+.sum-label{font-size:12px;color:var(--ink30);font-weight:400;margin-bottom:1px}
+.sum-val{font-size:14px;font-weight:700;color:var(--ink)}
+</style>
+
+<div class="shell">
+
+<!-- ═══ S1 WELCOME ═══ -->
+<div class="screen active" id="s1">
+  <div class="notch"><span class="notch-t">9:41</span><div class="notch-r"><div class="nd"></div><div class="nd"></div><div class="nd"></div></div></div>
+  <div class="w-hero">
+    <p class="wordmark">gota<em>.</em></p>
+    <p class="tagline">Tu plata,<br>clara.</p>
+    <div class="home-preview">
+      <div class="hp-top">
+        <p class="hp-eyebrow">Saldo Vivo</p>
+        <p class="hp-saldo">USD 14.788,47</p>
+        <div class="hp-breakdown">
+          <span class="hp-br-item hp-br-ars">ARS 10.633.632</span>
+          <span class="hp-br-sep">|</span>
+          <span class="hp-br-item hp-br-usd">USD 7.300,00</span>
+        </div>
+      </div>
+      <div class="hp-divider"></div>
+      <div class="hp-row">
+        <div class="hp-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+        </div>
+        <div class="hp-row-body">
+          <p class="hp-row-title">Disponible real</p>
+          <p class="hp-row-sub">Ya descuenta deuda y consumos en tarjeta.</p>
+        </div>
+        <p class="hp-row-val">USD 12.606,08</p>
+      </div>
+    </div>
+    <div style="height:24px;flex-shrink:0"></div>
+  </div>
+  <div class="cta">
+    <button class="btn btn-dark" onclick="go('s2')">Empezar</button>
+  </div>
+</div>
+
+<!-- ═══ S2 MONEDA ═══ -->
+<div class="screen" id="s2">
+  <div class="notch"><span class="notch-t">9:41</span><div class="notch-r"><div class="nd"></div><div class="nd"></div><div class="nd"></div></div></div>
+  <div class="nav">
+    <button class="back" onclick="go('s1')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="dots"><div class="dot on"></div><div class="dot off"></div><div class="dot off"></div></div>
+  </div>
+  <div class="s-head">
+    <p class="s-title">¿En qué monedas<br>operás?</p>
+    <p class="s-sub">Esto determina cómo registrás tus movimientos.</p>
+  </div>
+
+  <div class="big-opts" id="curr-opts">
+    <div class="bopt" data-val="ARS" onclick="selCurr(this)">
+      <span class="bopt-flag">🇦🇷</span>
+      <div class="bopt-body">
+        <p class="bopt-title">Solo pesos</p>
+        <p class="bopt-sub">Registro y visualización en ARS</p>
+      </div>
+      <div class="bopt-radio"><div class="bopt-dot"></div></div>
+    </div>
+    <div class="bopt" data-val="USD" onclick="selCurr(this)">
+      <span class="bopt-flag">🇺🇸</span>
+      <div class="bopt-body">
+        <p class="bopt-title">Solo dólares</p>
+        <p class="bopt-sub">Registro y visualización en USD</p>
+      </div>
+      <div class="bopt-radio"><div class="bopt-dot"></div></div>
+    </div>
+    <div class="bopt" data-val="BOTH" onclick="selCurr(this)">
+      <span class="bopt-flag">🔄</span>
+      <div class="bopt-body">
+        <p class="bopt-title">Ambas monedas</p>
+        <p class="bopt-sub">Registrás en ARS y USD</p>
+      </div>
+      <div class="bopt-radio"><div class="bopt-dot"></div></div>
+    </div>
+  </div>
+
+  <!-- STEP 2: solo aparece si elige BOTH -->
+  <div class="viz-step" id="viz-step">
+    <div class="viz-inner">
+      <p class="viz-label">¿Cómo querés ver tu Saldo Vivo?</p>
+      <div class="viz-opts">
+        <div class="vopt" data-viz="USD" onclick="selViz(this)">
+          <span class="vopt-icon">💵</span>
+          <div class="vopt-body">
+            <p class="vopt-title">En dólares</p>
+            <p class="vopt-sub">Los pesos se convierten al oficial</p>
+          </div>
+          <div class="vopt-radio"><div class="vopt-dot"></div></div>
+        </div>
+        <div class="vopt" data-viz="ARS" onclick="selViz(this)">
+          <span class="vopt-icon">💴</span>
+          <div class="vopt-body">
+            <p class="vopt-title">En pesos</p>
+            <p class="vopt-sub">Los dólares se convierten al oficial</p>
+          </div>
+          <div class="vopt-radio"><div class="vopt-dot"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="oficial-note" id="oficial-note">
+    <div class="oficial-note-dot"></div>
+    <span>Las conversiones usan el tipo de cambio oficial actualizado.</span>
+  </div>
+
+  <div style="flex:1"></div>
+  <div class="cta">
+    <button class="btn btn-dark" id="btn2" disabled onclick="go('s3')">Continuar</button>
+  </div>
+</div>
+
+<!-- ═══ S3 CUENTA ═══ -->
+<div class="screen" id="s3">
+  <div class="notch"><span class="notch-t">9:41</span><div class="notch-r"><div class="nd"></div><div class="nd"></div><div class="nd"></div></div></div>
+  <div class="nav">
+    <button class="back" onclick="go('s2')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="dots"><div class="dot off"></div><div class="dot on"></div><div class="dot off"></div></div>
+  </div>
+  <div class="s-head">
+    <p class="s-title">¿Cuál es tu<br>cuenta principal?</p>
+    <p class="s-sub">Podés agregar más después.</p>
+  </div>
+  <div class="cuenta-hero">
+    <div class="big-input-wrap">
+      <p class="big-input-label">Nombre</p>
+      <input class="big-input" id="cuenta-input" placeholder="Escribí el nombre..." oninput="onNombre()">
+    </div>
+    <p class="shortcuts-label">Sugerencias</p>
+    <div class="shortcuts" id="shortcuts">
+      <span class="chip" onclick="pickNombre(this,'Banco Nación','Banco')">Banco Nación</span>
+      <span class="chip" onclick="pickNombre(this,'BBVA','Banco')">BBVA</span>
+      <span class="chip" onclick="pickNombre(this,'Galicia','Banco')">Galicia</span>
+      <span class="chip" onclick="pickNombre(this,'Santander','Banco')">Santander</span>
+      <span class="chip" onclick="pickNombre(this,'MercadoPago','Digital')">MercadoPago</span>
+      <span class="chip" onclick="pickNombre(this,'Efectivo','Efectivo')">Efectivo</span>
+    </div>
+    <div class="tipo-section">
+      <p class="tipo-label">Tipo</p>
+      <div class="tipo-row" id="tipo-row">
+        <button class="tbtn" data-t="Banco" onclick="pickTipo(this)">Banco</button>
+        <button class="tbtn" data-t="Digital" onclick="pickTipo(this)">Digital</button>
+        <button class="tbtn" data-t="Efectivo" onclick="pickTipo(this)">Efectivo</button>
+      </div>
+    </div>
+  </div>
+  <div class="cta">
+    <button class="btn btn-dark" id="btn3" disabled onclick="go('s4')">Continuar</button>
+  </div>
+</div>
+
+<!-- ═══ S4 SALDO ═══ -->
+<div class="screen" id="s4">
+  <div class="notch"><span class="notch-t">9:41</span><div class="notch-r"><div class="nd"></div><div class="nd"></div><div class="nd"></div></div></div>
+  <div class="nav">
+    <button class="back" onclick="go('s3')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg></button>
+    <div class="dots"><div class="dot off"></div><div class="dot off"></div><div class="dot on"></div></div>
+  </div>
+
+  <div class="saldo-stage">
+    <div class="saldo-account-pill">
+      <span class="saldo-account-name" id="s4-nombre">tu cuenta</span>
+    </div>
+
+    <div id="s4-ars-block" class="saldo-block">
+      <p class="saldo-block-label">Saldo en pesos</p>
+      <div class="saldo-input-row">
+        <span class="saldo-currency-sym">$</span>
+        <input class="saldo-num-input" id="inp-ars" type="number" inputmode="numeric" placeholder="0">
+      </div>
+      <p class="saldo-hint">Lo que hay en la cuenta ahora</p>
+    </div>
+
+    <div id="s4-usd-block" class="saldo-block" style="display:none;margin-top:28px">
+      <p class="saldo-block-label">Saldo en dólares</p>
+      <div class="saldo-input-row">
+        <span class="saldo-currency-sym" style="font-size:20px;padding-bottom:4px">U$D</span>
+        <input class="saldo-num-input" id="inp-usd" type="number" inputmode="numeric" placeholder="0">
+      </div>
+      <p class="saldo-hint">Lo que hay en la cuenta ahora</p>
+    </div>
+  </div>
+
+  <div class="cta">
+    <button class="btn btn-dark" onclick="go('s5')">Continuar</button>
+    <button class="btn-ghost" onclick="go('s5')">Hacerlo después</button>
+  </div>
+</div>
+
+<!-- ═══ S5 DONE ═══ -->
+<div class="screen" id="s5">
+  <div class="notch"><span class="notch-t">9:41</span><div class="notch-r"><div class="nd"></div><div class="nd"></div><div class="nd"></div></div></div>
+  <div class="nav"></div>
+
+  <div class="done-stage">
+    <div class="done-check">
+      <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+        <path d="M6 14L11 19.5L22 8.5" stroke="#1A7A42" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <p class="done-tag">Todo configurado</p>
+    <p class="done-title">Listo para<br>arrancar.</p>
+    <p class="done-sub">Tu Saldo Vivo ya está activo.<br>Registrá tu primer gasto cuando quieras.</p>
+
+    <div class="summary-card">
+      <div class="summary-row">
+        <div class="sum-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+        </div>
+        <div class="sum-body">
+          <p class="sum-label">Cuenta creada</p>
+          <p class="sum-val" id="done-nombre">—</p>
+        </div>
+      </div>
+      <div class="summary-row" id="done-saldo-row" style="display:none">
+        <div class="sum-ico">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="sum-body">
+          <p class="sum-label">Saldo inicial</p>
+          <p class="sum-val" id="done-saldo-val">—</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cta">
+    <button class="btn btn-dark" onclick="alert('→ Dashboard')">Ver mi Saldo Vivo</button>
+  </div>
+</div>
+
+</div>
+
+<script>
+var st={currency:'',viz:'',nombre:'',tipo:''};
+
+function go(id){
+  document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active')});
+  document.getElementById(id).classList.add('active');
+  if(id==='s4'){
+    document.getElementById('s4-nombre').textContent=st.nombre||'tu cuenta';
+    var ab=document.getElementById('s4-ars-block'),ub=document.getElementById('s4-usd-block');
+    if(st.currency==='USD'){ab.style.display='none';ub.style.display='block';}
+    else if(st.currency==='BOTH'){ab.style.display='block';ub.style.display='block';}
+    else{ab.style.display='block';ub.style.display='none';}
+  }
+  if(id==='s5'){
+    document.getElementById('done-nombre').textContent=st.nombre||'—';
+    var a=parseFloat(document.getElementById('inp-ars').value)||0;
+    var u=parseFloat(document.getElementById('inp-usd').value)||0;
+    var row=document.getElementById('done-saldo-row');
+    if(a>0||u>0){
+      row.style.display='flex';
+      var parts=[];
+      if(a>0)parts.push('$'+a.toLocaleString('es-AR'));
+      if(u>0)parts.push('U$D '+u.toLocaleString('es-AR'));
+      document.getElementById('done-saldo-val').textContent=parts.join(' · ');
+    } else {
+      row.style.display='none';
+    }
+  }
+}
+
+function selCurr(el){
+  document.querySelectorAll('#curr-opts .bopt').forEach(function(o){o.classList.remove('sel')});
+  el.classList.add('sel');
+  st.currency=el.dataset.val;
+  var vs=document.getElementById('viz-step');
+  var note=document.getElementById('oficial-note');
+  if(st.currency==='BOTH'){
+    vs.classList.add('show');
+    note.classList.add('show');
+    st.viz='';
+    document.getElementById('btn2').disabled=true;
+  } else {
+    vs.classList.remove('show');
+    note.classList.remove('show');
+    st.viz='';
+    document.getElementById('btn2').disabled=false;
+  }
+}
+
+function selViz(el){
+  document.querySelectorAll('.vopt').forEach(function(o){o.classList.remove('sel')});
+  el.classList.add('sel');
+  st.viz=el.dataset.viz;
+  document.getElementById('btn2').disabled=false;
+}
+
+function pickNombre(el,nombre,tipo){
+  document.querySelectorAll('#shortcuts .chip').forEach(function(c){c.classList.remove('sel')});
+  el.classList.add('sel');
+  document.getElementById('cuenta-input').value=nombre;
+  st.nombre=nombre;
+  setTipo(tipo);
+  document.getElementById('btn3').disabled=false;
+}
+function onNombre(){
+  st.nombre=document.getElementById('cuenta-input').value;
+  document.getElementById('btn3').disabled=st.nombre.trim()==='';
+  document.querySelectorAll('#shortcuts .chip').forEach(function(c){c.classList.remove('sel')});
+}
+function setTipo(t){
+  document.querySelectorAll('#tipo-row .tbtn').forEach(function(b){
+    b.classList.remove('sel');
+    if(b.dataset.t===t){b.classList.add('sel');st.tipo=t;}
+  });
+}
+function pickTipo(el){
+  document.querySelectorAll('#tipo-row .tbtn').forEach(function(b){b.classList.remove('sel')});
+  el.classList.add('sel');st.tipo=el.dataset.t;
+}
+</script>

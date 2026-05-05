@@ -1,8 +1,10 @@
 'use client'
 
 import { useState } from 'react'
-import { ArrowCircleUp, ArrowsLeftRight, TrendUp } from '@phosphor-icons/react'
+import { useRouter } from 'next/navigation'
+import { ArrowCircleUp, ArrowsLeftRight, ListBullets, TrendUp } from '@phosphor-icons/react'
 import { formatAmount, formatDate, todayAR } from '@/lib/format'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
 import { TransferEditSheet } from './TransferEditSheet'
@@ -78,14 +80,21 @@ export function MovimientosGroupedList({
   cards,
   onRefresh,
 }: Props) {
+  const router = useRouter()
   const [editingIncome, setEditingIncome] = useState<IncomeEntry | null>(null)
   const [editingTransfer, setEditingTransfer] = useState<Transfer | null>(null)
 
   if (movements.length === 0) {
     return (
-      <p className="py-8 text-center text-[15px] text-text-secondary">
-        Sin movimientos para este período.
-      </p>
+      <div className="px-4 py-8">
+        <EmptyState
+          icon={ListBullets}
+          title="Sin movimientos para este período"
+          subtitle="Registrá gastos, ingresos o transferencias desde Home"
+          ctaLabel="Ir a Home"
+          onCta={() => router.push('/')}
+        />
+      </div>
     )
   }
 
