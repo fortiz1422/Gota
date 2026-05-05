@@ -5,6 +5,10 @@ import { ExpenseSchema } from '@/lib/validation/schemas'
 import { buildInstallmentRows, summarizeInstallmentGroup } from '@/lib/expenses/installments'
 import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { z } from 'zod'
+import {
+  isMissingExpenseFlagColumnsError,
+  stripOptionalExpenseFlags,
+} from '../expense-flag-fallback'
 
 const UpdateSchema = z.object({
   amount: z.number().min(1).optional(),
@@ -217,7 +221,31 @@ export async function PUT(
           .eq('user_id', user.id)
           .select()
           .single()
-
+        if (error && isMissingExpenseFlagColumnsError(error)) {
+          const fallbackPayload = stripOptionalExpenseFlags({
+            amount: parsedExpense.data.amount,
+            currency: parsedExpense.data.currency,
+            category: parsedExpense.data.category,
+            description: parsedExpense.data.description,
+            is_want: parsedExpense.data.is_want,
+            is_recurring: parsedExpense.data.is_recurring ?? false,
+            is_extraordinary: parsedExpense.data.is_extraordinary ?? false,
+            payment_method: parsedExpense.data.payment_method,
+            card_id: parsedExpense.data.card_id,
+            card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
+            account_id: parsedExpense.data.account_id,
+            date: parsedExpense.data.date,
+          })
+          const { data: fallbackData, error: fallbackError } = await supabase
+            .from('expenses')
+            .update(fallbackPayload)
+            .eq('id', id)
+            .eq('user_id', user.id)
+            .select()
+            .single()
+          if (fallbackError) throw fallbackError
+          return NextResponse.json(fallbackData)
+        }
         if (error) throw error
         return NextResponse.json(data)
       }
@@ -243,7 +271,45 @@ export async function PUT(
         })
         .select()
         .single()
+      if (insertSingleError && isMissingExpenseFlagColumnsError(insertSingleError)) {
+        const fallbackPayload = stripOptionalExpenseFlags({
+          user_id: user.id,
+          subscription_id: baseExpense.subscription_id,
+          amount: parsedExpense.data.amount,
+          currency: parsedExpense.data.currency,
+          category: parsedExpense.data.category,
+          description: parsedExpense.data.description,
+          is_want: parsedExpense.data.is_want,
+          is_recurring: parsedExpense.data.is_recurring ?? false,
+          is_extraordinary: parsedExpense.data.is_extraordinary ?? false,
+          is_legacy_card_payment: parsedExpense.data.is_legacy_card_payment,
+          payment_method: parsedExpense.data.payment_method,
+          card_id: parsedExpense.data.card_id,
+          card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
+          account_id: parsedExpense.data.account_id,
+          date: parsedExpense.data.date,
+        })
+        const { data: fallbackInsertedSingle, error: fallbackInsertSingleError } = await supabase
+          .from('expenses')
+          .insert(fallbackPayload)
+          .select()
+          .single()
+        if (fallbackInsertSingleError) throw fallbackInsertSingleError
 
+        const originalIds = originalRows.map((row) => row.id)
+        const { error: deleteGroupError } = await supabase
+          .from('expenses')
+          .delete()
+          .in('id', originalIds)
+          .eq('user_id', user.id)
+
+        if (deleteGroupError) {
+          await supabase.from('expenses').delete().eq('id', fallbackInsertedSingle.id).eq('user_id', user.id)
+          throw deleteGroupError
+        }
+
+        return NextResponse.json(fallbackInsertedSingle)
+      }
       if (insertSingleError) throw insertSingleError
 
       const originalIds = originalRows.map((row) => row.id)
@@ -298,7 +364,35 @@ export async function PUT(
       .from('expenses')
       .insert(newRows)
       .select()
+    if (insertError && isMissingExpenseFlagColumnsError(insertError)) {
+      const fallbackRows = newRows.map((row) => stripOptionalExpenseFlags(row))
+      const fallbackGroupId = fallbackRows[0]?.installment_group_id
+      const { data: fallbackInsertedRows, error: fallbackInsertError } = await supabase
+        .from('expenses')
+        .insert(fallbackRows)
+        .select()
+      if (fallbackInsertError) throw fallbackInsertError
 
+      const idsToDelete = originalRows.map((row) => row.id)
+      const { error: deleteOriginalError } = await supabase
+        .from('expenses')
+        .delete()
+        .in('id', idsToDelete)
+        .eq('user_id', user.id)
+
+      if (deleteOriginalError) {
+        if (fallbackGroupId) {
+          await supabase
+            .from('expenses')
+            .delete()
+            .eq('installment_group_id', fallbackGroupId)
+            .eq('user_id', user.id)
+        }
+        throw deleteOriginalError
+      }
+
+      return NextResponse.json(fallbackInsertedRows?.[0] ?? {})
+    }
     if (insertError) throw insertError
 
     const idsToDelete = originalRows.map((row) => row.id)

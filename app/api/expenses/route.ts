@@ -7,6 +7,10 @@ import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { ZodError } from 'zod'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { recordProductEvent } from '@/lib/product-analytics/server'
+import {
+  isMissingExpenseFlagColumnsError,
+  stripOptionalExpenseFlags,
+} from './expense-flag-fallback'
 
 export async function GET(request: Request) {
   const supabase = await createClient()
@@ -131,6 +135,22 @@ export async function POST(request: Request) {
         })
         .select()
         .single()
+      if (error && isMissingExpenseFlagColumnsError(error)) {
+        const fallbackPayload = stripOptionalExpenseFlags({
+          user_id: user.id,
+          ...expenseFields,
+          date: toDateOnly(expenseFields.date),
+          card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
+        })
+        const { data: fallbackData, error: fallbackError } = await supabase
+          .from('expenses')
+          .insert(fallbackPayload)
+          .select()
+          .single()
+        if (fallbackError) throw fallbackError
+        await recordFirstExpense()
+        return NextResponse.json(fallbackData, { status: 201 })
+      }
       if (error) throw error
       await recordFirstExpense()
       return NextResponse.json(data, { status: 201 })
@@ -160,6 +180,16 @@ export async function POST(request: Request) {
     })
 
     const { data, error } = await supabase.from('expenses').insert(rows).select()
+    if (error && isMissingExpenseFlagColumnsError(error)) {
+      const fallbackRows = rows.map((row) => stripOptionalExpenseFlags(row))
+      const { data: fallbackData, error: fallbackError } = await supabase
+        .from('expenses')
+        .insert(fallbackRows)
+        .select()
+      if (fallbackError) throw fallbackError
+      await recordFirstExpense()
+      return NextResponse.json(fallbackData?.[0] ?? {}, { status: 201 })
+    }
     if (error) throw error
     await recordFirstExpense()
 
