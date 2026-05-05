@@ -552,38 +552,25 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Tipo
               </label>
-              <div className="flex gap-2">
+              <div className="flex flex-wrap gap-2">
                 <button
-                  onClick={() => setIsWant(false)}
+                  onClick={() => setIsWant(!isWant)}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
-                    isWant === false ? 'bg-success/20 text-success' : 'bg-bg-tertiary text-text-secondary'
-                  }`}
-                >
-                  Necesidad
-                </button>
-                <button
-                  onClick={() => setIsWant(true)}
-                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${
-                    isWant === true ? 'bg-want/20 text-want' : 'bg-bg-tertiary text-text-secondary'
-                  }`}
+                  className={`${chipBase} ${isWant === true ? chipActive : chipInactive}`}
                 >
                   Deseo
                 </button>
-              </div>
-              <div className="mt-2 flex gap-2">
                 <button
                   onClick={() => setIsRecurring(!isRecurring)}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${isRecurring ? 'bg-primary/15 text-primary' : 'bg-bg-tertiary text-text-secondary'}`}
+                  className={`${chipBase} ${isRecurring ? chipActive : chipInactive}`}
                 >
                   Recurrente
                 </button>
                 <button
                   onClick={() => setIsExtraordinary(!isExtraordinary)}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`flex-1 rounded-button px-3 py-2 text-sm font-medium transition-colors ${isExtraordinary ? 'bg-primary/15 text-primary' : 'bg-bg-tertiary text-text-secondary'}`}
+                  className={`${chipBase} ${isExtraordinary ? chipActive : chipInactive}`}
                 >
                   Extraordinario
                 </button>
