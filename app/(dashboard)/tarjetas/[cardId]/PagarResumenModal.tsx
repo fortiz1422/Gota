@@ -1,26 +1,26 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { CaretDown, CaretUp } from '@phosphor-icons/react'
+import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
-import { CATEGORIES } from '@/lib/validation/schemas'
-import type { EnrichedCycle } from '@/lib/card-summaries'
-import type { Account, Card, Currency, Expense } from '@/types/database'
-import { CycleExpensesDetail } from './CycleExpensesDetail'
+import type { Account, Card, Currency } from '@/types/database'
+import type { CycleGroup } from './CardDetailClient'
 
-type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
+/** "1234.56" → "1.234,56" */
+function toAR(raw: string): string {
+  if (!raw) return ''
+  const [int, dec] = raw.split('.')
+  const intFmt = (int ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
+  return dec !== undefined ? `${intFmt},${dec}` : intFmt
+}
 
-interface Props {
-  open: boolean
-  onClose: () => void
-  onSuccess: () => void
-  cycle: EnrichedCycle
-  card: Card
-  accounts: Account[]
-  expenses: Expense[]
-  currency: Currency
+/** "1.234,56" → "1234.56" */
+function fromAR(display: string): string {
+  const clean = display.replace(/[^\d,]/g, '').replace(',', '.')
+  const parts = clean.split('.')
+  if (parts.length > 2) return parts[0] + '.' + parts.slice(1).join('')
+  return clean
 }
 
 function periodMonthLabel(periodMonth: string): string {
@@ -36,110 +36,173 @@ function formatMoneyInput(n: number): string {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
-const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((category) => category !== 'Pago de Tarjetas')
+interface Props {
+  open: boolean
+  onClose: () => void
+  onSuccess: () => void
+  cycleGroup: CycleGroup
+  card: Card
+  accounts: Account[]
+}
 
-export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accounts, expenses, currency }: Props) {
-  const remainingAmount = cycle.remaining_amount > 0
-    ? cycle.remaining_amount
-    : Math.max(cycle.amount - (cycle.amount_paid ?? 0), 0)
+export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, accounts }: Props) {
+  const arsBlock = cycleGroup.blocks.find((b) => b.currency === 'ARS') ?? null
+  const usdBlock = cycleGroup.blocks.find((b) => b.currency === 'USD') ?? null
+
+  const arsRemaining = arsBlock
+    ? arsBlock.cycle.remaining_amount > 0
+      ? arsBlock.cycle.remaining_amount
+      : Math.max(arsBlock.cycle.amount - (arsBlock.cycle.amount_paid ?? 0), 0)
+    : 0
+
+  const usdRemaining = usdBlock
+    ? usdBlock.cycle.remaining_amount > 0
+      ? usdBlock.cycle.remaining_amount
+      : Math.max(usdBlock.cycle.amount - (usdBlock.cycle.amount_paid ?? 0), 0)
+    : 0
+
   const defaultAccountId = card.account_id ?? (accounts[0]?.id ?? '')
 
-  const [montoRaw, setMontoRaw] = useState(Math.round(remainingAmount))
+  const [arsAmount, setArsAmount] = useState(Math.round(arsRemaining))
+  const [usdAmount, setUsdAmount] = useState(usdRemaining)
+  const [usdPayMode, setUsdPayMode] = useState<'USD' | 'ARS'>('ARS')
+  const [exchangeRateStr, setExchangeRateStr] = useState('')
   const [accountId, setAccountId] = useState(defaultAccountId)
   const [fecha, setFecha] = useState(todayAR())
-  const [motivo, setMotivo] = useState<Motivo>('no_detallar')
-  const [categoriaExtra, setCategoriaExtra] = useState<string>('Otros')
-  const [detailOpen, setDetailOpen] = useState(false)
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Reset state when cycleGroup changes
   useEffect(() => {
-    setMontoRaw(Math.round(remainingAmount))
+    setArsAmount(Math.round(arsRemaining))
+    setUsdAmount(usdRemaining)
+    setUsdPayMode('ARS')
+    setExchangeRateStr('')
     setAccountId(defaultAccountId)
     setFecha(todayAR())
-    setMotivo('no_detallar')
-    setCategoriaExtra('Otros')
-    setDetailOpen(false)
+    setAvailableBalance(null)
     setError(null)
-  }, [cycle.id, remainingAmount, defaultAccountId])
+  }, [cycleGroup.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const selectedAccount = accounts.find((account) => account.id === accountId) ?? null
-  const isOpenCycle = cycle.cycleStatus === 'en_curso'
-  const montoNum = montoRaw
-  const extraAmount = !isOpenCycle
-    ? Math.round((montoNum - remainingAmount) * 100) / 100
-    : 0
-  const hasAdjustment = extraAmount >= 1
-  const isEqualToRemaining = Math.abs(montoNum - remainingAmount) < 1
-  const canSubmit = montoNum > 0 && !!accountId && !!fecha && (!hasAdjustment || motivo !== null)
+  // Fetch exchange rate when USD paid with ARS
+  useEffect(() => {
+    if (usdPayMode !== 'ARS' || !usdBlock) return
+    let cancelled = false
+    fetch('/api/cotizaciones')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled || !data?.venta) return
+        setExchangeRateStr(String(data.venta))
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [usdPayMode, usdBlock])
 
-  const ctaLabel = (() => {
-    if (isSaving) return 'Registrando...'
-    if (isOpenCycle) return cycle.has_partial_payment ? 'Registrar otro pago' : 'Registrar pago'
-    if (isEqualToRemaining) return cycle.has_partial_payment ? 'Completar pago' : 'Registrar pago total'
-    if (montoNum > 0 && montoNum < remainingAmount) return 'Registrar pago parcial'
-    if (hasAdjustment) return 'Registrar pago y ajuste'
-    return 'Registrar pago'
-  })()
+  const exchangeRateNum = parseFloat(fromAR(exchangeRateStr)) || 0
+  const usdInArs = usdBlock && usdPayMode === 'ARS' ? usdAmount * exchangeRateNum : 0
 
-  const cycleExpenses = useMemo(
-    () =>
-      expenses.filter(
-        (expense) =>
-          expense.payment_method === 'CREDIT' &&
-          expense.category !== 'Pago de Tarjetas' &&
-          expense.date >= cycle.period_from &&
-          expense.date <= cycle.closing_date,
-      ),
-    [expenses, cycle.period_from, cycle.closing_date],
-  )
+  // from_currency: ARS if paying anything with ARS, else USD
+  const hasArsPortion = !!(arsBlock && arsAmount > 0)
+  const hasUsdInArsPortion = !!(usdBlock && usdAmount > 0 && usdPayMode === 'ARS')
+  const fromCurrency: Currency = hasArsPortion || hasUsdInArsPortion ? 'ARS' : 'USD'
 
-  const handleMontoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const stripped = event.target.value.replace(/\D/g, '')
-    setMontoRaw(stripped === '' ? 0 : parseInt(stripped, 10))
-  }
+  useEffect(() => {
+    let cancelled = false
+
+    if (!accountId) {
+      setAvailableBalance(null)
+      return
+    }
+
+    void fetch(`/api/dashboard/account-breakdown?currency=${fromCurrency}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const match = data?.breakdown?.find?.((account: { id: string; saldo: number }) => account.id === accountId)
+        setAvailableBalance(typeof match?.saldo === 'number' ? match.saldo : null)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableBalance(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, fromCurrency])
+
+  // Total that leaves the account
+  const totalArsOut = (hasArsPortion ? arsAmount : 0) + usdInArs
+  const totalUsdOut = usdBlock && usdPayMode === 'USD' && usdAmount > 0 ? usdAmount : 0
+  const showTotal = fromCurrency === 'ARS' ? totalArsOut > 0 : totalUsdOut > 0
+
+  const needsRate = !!(usdBlock && usdAmount > 0 && usdPayMode === 'ARS')
+  const hasAnyAmount = (arsBlock ? arsAmount > 0 : false) || (usdBlock ? usdAmount > 0 : false)
+  const requestedAmount = fromCurrency === 'ARS' ? totalArsOut : totalUsdOut
+  const exceedsBalance = availableBalance != null && requestedAmount > availableBalance + 0.01
+  const canSubmit =
+    hasAnyAmount && !!accountId && !!fecha && (!needsRate || exchangeRateNum > 0) && !isSaving && !exceedsBalance
 
   const handleSubmit = async () => {
     if (!canSubmit) return
-
     setIsSaving(true)
     setError(null)
 
     try {
-      const payment_method = selectedAccount
-        ? paymentMethodFromAccountType(selectedAccount.type)
-        : 'DEBIT'
-      const adjustment = hasAdjustment && motivo !== 'no_detallar'
-        ? {
-            amount: extraAmount,
-            category: motivo === 'cargo_banco' ? 'Cargos Bancarios' : categoriaExtra,
-            description: motivo === 'cargo_banco' ? 'Cargo bancario' : 'Gasto no registrado',
-            is_want: false,
+      const selectedAccount = accounts.find((a) => a.id === accountId) ?? null
+      const payment_method = selectedAccount ? paymentMethodFromAccountType(selectedAccount.type) : 'DEBIT'
+
+      // Build payments array
+      type PaymentItem = {
+        currency: 'ARS' | 'USD'
+        amount: number
+        cycle_id?: string
+        cycle?: { period_month: string; closing_date: string; due_date: string }
+      }
+      const paymentItems: PaymentItem[] = []
+
+      if (arsBlock && arsAmount > 0) {
+        const item: PaymentItem = { currency: 'ARS', amount: arsAmount }
+        if (arsBlock.cycle.source === 'stored') {
+          item.cycle_id = arsBlock.cycle.id
+        } else {
+          item.cycle = {
+            period_month: arsBlock.cycle.period_month.substring(0, 7),
+            closing_date: arsBlock.cycle.closing_date,
+            due_date: arsBlock.cycle.due_date,
           }
-        : null
+        }
+        paymentItems.push(item)
+      }
+
+      if (usdBlock && usdAmount > 0) {
+        const item: PaymentItem = { currency: 'USD', amount: usdAmount }
+        if (usdBlock.cycle.source === 'stored') {
+          item.cycle_id = usdBlock.cycle.id
+        } else {
+          item.cycle = {
+            period_month: usdBlock.cycle.period_month.substring(0, 7),
+            closing_date: usdBlock.cycle.closing_date,
+            due_date: usdBlock.cycle.due_date,
+          }
+        }
+        paymentItems.push(item)
+      }
 
       const body: Record<string, unknown> = {
-        amount: montoNum,
-        currency,
         card_id: card.id,
         account_id: accountId,
         payment_method,
         date: fecha,
         description: `Pago ${card.name}`,
+        payments: paymentItems,
+        from_currency: fromCurrency,
       }
 
-      if (cycle.source === 'stored') {
-        body.cycle_id = cycle.id
-      } else {
-        body.cycle = {
-          period_month: cycle.period_month.substring(0, 7),
-          closing_date: cycle.closing_date,
-          due_date: cycle.due_date,
-        }
-      }
-
-      if (adjustment) {
-        body.adjustment = adjustment
+      if (needsRate && exchangeRateNum > 0) {
+        body.exchange_rate = exchangeRateNum
       }
 
       const response = await fetch('/api/card-payments', {
@@ -170,45 +233,114 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           Pago de tarjeta | {card.name}
         </p>
         <h2 className="mt-0.5 text-base font-bold text-text-primary">
-          {periodMonthLabel(cycle.period_month)}
+          {periodMonthLabel(cycleGroup.periodMonth)}
         </h2>
       </div>
 
-      <div className="space-y-5 pb-24">
-        <div>
-          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-            Monto a pagar
-          </p>
-          <div className="flex items-center gap-2 rounded-[18px] bg-bg-tertiary px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-bg-secondary">
-            <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={formatMoneyInput(montoRaw)}
-              onChange={handleMontoChange}
-              className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
-              placeholder="0"
-            />
-          </div>
-          <div className="mt-2 space-y-1">
-            {(cycle.amount_paid ?? 0) > 0 && (
-              <p className="text-xs text-text-tertiary">
-                Ya registraste {formatAmount(cycle.amount_paid ?? 0, currency)}.
-              </p>
-            )}
-            {!isOpenCycle && remainingAmount > 0 && (
-              <p className="text-xs text-text-tertiary">
-                Si pagas {formatAmount(remainingAmount, currency)} completas este resumen.
-              </p>
-            )}
-            {isOpenCycle && (
-              <p className="text-xs text-text-tertiary">
-                Hoy tenes cargado {formatAmount(cycle.amount, currency)} en este ciclo.
-              </p>
-            )}
-          </div>
-        </div>
+      <div className="space-y-4 pb-28">
 
+        {/* ── ARS portion ── */}
+        {arsBlock && (
+          <div>
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+              Monto ARS
+            </p>
+            <div className="flex items-center gap-2 rounded-[18px] bg-bg-tertiary px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-bg-secondary">
+              <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={formatMoneyInput(arsAmount)}
+                onChange={(e) => {
+                  const stripped = e.target.value.replace(/\D/g, '')
+                  setArsAmount(stripped === '' ? 0 : parseInt(stripped, 10))
+                }}
+                className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                placeholder="0"
+              />
+            </div>
+            {arsRemaining > 0 && (
+              <p className="mt-1.5 text-xs text-text-tertiary">
+                Saldo: {formatAmount(arsRemaining, 'ARS')}
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* ── USD portion ── */}
+        {usdBlock && (
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+                Monto USD
+              </p>
+              {/* Toggle: pay in USD / ARS */}
+              <div className="flex items-center gap-1 rounded-full bg-bg-tertiary p-0.5">
+                {(['USD', 'ARS'] as const).map((mode) => (
+                  <button
+                    key={mode}
+                    onClick={() => setUsdPayMode(mode)}
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                      usdPayMode === mode
+                        ? 'bg-primary text-white'
+                        : 'text-text-tertiary hover:text-text-secondary'
+                    }`}
+                  >
+                    {mode}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 rounded-[18px] bg-bg-tertiary px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-bg-secondary">
+              <span className="shrink-0 text-base font-bold text-text-secondary">USD</span>
+              <input
+                type="text"
+                inputMode="decimal"
+                value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
+                onChange={(e) => {
+                  const raw = fromAR(e.target.value)
+                  setUsdAmount(raw === '' ? 0 : parseFloat(raw))
+                }}
+                className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                placeholder="0"
+              />
+            </div>
+
+            {usdRemaining > 0 && (
+              <p className="mt-1.5 text-xs text-text-tertiary">
+                Saldo: {formatAmount(usdRemaining, 'USD')}
+              </p>
+            )}
+
+            {/* Exchange rate section (only when paying USD with ARS) */}
+            {usdPayMode === 'ARS' && (
+              <div className="mt-3 rounded-[16px] bg-bg-secondary px-4 py-3 space-y-2">
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-xs text-text-secondary">Tipo de cambio · 1 USD =</span>
+                  <div className="flex items-center gap-1">
+                    <span className="text-xs font-semibold text-text-secondary">$</span>
+                    <input
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      value={toAR(exchangeRateStr)}
+                      onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
+                      className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
+                    />
+                  </div>
+                </div>
+                {usdAmount > 0 && exchangeRateNum > 0 && (
+                  <p className="text-right text-xs text-text-tertiary">
+                    = {formatAmount(usdInArs, 'ARS')} ARS
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── Cuenta & Fecha ── */}
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
           {accounts.length > 0 && (
             <div className="border-b border-border-subtle px-4 py-3.5">
@@ -235,82 +367,41 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
             <input
               type="date"
               value={fecha}
-              onChange={(event) => setFecha(event.target.value)}
-              className="border-0 appearance-none bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50"
+              onChange={(e) => setFecha(e.target.value)}
+              className="appearance-none border-0 bg-transparent text-right text-sm font-semibold text-text-primary focus:outline-none [&::-webkit-calendar-picker-indicator]:opacity-50"
             />
           </div>
         </div>
 
-        <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
-          <button
-            onClick={() => setDetailOpen((current) => !current)}
-            className="flex w-full items-center justify-between px-4 py-3.5"
-          >
-            <span className="text-sm text-text-secondary">Gastos registrados</span>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-semibold tabular-nums text-text-primary">
-                {formatAmount(cycle.amount, currency)}
+        {/* ── Total summary ── */}
+        {showTotal && (
+          <div className="rounded-[16px] bg-bg-secondary px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-secondary">Total que sale de tu cuenta</span>
+              <span className="text-sm font-bold tabular-nums text-text-primary">
+                {fromCurrency === 'ARS'
+                  ? formatAmount(totalArsOut, 'ARS')
+                  : formatAmount(totalUsdOut, 'USD')}
               </span>
-              {cycleExpenses.length > 0 &&
-                (detailOpen ? (
-                  <CaretUp size={12} className="text-text-tertiary" />
-                ) : (
-                  <CaretDown size={12} className="text-text-tertiary" />
-                ))}
             </div>
-          </button>
-
-          {detailOpen && cycleExpenses.length > 0 && (
-            <CycleExpensesDetail expenses={cycleExpenses} />
-          )}
-        </div>
-
-        {hasAdjustment && (
-          <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-              Pagas {formatAmount(extraAmount, currency)} de mas | Por que?
-            </p>
-
-            {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((option) => (
-              <button
-                key={option}
-                onClick={() => setMotivo(option)}
-                className="flex w-full items-center gap-3 text-left"
-              >
-                <div
-                  className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
-                    motivo === option ? 'border-primary bg-primary' : 'border-border-strong'
-                  }`}
-                >
-                  {motivo === option && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
-                </div>
-                <span className="text-sm text-text-primary">
-                  {option === 'gasto_olvidado'
-                    ? 'Gasto olvidado'
-                    : option === 'cargo_banco'
-                      ? 'Cargo del banco'
-                      : 'No detallar'}
-                </span>
-              </button>
-            ))}
-
-            {motivo === 'gasto_olvidado' && (
-              <div className="mt-1 border-t border-border-subtle pt-3">
-                <p className="mb-2 text-[11px] text-text-tertiary">Categoria del gasto olvidado</p>
-                <select
-                  value={categoriaExtra}
-                  onChange={(event) => setCategoriaExtra(event.target.value)}
-                  className="w-full rounded-input border border-border-strong bg-bg-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
-                >
-                  {ADJUSTABLE_CATEGORIES.map((category) => (
-                    <option key={category} value={category}>
-                      {category}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
           </div>
+        )}
+
+        {availableBalance != null && (
+          <div className="rounded-[16px] bg-bg-secondary px-4 py-3">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-text-secondary">Disponible hoy</span>
+              <span className="text-sm font-semibold text-text-primary">
+                {formatAmount(availableBalance, fromCurrency)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {exceedsBalance && (
+          <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm text-danger">
+            El pago supera el saldo actual de la cuenta seleccionada.
+          </p>
         )}
 
         {error && <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}
@@ -319,10 +410,10 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
       <div className="sticky bottom-0 -mx-6 -mb-6 bg-bg-secondary px-6 pb-6 pt-4">
         <button
           onClick={() => void handleSubmit()}
-          disabled={!canSubmit || isSaving}
+          disabled={!canSubmit}
           className="w-full rounded-button bg-primary py-3 text-[14px] font-semibold text-white transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-40"
         >
-          {ctaLabel}
+          {isSaving ? 'Registrando...' : 'Registrar pago'}
         </button>
       </div>
     </Modal>

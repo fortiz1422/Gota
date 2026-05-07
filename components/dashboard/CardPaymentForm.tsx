@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
-import { todayAR } from '@/lib/format'
+import { formatAmount, todayAR } from '@/lib/format'
 import type { Account, Card, Currency } from '@/types/database'
 
 interface Props {
@@ -33,6 +33,7 @@ export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: P
   const [currency, setCurrency] = useState<Currency>(defaultCurrency)
   const [montoRaw, setMontoRaw] = useState(0)
   const [fecha, setFecha] = useState(todayAR())
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -44,7 +45,32 @@ export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: P
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cardId, selectedCard])
 
-  const canSubmit = !!selectedCard && !!accountId && !!fecha && montoRaw > 0
+  useEffect(() => {
+    let cancelled = false
+
+    if (!accountId) {
+      setAvailableBalance(null)
+      return
+    }
+
+    void fetch(`/api/dashboard/account-breakdown?currency=${currency}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const match = data?.breakdown?.find?.((account: { id: string; saldo: number }) => account.id === accountId)
+        setAvailableBalance(typeof match?.saldo === 'number' ? match.saldo : null)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableBalance(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, currency])
+
+  const exceedsBalance = availableBalance != null && montoRaw > availableBalance + 0.01
+  const canSubmit = !!selectedCard && !!accountId && !!fecha && montoRaw > 0 && !exceedsBalance
 
   const handleMontoChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const stripped = event.target.value.replace(/\D/g, '')
@@ -187,6 +213,16 @@ export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: P
                   placeholder="0"
                 />
               </div>
+              {availableBalance != null && (
+                <p className="mt-1 text-[11px] text-text-tertiary">
+                  Disponible hoy: {formatAmount(availableBalance, currency)}
+                </p>
+              )}
+              {exceedsBalance && (
+                <p className="mt-1 text-[11px] text-danger">
+                  El pago supera el saldo actual de la cuenta seleccionada.
+                </p>
+              )}
             </div>
 
             <div>

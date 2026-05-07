@@ -1,8 +1,9 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { todayAR } from '@/lib/format'
+import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
+import { formatAmount, todayAR } from '@/lib/format'
 import type { Account, Card, Currency } from '@/types/database'
 
 interface Props {
@@ -23,10 +24,37 @@ export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, account
   const [montoRaw, setMontoRaw] = useState(0)
   const [accountId, setAccountId] = useState(card.account_id ?? (accounts[0]?.id ?? ''))
   const [fecha, setFecha] = useState(todayAR())
+  const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const selectedAccount = accounts.find((account) => account.id === accountId) ?? null
 
-  const canSubmit = montoRaw > 0 && !!accountId && !!fecha
+  useEffect(() => {
+    let cancelled = false
+
+    if (!accountId) {
+      setAvailableBalance(null)
+      return
+    }
+
+    void fetch(`/api/dashboard/account-breakdown?currency=${currency}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const match = data?.breakdown?.find?.((account: { id: string; saldo: number }) => account.id === accountId)
+        setAvailableBalance(typeof match?.saldo === 'number' ? match.saldo : null)
+      })
+      .catch(() => {
+        if (!cancelled) setAvailableBalance(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, currency])
+
+  const exceedsBalance = availableBalance != null && montoRaw > availableBalance + 0.01
+  const canSubmit = montoRaw > 0 && !!accountId && !!fecha && !exceedsBalance
 
   const handleMontoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const stripped = e.target.value.replace(/\D/g, '')
@@ -39,24 +67,29 @@ export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, account
     setError(null)
 
     try {
-      const res = await fetch('/api/expenses', {
+      const paymentMethod = selectedAccount
+        ? paymentMethodFromAccountType(selectedAccount.type)
+        : 'DEBIT'
+
+      const res = await fetch('/api/card-payments', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: montoRaw,
           currency,
-          category: 'Pago de Tarjetas',
           description: `Pago anterior ${card.name}`,
-          payment_method: 'DEBIT',
+          payment_method: paymentMethod,
           card_id: card.id,
           account_id: accountId,
           date: fecha,
-          is_want: null,
           is_legacy_card_payment: true,
         }),
       })
 
-      if (!res.ok) throw new Error('Error al registrar el pago')
+      if (!res.ok) {
+        const data = await res.json().catch(() => null)
+        throw new Error(data?.error ?? 'Error al registrar el pago')
+      }
       onSuccess()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error inesperado')
@@ -96,6 +129,16 @@ export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, account
               placeholder="0"
             />
           </div>
+          {availableBalance != null && (
+            <p className="mt-1.5 text-xs text-text-tertiary">
+              Disponible hoy: {formatAmount(availableBalance, currency)}
+            </p>
+          )}
+          {exceedsBalance && (
+            <p className="mt-1.5 text-xs text-danger">
+              El pago supera el saldo actual de la cuenta seleccionada.
+            </p>
+          )}
         </div>
 
         {/* Cuenta y Fecha */}

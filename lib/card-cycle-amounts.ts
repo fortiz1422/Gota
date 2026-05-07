@@ -28,7 +28,18 @@ export function getEffectiveCardCycleState(
   currency: Currency,
   amountsMap?: CardCycleAmountsMap,
 ): EffectiveCardCycleState {
-  const state = cycle.id ? amountsMap?.get(cycle.id)?.[currency] : undefined
+  const statesByCurrency = cycle.id ? amountsMap?.get(cycle.id) : undefined
+  const state = statesByCurrency?.[currency]
+
+  if (statesByCurrency && !state) {
+    return {
+      status: 'open',
+      amount_draft: null,
+      amount_paid: null,
+      paid_at: null,
+    }
+  }
+
   return {
     status: state?.status ?? cycle.status,
     amount_draft: state?.amount_draft ?? cycle.amount_draft,
