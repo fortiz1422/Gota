@@ -401,6 +401,8 @@ export type Database = {
           expense_id: string
           card_cycle_id: string
           amount_applied: number
+          currency: string | null
+          exchange_rate: number | null
           created_at: string
           updated_at: string
         }
@@ -410,6 +412,8 @@ export type Database = {
           expense_id: string
           card_cycle_id: string
           amount_applied: number
+          currency?: string | null
+          exchange_rate?: number | null
           created_at?: string
           updated_at?: string
         }
@@ -417,6 +421,8 @@ export type Database = {
           expense_id?: string
           card_cycle_id?: string
           amount_applied?: number
+          currency?: string | null
+          exchange_rate?: number | null
         }
         Relationships: []
       }

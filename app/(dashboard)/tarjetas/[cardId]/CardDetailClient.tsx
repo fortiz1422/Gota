@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowLeft, CaretDown, CaretRight, CaretUp, ClockCounterClockwise } from '@phosphor-icons/react'
+import { ArrowLeft, CaretDown, CaretUp, CheckCircle, ClockCounterClockwise } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, Currency, Expense } from '@/types/database'
@@ -21,11 +21,10 @@ interface Props {
 }
 
 interface PayingTarget {
-  cycle: EnrichedCycle
-  currency: Currency
+  cycleGroup: CycleGroup
 }
 
-interface CycleGroup {
+export interface CycleGroup {
   key: string
   periodMonth: string
   closingDate: string
@@ -270,93 +269,56 @@ export function CardDetailClient({
     }
   }
 
-  const renderCurrencyBlock = (
-    group: CycleGroup,
-    block: CycleGroup['blocks'][number],
-    isPrimaryBlock: boolean,
-  ) => {
+  const renderCurrencyRow = (block: CycleGroup['blocks'][number]) => {
     const { cycle, currency } = block
     const actionKey = `${cycle.id}:${currency}`
-    const hasRecordedPayment = (cycle.amount_paid ?? 0) > 0
-    const paymentDiff = cycle.amount - (cycle.amount_paid ?? 0)
-    const showPaymentDiff = cycle.cycleStatus === 'pagado' && Math.abs(paymentDiff) >= 1
     const canEditDates =
       cycle.source === 'stored' && (cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido')
 
-    const payLabel = group.isCurrent
-      ? cycle.has_partial_payment
-        ? 'Registrar otro pago'
-        : 'Registrar pago'
-      : cycle.has_partial_payment
-        ? 'Registrar otro pago'
-        : 'Pagar resumen'
-
     return (
-      <div
-        key={actionKey}
-        className={`rounded-input border px-3 py-3 ${
-          isPrimaryBlock
-            ? 'border-primary/15 bg-primary/[0.04]'
-            : 'border-border-subtle bg-bg-primary'
-        }`}
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="type-label text-text-tertiary">{currency}</span>
-              <CycleStatusPill status={cycle.cycleStatus} />
-              {cycle.has_partial_payment && (
-                <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold text-warning">
-                  Pago parcial
-                </span>
-              )}
-              {cycle.cycleStatus === 'pagado' && cycle.changed_after_payment && (
-                <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold text-warning">
-                  Modificado
-                </span>
-              )}
-            </div>
-
-            {hasRecordedPayment && (
-              <div className="mt-2 space-y-0.5">
-                <p className="type-meta text-text-tertiary">
-                  Pago registrado: {formatAmount(cycle.amount_paid ?? 0, currency)}
-                </p>
-                {cycle.has_partial_payment ? (
-                  <p className="type-meta font-medium text-warning">
-                    Resta: {formatAmount(cycle.remaining_amount, currency)}
-                  </p>
-                ) : showPaymentDiff ? (
-                  <p
-                    className={`type-meta font-medium ${
-                      paymentDiff > 0 ? 'text-warning' : 'text-text-tertiary'
-                    }`}
-                  >
-                    Diferencia: {formatDiff(paymentDiff, currency)}
-                  </p>
-                ) : null}
-              </div>
+      <div key={actionKey} className="rounded-input bg-bg-tertiary px-3 py-2.5">
+        {/* Currency row header */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="type-label font-semibold text-text-secondary">{currency}</span>
+            {cycle.cycleStatus === 'pagado' && (
+              <CheckCircle size={14} weight="fill" className="text-success" />
+            )}
+            {cycle.has_partial_payment && (
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                Pago parcial
+              </span>
+            )}
+            {cycle.cycleStatus === 'pagado' && cycle.changed_after_payment && (
+              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
+                Modificado
+              </span>
             )}
           </div>
-
-          <div className="shrink-0 text-right">
+          <div className="text-right">
             <p className="type-body font-bold tabular-nums text-text-primary">
               {formatAmount(cycle.amount, currency)}
             </p>
             {cycle.remaining_amount > 0 && cycle.cycleStatus !== 'pagado' && (
-              <p className="mt-1 type-meta text-text-tertiary">
-                Pendiente: {formatAmount(cycle.remaining_amount, currency)}
+              <p className="mt-0.5 type-meta text-warning">
+                Resta: {formatAmount(cycle.remaining_amount, currency)}
+              </p>
+            )}
+            {(cycle.amount_paid ?? 0) > 0 && cycle.cycleStatus === 'pagado' && (
+              <p className="mt-0.5 type-meta text-text-tertiary">
+                Pagado: {formatAmount(cycle.amount_paid ?? 0, currency)}
               </p>
             )}
           </div>
         </div>
 
-        <div className="mt-3 overflow-hidden rounded-input bg-bg-secondary">
+        {/* Expense detail toggle */}
+        <div className="mt-2 overflow-hidden rounded-input bg-bg-secondary">
           <button
             onClick={() => setDetailKey((current) => (current === actionKey ? null : actionKey))}
-            className="flex w-full items-center justify-between px-3 py-2.5"
+            className="flex w-full items-center justify-between px-3 py-2"
           >
-            <span className="type-meta font-medium text-text-secondary">Detalle de gastos</span>
+            <span className="type-meta font-medium text-text-secondary">Gastos</span>
             <div className="flex items-center gap-2">
               <span className="type-meta text-text-tertiary">
                 {cycleExpensesMap[actionKey]?.length ?? 0} items
@@ -376,10 +338,11 @@ export function CardDetailClient({
           )}
         </div>
 
+        {/* Edit dates (cerrado/vencido only) */}
         {canEditDates && (
           <>
             {editingCycleId === cycle.id ? (
-              <div className="mt-3 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
+              <div className="mt-2 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
                 <div className="grid grid-cols-2 gap-2">
                   <label className="space-y-1">
                     <span className="block type-meta text-text-secondary">Cierre</span>
@@ -430,7 +393,7 @@ export function CardDetailClient({
             ) : (
               <button
                 onClick={() => startCycleDateEdit(cycle)}
-                className="mt-2 type-meta text-primary underline-offset-2 hover:underline"
+                className="mt-1.5 type-meta text-primary underline-offset-2 hover:underline"
               >
                 Editar fechas
               </button>
@@ -438,30 +401,13 @@ export function CardDetailClient({
           </>
         )}
 
-        {cycle.cycleStatus !== 'pagado' && (
-          <button
-            onClick={() => setPayingTarget({ cycle, currency })}
-            className="mt-3 w-full rounded-button border border-primary py-2 text-[13px] font-semibold text-primary transition-opacity active:opacity-70"
-          >
-            {payLabel}
-            {group.isCurrent && (
-              <>
-                {' - '}
-                {formatAmount(
-                  cycle.remaining_amount > 0 ? cycle.remaining_amount : cycle.amount,
-                  currency,
-                )}
-              </>
-            )}
-          </button>
-        )}
-
+        {/* Per-currency revert (only when this currency is paid) */}
         {cycle.cycleStatus === 'pagado' && (
           <>
             {revertingKey === actionKey ? (
-              <div className="mt-3 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
+              <div className="mt-2 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
                 <p className="type-meta font-medium text-danger">
-                  Queres revertir este pago? Se eliminara el movimiento registrado.
+                  Queres revertir el pago {currency}? Se eliminara el movimiento registrado.
                 </p>
                 {revertError && <p className="type-meta text-danger">{revertError}</p>}
                 <div className="flex gap-2">
@@ -487,9 +433,9 @@ export function CardDetailClient({
             ) : (
               <button
                 onClick={() => setRevertingKey(actionKey)}
-                className="mt-2 type-meta text-text-tertiary underline-offset-2 hover:underline"
+                className="mt-1.5 type-meta text-text-tertiary underline-offset-2 hover:underline"
               >
-                Revertir pago
+                Revertir pago {currency}
               </button>
             )}
           </>
@@ -648,11 +594,25 @@ export function CardDetailClient({
                     )}
                   </div>
 
-                  <div className="mt-3 space-y-3">
-                    {group.blocks.map((block, index) =>
-                      renderCurrencyBlock(group, block, index === 0),
-                    )}
+                  <div className="mt-3 space-y-2">
+                    {group.blocks.map((block) => renderCurrencyRow(block))}
                   </div>
+
+                  {/* Unified pay button — shown if any currency is unpaid */}
+                  {group.blocks.some((b) => b.cycle.cycleStatus !== 'pagado') && (
+                    <button
+                      onClick={() => setPayingTarget({ cycleGroup: group })}
+                      className="mt-3 w-full rounded-button border border-primary py-2 text-[13px] font-semibold text-primary transition-opacity active:opacity-70"
+                    >
+                      {group.isCurrent
+                        ? group.blocks.some((b) => b.cycle.has_partial_payment)
+                          ? 'Registrar otro pago'
+                          : 'Registrar pago'
+                        : group.blocks.some((b) => b.cycle.has_partial_payment)
+                          ? 'Registrar otro pago'
+                          : 'Pagar resumen'}
+                    </button>
+                  )}
 
                   {group.representativeCycle.source === 'legacy' && (
                     <p className="mt-3 type-meta text-text-tertiary">
@@ -745,11 +705,9 @@ export function CardDetailClient({
             setPayingTarget(null)
             router.refresh()
           }}
-          cycle={payingTarget.cycle}
+          cycleGroup={payingTarget.cycleGroup}
           card={currentCard}
           accounts={accounts}
-          expenses={expenses}
-          currency={payingTarget.currency}
         />
       )}
 
