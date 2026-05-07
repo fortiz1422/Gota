@@ -420,6 +420,41 @@ export type Database = {
         }
         Relationships: []
       }
+      card_cycle_amounts: {
+        Row: {
+          id: string
+          user_id: string
+          card_cycle_id: string
+          currency: 'ARS' | 'USD'
+          status: 'open' | 'closed' | 'paid'
+          amount_draft: number | null
+          amount_paid: number | null
+          paid_at: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          card_cycle_id: string
+          currency: 'ARS' | 'USD'
+          status?: 'open' | 'closed' | 'paid'
+          amount_draft?: number | null
+          amount_paid?: number | null
+          paid_at?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          card_cycle_id?: string
+          currency?: 'ARS' | 'USD'
+          status?: 'open' | 'closed' | 'paid'
+          amount_draft?: number | null
+          amount_paid?: number | null
+          paid_at?: string | null
+        }
+        Relationships: []
+      }
       accounts: {
         Row: {
           id: string
@@ -767,6 +802,9 @@ export type CardUpdate = Database['public']['Tables']['cards']['Update']
 export type CardCycle = Database['public']['Tables']['card_cycles']['Row']
 export type CardCycleInsert = Database['public']['Tables']['card_cycles']['Insert']
 export type CardCycleUpdate = Database['public']['Tables']['card_cycles']['Update']
+export type CardCycleAmount = Database['public']['Tables']['card_cycle_amounts']['Row']
+export type CardCycleAmountInsert = Database['public']['Tables']['card_cycle_amounts']['Insert']
+export type CardCycleAmountUpdate = Database['public']['Tables']['card_cycle_amounts']['Update']
 
 export type InstrumentType   = 'plazo_fijo' | 'fci'
 export type InstrumentStatus = 'active' | 'closed'

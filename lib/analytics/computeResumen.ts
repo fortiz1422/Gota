@@ -1,4 +1,4 @@
-import type { Expense } from '@/types/database'
+import type { Currency, Expense } from '@/types/database'
 
 function toDateStr(d: Date): string {
   const y = d.getFullYear()
@@ -23,6 +23,7 @@ export function calcularMontoResumen(
   periodoDesde: Date,
   periodoHasta: Date,
   cardCycleId?: string | null,
+  currency?: Currency,
 ): number {
   const desdeStr = toDateStr(periodoDesde)
   const hastaStr = toDateStr(periodoHasta)
@@ -34,6 +35,7 @@ export function calcularMontoResumen(
         e.card_id === cardId &&
         e.payment_method === 'CREDIT' &&
         e.category !== 'Pago de Tarjetas' &&
+        (!currency || e.currency === currency) &&
         (canUseCycleId && e.card_cycle_id
           ? e.card_cycle_id === cardCycleId
           : e.date.substring(0, 10) >= desdeStr && e.date.substring(0, 10) <= hastaStr),

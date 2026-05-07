@@ -45,7 +45,7 @@ export function StepW4Proof({ onBack, onNext }: Props) {
         </div>
 
         <div className="mt-6">
-          <h2 className="text-2xl font-semibold text-text-primary">
+          <h2 className="type-title text-text-primary">
             Miles de argentinos ya controlan su plata
           </h2>
         </div>
@@ -53,17 +53,17 @@ export function StepW4Proof({ onBack, onNext }: Props) {
 
       <div className="mt-8 flex-1 px-5 space-y-3">
         {TESTIMONIALS.map(({ initials, name, tag, quote }) => (
-          <div key={name} className="rounded-2xl border border-border-subtle bg-bg-secondary p-4">
+          <div key={name} className="rounded-card border border-border-subtle bg-bg-secondary p-4">
             <div className="flex items-center gap-3 mb-3">
-              <div className="h-9 w-9 shrink-0 rounded-full bg-primary/12 flex items-center justify-center">
-                <span className="text-xs font-bold text-primary">{initials}</span>
+              <div className="h-9 w-9 shrink-0 rounded-full bg-primary-soft flex items-center justify-center">
+                <span className="type-meta font-bold text-primary">{initials}</span>
               </div>
               <div>
-                <p className="text-xs font-semibold text-text-primary">{name}</p>
-                <p className="text-[10px] text-text-tertiary">{tag}</p>
+                <p className="type-body text-text-primary">{name}</p>
+                <p className="type-micro text-text-tertiary">{tag}</p>
               </div>
             </div>
-            <p className="text-sm leading-relaxed text-text-secondary">&quot;{quote}&quot;</p>
+            <p className="type-body leading-relaxed text-text-secondary">&quot;{quote}&quot;</p>
           </div>
         ))}
       </div>
@@ -71,7 +71,7 @@ export function StepW4Proof({ onBack, onNext }: Props) {
       <div className="px-5 mt-6">
         <button
           onClick={onNext}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-transform active:scale-95"
+          className="w-full rounded-button bg-primary py-4 type-body-lg text-white transition-transform active:scale-95"
         >
           Continuar
         </button>

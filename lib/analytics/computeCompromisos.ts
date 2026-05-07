@@ -1,12 +1,11 @@
-import { buildCycleDate, buildLegacyCardCycle } from '@/lib/card-cycles'
+import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
+import { getEffectiveCardCycleState, type CardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import { getAccumulatedPaidAmount, getRemainingCardCycleAmount } from '@/lib/card-cycle-payments'
+import { buildCycleDate, buildLegacyCardCycle } from '@/lib/card-cycles'
 import { addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
-import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
 import { isCreditAccruedExpense } from '@/lib/movement-classification'
-import type { Expense, Card, CardCycle, Subscription } from '@/types/database'
-
-// ─── Types ──────────────────────────────────────────────────────────────────
+import type { Card, CardCycle, Currency, Expense, Subscription } from '@/types/database'
 
 export type PendingSub = {
   description: string
@@ -15,9 +14,9 @@ export type PendingSub = {
 }
 
 export type PendingDebtCycle = {
-  periodMonth: string          // 'YYYY-MM'
+  periodMonth: string
   amount: number
-  dueDate: string              // 'YYYY-MM-DD'
+  dueDate: string
   cycleStatus: 'cerrado' | 'vencido'
 }
 
@@ -26,52 +25,32 @@ export type CompromisoTarjeta = {
   name: string
   closingDay: number | null
   dueDay: number | null
-
-  // Hero engine compatibility (current month only; 0/null in historical)
   currentSpend: number
   daysUntilClosing: number | null
-
-  // Debt: sum of all unpaid closed cycles for this card
   debtTotal: number
   debtCycles: PendingDebtCycle[]
-
-  // Dominant status to drive display
   cycleStatus: 'en_curso' | 'cerrado' | 'vencido' | 'pagado' | null
-
-  // Most relevant due date for the dominant cycle
   dueDate: string | null
   daysUntilDue: number | null
-
-  // Payment info (when cycleStatus === 'pagado')
   amountPaid: number | null
   paidAt: string | null
-
-  // Pending subscriptions (current month en_curso only)
   pendingSubs: PendingSub[]
 }
 
 export type CompromisosData = {
-  /** 'current' = live debt view; 'historical' = resúmenes del mes seleccionado */
   mode: 'current' | 'historical'
-  /** Sum of unpaid closed debt across all cards */
   totalDebt: number
-  /** total pendiente neto (cerrado/vencido + en curso neto) as % of monthly income (null if no income set) */
   pctComprometido: number | null
   ingresoMes: number | null
   tarjetas: CompromisoTarjeta[]
-  /** Cards without due_day — can't appear in historical view */
   tarjetasSinVencimiento: { id: string; name: string }[]
   hasCards: boolean
   hasCreditExpenses: boolean
-  // Legacy aliases kept for hero engine compatibility
   totalComprometido: number
   unassignedCreditSpend: number
-  // Breakdown for A pagar / En curso sections
   totalAPagar: number
   totalEnCurso: number
 }
-
-// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function addOneDay(dateStr: string): string {
   const [year, month, day] = dateStr.split('-').map(Number)
@@ -79,7 +58,6 @@ function addOneDay(dateStr: string): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-/** Positive = toDate is in the future relative to fromDate */
 function daysDiff(fromDate: string, toDate: string): number {
   const parse = (s: string) => {
     const [y, m, d] = s.split('-').map(Number)
@@ -91,7 +69,7 @@ function daysDiff(fromDate: string, toDate: string): number {
 function getPeriodFrom(cycle: CardCycle, card: Card, allCycles: CardCycle[]): string {
   const prevMonth = addMonths(cycle.period_month.substring(0, 7), -1)
   const prevCycle = allCycles.find(
-    (c) => c.card_id === card.id && c.period_month.substring(0, 7) === prevMonth,
+    (candidate) => candidate.card_id === card.id && candidate.period_month.substring(0, 7) === prevMonth,
   )
   const prevClosingDate = prevCycle
     ? prevCycle.closing_date
@@ -104,8 +82,12 @@ function computeStatementAmount(
   card: Card,
   expenses: Expense[],
   allCycles: CardCycle[],
+  currency: Currency,
+  cycleAmountsMap?: CardCycleAmountsMap,
 ): number {
-  if (cycle.amount_draft !== null) return cycle.amount_draft
+  const cycleState = getEffectiveCardCycleState(cycle, currency, cycleAmountsMap)
+  if (cycleState.amount_draft !== null) return cycleState.amount_draft
+
   const periodFrom = getPeriodFrom(cycle, card, allCycles)
   return calcularMontoResumen(
     expenses,
@@ -113,6 +95,7 @@ function computeStatementAmount(
     new Date(`${periodFrom}T12:00:00Z`),
     new Date(`${cycle.closing_date}T12:00:00Z`),
     cycle.id,
+    currency,
   )
 }
 
@@ -121,28 +104,40 @@ function computeRemainingCycleAmount(
   card: Card,
   expenses: Expense[],
   allCycles: CardCycle[],
+  currency: Currency,
+  cycleAmountsMap?: CardCycleAmountsMap,
 ): number {
-  const statementAmount = computeStatementAmount(cycle, card, expenses, allCycles)
-  return getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
+  const cycleState = getEffectiveCardCycleState(cycle, currency, cycleAmountsMap)
+  const statementAmount = computeStatementAmount(
+    cycle,
+    card,
+    expenses,
+    allCycles,
+    currency,
+    cycleAmountsMap,
+  )
+  return getRemainingCardCycleAmount(statementAmount, cycleState.amount_paid)
 }
 
-function isPaidCycle(cycle: CardCycle): boolean {
-  return cycle.status === 'paid' || cycle.paid_at !== null
+function isPaidCycle(
+  cycle: CardCycle,
+  currency: Currency,
+  cycleAmountsMap?: CardCycleAmountsMap,
+): boolean {
+  const cycleState = getEffectiveCardCycleState(cycle, currency, cycleAmountsMap)
+  return cycleState.status === 'paid' || cycleState.paid_at !== null
 }
-
-
-// ─── Main ─────────────────────────────────────────────────────────────────────
 
 export function computeCompromisos(
-  /** 3 months of CREDIT expenses (excl. Pago de Tarjetas) */
   expenses: Expense[],
   cards: Card[],
-  /** All non-paid card_cycles + paid cycles with due_date in selectedMonth */
   cardCycles: CardCycle[],
   ingresoMes: number | null,
-  selectedMonth: string,   // 'YYYY-MM'
+  selectedMonth: string,
   isCurrentMonth: boolean,
   subscriptions: Subscription[],
+  currency: Currency,
+  cycleAmountsMap?: CardCycleAmountsMap,
 ): CompromisosData {
   const today = todayAR()
   const hasCards = cards.length > 0
@@ -150,17 +145,16 @@ export function computeCompromisos(
   const tarjetasSinVencimiento: { id: string; name: string }[] = []
   const tarjetas: CompromisoTarjeta[] = []
 
-  // ── Current month: show live debt + en_curso context ─────────────────────
   if (isCurrentMonth) {
     for (const card of cards) {
-      const forThisCard = cardCycles.filter((c) => c.card_id === card.id)
-      const unpaid = forThisCard.filter((c) => !isPaidCycle(c))
+      const forThisCard = cardCycles.filter((cycle) => cycle.card_id === card.id)
+      const unpaid = forThisCard.filter((cycle) => !isPaidCycle(cycle, currency, cycleAmountsMap))
       const enCursoCycle =
         unpaid
           .filter((cycle) => cycle.closing_date >= today)
           .sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ?? null
       const paidThisMonth = forThisCard.find(
-        (c) => isPaidCycle(c) && c.due_date.startsWith(selectedMonth),
+        (cycle) => isPaidCycle(cycle, currency, cycleAmountsMap) && cycle.due_date.startsWith(selectedMonth),
       )
 
       let currentSpend = 0
@@ -173,7 +167,7 @@ export function computeCompromisos(
       for (const cycle of unpaid) {
         if (cycle.closing_date >= today) {
           if (cycle !== enCursoCycle) continue
-          // En curso — compute live spend within this cycle's date range
+
           foundEnCurso = true
           const periodFrom = getPeriodFrom(cycle, card, cardCycles)
           const liveSpend = calcularMontoResumen(
@@ -182,49 +176,61 @@ export function computeCompromisos(
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${cycle.closing_date}T12:00:00Z`),
             cycle.id,
+            currency,
           )
-          currentSpend = getRemainingCardCycleAmount(liveSpend, cycle.amount_paid)
+          currentSpend = getRemainingCardCycleAmount(
+            liveSpend,
+            getEffectiveCardCycleState(cycle, currency, cycleAmountsMap).amount_paid,
+          )
           daysUntilClosing = daysDiff(today, cycle.closing_date)
           enCursoClosingDay = parseInt(cycle.closing_date.substring(8, 10), 10)
         } else {
-          // Closed — cerrado if due_date is still future, vencido if past
-          const amount = computeRemainingCycleAmount(cycle, card, expenses, cardCycles)
-          if (amount === 0) continue  // ciclo sin deuda real — no mostrar
-          const cs: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
+          const amount = computeRemainingCycleAmount(
+            cycle,
+            card,
+            expenses,
+            cardCycles,
+            currency,
+            cycleAmountsMap,
+          )
+          if (amount === 0) continue
+          const cycleStatus: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
           debtCycles.push({
             periodMonth: cycle.period_month.substring(0, 7),
             amount,
             dueDate: cycle.due_date,
-            cycleStatus: cs,
+            cycleStatus,
           })
         }
       }
 
-      // Detect implicit closed cycles: months with no stored record (paid or unpaid)
-      // but with expense-based debt. Covers resúmenes cerrados never registered as a payment.
-      for (let mBack = 1; mBack <= 4; mBack++) {
+      for (let mBack = 1; mBack <= 4; mBack += 1) {
         const prevMonth = addMonths(selectedMonth, -mBack)
-        const hasCycle = forThisCard.some(
-          (c) => c.period_month.substring(0, 7) === prevMonth,
-        )
+        const hasCycle = forThisCard.some((cycle) => cycle.period_month.substring(0, 7) === prevMonth)
         if (hasCycle) continue
 
         const implicitCycle = buildLegacyCardCycle(card, prevMonth)
         if (implicitCycle.closing_date >= today) continue
 
-        const amount = computeStatementAmount(implicitCycle, card, expenses, cardCycles)
+        const amount = computeStatementAmount(
+          implicitCycle,
+          card,
+          expenses,
+          cardCycles,
+          currency,
+          cycleAmountsMap,
+        )
         if (amount <= 0) continue
 
-        const cs: 'cerrado' | 'vencido' = implicitCycle.due_date < today ? 'vencido' : 'cerrado'
+        const cycleStatus: 'cerrado' | 'vencido' = implicitCycle.due_date < today ? 'vencido' : 'cerrado'
         debtCycles.push({
           periodMonth: prevMonth,
           amount,
           dueDate: implicitCycle.due_date,
-          cycleStatus: cs,
+          cycleStatus,
         })
       }
 
-      // Fallback: no stored en_curso cycle — build from card config
       if (!foundEnCurso && card.closing_day !== null) {
         const legacy = buildLegacyCardCycle(card, selectedMonth)
         if (legacy.closing_date >= today) {
@@ -235,54 +241,58 @@ export function computeCompromisos(
             new Date(`${periodFrom}T12:00:00Z`),
             new Date(`${legacy.closing_date}T12:00:00Z`),
             legacy.id,
+            currency,
           )
-          currentSpend = getRemainingCardCycleAmount(liveSpend, legacy.amount_paid)
+          currentSpend = getRemainingCardCycleAmount(
+            liveSpend,
+            getEffectiveCardCycleState(legacy, currency, cycleAmountsMap).amount_paid,
+          )
           daysUntilClosing = daysDiff(today, legacy.closing_date)
           enCursoClosingDay = parseInt(legacy.closing_date.substring(8, 10), 10)
         }
       }
 
-      // Pending subscriptions before the en_curso closing day
       if (enCursoClosingDay !== null) {
         const todayDay = parseInt(today.substring(8, 10), 10)
         subscriptions
           .filter(
-            (s) =>
-              s.card_id === card.id &&
-              s.is_active &&
-              s.day_of_month > todayDay &&
-              s.day_of_month <= enCursoClosingDay!,
+            (subscription) =>
+              subscription.card_id === card.id &&
+              subscription.is_active &&
+              subscription.day_of_month > todayDay &&
+              subscription.day_of_month <= enCursoClosingDay,
           )
-          .forEach((s) =>
-            pendingSubs.push({ description: s.description, amount: s.amount, dayOfMonth: s.day_of_month }),
-          )
+          .forEach((subscription) => {
+            pendingSubs.push({
+              description: subscription.description,
+              amount: subscription.amount,
+              dayOfMonth: subscription.day_of_month,
+            })
+          })
       }
 
-      const debtTotal = debtCycles.reduce((s, c) => s + c.amount, 0)
-
-      // Determine dominant status: vencido > cerrado > pagado > en_curso
+      const debtTotal = debtCycles.reduce((sum, cycle) => sum + cycle.amount, 0)
       let cycleStatus: CompromisoTarjeta['cycleStatus']
       let dueDate: string | null = null
       let daysUntilDue: number | null = null
       let amountPaid: number | null = null
       let paidAt: string | null = null
 
-      if (debtCycles.some((c) => c.cycleStatus === 'vencido')) {
+      if (debtCycles.some((cycle) => cycle.cycleStatus === 'vencido')) {
         cycleStatus = 'vencido'
-        const oldest = debtCycles
-          .filter((c) => c.cycleStatus === 'vencido')
-          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
-        dueDate = oldest?.dueDate ?? null
-      } else if (debtCycles.some((c) => c.cycleStatus === 'cerrado')) {
+        dueDate = debtCycles
+          .filter((cycle) => cycle.cycleStatus === 'vencido')
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]?.dueDate ?? null
+      } else if (debtCycles.some((cycle) => cycle.cycleStatus === 'cerrado')) {
         cycleStatus = 'cerrado'
-        const soonest = debtCycles
-          .filter((c) => c.cycleStatus === 'cerrado')
-          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]
-        dueDate = soonest?.dueDate ?? null
+        dueDate = debtCycles
+          .filter((cycle) => cycle.cycleStatus === 'cerrado')
+          .sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0]?.dueDate ?? null
       } else if (paidThisMonth) {
+        const paidState = getEffectiveCardCycleState(paidThisMonth, currency, cycleAmountsMap)
         cycleStatus = 'pagado'
-        amountPaid = getAccumulatedPaidAmount(paidThisMonth.amount_paid)
-        paidAt = paidThisMonth.paid_at
+        amountPaid = getAccumulatedPaidAmount(paidState.amount_paid)
+        paidAt = paidState.paid_at
         dueDate = paidThisMonth.due_date
       } else {
         cycleStatus = 'en_curso'
@@ -308,17 +318,19 @@ export function computeCompromisos(
       })
     }
 
-    // Sort: vencido → cerrado → en_curso → pagado; within group by debt desc
     const order = { vencido: 0, cerrado: 1, en_curso: 2, pagado: 3 } as const
     tarjetas.sort((a, b) => {
-      const oa = order[a.cycleStatus ?? 'en_curso']
-      const ob = order[b.cycleStatus ?? 'en_curso']
-      return oa !== ob ? oa - ob : b.debtTotal - a.debtTotal
+      const left = order[a.cycleStatus ?? 'en_curso']
+      const right = order[b.cycleStatus ?? 'en_curso']
+      return left !== right ? left - right : b.debtTotal - a.debtTotal
     })
 
-    const totalDebt = tarjetas.reduce((s, t) => s + t.debtTotal, 0)
-    const totalEnCurso = tarjetas.reduce((s, t) => s + t.currentSpend, 0)
-    const totalComprometido = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.debtTotal + tarjeta.currentSpend, 0)
+    const totalDebt = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.debtTotal, 0)
+    const totalEnCurso = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.currentSpend, 0)
+    const totalComprometido = tarjetas.reduce(
+      (sum, tarjeta) => sum + tarjeta.debtTotal + tarjeta.currentSpend,
+      0,
+    )
     const pctComprometido =
       ingresoMes && ingresoMes > 0 ? Math.round((totalComprometido / ingresoMes) * 100) : null
 
@@ -338,34 +350,35 @@ export function computeCompromisos(
     }
   }
 
-  // ── Historical month: show cycles due in selectedMonth ───────────────────
   for (const card of cards) {
-    // Cards without due_day can't be matched by due_date — surface as nudge
     if (!card.due_day) {
       tarjetasSinVencimiento.push({ id: card.id, name: card.name })
       continue
     }
 
     const cycleCandidates = cardCycles.filter(
-      (c) => c.card_id === card.id && c.due_date.startsWith(selectedMonth),
+      (cycle) => cycle.card_id === card.id && cycle.due_date.startsWith(selectedMonth),
     )
-
-    // No cycle recorded for this month — skip silently
     if (cycleCandidates.length === 0) continue
 
-    // Defensive resolution for inconsistent data (multiple cycles due in same month).
-    // Prefer paid cycles so a paid resumen is still shown in Insights even if another
-    // duplicate/unpaid draft cycle exists with monto 0.
     const cycle =
-      cycleCandidates.find((candidate) => candidate.status === 'paid') ??
+      cycleCandidates.find((candidate) => isPaidCycle(candidate, currency, cycleAmountsMap)) ??
       cycleCandidates.sort((a, b) => b.due_date.localeCompare(a.due_date))[0]
 
-    const statementAmount = computeStatementAmount(cycle, card, expenses, cardCycles)
-    const amount = getRemainingCardCycleAmount(statementAmount, cycle.amount_paid)
+    const cycleState = getEffectiveCardCycleState(cycle, currency, cycleAmountsMap)
+    const statementAmount = computeStatementAmount(
+      cycle,
+      card,
+      expenses,
+      cardCycles,
+      currency,
+      cycleAmountsMap,
+    )
+    const amount = getRemainingCardCycleAmount(statementAmount, cycleState.amount_paid)
     const dueDate = cycle.due_date
     const daysUntilDue = daysDiff(today, dueDate)
 
-    if (isPaidCycle(cycle)) {
+    if (isPaidCycle(cycle, currency, cycleAmountsMap)) {
       tarjetas.push({
         id: card.id,
         name: card.name,
@@ -378,13 +391,13 @@ export function computeCompromisos(
         cycleStatus: 'pagado',
         dueDate,
         daysUntilDue,
-        amountPaid: getAccumulatedPaidAmount(cycle.amount_paid),
-        paidAt: cycle.paid_at,
+        amountPaid: getAccumulatedPaidAmount(cycleState.amount_paid),
+        paidAt: cycleState.paid_at,
         pendingSubs: [],
       })
     } else {
-      const cs: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
-      if (amount === 0) continue   // ciclo sin deuda real — no mostrar en histórico
+      const cycleStatus: 'cerrado' | 'vencido' = cycle.due_date < today ? 'vencido' : 'cerrado'
+      if (amount === 0) continue
       tarjetas.push({
         id: card.id,
         name: card.name,
@@ -393,8 +406,8 @@ export function computeCompromisos(
         currentSpend: 0,
         daysUntilClosing: null,
         debtTotal: amount,
-        debtCycles: [{ periodMonth: cycle.period_month.substring(0, 7), amount, dueDate, cycleStatus: cs }],
-        cycleStatus: cs,
+        debtCycles: [{ periodMonth: cycle.period_month.substring(0, 7), amount, dueDate, cycleStatus }],
+        cycleStatus,
         dueDate,
         daysUntilDue,
         amountPaid: null,
@@ -406,12 +419,12 @@ export function computeCompromisos(
 
   const histOrder = { vencido: 0, cerrado: 1, pagado: 2 } as const
   tarjetas.sort((a, b) => {
-    const oa = histOrder[a.cycleStatus as keyof typeof histOrder] ?? 1
-    const ob = histOrder[b.cycleStatus as keyof typeof histOrder] ?? 1
-    return oa !== ob ? oa - ob : b.debtTotal - a.debtTotal
+    const left = histOrder[a.cycleStatus as keyof typeof histOrder] ?? 1
+    const right = histOrder[b.cycleStatus as keyof typeof histOrder] ?? 1
+    return left !== right ? left - right : b.debtTotal - a.debtTotal
   })
 
-  const totalDebt = tarjetas.reduce((s, t) => s + t.debtTotal, 0)
+  const totalDebt = tarjetas.reduce((sum, tarjeta) => sum + tarjeta.debtTotal, 0)
   const pctComprometido =
     ingresoMes && ingresoMes > 0 ? Math.round((totalDebt / ingresoMes) * 100) : null
 

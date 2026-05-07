@@ -31,10 +31,10 @@ export function StepW6Currency({ onBack, onNext }: Props) {
         </div>
 
         <div className="mt-6">
-          <h2 className="text-2xl font-semibold text-text-primary">
+          <h2 className="type-title text-text-primary">
             ¿Con qué moneda operás principalmente?
           </h2>
-          <p className="mt-1 text-sm text-text-tertiary">
+          <p className="mt-1 type-body text-text-tertiary">
             Podés cambiar esto cuando quieras en Configuración
           </p>
         </div>
@@ -45,16 +45,16 @@ export function StepW6Currency({ onBack, onNext }: Props) {
           <button
             key={idx}
             onClick={() => setSelected(idx)}
-            className={`rounded-2xl border p-4 text-left transition-colors ${
+            className={`rounded-card border p-4 text-left transition-colors ${
               selected === idx
-                ? 'border-primary bg-primary/8'
+                ? 'border-primary bg-primary-soft'
                 : 'border-border-subtle bg-bg-secondary'
             }`}
           >
-            <p className={`text-sm font-semibold leading-snug ${selected === idx ? 'text-primary' : 'text-text-primary'}`}>
+            <p className={`type-body-lg leading-snug ${selected === idx ? 'text-primary' : 'text-text-primary'}`}>
               {label}
             </p>
-            <p className="mt-1 text-[10px] text-text-tertiary leading-tight">{sub}</p>
+            <p className="mt-1 type-micro text-text-tertiary leading-tight">{sub}</p>
           </button>
         ))}
       </div>
@@ -63,7 +63,7 @@ export function StepW6Currency({ onBack, onNext }: Props) {
         <button
           onClick={() => selected !== null && onNext(OPTIONS[selected].value)}
           disabled={selected === null}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-all active:scale-95 disabled:opacity-40"
+          className="w-full rounded-button bg-primary py-4 type-body-lg text-white transition-all active:scale-95 disabled:opacity-40"
         >
           Continuar
         </button>

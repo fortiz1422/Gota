@@ -6,6 +6,7 @@ import { useQuery } from '@tanstack/react-query'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import { DesktopDashboardShell } from '@/components/dashboard/desktop/DesktopDashboardShell'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
+import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 
 type CotizacionApiData = {
@@ -56,6 +57,8 @@ export function WebDashboardRoute({
       selectedMonth,
       initialData.isCurrentMonth,
       analyticsQuery.data.subscriptions,
+      analyticsQuery.data.currency,
+      buildCardCycleAmountsMap(analyticsQuery.data.cardCycleAmounts),
     )
   }, [analyticsQuery.data, initialData.isCurrentMonth, selectedMonth])
 

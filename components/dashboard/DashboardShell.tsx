@@ -16,6 +16,7 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
+import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
@@ -202,6 +203,8 @@ export function DashboardShell({
       selectedMonth,
       data.isCurrentMonth,
       analyticsQuery.data.subscriptions,
+      analyticsQuery.data.currency,
+      buildCardCycleAmountsMap(analyticsQuery.data.cardCycleAmounts),
     )
   }, [analyticsQuery.data, data, selectedMonth])
 

@@ -2,9 +2,10 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { ArrowRight } from '@phosphor-icons/react'
+import { ArrowRight, Microphone } from '@phosphor-icons/react'
 import { ParsePreview } from './ParsePreview'
 import { InlineError } from '@/components/ui/InlineError'
+import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
 
@@ -52,6 +53,28 @@ export function SmartInput({
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<number | null>(null)
   const statusTimeoutRef = useRef<number | null>(null)
+  const lastVoiceErrorRef = useRef<string | null>(null)
+
+  const {
+    clearError: clearVoiceError,
+    error: voiceError,
+    isListening,
+    isSupported: isVoiceSupported,
+    start: startVoiceInput,
+    state: voiceState,
+    stop: stopVoiceInput,
+  } = useVoiceInput({
+    lang: 'es-AR',
+    onTranscript: (transcript) => {
+      setInput(transcript)
+      setParseError(null)
+      inputRef.current?.focus()
+      trackEvent('smartinput_voice_succeeded', {
+        transcript_length: inputLengthBucket(transcript.length),
+        variant,
+      })
+    },
+  })
 
   const clearPendingBlur = () => {
     if (blurTimeoutRef.current !== null) {
@@ -75,9 +98,18 @@ export function SmartInput({
     }
   }, [])
 
+  useEffect(() => {
+    if (!voiceError || lastVoiceErrorRef.current === voiceError) return
+    lastVoiceErrorRef.current = voiceError
+    trackEvent('smartinput_voice_failed', {
+      failure_type: voiceState === 'unsupported' ? 'unsupported' : 'recognition_error',
+      variant,
+    })
+  }, [variant, voiceError, voiceState])
+
   const handleSubmit = async () => {
     const trimmed = input.trim()
-    if (!trimmed || isParsing) return
+    if (!trimmed || isParsing || isListening) return
 
     setIsParsing(true)
     setParseError(null)
@@ -150,8 +182,25 @@ export function SmartInput({
     inputRef.current?.focus()
   }
 
+  const handleVoiceToggle = () => {
+    clearPendingBlur()
+    if (isListening) {
+      stopVoiceInput()
+      return
+    }
+
+    clearVoiceError()
+    const started = startVoiceInput()
+    if (started) {
+      lastVoiceErrorRef.current = null
+      trackEvent('smartinput_voice_started', { variant })
+    }
+  }
+
   const hasInput = Boolean(input.trim())
   const isBottomZone = variant === 'bottom-zone'
+  const activeError = parseError ?? voiceError
+  const helperMessage = isListening ? 'Escuchando... toca de nuevo para cortar.' : statusMessage
 
   return (
     <>
@@ -167,6 +216,8 @@ export function SmartInput({
           onChange={(e) => {
             setInput(e.target.value)
             setParseError(null)
+            clearVoiceError()
+            lastVoiceErrorRef.current = null
           }}
           onFocus={() => {
             clearPendingBlur()
@@ -188,10 +239,29 @@ export function SmartInput({
             isParsing ? 'opacity-50' : 'opacity-100'
           }`}
         />
+        {isVoiceSupported && (
+          <button
+            type="button"
+            onPointerDown={clearPendingBlur}
+            onClick={handleVoiceToggle}
+            disabled={isParsing}
+            aria-label={isListening ? 'Detener dictado' : 'Dictar gasto'}
+            className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all duration-200 ${
+              isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
+            } ${
+              isListening
+                ? 'border-primary bg-primary/12 text-primary'
+                : 'border-[color:var(--color-border-ocean)] bg-white/55 text-text-secondary'
+            }`}
+          >
+            <Microphone size={15} weight={isListening ? 'fill' : 'bold'} />
+          </button>
+        )}
         <button
+          type="button"
           onPointerDown={clearPendingBlur}
           onClick={handleSubmit}
-          disabled={!hasInput || isParsing}
+          disabled={!hasInput || isParsing || isListening}
           aria-label="Agregar gasto"
           className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
             isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
@@ -210,14 +280,14 @@ export function SmartInput({
           )}
         </button>
       </div>
-      {statusMessage && !parseError && (
+      {helperMessage && !activeError && (
         <div
           className="mt-2 rounded-card bg-primary/8 px-3 py-2 text-xs font-medium text-primary"
         >
-          {statusMessage}
+          {helperMessage}
         </div>
       )}
-      <InlineError message={parseError} className={isBottomZone ? 'mt-2' : 'mt-3'} />
+      <InlineError message={activeError} className={isBottomZone ? 'mt-2' : 'mt-3'} />
 
       {parsed && (
         <ParsePreview

@@ -1,10 +1,11 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { buildEnrichedCardCycles } from '@/lib/card-summaries'
+import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { CardDetailClient } from './CardDetailClient'
 import type { EnrichedCycle } from '@/lib/card-summaries'
-import type { Account, Card, CardCycle, CardCycleInsert, Expense } from '@/types/database'
+import type { Account, Card, CardCycle, CardCycleAmount, CardCycleInsert, Expense } from '@/types/database'
 
 export default async function TarjetaPage({
   params,
@@ -36,7 +37,12 @@ export default async function TarjetaPage({
   const oldest = periodMonths[periodMonths.length - 1]
   const newest = periodMonths[0]
 
-  const [{ data: accounts }, { data: storedCycles }, { data: expenses }] = await Promise.all([
+  const [{ data: config }, { data: accounts }, { data: storedCycles }, { data: expenses }, { data: cycleAmounts, error: cycleAmountsError }] = await Promise.all([
+    supabase
+      .from('user_config')
+      .select('default_currency')
+      .eq('user_id', user.id)
+      .single(),
     supabase
       .from('accounts')
       .select('*')
@@ -58,14 +64,28 @@ export default async function TarjetaPage({
       .eq('user_id', user.id)
       .eq('card_id', cardId)
       .gte('date', `${addMonths(currentMonth, -7)}-01`),
+    supabase
+      .from('card_cycle_amounts')
+      .select('*')
+      .eq('user_id', user.id),
   ])
+  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
+    throw cycleAmountsError
+  }
 
-  const enriched: EnrichedCycle[] = buildEnrichedCardCycles({
+  const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmounts ?? []) as CardCycleAmount[])
+  const commonParams = {
     card: card as Card,
     storedCycles: (storedCycles ?? []) as CardCycle[],
     expenses: (expenses ?? []) as Expense[],
     periodMonths,
-  })
+    cycleAmountsMap,
+  }
+  const enrichedByCurrency: Record<'ARS' | 'USD', EnrichedCycle[]> = {
+    ARS: buildEnrichedCardCycles({ ...commonParams, currency: 'ARS' }),
+    USD: buildEnrichedCardCycles({ ...commonParams, currency: 'USD' }),
+  }
+  const enriched = enrichedByCurrency.ARS
 
   const legacyPastToMaterialize = enriched.filter(
     (cycle) => cycle.source === 'legacy' && cycle.period_month.substring(0, 7) < currentMonth
@@ -99,9 +119,19 @@ export default async function TarjetaPage({
     <CardDetailClient
       card={card as Card}
       accounts={(accounts ?? []) as Account[]}
-      resumenes={resumenes}
+      resumenesByCurrency={{
+        ARS: enrichedByCurrency.ARS.filter((cycle) => {
+          if (cycle.period_month.substring(0, 7) > currentMonth) return false
+          return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
+        }),
+        USD: enrichedByCurrency.USD.filter((cycle) => {
+          if (cycle.period_month.substring(0, 7) > currentMonth) return false
+          return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
+        }),
+      }}
       upcomingClosingDate={upcomingCycle?.closing_date ?? null}
       expenses={(expenses ?? []) as Expense[]}
+      initialCurrency={(config?.default_currency ?? 'ARS') as 'ARS' | 'USD'}
     />
   )
 }

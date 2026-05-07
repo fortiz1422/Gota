@@ -7,7 +7,7 @@ import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { EnrichedCycle } from '@/lib/card-summaries'
-import type { Account, Card, Expense } from '@/types/database'
+import type { Account, Card, Currency, Expense } from '@/types/database'
 import { CycleExpensesDetail } from './CycleExpensesDetail'
 
 type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
@@ -20,6 +20,7 @@ interface Props {
   card: Card
   accounts: Account[]
   expenses: Expense[]
+  currency: Currency
 }
 
 function periodMonthLabel(periodMonth: string): string {
@@ -30,14 +31,14 @@ function periodMonthLabel(periodMonth: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
-function formatARS(n: number): string {
+function formatMoneyInput(n: number): string {
   if (n === 0) return ''
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
 const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((category) => category !== 'Pago de Tarjetas')
 
-export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accounts, expenses }: Props) {
+export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accounts, expenses, currency }: Props) {
   const remainingAmount = cycle.remaining_amount > 0
     ? cycle.remaining_amount
     : Math.max(cycle.amount - (cycle.amount_paid ?? 0), 0)
@@ -119,7 +120,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
 
       const body: Record<string, unknown> = {
         amount: montoNum,
-        currency: 'ARS',
+        currency,
         card_id: card.id,
         account_id: accountId,
         payment_method,
@@ -183,7 +184,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
             <input
               type="text"
               inputMode="numeric"
-              value={formatARS(montoRaw)}
+              value={formatMoneyInput(montoRaw)}
               onChange={handleMontoChange}
               className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
               placeholder="0"
@@ -192,17 +193,17 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
           <div className="mt-2 space-y-1">
             {(cycle.amount_paid ?? 0) > 0 && (
               <p className="text-xs text-text-tertiary">
-                Ya registraste {formatAmount(cycle.amount_paid ?? 0, 'ARS')}.
+                Ya registraste {formatAmount(cycle.amount_paid ?? 0, currency)}.
               </p>
             )}
             {!isOpenCycle && remainingAmount > 0 && (
               <p className="text-xs text-text-tertiary">
-                Si pagas {formatAmount(remainingAmount, 'ARS')} completas este resumen.
+                Si pagas {formatAmount(remainingAmount, currency)} completas este resumen.
               </p>
             )}
             {isOpenCycle && (
               <p className="text-xs text-text-tertiary">
-                Hoy tenes cargado {formatAmount(cycle.amount, 'ARS')} en este ciclo.
+                Hoy tenes cargado {formatAmount(cycle.amount, currency)} en este ciclo.
               </p>
             )}
           </div>
@@ -248,7 +249,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
             <span className="text-sm text-text-secondary">Gastos registrados</span>
             <div className="flex items-center gap-2">
               <span className="text-sm font-semibold tabular-nums text-text-primary">
-                {formatAmount(cycle.amount, 'ARS')}
+                {formatAmount(cycle.amount, currency)}
               </span>
               {cycleExpenses.length > 0 &&
                 (detailOpen ? (
@@ -267,7 +268,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycle, card, accou
         {hasAdjustment && (
           <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
             <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-              Pagas {formatAmount(extraAmount, 'ARS')} de mas | Por que?
+              Pagas {formatAmount(extraAmount, currency)} de mas | Por que?
             </p>
 
             {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((option) => (

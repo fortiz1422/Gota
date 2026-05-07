@@ -44,17 +44,17 @@ export function StepW5Solution({ onBack, onNext }: Props) {
         </div>
 
         <div className="mt-6">
-          <h2 className="text-2xl font-semibold text-text-primary">Así lo resuelve Gota</h2>
+          <h2 className="type-title text-text-primary">Así lo resuelve Gota</h2>
         </div>
       </div>
 
       <div className="mt-8 flex-1 px-5 space-y-3">
         {SOLUTIONS.map(({ pain, fix, icon }) => (
-          <div key={pain} className="rounded-2xl border border-border-subtle bg-bg-secondary p-4 flex gap-3">
+          <div key={pain} className="rounded-card border border-border-subtle bg-bg-secondary p-4 flex gap-3">
             <span className="text-xl mt-0.5">{icon}</span>
             <div>
-              <p className="text-[11px] text-text-tertiary mb-0.5">{pain}</p>
-              <p className="text-sm font-semibold text-text-primary leading-snug">{fix}</p>
+              <p className="type-meta text-text-tertiary mb-0.5">{pain}</p>
+              <p className="type-body-lg text-text-primary leading-snug">{fix}</p>
             </div>
           </div>
         ))}
@@ -63,7 +63,7 @@ export function StepW5Solution({ onBack, onNext }: Props) {
       <div className="px-5 mt-6">
         <button
           onClick={onNext}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-transform active:scale-95"
+          className="w-full rounded-button bg-primary py-4 type-body-lg text-white transition-transform active:scale-95"
         >
           Tiene sentido →
         </button>

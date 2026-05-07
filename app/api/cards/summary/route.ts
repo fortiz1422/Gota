@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { buildEnrichedCardCycles, sumPendingResumenes } from '@/lib/card-summaries'
-import type { Card, CardCycle, Expense } from '@/types/database'
+import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
+import type { Card, CardCycle, CardCycleAmount, Expense } from '@/types/database'
 
 export interface CardSummary {
   id: string
@@ -12,6 +13,9 @@ export interface CardSummary {
   account_id: string | null
   account_name: string | null
   pending_amount: number
+  pending_ars: number
+  pending_usd: number
+  default_currency: 'ARS' | 'USD'
 }
 
 export async function GET() {
@@ -29,11 +33,14 @@ export async function GET() {
   const newest = periodMonths[0]
 
   const [
+    { data: config },
     { data: cards, error },
     { data: accountsData },
     { data: storedCycles },
     { data: expenses },
+    { data: cycleAmountsData, error: cycleAmountsError },
   ] = await Promise.all([
+    supabase.from('user_config').select('default_currency').eq('user_id', user.id).single(),
     supabase
       .from('cards')
       .select('id, name, closing_day, due_day, account_id')
@@ -55,9 +62,16 @@ export async function GET() {
       .select('*')
       .eq('user_id', user.id)
       .gte('date', `${addMonths(currentMonth, -7)}-01`),
+    supabase
+      .from('card_cycle_amounts')
+      .select('*')
+      .eq('user_id', user.id),
   ])
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
+    return NextResponse.json({ error: cycleAmountsError.message }, { status: 500 })
+  }
 
   const accountNameById: Record<string, string> = {}
   for (const a of accountsData ?? []) {
@@ -76,6 +90,8 @@ export async function GET() {
     if (!expensesByCard[expense.card_id]) expensesByCard[expense.card_id] = []
     expensesByCard[expense.card_id].push(expense)
   }
+  const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmountsData ?? []) as CardCycleAmount[])
+  const defaultCurrency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
 
   const result: CardSummary[] = (cards ?? []).map((card) => ({
     id: card.id,
@@ -90,9 +106,34 @@ export async function GET() {
         storedCycles: cyclesByCard[card.id] ?? [],
         expenses: expensesByCard[card.id] ?? [],
         periodMonths,
+        currency: defaultCurrency,
+        cycleAmountsMap,
       }),
       currentMonth,
     ),
+    pending_ars: sumPendingResumenes(
+      buildEnrichedCardCycles({
+        card: card as Card,
+        storedCycles: cyclesByCard[card.id] ?? [],
+        expenses: expensesByCard[card.id] ?? [],
+        periodMonths,
+        currency: 'ARS',
+        cycleAmountsMap,
+      }),
+      currentMonth,
+    ),
+    pending_usd: sumPendingResumenes(
+      buildEnrichedCardCycles({
+        card: card as Card,
+        storedCycles: cyclesByCard[card.id] ?? [],
+        expenses: expensesByCard[card.id] ?? [],
+        periodMonths,
+        currency: 'USD',
+        cycleAmountsMap,
+      }),
+      currentMonth,
+    ),
+    default_currency: defaultCurrency,
   }))
 
   return NextResponse.json(result)

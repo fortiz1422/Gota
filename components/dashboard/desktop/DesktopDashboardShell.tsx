@@ -128,12 +128,6 @@ function instrumentDateLabel(instrument: Instrument) {
   return 'Capital invertido'
 }
 
-function compactHorizonTitle(title: string, kind: 'card' | 'due' | 'income') {
-  if (kind === 'card') return title.replace(/^Cierre\s+/i, '')
-  if (kind === 'due') return title.replace(/^Vence\s+/i, '')
-  return title
-}
-
 function buildTimelineDate(date: string) {
   return new Date(`${date}T12:00:00-03:00`)
 }
@@ -142,30 +136,53 @@ function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)
 }
 
-function CompactSection({
+function compactHorizonTitle(title: string, kind: 'card' | 'due' | 'income') {
+  if (kind === 'card') return title.replace(/^Cierre\s+/i, '')
+  if (kind === 'due') return title.replace(/^Vence\s+/i, '')
+  return title
+}
+
+function SectionTitle({
+  title,
+  subtitle,
+  icon,
+  action,
+}: {
+  title: string
+  subtitle?: string
+  icon: React.ReactNode
+  action?: React.ReactNode
+}) {
+  return (
+    <div className="mb-4 flex items-start justify-between gap-4">
+      <div className="flex items-start gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+          {icon}
+        </div>
+        <div>
+          <h2 className="text-[26px] font-bold tracking-[-0.04em] text-text-primary">{title}</h2>
+          {subtitle ? <p className="mt-1 text-[13px] leading-6 text-text-secondary">{subtitle}</p> : null}
+        </div>
+      </div>
+      {action}
+    </div>
+  )
+}
+
+function CompactPanel({
   title,
   icon,
   action,
   children,
-  className = '',
 }: {
   title: string
   icon: React.ReactNode
   action?: React.ReactNode
   children: React.ReactNode
-  className?: string
 }) {
   return (
-    <section className={`rounded-[28px] border border-border-subtle bg-white p-5 shadow-sm ${className}`}>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-            {icon}
-          </div>
-          <h2 className="text-[28px] font-bold tracking-[-0.04em] text-text-primary">{title}</h2>
-        </div>
-        {action}
-      </div>
+    <section className="rounded-[26px] border border-border-subtle bg-white p-5 shadow-sm">
+      <SectionTitle title={title} icon={icon} action={action} />
       {children}
     </section>
   )
@@ -333,7 +350,7 @@ export function DesktopDashboardShell({
     })
   }, [horizon, selectedMonth])
   const activeHorizonEvent =
-    horizonTimelineItems.find((event) => event.id === activeHorizonId) ?? horizonTimelineItems[0] ?? null
+    horizonTimelineItems.find((event) => event.id === activeHorizonId) ?? null
 
   useEffect(() => {
     function handlePointerDown(event: MouseEvent) {
@@ -350,7 +367,7 @@ export function DesktopDashboardShell({
 
   return (
     <div className="min-h-screen bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FBFD_100%)]">
-      <div className="mx-auto flex min-h-screen max-w-[1860px] gap-7 px-7 py-7 xl:px-10">
+      <div className="mx-auto flex min-h-screen max-w-[1880px] gap-7 px-7 py-7 xl:px-10">
         <aside className="flex w-[240px] shrink-0 flex-col rounded-[30px] border border-border-subtle bg-white/90 px-5 py-6 shadow-sm">
           <div className="px-3">
             <p className="text-[18px] font-extrabold tracking-[-0.03em] text-text-primary">Gota</p>
@@ -446,45 +463,47 @@ export function DesktopDashboardShell({
             </section>
           ) : (
             <div className="space-y-5">
-              <section className="rounded-[32px] border border-border-subtle bg-white px-8 py-7 shadow-sm">
-                <div className="grid items-start gap-7 2xl:grid-cols-[minmax(0,1.58fr)_420px]">
-                  <div className="min-w-0">
-                    <p className="text-[14px] font-semibold text-primary">CFO Brief</p>
-                    <h1 className="mt-4 max-w-5xl text-[44px] font-extrabold leading-[0.98] tracking-[-0.05em] text-text-primary 2xl:text-[54px]">
-                      Tu mes viene ordenado.
-                      <br />
-                      La tension principal esta en el cierre del 12: cuidemos el margen.
-                    </h1>
+              <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.62fr)_330px]">
+                <section className="rounded-[34px] border border-border-subtle bg-white px-8 py-7 shadow-sm">
+                  <div className="grid gap-8 xl:grid-cols-[minmax(0,1.5fr)_320px]">
+                    <div className="min-w-0">
+                      <p className="text-[14px] font-semibold text-primary">CFO Brief</p>
+                      <h1 className="mt-4 max-w-4xl text-[40px] font-extrabold leading-[0.98] tracking-[-0.05em] text-text-primary 2xl:text-[50px]">
+                        Tu mes viene ordenado.
+                        <br />
+                        La tension principal esta en el cierre del 12: cuidemos el margen.
+                      </h1>
 
-                    <div className="mt-7 grid gap-4 xl:grid-cols-[190px_190px_minmax(0,1fr)]">
-                      <div className="rounded-[22px] bg-bg-secondary/70 px-5 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[15px] font-medium text-text-secondary">Saldo Vivo</p>
-                          <Info size={14} weight="regular" className="text-text-dim" />
+                      <div className="mt-6 grid gap-5 md:grid-cols-2">
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[15px] font-medium text-text-secondary">Saldo Vivo</p>
+                            <Info size={14} weight="regular" className="text-text-dim" />
+                          </div>
+                          <p className="mt-2 text-[25px] font-extrabold tracking-[-0.03em] text-text-primary">
+                            {amountsVisible ? formatAmount(stats.saldoVivo, viewCurrency) : maskAmount(viewCurrency)}
+                          </p>
+                          <p className="mt-1 type-meta text-text-dim">ARS {heroBreakdown.ARS.toLocaleString('es-AR')}</p>
                         </div>
-                        <p className="mt-3 text-[23px] font-extrabold tracking-[-0.03em] text-text-primary">
-                          {amountsVisible ? formatAmount(stats.saldoVivo, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                        <p className="mt-2 type-meta text-text-dim">ARS {heroBreakdown.ARS.toLocaleString('es-AR')}</p>
+
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <p className="text-[15px] font-medium text-text-secondary">Disponible Real</p>
+                            <Info size={14} weight="regular" className="text-text-dim" />
+                          </div>
+                          <p className="mt-2 text-[25px] font-extrabold tracking-[-0.03em] text-text-primary">
+                            {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
+                          </p>
+                          <p className="mt-1 type-meta text-text-dim">USD {availableBreakdown.USD.toLocaleString('es-AR')}</p>
+                        </div>
                       </div>
 
-                      <div className="rounded-[22px] bg-bg-secondary/70 px-5 py-4">
-                        <div className="flex items-center gap-1.5">
-                          <p className="text-[15px] font-medium text-text-secondary">Disponible Real</p>
-                          <Info size={14} weight="regular" className="text-text-dim" />
-                        </div>
-                        <p className="mt-3 text-[23px] font-extrabold tracking-[-0.03em] text-text-primary">
-                          {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                        <p className="mt-2 type-meta text-text-dim">USD {availableBreakdown.USD.toLocaleString('es-AR')}</p>
-                      </div>
-
-                      <div className="rounded-[22px] bg-bg-secondary/65 px-5 py-4">
+                      <div className="mt-7">
                         <p className="text-[15px] font-semibold text-text-primary">Plata con destino</p>
                         <p className="mt-2 max-w-2xl text-[15px] leading-6 text-text-secondary">
                           De cada {amountsVisible ? formatAmount(stats.brecha, viewCurrency) : maskAmount(viewCurrency)} de tu caja, esto ya tiene destino.
                         </p>
-                        <div className="mt-3.5 flex h-3 overflow-hidden rounded-pill bg-white">
+                        <div className="mt-3.5 flex h-3 overflow-hidden rounded-pill bg-bg-secondary">
                           <div className="h-full bg-primary" style={{ width: `${(stats.compromisosProximos / totalCompromisos) * 100}%` }} />
                           <div className="h-full bg-data" style={{ width: `${(stats.tarjetaEnCurso / totalCompromisos) * 100}%` }} />
                           <div className="h-full bg-success" style={{ width: `${(stats.reservas / totalCompromisos) * 100}%` }} />
@@ -520,291 +539,318 @@ export function DesktopDashboardShell({
                         </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-[28px] border border-border-subtle bg-[linear-gradient(180deg,rgba(248,251,253,0.94),#FFFFFF)] p-5">
-                    <div className="flex items-center gap-2">
-                      <p className="text-[19px] font-semibold tracking-[-0.02em] text-text-primary">Margen disponible proyectado</p>
-                      <Info size={16} weight="regular" className="text-text-dim" />
-                    </div>
-
-                    <svg viewBox="0 0 400 168" className="mt-5 h-[195px] w-full">
-                      <line x1="0" y1="112" x2="400" y2="112" stroke="rgba(33,120,168,0.22)" strokeDasharray="5 5" />
-                      <path d={graphPath} fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round" />
-                    </svg>
-
-                    <div className="mt-1 flex items-start justify-between gap-4">
-                      <div>
-                        <p className="type-meta text-text-dim">Hoy</p>
-                        <p className="mt-1 text-[22px] font-extrabold tracking-[-0.03em] text-primary">
-                          {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                      </div>
-                      <div className="text-right">
-                        <p className="type-meta text-text-dim">Piso comodo</p>
-                        <p className="mt-1 text-[17px] font-bold tracking-[-0.02em] text-text-secondary">
-                          {amountsVisible ? formatAmount(Math.max(stats.disponibleReal * 0.8, 0), viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section id="horizonte-web" className="rounded-[30px] border border-border-subtle bg-white px-6 py-5 shadow-sm">
-                <div className="mb-4 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-                      <ClockCountdown size={20} weight="regular" />
-                    </div>
-                    <div>
-                      <h2 className="text-[30px] font-bold tracking-[-0.04em] text-text-primary">Horizonte 90 dias</h2>
-                      <p className="mt-1 text-[14px] text-text-secondary">Una franja temporal para leer que se viene sin bajar a detalle.</p>
-                    </div>
-                  </div>
-                  <span className="text-[13px] font-semibold text-primary">Curado</span>
-                </div>
-
-                <div
-                  ref={horizonPopoverRef}
-                  className="relative mb-1 h-[240px] overflow-visible rounded-[24px] bg-[linear-gradient(180deg,#FBFDFE_0%,#FFFFFF_100%)] px-5"
-                >
-                  <div className="absolute inset-x-5 top-1/2 h-[2px] -translate-y-1/2 bg-border-subtle" />
-                  <div className="absolute left-5 right-5 top-0 flex justify-between text-[12px] font-semibold uppercase tracking-[0.08em] text-text-dim">
-                    {horizonMonthLabels.map((label) => (
-                      <span key={label}>{label}</span>
-                    ))}
-                  </div>
-
-                  {horizonTimelineItems.map((event) => {
-                    const chipTop =
-                      event.side === 'top'
-                        ? event.laneIndex === 0
-                          ? 'top-[64px]'
-                          : event.laneIndex === 1
-                            ? 'top-[30px]'
-                            : 'top-[0px]'
-                        : event.laneIndex === 0
-                          ? 'top-[138px]'
-                          : event.laneIndex === 1
-                            ? 'top-[172px]'
-                            : 'top-[206px]'
-
-                    return (
-                      <button
-                        key={event.id}
-                        type="button"
-                        onClick={() => setActiveHorizonId((current) => (current === event.id ? null : event.id))}
-                        className={`absolute z-[2] w-[124px] -translate-x-1/2 rounded-[16px] border px-2.5 py-2 text-left shadow-sm transition-all hover:-translate-y-0.5 ${chipTop} ${
-                          activeHorizonEvent?.id === event.id
-                            ? 'border-primary/35 bg-white shadow-md'
-                            : 'border-border-subtle bg-white/95 hover:border-primary/20'
-                        }`}
-                        style={{ left: `${event.leftPercent}%` }}
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(event.kind)}`} />
-                          <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(event.kind)}`}>
-                            {event.items.length > 1 ? `${event.items.length}` : event.kind === 'card' ? 'Cierre' : event.kind === 'due' ? 'Vence' : 'Ingreso'}
-                          </span>
-                        </div>
-                        <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-4 text-text-primary">{event.title}</p>
-                        <p className="mt-1 truncate text-[10px] uppercase tracking-[0.06em] text-text-dim">{event.subtitle}</p>
-                      </button>
-                    )
-                  })}
-
-                  {activeHorizonEvent ? (
-                    <div
-                      className={`absolute z-[5] w-[260px] -translate-x-1/2 rounded-[20px] border border-border-subtle bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
-                        activeHorizonEvent.side === 'top' ? 'top-[104px]' : 'top-[42px]'
-                      }`}
-                      style={{ left: `${activeHorizonEvent.leftPercent}%` }}
-                    >
-                      {activeHorizonEvent.items.length === 1 ? (
+                    <div className="rounded-[28px] bg-[linear-gradient(180deg,rgba(248,251,253,0.94),#FFFFFF)] p-5">
+                      <p className="text-[15px] font-semibold text-text-primary">Margen disponible proyectado</p>
+                      <svg viewBox="0 0 400 168" className="mt-3 h-[120px] w-full">
+                        <line x1="0" y1="112" x2="400" y2="112" stroke="rgba(33,120,168,0.22)" strokeDasharray="5 5" />
+                        <path d={graphPath} fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round" />
+                      </svg>
+                      <div className="mt-3 flex items-start justify-between gap-4">
                         <div>
-                          <div className="flex items-center gap-2">
-                            <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(activeHorizonEvent.items[0].kind)}`} />
-                            <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(activeHorizonEvent.items[0].kind)}`}>
-                              {activeHorizonEvent.items[0].kind === 'card'
-                                ? 'Cierre'
-                                : activeHorizonEvent.items[0].kind === 'due'
-                                  ? 'Vencimiento'
-                                  : 'Ingreso'}
-                            </span>
-                          </div>
-                          <p className="mt-3 text-[14px] font-semibold text-text-primary">{activeHorizonEvent.items[0].title}</p>
-                          <div className="mt-2 flex items-center justify-between gap-3">
-                            <p className="text-[12px] text-text-secondary">{activeHorizonEvent.items[0].subtitle}</p>
-                            <p className="text-[12px] font-semibold text-text-secondary">
-                              {new Date(`${activeHorizonEvent.items[0].date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                                day: 'numeric',
-                                month: 'short',
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                      ) : (
-                        <div>
-                          <div className="flex items-center justify-between gap-3">
-                            <p className="text-[13px] font-semibold text-text-primary">{activeHorizonEvent.items.length} hitos cercanos</p>
-                            <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">{activeHorizonEvent.subtitle}</p>
-                          </div>
-                          <div className="mt-3 space-y-2">
-                            {activeHorizonEvent.items.map((item) => (
-                              <div key={item.id} className="rounded-xl bg-bg-secondary px-3 py-2">
-                                <p className="text-[12px] font-semibold text-text-primary">{item.title}</p>
-                                <div className="mt-1 flex items-center justify-between gap-3">
-                                  <p className="text-[11px] text-text-secondary">{item.subtitle}</p>
-                                  <p className="text-[11px] font-semibold text-text-secondary">
-                                    {new Date(`${item.date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                                      day: 'numeric',
-                                      month: 'short',
-                                    })}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : null}
-
-                  {horizonTimelineItems.map((event) => {
-                    const connectorHeight =
-                      event.side === 'top'
-                        ? event.laneIndex === 0
-                          ? 16
-                          : event.laneIndex === 1
-                            ? 50
-                            : 80
-                        : event.laneIndex === 0
-                          ? 20
-                          : event.laneIndex === 1
-                            ? 52
-                            : 84
-                    const connectorTop =
-                      event.side === 'top'
-                        ? event.laneIndex === 0
-                          ? 112
-                          : event.laneIndex === 1
-                            ? 78
-                            : 48
-                        : 120
-
-                    return (
-                      <div
-                        key={`${event.id}-connector`}
-                        className="absolute z-[1] w-px bg-border-default/70"
-                        style={{
-                          left: `${event.leftPercent}%`,
-                          top: `${connectorTop}px`,
-                          height: `${connectorHeight}px`,
-                        }}
-                      />
-                    )
-                  })}
-
-                  {horizonTimelineItems.map((event) => (
-                    <div
-                      key={`${event.id}-dot`}
-                      className={`absolute top-1/2 z-[3] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${eventDot(event.kind)}`}
-                      style={{ left: `${event.leftPercent}%` }}
-                    />
-                  ))}
-                </div>
-              </section>
-
-              <div className="grid gap-5 2xl:grid-cols-[minmax(0,1fr)_minmax(0,1.08fr)]">
-                <CompactSection
-                  title="Atencion ahora"
-                  icon={<WarningCircle size={20} weight="regular" />}
-                  action={<span className="text-[13px] font-semibold text-primary">{attention.length} senales</span>}
-                >
-                  <div className="space-y-3">
-                    {attention.length === 0 ? (
-                      <p className="text-[15px] leading-7 text-text-secondary">
-                        No hay senales tacticas urgentes. La lectura del mes esta estable con los datos actuales.
-                      </p>
-                    ) : (
-                      attention.map((signal) => (
-                        <div key={signal.id} className="flex items-start justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
-                          <div className="min-w-0">
-                            <p className="text-[15px] font-semibold text-text-primary">{signal.title}</p>
-                            <p className="mt-1 text-[14px] leading-6 text-text-secondary">{signal.detail}</p>
-                          </div>
-                          <div className="shrink-0 text-right">
-                            <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${toneStyles(signal.tone)}`}>
-                              {signal.tone === 'high' ? 'Alta' : signal.tone === 'medium' ? 'Media' : 'Baja'}
-                            </span>
-                            <p className="mt-2 type-meta text-text-dim">{signal.dateLabel}</p>
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </CompactSection>
-
-                <CompactSection
-                  title="Compromisos"
-                  icon={<ChartPieSlice size={20} weight="regular" />}
-                  action={
-                    <Link href={`/analytics?month=${selectedMonth}&drill=compromisos`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
-                      Ver todos
-                      <CaretRight size={12} weight="bold" />
-                    </Link>
-                  }
-                >
-                  <div id="compromisos-web" className="mb-4 grid gap-3 sm:grid-cols-3">
-                    <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                      <p className="type-meta text-text-dim">A pagar</p>
-                      <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
-                        {amountsVisible ? formatAmount(compromisos?.totalAPagar ?? 0, viewCurrency) : maskAmount(viewCurrency)}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                      <p className="type-meta text-text-dim">En curso</p>
-                      <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
-                        {amountsVisible ? formatAmount(compromisos?.totalEnCurso ?? 0, viewCurrency) : maskAmount(viewCurrency)}
-                      </p>
-                    </div>
-                    <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                      <p className="type-meta text-text-dim">Tarjetas</p>
-                      <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
-                        {compromisos?.tarjetas.length ?? 0}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-3 xl:grid-cols-2">
-                    {compromisos?.tarjetas.slice(0, 4).map((card) => (
-                      <div key={card.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="truncate text-[15px] font-semibold text-text-primary">{card.name}</p>
-                            <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${statusPill(card.cycleStatus)}`}>
-                              {statusLabel(card.cycleStatus)}
-                            </span>
-                          </div>
-                          <p className="mt-1 text-[14px] text-text-secondary">
-                            {card.dueDate ? `Vence ${new Date(`${card.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}` : 'Seguimiento en curso'}
+                          <p className="type-meta text-text-dim">Hoy</p>
+                          <p className="mt-1 text-[20px] font-extrabold tracking-[-0.03em] text-primary">
+                            {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[17px] font-bold tracking-[-0.02em] text-text-primary">
-                            {amountsVisible ? formatAmount(Math.max(card.debtTotal, card.currentSpend), viewCurrency) : maskAmount(viewCurrency)}
+                          <p className="type-meta text-text-dim">Piso comodo</p>
+                          <p className="mt-1 text-[15px] font-bold tracking-[-0.02em] text-text-secondary">
+                            {amountsVisible ? formatAmount(Math.max(stats.disponibleReal * 0.8, 0), viewCurrency) : maskAmount(viewCurrency)}
                           </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-7 border-t border-border-subtle pt-6">
+                    <SectionTitle
+                      title="Horizonte 90 dias"
+                      subtitle="Una franja temporal para leer que se viene sin bajar a detalle."
+                      icon={<ClockCountdown size={20} weight="regular" />}
+                      action={<span className="text-[13px] font-semibold text-primary">Curado</span>}
+                    />
+
+                    <div
+                      id="horizonte-web"
+                      ref={horizonPopoverRef}
+                      className="relative h-[220px] overflow-visible rounded-[24px] bg-[linear-gradient(180deg,#FBFDFE_0%,#FFFFFF_100%)] px-3"
+                    >
+                      <div className="absolute inset-x-3 top-1/2 h-[2px] -translate-y-1/2 bg-border-subtle" />
+                      <div className="absolute left-3 right-3 top-0 flex justify-between text-[12px] font-semibold uppercase tracking-[0.08em] text-text-dim">
+                        {horizonMonthLabels.map((label) => (
+                          <span key={label}>{label}</span>
+                        ))}
+                      </div>
+
+                      {horizonTimelineItems.map((event) => {
+                        const chipTop =
+                          event.side === 'top'
+                            ? event.laneIndex === 0
+                              ? 'top-[62px]'
+                              : event.laneIndex === 1
+                                ? 'top-[30px]'
+                                : 'top-[2px]'
+                            : event.laneIndex === 0
+                              ? 'top-[132px]'
+                              : event.laneIndex === 1
+                                ? 'top-[164px]'
+                                : 'top-[194px]'
+
+                        return (
+                          <button
+                            key={event.id}
+                            type="button"
+                            onClick={() => setActiveHorizonId((current) => (current === event.id ? null : event.id))}
+                            className={`absolute z-[2] w-[118px] -translate-x-1/2 rounded-[16px] border px-2.5 py-2 text-left shadow-sm transition-all hover:-translate-y-0.5 ${chipTop} ${
+                              activeHorizonId === event.id
+                                ? 'border-primary/35 bg-white shadow-md'
+                                : 'border-border-subtle bg-white/95 hover:border-primary/20'
+                            }`}
+                            style={{ left: `${event.leftPercent}%` }}
+                          >
+                            <div className="flex items-center gap-2">
+                              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(event.kind)}`} />
+                              <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(event.kind)}`}>
+                                {event.items.length > 1 ? `${event.items.length}` : event.kind === 'card' ? 'Cierre' : event.kind === 'due' ? 'Vence' : 'Ingreso'}
+                              </span>
+                            </div>
+                            <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-4 text-text-primary">{event.title}</p>
+                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.06em] text-text-dim">{event.subtitle}</p>
+                          </button>
+                        )
+                      })}
+
+                      {activeHorizonEvent ? (
+                        <div
+                          className={`absolute z-[5] w-[250px] -translate-x-1/2 rounded-[20px] border border-border-subtle bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
+                            activeHorizonEvent.side === 'top' ? 'top-[102px]' : 'top-[34px]'
+                          }`}
+                          style={{ left: `${activeHorizonEvent.leftPercent}%` }}
+                        >
+                          {activeHorizonEvent.items.length === 1 ? (
+                            <div>
+                              <div className="flex items-center gap-2">
+                                <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(activeHorizonEvent.items[0].kind)}`} />
+                                <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(activeHorizonEvent.items[0].kind)}`}>
+                                  {activeHorizonEvent.items[0].kind === 'card'
+                                    ? 'Cierre'
+                                    : activeHorizonEvent.items[0].kind === 'due'
+                                      ? 'Vencimiento'
+                                      : 'Ingreso'}
+                                </span>
+                              </div>
+                              <p className="mt-3 text-[14px] font-semibold text-text-primary">{activeHorizonEvent.items[0].title}</p>
+                              <div className="mt-2 flex items-center justify-between gap-3">
+                                <p className="text-[12px] text-text-secondary">{activeHorizonEvent.items[0].subtitle}</p>
+                                <p className="text-[12px] font-semibold text-text-secondary">
+                                  {new Date(`${activeHorizonEvent.items[0].date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                  })}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div>
+                              <div className="flex items-center justify-between gap-3">
+                                <p className="text-[13px] font-semibold text-text-primary">{activeHorizonEvent.items.length} hitos cercanos</p>
+                                <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">{activeHorizonEvent.subtitle}</p>
+                              </div>
+                              <div className="mt-3 space-y-2">
+                                {activeHorizonEvent.items.map((item) => (
+                                  <div key={item.id} className="rounded-xl bg-bg-secondary px-3 py-2">
+                                    <p className="text-[12px] font-semibold text-text-primary">{item.title}</p>
+                                    <div className="mt-1 flex items-center justify-between gap-3">
+                                      <p className="text-[11px] text-text-secondary">{item.subtitle}</p>
+                                      <p className="text-[11px] font-semibold text-text-secondary">
+                                        {new Date(`${item.date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
+                                          day: 'numeric',
+                                          month: 'short',
+                                        })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      ) : null}
+
+                      {horizonTimelineItems.map((event) => {
+                        const connectorHeight =
+                          event.side === 'top'
+                            ? event.laneIndex === 0
+                              ? 16
+                              : event.laneIndex === 1
+                                ? 48
+                                : 76
+                            : event.laneIndex === 0
+                              ? 18
+                              : event.laneIndex === 1
+                                ? 48
+                                : 76
+                        const connectorTop =
+                          event.side === 'top'
+                            ? event.laneIndex === 0
+                              ? 110
+                              : event.laneIndex === 1
+                                ? 78
+                                : 50
+                            : 110
+
+                        return (
+                          <div
+                            key={`${event.id}-connector`}
+                            className="absolute z-[1] w-px bg-border-default/70"
+                            style={{
+                              left: `${event.leftPercent}%`,
+                              top: `${connectorTop}px`,
+                              height: `${connectorHeight}px`,
+                            }}
+                          />
+                        )
+                      })}
+
+                      {horizonTimelineItems.map((event) => (
+                        <div
+                          key={`${event.id}-dot`}
+                          className={`absolute top-1/2 z-[3] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${eventDot(event.kind)}`}
+                          style={{ left: `${event.leftPercent}%` }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </section>
+
+                <div className="grid gap-5">
+                  <CompactPanel title="Atencion ahora" icon={<WarningCircle size={20} weight="regular" />} action={<span className="text-[13px] font-semibold text-primary">{attention.length} senales</span>}>
+                    <div className="space-y-3">
+                      {attention.length === 0 ? (
+                        <p className="text-[15px] leading-7 text-text-secondary">
+                          No hay senales tacticas urgentes. La lectura del mes esta estable con los datos actuales.
+                        </p>
+                      ) : (
+                        attention.map((signal) => (
+                          <div key={signal.id} className="rounded-2xl border border-border-subtle px-4 py-3.5">
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="min-w-0">
+                                <p className="text-[15px] font-semibold text-text-primary">{signal.title}</p>
+                                <p className="mt-1 text-[14px] leading-6 text-text-secondary">{signal.detail}</p>
+                              </div>
+                              <div className="shrink-0 text-right">
+                                <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${toneStyles(signal.tone)}`}>
+                                  {signal.tone === 'high' ? 'Alta' : signal.tone === 'medium' ? 'Media' : 'Baja'}
+                                </span>
+                                <p className="mt-2 type-meta text-text-dim">{signal.dateLabel}</p>
+                              </div>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </CompactPanel>
+
+                  <CompactPanel
+                    title="Compromisos"
+                    icon={<ChartPieSlice size={20} weight="regular" />}
+                    action={
+                      <Link href={`/analytics?month=${selectedMonth}&drill=compromisos`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
+                        Ver todos
+                        <CaretRight size={12} weight="bold" />
+                      </Link>
+                    }
+                  >
+                    <div id="compromisos-web" className="mb-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
+                        <p className="type-meta text-text-dim">A pagar</p>
+                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
+                          {amountsVisible ? formatAmount(compromisos?.totalAPagar ?? 0, viewCurrency) : maskAmount(viewCurrency)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
+                        <p className="type-meta text-text-dim">En curso</p>
+                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
+                          {amountsVisible ? formatAmount(compromisos?.totalEnCurso ?? 0, viewCurrency) : maskAmount(viewCurrency)}
+                        </p>
+                      </div>
+                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
+                        <p className="type-meta text-text-dim">Tarjetas</p>
+                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">{compromisos?.tarjetas.length ?? 0}</p>
+                      </div>
+                    </div>
+
+                    <div className="space-y-3">
+                      {compromisos?.tarjetas.slice(0, 4).map((card) => (
+                        <div key={card.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
+                          <div className="min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="truncate text-[15px] font-semibold text-text-primary">{card.name}</p>
+                              <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${statusPill(card.cycleStatus)}`}>
+                                {statusLabel(card.cycleStatus)}
+                              </span>
+                            </div>
+                            <p className="mt-1 text-[14px] text-text-secondary">
+                              {card.dueDate ? `Vence ${new Date(`${card.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}` : 'Seguimiento en curso'}
+                            </p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[17px] font-bold tracking-[-0.02em] text-text-primary">
+                              {amountsVisible ? formatAmount(Math.max(card.debtTotal, card.currentSpend), viewCurrency) : maskAmount(viewCurrency)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </CompactPanel>
+                </div>
+              </div>
+
+              <div className="grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,0.9fr)_330px]">
+                <section id="actividad-web" className="rounded-[28px] border border-border-subtle bg-white p-5 shadow-sm">
+                  <SectionTitle
+                    title="Actividad reciente"
+                    subtitle="Movimientos relevantes en una columna util, no una banda larga."
+                    icon={<Receipt size={20} weight="regular" />}
+                    action={<span className="text-[13px] font-semibold text-primary">Curada</span>}
+                  />
+
+                  <div className="space-y-3">
+                    {recentActivity.map((item) => (
+                      <div key={item.id} className="flex items-center justify-between gap-4 border-t border-border-subtle pt-3 first:border-t-0 first:pt-0">
+                        <div className="min-w-0">
+                          <p className="truncate text-[15px] font-semibold text-text-primary">{item.title}</p>
+                          <p className="mt-1 text-[14px] text-text-secondary">{item.subtitle}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`text-[17px] font-bold tracking-[-0.02em] ${item.tone === 'positive' ? 'text-success' : 'text-text-primary'}`}>
+                            {item.amountLabel}
+                          </p>
+                          <p className="mt-1 type-meta text-text-dim">{item.dateLabel}</p>
                         </div>
                       </div>
                     ))}
                   </div>
-                </CompactSection>
-              </div>
 
-              <div id="modulos-web" className="grid gap-5 2xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)_minmax(0,0.95fr)]">
-                <CompactSection title="Liquidez por moneda" icon={<CirclesThree size={20} weight="regular" />}>
-                  <div id="liquidez-web" className="space-y-5">
+                  {analyticsData ? (
+                    <div className="mt-6 border-t border-border-subtle pt-4">
+                      <p className="type-meta text-text-dim">Contexto de lectura</p>
+                      <p className="mt-2 text-[15px] leading-7 text-text-secondary">
+                        Hay {analyticsData.monthlySeries.length} meses disponibles para comparar habitos y tensiones del gasto.
+                      </p>
+                    </div>
+                  ) : null}
+                </section>
+
+                <section id="liquidez-web" className="rounded-[28px] border border-border-subtle bg-white p-5 shadow-sm">
+                  <SectionTitle
+                    title="Liquidez por moneda"
+                    subtitle="Un snapshot rapido para caja y referencia cambiaria."
+                    icon={<CirclesThree size={20} weight="regular" />}
+                  />
+
+                  <div className="space-y-5">
                     <div>
                       <div className="flex items-center justify-between gap-4">
                         <span className="text-[15px] font-medium text-text-secondary">ARS disponible</span>
@@ -836,51 +882,19 @@ export function DesktopDashboardShell({
                     </div>
                   </div>
 
-                  {quote && (
-                    <div className="mt-5 rounded-2xl bg-bg-secondary px-4 py-4">
+                  {quote ? (
+                    <div className="mt-5 border-t border-border-subtle pt-4">
                       <p className="type-meta text-text-dim">Tipo de cambio de referencia</p>
                       <div className="mt-2 flex items-end justify-between gap-4">
                         <p className="text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">USD/ARS {quote.rate.toLocaleString('es-AR')}</p>
                         <p className="type-meta text-text-dim">{quote.effectiveDate}</p>
                       </div>
                     </div>
-                  )}
-                </CompactSection>
+                  ) : null}
+                </section>
 
-                <CompactSection
-                  title="Actividad reciente"
-                  icon={<Receipt size={20} weight="regular" />}
-                  action={<span className="text-[13px] font-semibold text-primary">Curada</span>}
-                >
-                  <div id="actividad-web" className="space-y-3">
-                    {recentActivity.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
-                        <div className="min-w-0">
-                          <p className="truncate text-[15px] font-semibold text-text-primary">{item.title}</p>
-                          <p className="mt-1 text-[14px] text-text-secondary">{item.subtitle}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-[17px] font-bold tracking-[-0.02em] ${item.tone === 'positive' ? 'text-success' : 'text-text-primary'}`}>
-                            {item.amountLabel}
-                          </p>
-                          <p className="mt-1 type-meta text-text-dim">{item.dateLabel}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {analyticsData && (
-                    <div className="mt-5 rounded-2xl bg-bg-secondary px-4 py-4">
-                      <p className="type-meta text-text-dim">Contexto de lectura</p>
-                      <p className="mt-2 text-[15px] leading-7 text-text-secondary">
-                        Hay {analyticsData.monthlySeries.length} meses disponibles para comparar habitos y tensiones del gasto.
-                      </p>
-                    </div>
-                  )}
-                </CompactSection>
-
-                <div className="grid gap-5">
-                  <CompactSection
+                <div id="modulos-web" className="grid gap-5">
+                  <CompactPanel
                     title="Suscripciones"
                     icon={<ArrowsClockwise size={20} weight="regular" />}
                     action={<span className="text-[13px] font-semibold text-primary">Secundario</span>}
@@ -889,7 +903,7 @@ export function DesktopDashboardShell({
                       <p className="text-[15px] leading-7 text-text-secondary">Todavia no hay suscripciones activas visibles para esta lectura.</p>
                     ) : (
                       <>
-                        <div className="mb-4 rounded-2xl bg-bg-secondary px-4 py-4">
+                        <div className="mb-4 border-b border-border-subtle pb-4">
                           <p className="type-meta text-text-dim">Total mensual visible</p>
                           <p className="mt-2 text-[22px] font-extrabold tracking-[-0.03em] text-text-primary">
                             {amountsVisible ? formatAmount(subscriptionsTotal, viewCurrency) : maskAmount(viewCurrency)}
@@ -897,12 +911,12 @@ export function DesktopDashboardShell({
                         </div>
                         <div className="space-y-3">
                           {subscriptions.map((subscription: Subscription) => (
-                            <div key={subscription.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
+                            <div key={subscription.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3">
                               <div className="min-w-0">
-                                <p className="truncate text-[15px] font-semibold text-text-primary">{subscription.description}</p>
-                                <p className="mt-1 text-[14px] text-text-secondary">Proximo debito el {subscription.day_of_month}</p>
+                                <p className="truncate text-[14px] font-semibold text-text-primary">{subscription.description}</p>
+                                <p className="mt-1 text-[13px] text-text-secondary">Proximo debito el {subscription.day_of_month}</p>
                               </div>
-                              <p className="text-[16px] font-bold tracking-[-0.02em] text-text-primary">
+                              <p className="text-[15px] font-bold tracking-[-0.02em] text-text-primary">
                                 {amountsVisible ? formatAmount(subscription.amount, subscription.currency) : maskAmount(subscription.currency)}
                               </p>
                             </div>
@@ -910,9 +924,9 @@ export function DesktopDashboardShell({
                         </div>
                       </>
                     )}
-                  </CompactSection>
+                  </CompactPanel>
 
-                  <CompactSection
+                  <CompactPanel
                     title="Instrumentos"
                     icon={<Star size={20} weight="regular" />}
                     action={<span className="text-[13px] font-semibold text-primary">Opcional</span>}
@@ -921,7 +935,7 @@ export function DesktopDashboardShell({
                       <p className="text-[15px] leading-7 text-text-secondary">No hay instrumentos activos en esta cuenta por ahora.</p>
                     ) : (
                       <>
-                        <div className="mb-4 rounded-2xl bg-bg-secondary px-4 py-4">
+                        <div className="mb-4 border-b border-border-subtle pb-4">
                           <p className="type-meta text-text-dim">Capital visible</p>
                           <p className="mt-2 text-[22px] font-extrabold tracking-[-0.03em] text-text-primary">
                             {amountsVisible ? formatAmount(data.capitalInstrumentosMes, viewCurrency) : maskAmount(viewCurrency)}
@@ -929,13 +943,13 @@ export function DesktopDashboardShell({
                         </div>
                         <div className="space-y-3">
                           {instruments.map((instrument) => (
-                            <div key={instrument.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
+                            <div key={instrument.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3">
                               <div className="min-w-0">
-                                <p className="truncate text-[15px] font-semibold text-text-primary">{instrumentLabel(instrument)}</p>
-                                <p className="mt-1 text-[14px] text-text-secondary">{instrumentDateLabel(instrument)}</p>
+                                <p className="truncate text-[14px] font-semibold text-text-primary">{instrumentLabel(instrument)}</p>
+                                <p className="mt-1 text-[13px] text-text-secondary">{instrumentDateLabel(instrument)}</p>
                               </div>
                               <div className="text-right">
-                                <p className="text-[16px] font-bold tracking-[-0.02em] text-text-primary">
+                                <p className="text-[15px] font-bold tracking-[-0.02em] text-text-primary">
                                   {amountsVisible ? formatAmount(instrument.amount, instrument.currency) : maskAmount(instrument.currency)}
                                 </p>
                                 <p className="mt-1 type-meta text-text-dim">{instrument.type === 'plazo_fijo' ? 'Plazo fijo' : 'FCI'}</p>
@@ -945,7 +959,7 @@ export function DesktopDashboardShell({
                         </div>
                       </>
                     )}
-                  </CompactSection>
+                  </CompactPanel>
                 </div>
               </div>
             </div>

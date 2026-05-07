@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { todayAR } from '@/lib/format'
-import type { Account, Card } from '@/types/database'
+import type { Account, Card, Currency } from '@/types/database'
 
 interface Props {
   open: boolean
@@ -11,14 +11,15 @@ interface Props {
   onSuccess: () => void
   card: Card
   accounts: Account[]
+  currency: Currency
 }
 
-function formatARS(n: number): string {
+function formatMoneyInput(n: number): string {
   if (n === 0) return ''
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
-export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, accounts }: Props) {
+export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, accounts, currency }: Props) {
   const [montoRaw, setMontoRaw] = useState(0)
   const [accountId, setAccountId] = useState(card.account_id ?? (accounts[0]?.id ?? ''))
   const [fecha, setFecha] = useState(todayAR())
@@ -43,7 +44,7 @@ export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, account
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: montoRaw,
-          currency: 'ARS',
+          currency,
           category: 'Pago de Tarjetas',
           description: `Pago anterior ${card.name}`,
           payment_method: 'DEBIT',
@@ -89,7 +90,7 @@ export function LegacyCardPaymentModal({ open, onClose, onSuccess, card, account
             <input
               type="text"
               inputMode="numeric"
-              value={formatARS(montoRaw)}
+              value={formatMoneyInput(montoRaw)}
               onChange={handleMontoChange}
               className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
               placeholder="0"

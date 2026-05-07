@@ -1,5 +1,11 @@
 import { NextResponse } from 'next/server'
 import { calcularMontoResumen } from '@/lib/analytics/computeResumen'
+import {
+  buildCardCycleAmountsMap,
+  getEffectiveCardCycleState,
+  isMissingCardCycleAmountsTableError,
+  withEffectiveCardCycleState,
+} from '@/lib/card-cycle-amounts'
 import { buildLegacyCardCycle, mergeResolvedCycles, type ResolvedCardCycle } from '@/lib/card-cycles'
 import {
   getRemainingCardCycleAmount,
@@ -7,7 +13,7 @@ import {
 } from '@/lib/card-cycle-payments'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { createClient } from '@/lib/supabase/server'
-import type { Card, CardCycle } from '@/types/database'
+import type { Card, CardCycle, CardCycleAmountInsert } from '@/types/database'
 
 type PaymentMethod = 'DEBIT' | 'TRANSFER' | 'CASH'
 
@@ -34,17 +40,25 @@ type PaymentBody = {
   } | null
 }
 
+type CurrencyResolvedCycle = ResolvedCardCycle & {
+  currency: 'ARS' | 'USD'
+  status: CardCycle['status']
+  amount_paid: number | null
+  paid_at: string | null
+  amount_draft: number | null
+}
+
 type CycleUpdatePlan = {
-  cycle: ResolvedCardCycle
+  cycle: CurrencyResolvedCycle
   appliedAmount: number
-  next: {
-    status: 'open' | 'paid'
+  previous: {
+    status: CardCycle['status']
     amount_paid: number | null
     paid_at: string | null
     amount_draft: number | null
   }
-  previous: {
-    status: CardCycle['status']
+  next: {
+    status: 'open' | 'paid'
     amount_paid: number | null
     paid_at: string | null
     amount_draft: number | null
@@ -85,9 +99,9 @@ function getPeriodFrom(cycle: ResolvedCardCycle, card: Card, allCycles: Resolved
 }
 
 function getAutoTargetCycles(
-  cycles: ResolvedCardCycle[],
+  cycles: CurrencyResolvedCycle[],
   paymentDate: string,
-): ResolvedCardCycle[] {
+): CurrencyResolvedCycle[] {
   const unresolved = cycles.filter((cycle) => cycle.status !== 'paid')
   const closed = unresolved
     .filter((cycle) => cycle.closing_date < paymentDate)
@@ -102,8 +116,8 @@ function getAutoTargetCycles(
 async function materializeCycle(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
-  cycle: ResolvedCardCycle,
-): Promise<ResolvedCardCycle> {
+  cycle: CurrencyResolvedCycle,
+): Promise<CurrencyResolvedCycle> {
   if (cycle.source === 'stored') return cycle
 
   const { data, error } = await supabase
@@ -115,10 +129,10 @@ async function materializeCycle(
         period_month: cycle.period_month,
         closing_date: cycle.closing_date,
         due_date: cycle.due_date,
-        status: cycle.status,
-        amount_draft: cycle.amount_draft,
-        amount_paid: cycle.amount_paid,
-        paid_at: cycle.paid_at,
+        status: 'open',
+        amount_draft: null,
+        amount_paid: null,
+        paid_at: null,
       },
       { onConflict: 'card_id,period_month' },
     )
@@ -129,16 +143,20 @@ async function materializeCycle(
     throw new Error(error?.message ?? 'No se pudo materializar el ciclo')
   }
 
-  return { ...data, source: 'stored' }
+  return {
+    ...data,
+    ...getEffectiveCardCycleState(data, cycle.currency, undefined),
+    source: 'stored',
+    currency: cycle.currency,
+  } as CurrencyResolvedCycle
 }
 
 async function computeStatementAmount(
   supabase: Awaited<ReturnType<typeof createClient>>,
   userId: string,
   card: Card,
-  cycle: ResolvedCardCycle,
+  cycle: CurrencyResolvedCycle,
   allCycles: ResolvedCardCycle[],
-  currency: 'ARS' | 'USD',
 ): Promise<number> {
   if (cycle.amount_draft != null) return cycle.amount_draft
 
@@ -148,19 +166,19 @@ async function computeStatementAmount(
     .select('*')
     .eq('user_id', userId)
     .eq('card_id', card.id)
-    .eq('currency', currency)
+    .eq('currency', cycle.currency)
     .gte('date', periodFrom)
     .lte('date', cycle.closing_date)
 
-  if (error) {
-    throw new Error(error.message)
-  }
+  if (error) throw new Error(error.message)
 
   return calcularMontoResumen(
     expenses ?? [],
     card.id,
     new Date(`${periodFrom}T12:00:00Z`),
     new Date(`${cycle.closing_date}T12:00:00Z`),
+    cycle.id,
+    cycle.currency,
   )
 }
 
@@ -238,24 +256,40 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: cyclesError.message }, { status: 500 })
   }
 
-  const resolvedCycles = mergeResolvedCycles(card as Card, (storedCycles ?? []) as CardCycle[], periodMonths)
+  const { data: cycleAmountsData, error: cycleAmountsError } = await supabase
+    .from('card_cycle_amounts')
+    .select('*')
+    .eq('user_id', user.id)
 
-  let explicitCycle: ResolvedCardCycle | null = null
+  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
+    return NextResponse.json({ error: cycleAmountsError.message }, { status: 500 })
+  }
+
+  const resolvedCycles = mergeResolvedCycles(card as Card, (storedCycles ?? []) as CardCycle[], periodMonths)
+  const cycleAmountsMap = buildCardCycleAmountsMap(cycleAmountsData ?? [])
+  const cyclesForCurrency = resolvedCycles.map((cycle) => ({
+    ...withEffectiveCardCycleState(cycle, body.currency, cycleAmountsMap),
+    currency: body.currency,
+  })) as CurrencyResolvedCycle[]
+
+  let explicitCycle: CurrencyResolvedCycle | null = null
   if (body.cycle_id) {
-    explicitCycle = resolvedCycles.find((cycle) => cycle.id === body.cycle_id) ?? null
+    explicitCycle = cyclesForCurrency.find((cycle) => cycle.id === body.cycle_id) ?? null
   } else if (body.cycle?.period_month) {
     explicitCycle =
-      resolvedCycles.find((cycle) => cycle.period_month.startsWith(body.cycle!.period_month)) ??
-      {
-        ...buildLegacyCardCycle(card as Card, body.cycle.period_month),
+      cyclesForCurrency.find((cycle) => cycle.period_month.startsWith(body.cycle!.period_month)) ??
+      ({
+        ...withEffectiveCardCycleState(buildLegacyCardCycle(card as Card, body.cycle.period_month), body.currency),
         closing_date: body.cycle.closing_date,
         due_date: body.cycle.due_date,
-      }
+        source: 'legacy',
+        currency: body.currency,
+      } as CurrencyResolvedCycle)
   }
 
   const targetCycles = explicitCycle
     ? [explicitCycle]
-    : getAutoTargetCycles(resolvedCycles, paymentDate)
+    : getAutoTargetCycles(cyclesForCurrency, paymentDate)
 
   if (targetCycles.length === 0) {
     return NextResponse.json({ error: 'No hay resúmenes para aplicar este pago' }, { status: 400 })
@@ -267,10 +301,9 @@ export async function POST(request: Request) {
   for (let index = 0; index < targetCycles.length && remainingPayment > 0; index += 1) {
     const originalCycle = targetCycles[index]
     const statementAmount = roundMoney(
-      await computeStatementAmount(supabase, user.id, card as Card, originalCycle, resolvedCycles, body.currency),
+      await computeStatementAmount(supabase, user.id, card as Card, originalCycle, resolvedCycles),
     )
     const remainingAmount = getRemainingCardCycleAmount(statementAmount, originalCycle.amount_paid)
-
     const applyAllAsAdvance = !explicitCycle && originalCycle.closing_date >= paymentDate
     const applyAmount = roundMoney(
       applyAllAsAdvance ? remainingPayment : Math.min(remainingPayment, remainingAmount),
@@ -391,21 +424,38 @@ export async function POST(request: Request) {
 
   const updatedCycleIds: string[] = []
   for (const plan of plans) {
+    const payload: CardCycleAmountInsert = {
+      user_id: user.id,
+      card_cycle_id: plan.cycle.id,
+      currency: body.currency,
+      status: plan.next.status,
+      amount_paid: plan.next.amount_paid,
+      paid_at: plan.next.paid_at,
+      amount_draft: plan.next.amount_draft,
+    }
+
     const { error } = await supabase
-      .from('card_cycles')
-      .update(plan.next)
-      .eq('id', plan.cycle.id)
-      .eq('user_id', user.id)
+      .from('card_cycle_amounts')
+      .upsert(payload, { onConflict: 'card_cycle_id,currency' })
 
     if (error) {
       for (const updatedCycleId of updatedCycleIds) {
         const previous = plans.find((planItem) => planItem.cycle.id === updatedCycleId)?.previous
         if (!previous) continue
         await supabase
-          .from('card_cycles')
-          .update(previous)
-          .eq('id', updatedCycleId)
-          .eq('user_id', user.id)
+          .from('card_cycle_amounts')
+          .upsert(
+            {
+              user_id: user.id,
+              card_cycle_id: updatedCycleId,
+              currency: body.currency,
+              status: previous.status,
+              amount_paid: previous.amount_paid,
+              paid_at: previous.paid_at,
+              amount_draft: previous.amount_draft,
+            },
+            { onConflict: 'card_cycle_id,currency' },
+          )
       }
 
       if (allocationsCreated) {

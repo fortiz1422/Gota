@@ -7,11 +7,12 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type {
   AnalyticsComparisonContext,
   MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
-import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
+import type { Card, CardCycle, CardCycleAmount, Expense, Subscription } from '@/types/database'
 
 export type AnalyticsApiData = {
   rawExpenses: Expense[]
@@ -19,6 +20,7 @@ export type AnalyticsApiData = {
   ingresoMes: number | null
   subscriptions: Subscription[]
   cardCycles: CardCycle[]
+  cardCycleAmounts: CardCycleAmount[]
   cards: Card[]
   currency: 'ARS' | 'USD'
   earliestDataMonth: string | null
@@ -88,6 +90,7 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     ingresoMes,
     subscriptions,
     cardCycles,
+    cardCycleAmounts,
     cards,
     currency,
     earliestDataMonth,
@@ -109,6 +112,8 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     selectedMonth,
     isCurrentMonth,
     subscriptions,
+    currency,
+    buildCardCycleAmountsMap(cardCycleAmounts),
   )
 
   return (

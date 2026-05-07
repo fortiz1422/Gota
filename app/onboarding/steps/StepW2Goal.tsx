@@ -33,8 +33,8 @@ export function StepW2Goal({ onBack, onNext }: Props) {
         </div>
 
         <div className="mt-6">
-          <h2 className="text-2xl font-semibold text-text-primary">¿Qué querés lograr?</h2>
-          <p className="mt-1 text-sm text-text-tertiary">Elegí tu objetivo principal</p>
+          <h2 className="type-title text-text-primary">¿Qué querés lograr?</h2>
+          <p className="mt-1 type-body text-text-tertiary">Elegí tu objetivo principal</p>
         </div>
       </div>
 
@@ -43,14 +43,14 @@ export function StepW2Goal({ onBack, onNext }: Props) {
           <button
             key={label}
             onClick={() => setSelected(label)}
-            className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors ${
+            className={`w-full flex items-center gap-3 rounded-card border px-4 py-3.5 text-left transition-colors ${
               selected === label
-                ? 'border-primary bg-primary/8 text-text-primary'
+                ? 'border-primary bg-primary-soft text-text-primary'
                 : 'border-border-subtle bg-bg-secondary text-text-secondary'
             }`}
           >
             <span className="text-lg">{emoji}</span>
-            <span className="text-sm font-medium">{label}</span>
+            <span className="type-body">{label}</span>
           </button>
         ))}
       </div>
@@ -59,7 +59,7 @@ export function StepW2Goal({ onBack, onNext }: Props) {
         <button
           onClick={() => selected && onNext(selected)}
           disabled={!selected}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-all active:scale-95 disabled:opacity-40"
+          className="w-full rounded-button bg-primary py-4 type-body-lg text-white transition-all active:scale-95 disabled:opacity-40"
         >
           Continuar
         </button>

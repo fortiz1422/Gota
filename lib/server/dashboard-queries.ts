@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { buildPrevMonthSummary } from '@/lib/rollover'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
+import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
   buildLiveBalanceHeroSummary,
   sumActiveInstrumentCapital,
@@ -22,6 +23,7 @@ import type {
   Subscription,
   Transfer,
   YieldAccumulator,
+  CardCycleAmount,
 } from '@/types/database'
 import type { PrevMonthSummary } from '@/lib/rollover'
 
@@ -127,6 +129,7 @@ export async function readDashboardData({
     { data: compromisoExpensesData },
     { data: unpaidCyclesData },
     { data: paidCyclesData },
+    { data: cycleAmountsData, error: cycleAmountsError },
   ] = await Promise.all([
     supabase
       .from('income_entries')
@@ -230,7 +233,14 @@ export async function readDashboardData({
       .eq('user_id', userId)
       .eq('status', 'paid')
       .gte('period_month', historyStartDate),
+    supabase
+      .from('card_cycle_amounts')
+      .select('*')
+      .eq('user_id', userId),
   ])
+  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
+    throw new Error(cycleAmountsError.message)
+  }
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
   const hasConfiguredOpeningBalance = accounts.some(
@@ -352,6 +362,7 @@ export async function readDashboardData({
     ...((unpaidCyclesData ?? []) as CardCycle[]),
     ...((paidCyclesData ?? []) as CardCycle[]),
   ]
+  const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmountsData ?? []) as CardCycleAmount[])
   const computeCardCommitmentDebt = (commitmentCurrency: 'ARS' | 'USD') => {
     const compromisos = computeCompromisos(
       compromisoExpenses.filter((expense) => expense.currency === commitmentCurrency),
@@ -361,6 +372,8 @@ export async function readDashboardData({
       selectedMonth,
       isCurrentMonth,
       activeSubscriptions,
+      commitmentCurrency,
+      cycleAmountsMap,
     )
     return compromisos.totalAPagar + compromisos.totalEnCurso
   }

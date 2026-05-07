@@ -41,8 +41,8 @@ export function StepW3Pain({ onBack, onNext }: Props) {
         </div>
 
         <div className="mt-6">
-          <h2 className="text-2xl font-semibold text-text-primary">¿Qué te pasa hoy?</h2>
-          <p className="mt-1 text-sm text-text-tertiary">Elegí todo lo que te suena</p>
+          <h2 className="type-title text-text-primary">¿Qué te pasa hoy?</h2>
+          <p className="mt-1 type-body text-text-tertiary">Elegí todo lo que te suena</p>
         </div>
       </div>
 
@@ -53,21 +53,21 @@ export function StepW3Pain({ onBack, onNext }: Props) {
             <button
               key={label}
               onClick={() => toggle(label)}
-              className={`w-full flex items-center gap-3 rounded-2xl border px-4 py-3.5 text-left transition-colors ${
+              className={`w-full flex items-center gap-3 rounded-card border px-4 py-3.5 text-left transition-colors ${
                 isSelected
-                  ? 'border-primary bg-primary/8 text-text-primary'
+                  ? 'border-primary bg-primary-soft text-text-primary'
                   : 'border-border-subtle bg-bg-secondary text-text-secondary'
               }`}
             >
               <span className="text-lg">{emoji}</span>
-              <span className="flex-1 text-sm font-medium">{label}</span>
+              <span className="flex-1 type-body">{label}</span>
               <span
                 className={`h-4 w-4 shrink-0 rounded border transition-colors ${
-                  isSelected ? 'border-primary bg-primary' : 'border-border-ocean/40'
+                  isSelected ? 'border-primary bg-primary' : 'border-border-strong'
                 } flex items-center justify-center`}
               >
                 {isSelected && (
-                  <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-none stroke-bg-primary stroke-2">
+                  <svg viewBox="0 0 10 8" className="h-2.5 w-2.5 fill-none stroke-white stroke-2">
                     <polyline points="1 4 4 7 9 1" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                 )}
@@ -80,7 +80,7 @@ export function StepW3Pain({ onBack, onNext }: Props) {
       <div className="px-5 mt-6">
         <button
           onClick={() => onNext(Array.from(selected))}
-          className="w-full rounded-full bg-primary py-4 text-sm font-semibold text-bg-primary transition-all active:scale-95"
+          className="w-full rounded-button bg-primary py-4 type-body-lg text-white transition-all active:scale-95"
         >
           Continuar
         </button>

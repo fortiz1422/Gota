@@ -194,7 +194,12 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
       )}
 
       {sheet === 'pago_tarjeta' && (
-        <CardPaymentForm accounts={accounts} cards={cards} onClose={() => setSheet(null)} />
+        <CardPaymentForm
+          accounts={accounts}
+          cards={cards}
+          defaultCurrency={currency}
+          onClose={() => setSheet(null)}
+        />
       )}
 
       {FF_INSTRUMENTS && sheet === 'instrumento' && (

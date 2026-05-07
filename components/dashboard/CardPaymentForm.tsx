@@ -6,20 +6,21 @@ import { useQueryClient } from '@tanstack/react-query'
 import { Modal } from '@/components/ui/Modal'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { todayAR } from '@/lib/format'
-import type { Account, Card } from '@/types/database'
+import type { Account, Card, Currency } from '@/types/database'
 
 interface Props {
   accounts: Account[]
   cards: Card[]
   onClose: () => void
+  defaultCurrency: Currency
 }
 
-function formatARS(n: number): string {
+function formatMoneyInput(n: number): string {
   if (n === 0) return ''
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
-export function CardPaymentForm({ accounts, cards, onClose }: Props) {
+export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const activeAccounts = accounts.filter((account) => !account.archived)
@@ -29,6 +30,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
   const selectedCard = activeCards.find((card) => card.id === cardId) ?? null
   const [accountId, setAccountId] = useState(selectedCard?.account_id ?? (activeAccounts[0]?.id ?? ''))
   const selectedAccount = activeAccounts.find((account) => account.id === accountId) ?? null
+  const [currency, setCurrency] = useState<Currency>(defaultCurrency)
   const [montoRaw, setMontoRaw] = useState(0)
   const [fecha, setFecha] = useState(todayAR())
   const [isSaving, setIsSaving] = useState(false)
@@ -65,7 +67,7 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           amount: montoRaw,
-          currency: 'ARS',
+          currency,
           card_id: selectedCard.id,
           account_id: accountId,
           payment_method,
@@ -153,13 +155,33 @@ export function CardPaymentForm({ accounts, cards, onClose }: Props) {
             </div>
 
             <div>
+              <label className={labelCls}>Moneda</label>
+              <div className="flex gap-2">
+                {(['ARS', 'USD'] as const).map((option) => (
+                  <button
+                    key={option}
+                    type="button"
+                    onClick={() => setCurrency(option)}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold ${
+                      currency === option
+                        ? 'border-primary bg-primary/15 text-primary'
+                        : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                    }`}
+                  >
+                    {option}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <label className={labelCls}>Monto</label>
               <div className="flex items-center gap-2 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 focus-within:border-primary">
                 <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={formatARS(montoRaw)}
+                  value={formatMoneyInput(montoRaw)}
                   onChange={handleMontoChange}
                   className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
                   placeholder="0"

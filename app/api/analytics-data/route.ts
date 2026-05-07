@@ -4,12 +4,13 @@ import type {
   MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
+import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
   isCreditAccruedExpense,
   isPerceivedExpense,
 } from '@/lib/movement-classification'
 import { createClient } from '@/lib/supabase/server'
-import type { Card, CardCycle, Expense, Subscription } from '@/types/database'
+import type { Card, CardCycle, CardCycleAmount, Expense, Subscription } from '@/types/database'
 
 function isMissingTableError(message: string | undefined): boolean {
   return !!message && message.toLowerCase().includes('card_cycles')
@@ -139,6 +140,7 @@ export async function GET(request: Request) {
     { data: subscriptionsData },
     { data: unpaidCyclesData, error: unpaidCyclesError },
     { data: paidCyclesData, error: paidCyclesError },
+    { data: cycleAmountsData, error: cycleAmountsError },
   ] = await Promise.all([
     supabase
       .from('expenses')
@@ -195,11 +197,19 @@ export async function GET(request: Request) {
       .eq('user_id', user.id)
       .eq('status', 'paid')
       .gte('period_month', `${historyStartMonth}-01`),
+
+    supabase
+      .from('card_cycle_amounts')
+      .select('*')
+      .eq('user_id', user.id),
   ])
 
   const cyclesError = unpaidCyclesError ?? paidCyclesError
   if (cyclesError && !isMissingTableError(cyclesError.message)) {
     return NextResponse.json({ error: cyclesError.message }, { status: 500 })
+  }
+  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
+    return NextResponse.json({ error: cycleAmountsError.message }, { status: 500 })
   }
 
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
@@ -238,6 +248,7 @@ export async function GET(request: Request) {
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],
     cardCycles: allCardCycles,
+    cardCycleAmounts: (cycleAmountsData ?? []) as CardCycleAmount[],
     cards,
     currency,
     earliestDataMonth,

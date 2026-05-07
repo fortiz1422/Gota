@@ -797,6 +797,37 @@ CREATE POLICY "card_payment_allocations_update" ON card_payment_allocations FOR 
   USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "card_payment_allocations_delete" ON card_payment_allocations FOR DELETE USING (auth.uid() = user_id);
 
+CREATE TABLE IF NOT EXISTS card_cycle_amounts (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  card_cycle_id UUID NOT NULL REFERENCES card_cycles(id) ON DELETE CASCADE,
+  currency VARCHAR(3) NOT NULL CHECK (currency IN ('ARS', 'USD')),
+  status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'closed', 'paid')),
+  amount_draft NUMERIC(12,2),
+  amount_paid NUMERIC(12,2),
+  paid_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  CONSTRAINT unique_card_cycle_amount_currency UNIQUE (card_cycle_id, currency)
+);
+
+CREATE INDEX IF NOT EXISTS idx_card_cycle_amounts_user_cycle
+  ON card_cycle_amounts(user_id, card_cycle_id, currency);
+
+CREATE INDEX IF NOT EXISTS idx_card_cycle_amounts_user_currency_status
+  ON card_cycle_amounts(user_id, currency, status, updated_at DESC);
+
+CREATE TRIGGER card_cycle_amounts_updated_at
+  BEFORE UPDATE ON card_cycle_amounts
+  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+ALTER TABLE card_cycle_amounts ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "card_cycle_amounts_select" ON card_cycle_amounts FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "card_cycle_amounts_insert" ON card_cycle_amounts FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_cycle_amounts_update" ON card_cycle_amounts FOR UPDATE
+  USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "card_cycle_amounts_delete" ON card_cycle_amounts FOR DELETE USING (auth.uid() = user_id);
+
 -- ============================================
 -- v2.5 — Card Cycles: montos de resumen y pago
 -- ============================================
