@@ -224,6 +224,8 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     }
   }
 
+  const bothCurrencies = !!(arsBlock && usdBlock)
+
   return (
     <Modal open={open} onClose={onClose}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
@@ -237,14 +239,107 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         </h2>
       </div>
 
-      <div className="space-y-4 pb-28">
+      <div className="space-y-5 pb-24">
 
-        {/* ── ARS portion ── */}
-        {arsBlock && (
-          <div>
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-              Monto ARS
-            </p>
+        {/* ── Monto(s) ── */}
+        <div>
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+            Monto a pagar
+          </p>
+
+          {bothCurrencies ? (
+            /* Unified block: ARS row + USD row + TC row — separated by dividers */
+            <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
+
+              {/* ARS row */}
+              <div className="border-b border-border-subtle px-4 py-3.5">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 shrink-0 text-xs font-semibold text-text-secondary">ARS</span>
+                  <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={formatMoneyInput(arsAmount)}
+                    onChange={(e) => {
+                      const stripped = e.target.value.replace(/\D/g, '')
+                      setArsAmount(stripped === '' ? 0 : parseInt(stripped, 10))
+                    }}
+                    className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                    placeholder="0"
+                  />
+                </div>
+                {arsRemaining > 0 && (
+                  <p className="mt-1 text-right text-xs text-text-tertiary">
+                    Pendiente: {formatAmount(arsRemaining, 'ARS')}
+                  </p>
+                )}
+              </div>
+
+              {/* USD row */}
+              <div className={usdPayMode === 'ARS' ? 'border-b border-border-subtle' : ''}>
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  <span className="w-8 shrink-0 text-xs font-semibold text-text-secondary">USD</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
+                    onChange={(e) => {
+                      const raw = fromAR(e.target.value)
+                      setUsdAmount(raw === '' ? 0 : parseFloat(raw))
+                    }}
+                    className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                    placeholder="0"
+                  />
+                  {/* Mode toggle */}
+                  <div className="flex shrink-0 items-center rounded-full bg-bg-secondary p-0.5">
+                    {(['USD', 'ARS'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setUsdPayMode(mode)}
+                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
+                          usdPayMode === mode ? 'bg-primary text-white' : 'text-text-tertiary'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {usdRemaining > 0 && (
+                  <p className="pb-2.5 pr-4 text-right text-xs text-text-tertiary">
+                    Pendiente: {formatAmount(usdRemaining, 'USD')}
+                  </p>
+                )}
+              </div>
+
+              {/* TC row — only when paying USD with ARS */}
+              {usdPayMode === 'ARS' && (
+                <div className="px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-xs text-text-tertiary">1 USD =</span>
+                    <div className="flex items-center gap-1">
+                      <span className="text-xs font-semibold text-text-secondary">$</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder="0,00"
+                        value={toAR(exchangeRateStr)}
+                        onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
+                        className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
+                      />
+                    </div>
+                  </div>
+                  {usdAmount > 0 && exchangeRateNum > 0 && (
+                    <p className="mt-0.5 text-right text-xs text-text-tertiary">
+                      = {formatAmount(usdInArs, 'ARS')}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+          ) : arsBlock ? (
+            /* Single ARS input */
             <div className="flex items-center gap-2 rounded-[18px] bg-bg-tertiary px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-bg-secondary">
               <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
               <input
@@ -259,86 +354,79 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                 placeholder="0"
               />
             </div>
-            {arsRemaining > 0 && (
-              <p className="mt-1.5 text-xs text-text-tertiary">
-                Saldo: {formatAmount(arsRemaining, 'ARS')}
-              </p>
-            )}
-          </div>
-        )}
 
-        {/* ── USD portion ── */}
-        {usdBlock && (
-          <div>
-            <div className="mb-2 flex items-center justify-between">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
-                Monto USD
-              </p>
-              {/* Toggle: pay in USD / ARS */}
-              <div className="flex items-center gap-1 rounded-full bg-bg-tertiary p-0.5">
-                {(['USD', 'ARS'] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    onClick={() => setUsdPayMode(mode)}
-                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
-                      usdPayMode === mode
-                        ? 'bg-primary text-white'
-                        : 'text-text-tertiary hover:text-text-secondary'
-                    }`}
-                  >
-                    {mode}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2 rounded-[18px] bg-bg-tertiary px-4 py-3.5 focus-within:ring-2 focus-within:ring-primary focus-within:ring-offset-2 focus-within:ring-offset-bg-secondary">
-              <span className="shrink-0 text-base font-bold text-text-secondary">USD</span>
-              <input
-                type="text"
-                inputMode="decimal"
-                value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
-                onChange={(e) => {
-                  const raw = fromAR(e.target.value)
-                  setUsdAmount(raw === '' ? 0 : parseFloat(raw))
-                }}
-                className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
-                placeholder="0"
-              />
-            </div>
-
-            {usdRemaining > 0 && (
-              <p className="mt-1.5 text-xs text-text-tertiary">
-                Saldo: {formatAmount(usdRemaining, 'USD')}
-              </p>
-            )}
-
-            {/* Exchange rate section (only when paying USD with ARS) */}
-            {usdPayMode === 'ARS' && (
-              <div className="mt-3 rounded-[16px] bg-bg-secondary px-4 py-3 space-y-2">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-text-secondary">Tipo de cambio · 1 USD =</span>
-                  <div className="flex items-center gap-1">
-                    <span className="text-xs font-semibold text-text-secondary">$</span>
-                    <input
-                      type="text"
-                      inputMode="decimal"
-                      placeholder="0,00"
-                      value={toAR(exchangeRateStr)}
-                      onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
-                      className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
-                    />
-                  </div>
+          ) : usdBlock ? (
+            /* Single USD input with toggle + TC */
+            <div>
+              <div className="mb-2 flex items-end justify-end">
+                <div className="flex items-center rounded-full bg-bg-tertiary p-0.5">
+                  {(['USD', 'ARS'] as const).map((mode) => (
+                    <button
+                      key={mode}
+                      onClick={() => setUsdPayMode(mode)}
+                      className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                        usdPayMode === mode ? 'bg-primary text-white' : 'text-text-tertiary'
+                      }`}
+                    >
+                      {mode}
+                    </button>
+                  ))}
                 </div>
-                {usdAmount > 0 && exchangeRateNum > 0 && (
-                  <p className="text-right text-xs text-text-tertiary">
-                    = {formatAmount(usdInArs, 'ARS')} ARS
-                  </p>
+              </div>
+              <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
+                <div className="flex items-center gap-2 px-4 py-3.5">
+                  <span className="shrink-0 text-base font-bold text-text-secondary">USD</span>
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
+                    onChange={(e) => {
+                      const raw = fromAR(e.target.value)
+                      setUsdAmount(raw === '' ? 0 : parseFloat(raw))
+                    }}
+                    className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                    placeholder="0"
+                  />
+                </div>
+                {usdPayMode === 'ARS' && (
+                  <div className="border-t border-border-subtle px-4 py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <span className="text-xs text-text-tertiary">1 USD =</span>
+                      <div className="flex items-center gap-1">
+                        <span className="text-xs font-semibold text-text-secondary">$</span>
+                        <input
+                          type="text"
+                          inputMode="decimal"
+                          placeholder="0,00"
+                          value={toAR(exchangeRateStr)}
+                          onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
+                          className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
+                        />
+                      </div>
+                    </div>
+                    {usdAmount > 0 && exchangeRateNum > 0 && (
+                      <p className="mt-0.5 text-right text-xs text-text-tertiary">
+                        = {formatAmount(usdInArs, 'ARS')}
+                      </p>
+                    )}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
-        )}
+            </div>
+          ) : null}
+
+          {/* Hints below the amount block */}
+          {!bothCurrencies && arsBlock && arsRemaining > 0 && (
+            <p className="mt-1.5 text-xs text-text-tertiary">
+              Disponible: {formatAmount(arsRemaining, 'ARS')}
+            </p>
+          )}
+          {!bothCurrencies && usdBlock && usdRemaining > 0 && (
+            <p className="mt-1.5 text-xs text-text-tertiary">
+              Pendiente: {formatAmount(usdRemaining, 'USD')}
+            </p>
+          )}
+        </div>
 
         {/* ── Cuenta & Fecha ── */}
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
@@ -373,34 +461,33 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
           </div>
         </div>
 
-        {/* ── Total summary ── */}
-        {showTotal && (
-          <div className="rounded-[16px] bg-bg-secondary px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary">Total que sale de tu cuenta</span>
-              <span className="text-sm font-bold tabular-nums text-text-primary">
-                {fromCurrency === 'ARS'
-                  ? formatAmount(totalArsOut, 'ARS')
-                  : formatAmount(totalUsdOut, 'USD')}
-              </span>
-            </div>
-          </div>
-        )}
-
-        {availableBalance != null && (
-          <div className="rounded-[16px] bg-bg-secondary px-4 py-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-text-secondary">Disponible hoy</span>
-              <span className="text-sm font-semibold text-text-primary">
-                {formatAmount(availableBalance, fromCurrency)}
-              </span>
-            </div>
+        {/* ── Summary hints (plain text, no extra cards) ── */}
+        {(showTotal || availableBalance != null) && (
+          <div className="space-y-1 px-1">
+            {showTotal && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-tertiary">Total que sale de tu cuenta</span>
+                <span className="text-xs font-bold tabular-nums text-text-primary">
+                  {fromCurrency === 'ARS'
+                    ? formatAmount(totalArsOut, 'ARS')
+                    : formatAmount(totalUsdOut, 'USD')}
+                </span>
+              </div>
+            )}
+            {availableBalance != null && (
+              <div className="flex items-center justify-between">
+                <span className="text-xs text-text-tertiary">Disponible hoy</span>
+                <span className={`text-xs font-semibold tabular-nums ${exceedsBalance ? 'text-danger' : 'text-text-secondary'}`}>
+                  {formatAmount(availableBalance, fromCurrency)}
+                </span>
+              </div>
+            )}
           </div>
         )}
 
         {exceedsBalance && (
-          <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm text-danger">
-            El pago supera el saldo actual de la cuenta seleccionada.
+          <p className="text-xs text-danger px-1">
+            El pago supera el saldo de la cuenta seleccionada.
           </p>
         )}
 

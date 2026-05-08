@@ -37,6 +37,14 @@ export interface CycleGroup {
   }>
 }
 
+function getGroupStatus(group: CycleGroup): EnrichedCycle['cycleStatus'] {
+  const statuses = group.blocks.map((b) => b.cycle.cycleStatus)
+  if (statuses.some((s) => s === 'vencido')) return 'vencido'
+  if (statuses.some((s) => s === 'en_curso')) return 'en_curso'
+  if (statuses.every((s) => s === 'pagado')) return 'pagado'
+  return 'cerrado'
+}
+
 function CycleStatusPill({ status }: { status: EnrichedCycle['cycleStatus'] }) {
   if (status === 'pagado') {
     return (
@@ -47,21 +55,21 @@ function CycleStatusPill({ status }: { status: EnrichedCycle['cycleStatus'] }) {
   }
   if (status === 'en_curso') {
     return (
-      <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-        En curso
+      <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">
+        Actual
       </span>
     )
   }
   if (status === 'cerrado') {
     return (
-      <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-warning">
+      <span className="inline-flex items-center rounded-full border border-border-strong bg-bg-tertiary px-2.5 py-0.5 text-[10px] font-semibold text-text-secondary">
         Cerrado
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center rounded-full bg-danger/10 px-2.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-danger">
-      Vencido
+    <span className="inline-flex items-center rounded-full bg-warning/10 px-2.5 py-0.5 text-[10px] font-semibold text-warning">
+      Pendiente
     </span>
   )
 }
@@ -72,12 +80,6 @@ function periodMonthLabel(periodMonth: string): string {
     year: 'numeric',
   })
   return label.charAt(0).toUpperCase() + label.slice(1)
-}
-
-function formatDiff(diff: number, currency: Currency): string {
-  if (diff === 0) return '$0'
-  const sign = diff > 0 ? '+' : '-'
-  return `${sign}${formatAmount(Math.abs(diff), currency)}`
 }
 
 function formatUpcomingShort(date: string): string {
@@ -111,11 +113,8 @@ export function CardDetailClient({
   const [saveCycleError, setSaveCycleError] = useState<string | null>(null)
   const [revertError, setRevertError] = useState<string | null>(null)
   const [detailKey, setDetailKey] = useState<string | null>(null)
-
-  const currencyOrder = useMemo<Currency[]>(
-    () => (initialCurrency === 'USD' ? ['USD', 'ARS'] : ['ARS', 'USD']),
-    [initialCurrency],
-  )
+  const [expandedStatementKey, setExpandedStatementKey] = useState<string | null | undefined>(undefined)
+  const [isEditingAccountConfig, setIsEditingAccountConfig] = useState(false)
 
   const cycleExpensesMap = useMemo(() => {
     const next: Record<string, Expense[]> = {}
@@ -139,7 +138,7 @@ export function CardDetailClient({
   const combinedCycles = useMemo(() => {
     const grouped = new Map<string, CycleGroup>()
 
-    for (const currency of currencyOrder) {
+    for (const currency of ['ARS', 'USD'] as const) {
       for (const cycle of resumenesByCurrency[currency]) {
         const key = cycle.period_month
         const existing = grouped.get(key)
@@ -164,12 +163,27 @@ export function CardDetailClient({
     return [...grouped.values()]
       .map((group) => ({
         ...group,
-        blocks: currencyOrder
+        blocks: (['ARS', 'USD'] as const)
           .map((currency) => group.blocks.find((block) => block.currency === currency))
           .filter((block): block is CycleGroup['blocks'][number] => block != null),
       }))
       .sort((a, b) => b.periodMonth.localeCompare(a.periodMonth))
-  }, [currencyOrder, resumenesByCurrency])
+  }, [resumenesByCurrency])
+
+  const currentGroupKey = useMemo(
+    () => combinedCycles.find((g) => g.isCurrent)?.key ?? combinedCycles[0]?.key ?? null,
+    [combinedCycles],
+  )
+
+  // undefined = user hasn't interacted, use currentGroupKey as default
+  // null = user explicitly collapsed all
+  const expandedKey = expandedStatementKey !== undefined ? expandedStatementKey : currentGroupKey
+
+  function toggleStatement(key: string) {
+    setExpandedStatementKey((prev) => (prev === key ? null : key))
+  }
+
+  const selectedAccount = accounts.find((a) => a.id === currentCard.account_id)
 
   const patchCard = async (patch: Partial<Pick<Card, 'closing_day' | 'due_day' | 'account_id' | 'name'>>) => {
     const res = await fetch(`/api/cards/${currentCard.id}`, {
@@ -269,143 +283,113 @@ export function CardDetailClient({
     }
   }
 
-  const renderCurrencyRow = (block: CycleGroup['blocks'][number]) => {
-    const { cycle, currency } = block
-    const actionKey = `${cycle.id}:${currency}`
-    const canEditDates =
-      cycle.source === 'stored' && (cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido')
+  const renderHero = () => {
+    const heroGroup = combinedCycles.find((g) => g.isCurrent) ?? combinedCycles[0]
+    if (!heroGroup) return null
+
+    const arsBlock = heroGroup.blocks.find((b) => b.currency === 'ARS')
+    const usdBlock = heroGroup.blocks.find((b) => b.currency === 'USD')
+    const arsRemaining =
+      arsBlock?.cycle.cycleStatus !== 'pagado' ? (arsBlock?.cycle.remaining_amount ?? 0) : 0
+    const usdRemaining =
+      usdBlock?.cycle.cycleStatus !== 'pagado' ? (usdBlock?.cycle.remaining_amount ?? 0) : 0
+    const anyPending = heroGroup.blocks.some((b) => b.cycle.cycleStatus !== 'pagado')
 
     return (
-      <div key={actionKey} className="rounded-input bg-bg-tertiary px-3 py-2.5">
-        {/* Currency row header */}
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="type-label font-semibold text-text-secondary">{currency}</span>
+      <div className="surface-module rounded-card px-4 py-5">
+        {anyPending ? (
+          <>
+            <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">
+              A pagar
+            </span>
+
+            <div className="mt-3">
+              {arsRemaining > 0 && (
+                <p className="text-[28px] font-bold tabular-nums leading-tight text-text-primary">
+                  {formatAmount(arsRemaining, 'ARS')}
+                </p>
+              )}
+              {usdRemaining > 0 && (
+                <p className="type-body-lg font-semibold tabular-nums text-text-secondary">
+                  {formatAmount(usdRemaining, 'USD')}
+                </p>
+              )}
+            </div>
+
+            <p className="mt-2 type-meta text-text-tertiary">
+              Vence {formatUpcomingShort(heroGroup.dueDate)} · Cierra{' '}
+              {formatUpcomingShort(heroGroup.closingDate)}
+            </p>
+
+            <button
+              onClick={() => setPayingTarget({ cycleGroup: heroGroup })}
+              className="mt-4 w-full rounded-button bg-primary py-2.5 text-[13px] font-semibold text-white transition-opacity active:opacity-70"
+            >
+              Registrar pago
+            </button>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-2">
+              <CheckCircle size={20} weight="fill" className="text-success" />
+              <p className="type-body font-semibold text-text-primary">Todo al día</p>
+            </div>
+            <p className="mt-1 type-meta text-text-tertiary">
+              Resumen de {periodMonthLabel(heroGroup.periodMonth)} pagado
+            </p>
+          </>
+        )}
+      </div>
+    )
+  }
+
+  const renderCurrencyDetailRow = (block: CycleGroup['blocks'][number]) => {
+    const { cycle, currency } = block
+    const actionKey = `${cycle.id}:${currency}`
+
+    return (
+      <div key={actionKey}>
+        <button
+          onClick={() => setDetailKey((prev) => (prev === actionKey ? null : actionKey))}
+          className="flex w-full items-center justify-between px-3 py-2.5"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="rounded-full bg-primary/[0.08] px-2 py-0.5 text-[10px] font-semibold text-primary">
+              {currency}
+            </span>
+            <span className="type-body font-semibold tabular-nums text-text-primary">
+              {formatAmount(cycle.amount, currency)}
+            </span>
+            {cycle.has_partial_payment && (
+              <span className="text-[10px] text-warning">Pago parcial</span>
+            )}
+          </div>
+          <div className="flex items-center gap-2 text-right">
             {cycle.cycleStatus === 'pagado' && (
               <CheckCircle size={14} weight="fill" className="text-success" />
             )}
-            {cycle.has_partial_payment && (
-              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
-                Pago parcial
-              </span>
-            )}
-            {cycle.cycleStatus === 'pagado' && cycle.changed_after_payment && (
-              <span className="inline-flex items-center rounded-full bg-warning/10 px-2 py-0.5 text-[10px] font-semibold text-warning">
-                Modificado
-              </span>
-            )}
-          </div>
-          <div className="text-right">
-            <p className="type-body font-bold tabular-nums text-text-primary">
-              {formatAmount(cycle.amount, currency)}
-            </p>
-            {cycle.remaining_amount > 0 && cycle.cycleStatus !== 'pagado' && (
-              <p className="mt-0.5 type-meta text-warning">
-                Resta: {formatAmount(cycle.remaining_amount, currency)}
-              </p>
-            )}
-            {(cycle.amount_paid ?? 0) > 0 && cycle.cycleStatus === 'pagado' && (
-              <p className="mt-0.5 type-meta text-text-tertiary">
-                Pagado: {formatAmount(cycle.amount_paid ?? 0, currency)}
-              </p>
-            )}
-          </div>
-        </div>
-
-        {/* Expense detail toggle */}
-        <div className="mt-2 overflow-hidden rounded-input bg-bg-secondary">
-          <button
-            onClick={() => setDetailKey((current) => (current === actionKey ? null : actionKey))}
-            className="flex w-full items-center justify-between px-3 py-2"
-          >
-            <span className="type-meta font-medium text-text-secondary">Gastos</span>
-            <div className="flex items-center gap-2">
-              <span className="type-meta text-text-tertiary">
-                {cycleExpensesMap[actionKey]?.length ?? 0} items
-              </span>
-              {detailKey === actionKey ? (
-                <CaretUp size={12} className="text-text-tertiary" />
-              ) : (
-                <CaretDown size={12} className="text-text-tertiary" />
-              )}
-            </div>
-          </button>
-          {detailKey === actionKey && (
-            <CycleExpensesDetail
-              expenses={cycleExpensesMap[actionKey] ?? []}
-              paidAt={cycle.cycleStatus === 'pagado' ? cycle.paid_at : null}
-            />
-          )}
-        </div>
-
-        {/* Edit dates (cerrado/vencido only) */}
-        {canEditDates && (
-          <>
-            {editingCycleId === cycle.id ? (
-              <div className="mt-2 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
-                <div className="grid grid-cols-2 gap-2">
-                  <label className="space-y-1">
-                    <span className="block type-meta text-text-secondary">Cierre</span>
-                    <input
-                      type="date"
-                      value={editingClosingDate}
-                      onChange={(event) => setEditingClosingDate(event.target.value)}
-                      disabled={isSavingCycleDates}
-                      className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                    />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="block type-meta text-text-secondary">Vencimiento</span>
-                    <input
-                      type="date"
-                      value={editingDueDate}
-                      onChange={(event) => setEditingDueDate(event.target.value)}
-                      disabled={isSavingCycleDates}
-                      className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                    />
-                  </label>
-                </div>
-                <p className="type-meta text-text-tertiary">
-                  Al guardar, se recalcula el monto segun los gastos del nuevo periodo.
-                </p>
-                {saveCycleError && (
-                  <p className="rounded-card bg-danger-soft px-3 py-2 type-meta text-danger">
-                    {saveCycleError}
-                  </p>
-                )}
-                <div className="flex gap-2">
-                  <button
-                    onClick={cancelCycleDateEdit}
-                    disabled={isSavingCycleDates}
-                    className="flex-1 rounded-full py-1.5 type-meta text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => void saveCycleDates()}
-                    disabled={isSavingCycleDates}
-                    className="flex-1 rounded-full bg-primary py-1.5 type-meta font-semibold text-white disabled:opacity-50"
-                  >
-                    {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
-                  </button>
-                </div>
-              </div>
+            <span className="type-meta text-text-tertiary">
+              {cycleExpensesMap[actionKey]?.length ?? 0} gastos
+            </span>
+            {detailKey === actionKey ? (
+              <CaretUp size={12} className="text-text-tertiary" />
             ) : (
-              <button
-                onClick={() => startCycleDateEdit(cycle)}
-                className="mt-1.5 type-meta text-primary underline-offset-2 hover:underline"
-              >
-                Editar fechas
-              </button>
+              <CaretDown size={12} className="text-text-tertiary" />
             )}
-          </>
+          </div>
+        </button>
+
+        {detailKey === actionKey && (
+          <CycleExpensesDetail
+            expenses={cycleExpensesMap[actionKey] ?? []}
+            paidAt={cycle.cycleStatus === 'pagado' ? cycle.paid_at : null}
+          />
         )}
 
-        {/* Per-currency revert (only when this currency is paid) */}
         {cycle.cycleStatus === 'pagado' && (
           <>
             {revertingKey === actionKey ? (
-              <div className="mt-2 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
+              <div className="mx-3 mb-2.5 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
                 <p className="type-meta font-medium text-danger">
                   Queres revertir el pago {currency}? Se eliminara el movimiento registrado.
                 </p>
@@ -433,7 +417,7 @@ export function CardDetailClient({
             ) : (
               <button
                 onClick={() => setRevertingKey(actionKey)}
-                className="mt-1.5 type-meta text-text-tertiary underline-offset-2 hover:underline"
+                className="px-3 pb-2.5 type-meta text-text-tertiary underline-offset-2 hover:underline"
               >
                 Revertir pago {currency}
               </button>
@@ -443,6 +427,170 @@ export function CardDetailClient({
       </div>
     )
   }
+
+  const renderStatementAccordion = (group: CycleGroup) => {
+    const isExpanded = expandedKey === group.key
+    const groupStatus = getGroupStatus(group)
+    const arsBlock = group.blocks.find((b) => b.currency === 'ARS')
+    const usdBlock = group.blocks.find((b) => b.currency === 'USD')
+    const arsRemaining =
+      arsBlock?.cycle.cycleStatus !== 'pagado' ? (arsBlock?.cycle.remaining_amount ?? 0) : 0
+    const usdRemaining =
+      usdBlock?.cycle.cycleStatus !== 'pagado' ? (usdBlock?.cycle.remaining_amount ?? 0) : 0
+    const anyUnpaid = group.blocks.some((b) => b.cycle.cycleStatus !== 'pagado')
+
+    // First block that qualifies for date editing
+    const editableBlock = group.blocks.find(
+      (b) =>
+        b.cycle.source === 'stored' &&
+        (b.cycle.cycleStatus === 'cerrado' || b.cycle.cycleStatus === 'vencido'),
+    )
+
+    return (
+      <div key={group.key} className="surface-module overflow-hidden rounded-card">
+        <button
+          onClick={() => toggleStatement(group.key)}
+          className="flex w-full items-start justify-between gap-3 px-4 py-3.5 text-left"
+        >
+          <div>
+            <p className="type-body font-semibold text-text-primary">
+              {periodMonthLabel(group.periodMonth)}
+            </p>
+            <p className="mt-0.5 type-meta text-text-tertiary">
+              Cierre {formatUpcomingShort(group.closingDate)} · Vence{' '}
+              {formatUpcomingShort(group.dueDate)}
+            </p>
+            {!isExpanded && anyUnpaid && (
+              <p className="mt-1 type-meta tabular-nums text-text-secondary">
+                {arsRemaining > 0 && formatAmount(arsRemaining, 'ARS')}
+                {arsRemaining > 0 && usdRemaining > 0 && ' · '}
+                {usdRemaining > 0 && formatAmount(usdRemaining, 'USD')}
+              </p>
+            )}
+          </div>
+
+          <div className="flex shrink-0 items-center gap-2">
+            <CycleStatusPill status={groupStatus} />
+            {isExpanded ? (
+              <CaretUp size={14} className="text-text-tertiary" />
+            ) : (
+              <CaretDown size={14} className="text-text-tertiary" />
+            )}
+          </div>
+        </button>
+
+        {isExpanded && (
+          <div className="border-t border-border-subtle px-4 pb-4 pt-3">
+            {anyUnpaid && (
+              <div className="mb-3">
+                <p className="mb-1 type-label uppercase tracking-wide text-text-tertiary">
+                  A pagar
+                </p>
+                {arsRemaining > 0 && (
+                  <p className="font-bold tabular-nums text-text-primary">
+                    {formatAmount(arsRemaining, 'ARS')}
+                  </p>
+                )}
+                {usdRemaining > 0 && (
+                  <p className="type-body font-semibold tabular-nums text-text-secondary">
+                    {formatAmount(usdRemaining, 'USD')}
+                  </p>
+                )}
+              </div>
+            )}
+
+            <div className="space-y-1 overflow-hidden rounded-input bg-bg-tertiary">
+              {group.blocks.map((block) => renderCurrencyDetailRow(block))}
+            </div>
+
+            {editableBlock && (
+              <>
+                {editingCycleId === editableBlock.cycle.id ? (
+                  <div className="mt-3 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="space-y-1">
+                        <span className="block type-meta text-text-secondary">Cierre</span>
+                        <input
+                          type="date"
+                          value={editingClosingDate}
+                          onChange={(event) => setEditingClosingDate(event.target.value)}
+                          disabled={isSavingCycleDates}
+                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block type-meta text-text-secondary">Vencimiento</span>
+                        <input
+                          type="date"
+                          value={editingDueDate}
+                          onChange={(event) => setEditingDueDate(event.target.value)}
+                          disabled={isSavingCycleDates}
+                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        />
+                      </label>
+                    </div>
+                    <p className="type-meta text-text-tertiary">
+                      Al guardar, se recalcula el monto segun los gastos del nuevo periodo.
+                    </p>
+                    {saveCycleError && (
+                      <p className="rounded-card bg-danger-soft px-3 py-2 type-meta text-danger">
+                        {saveCycleError}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={cancelCycleDateEdit}
+                        disabled={isSavingCycleDates}
+                        className="flex-1 rounded-full py-1.5 type-meta text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => void saveCycleDates()}
+                        disabled={isSavingCycleDates}
+                        className="flex-1 rounded-full bg-primary py-1.5 type-meta font-semibold text-white disabled:opacity-50"
+                      >
+                        {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => startCycleDateEdit(editableBlock.cycle)}
+                    className="mt-2 type-meta text-primary underline-offset-2 hover:underline"
+                  >
+                    Editar fechas
+                  </button>
+                )}
+              </>
+            )}
+
+            {anyUnpaid && (
+              <button
+                onClick={() => setPayingTarget({ cycleGroup: group })}
+                className="mt-3 w-full rounded-button border border-primary py-2 text-[13px] font-semibold text-primary transition-opacity active:opacity-70"
+              >
+                Registrar pago
+              </button>
+            )}
+
+            {group.representativeCycle.source === 'legacy' && (
+              <p className="mt-3 type-meta text-text-tertiary">
+                Este resumen todavia viene del historial calculado por Gota.
+              </p>
+            )}
+          </div>
+        )}
+      </div>
+    )
+  }
+
+  const heroGroup = combinedCycles.find((g) => g.isCurrent) ?? combinedCycles[0]
+  const headerSubtitle = heroGroup
+    ? heroGroup.isCurrent
+      ? `Resumen actual · vence ${formatUpcomingShort(heroGroup.dueDate)}`
+      : `Resumen cerrado · vence ${formatUpcomingShort(heroGroup.dueDate)}`
+    : null
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -482,36 +630,72 @@ export function CardDetailClient({
               {currentCard.name}
             </h1>
           )}
+          {!isEditingName && headerSubtitle && (
+            <p className="type-meta text-text-tertiary">{headerSubtitle}</p>
+          )}
         </div>
       </header>
 
-      <div className="space-y-6 px-4 py-5">
+      <div className="space-y-6 px-4 py-5 pb-32">
+        {/* Hero financiero */}
+        {renderHero()}
+
+        {/* Resumenes accordion */}
+        <section>
+          {combinedCycles.length === 0 ? (
+            <p className="px-1 type-meta text-text-tertiary">
+              Sin gastos registrados en los ultimos meses.
+            </p>
+          ) : (
+            <div className="space-y-3">
+              {combinedCycles.map((group) => renderStatementAccordion(group))}
+            </div>
+          )}
+        </section>
+
+        {/* Configuracion */}
         <section>
           <p className="mb-2 type-label text-text-tertiary">Configuracion</p>
           <div className="surface-module rounded-card px-4">
             <button
               onClick={() => setIsEditingCycle(true)}
-              className={`flex w-full items-center justify-between py-3.5 ${accounts.length > 0 ? 'border-b border-border-subtle' : ''}`}
+              className="flex w-full items-center justify-between border-b border-border-subtle py-3.5"
             >
               <span className="type-meta text-text-secondary">Ciclo</span>
               <div className="flex items-center gap-2">
                 <span className="type-meta font-semibold text-text-primary">
                   {currentCard.closing_day && currentCard.due_day
-                    ? `Cierre dia ${currentCard.closing_day} - Vence dia ${currentCard.due_day}`
+                    ? `Cierre día ${currentCard.closing_day} · Vence día ${currentCard.due_day}`
                     : currentCard.closing_day
-                      ? `Cierre dia ${currentCard.closing_day}`
+                      ? `Cierre día ${currentCard.closing_day}`
                       : 'Sin configurar'}
                 </span>
                 <span className="type-meta font-medium text-primary">Editar</span>
               </div>
             </button>
 
-            {accounts.length > 0 && (
-              <div className="py-3.5">
-                <span className="mb-2 block type-meta text-text-secondary">Cuenta de debito</span>
-                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <div className={`py-3.5 ${upcomingClosingDate ? 'border-b border-border-subtle' : ''}`}>
+              <div className="flex items-center justify-between">
+                <span className="type-meta text-text-secondary">Cuenta de débito</span>
+                <div className="flex items-center gap-2">
+                  <span className="type-meta text-text-primary">
+                    {selectedAccount?.name ?? 'Sin cuenta'}
+                  </span>
                   <button
-                    onClick={() => void patchCard({ account_id: null })}
+                    onClick={() => setIsEditingAccountConfig((prev) => !prev)}
+                    className="type-meta font-medium text-primary"
+                  >
+                    Editar
+                  </button>
+                </div>
+              </div>
+              {isEditingAccountConfig && (
+                <div className="mt-2 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  <button
+                    onClick={() => {
+                      void patchCard({ account_id: null })
+                      setIsEditingAccountConfig(false)
+                    }}
                     className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
                       !currentCard.account_id
                         ? 'border-primary bg-primary/15 text-primary'
@@ -520,112 +704,41 @@ export function CardDetailClient({
                   >
                     Sin cuenta
                   </button>
-                  {[...accounts].sort((a) => (a.id === currentCard.account_id ? -1 : 1)).map((account) => (
-                    <button
-                      key={account.id}
-                      onClick={() => void patchCard({ account_id: account.id })}
-                      className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                        currentCard.account_id === account.id
-                          ? 'border-primary bg-primary/15 text-primary'
-                          : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
-                      }`}
-                    >
-                      {account.name}
-                    </button>
-                  ))}
+                  {[...accounts]
+                    .sort((a) => (a.id === currentCard.account_id ? -1 : 1))
+                    .map((account) => (
+                      <button
+                        key={account.id}
+                        onClick={() => {
+                          void patchCard({ account_id: account.id })
+                          setIsEditingAccountConfig(false)
+                        }}
+                        className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          currentCard.account_id === account.id
+                            ? 'border-primary bg-primary/15 text-primary'
+                            : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                        }`}
+                      >
+                        {account.name}
+                      </button>
+                    ))}
                 </div>
-                {upcomingClosingDate && (
-                  <p className="mt-2 text-[12px] text-text-dim">
-                    Proximo cierre: {formatUpcomingShort(upcomingClosingDate)}
-                  </p>
-                )}
-              </div>
-            )}
+              )}
+            </div>
 
-            {accounts.length === 0 && upcomingClosingDate && (
+            {upcomingClosingDate && (
               <div className="flex items-center justify-between py-3.5">
-                <span className="type-meta text-text-secondary">Proximo cierre</span>
-                <span className="text-[12px] text-text-dim">{formatUpcomingShort(upcomingClosingDate)}</span>
+                <span className="type-meta text-text-secondary">Próximo cierre</span>
+                <span className="type-meta text-text-dim">
+                  {formatUpcomingShort(upcomingClosingDate)}
+                </span>
               </div>
             )}
           </div>
         </section>
 
+        {/* Pago anterior a Gota */}
         <section>
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <p className="type-label text-text-tertiary">Resumenes</p>
-            <div className="flex items-center gap-1">
-              {currencyOrder.map((currency) => (
-                <span
-                  key={currency}
-                  className={`rounded-full px-2.5 py-1 text-[10px] font-semibold tracking-wide ${
-                    currency === initialCurrency
-                      ? 'bg-primary/10 text-primary'
-                      : 'bg-bg-secondary text-text-tertiary'
-                  }`}
-                >
-                  {currency}
-                </span>
-              ))}
-            </div>
-          </div>
-
-          {combinedCycles.length === 0 ? (
-            <p className="px-1 type-meta text-text-tertiary">
-              Sin gastos registrados en los ultimos meses.
-            </p>
-          ) : (
-            <div className="space-y-3">
-              {combinedCycles.map((group) => (
-                <div key={group.key} className="surface-module rounded-card px-4 py-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
-                      <p className="type-body font-semibold text-text-primary">
-                        {periodMonthLabel(group.periodMonth)}
-                      </p>
-                      <p className="mt-0.5 type-meta text-text-tertiary">
-                        {formatDate(group.closingDate)} - {formatDate(group.dueDate)}
-                      </p>
-                    </div>
-                    {group.isCurrent && (
-                      <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-primary">
-                        Resumen actual
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="mt-3 space-y-2">
-                    {group.blocks.map((block) => renderCurrencyRow(block))}
-                  </div>
-
-                  {/* Unified pay button — shown if any currency is unpaid */}
-                  {group.blocks.some((b) => b.cycle.cycleStatus !== 'pagado') && (
-                    <button
-                      onClick={() => setPayingTarget({ cycleGroup: group })}
-                      className="mt-3 w-full rounded-button border border-primary py-2 text-[13px] font-semibold text-primary transition-opacity active:opacity-70"
-                    >
-                      {group.isCurrent
-                        ? group.blocks.some((b) => b.cycle.has_partial_payment)
-                          ? 'Registrar otro pago'
-                          : 'Registrar pago'
-                        : group.blocks.some((b) => b.cycle.has_partial_payment)
-                          ? 'Registrar otro pago'
-                          : 'Pagar resumen'}
-                    </button>
-                  )}
-
-                  {group.representativeCycle.source === 'legacy' && (
-                    <p className="mt-3 type-meta text-text-tertiary">
-                      Este resumen todavia viene del historial calculado por Gota.
-                    </p>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
-
-        <section className="space-y-4">
           <div className="overflow-hidden rounded-card bg-bg-secondary">
             <div className="px-4 py-3.5">
               <div className="flex items-start gap-3">
@@ -634,12 +747,14 @@ export function CardDetailClient({
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="type-body font-medium text-text-primary">Pago anterior a Gota</p>
-                  <p className="type-meta text-text-tertiary">Elegi la moneda de la deuda que queres registrar</p>
+                  <p className="type-meta text-text-tertiary">
+                    Elegi la moneda de la deuda que queres registrar
+                  </p>
                 </div>
               </div>
 
               <div className="mt-3 flex gap-2">
-                {currencyOrder.map((currency) => (
+                {(['ARS', 'USD'] as const).map((currency) => (
                   <button
                     key={currency}
                     onClick={() => setLegacyPaymentCurrency(currency)}
@@ -651,38 +766,39 @@ export function CardDetailClient({
               </div>
             </div>
           </div>
-
-          <div className="pb-8 pt-2 text-center">
-            {isDeletingConfirm ? (
-              <div className="space-y-2 rounded-card bg-danger/5 px-4 py-3 text-left">
-                <p className="type-meta font-medium text-danger">Eliminar "{currentCard.name}"?</p>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => setIsDeletingConfirm(false)}
-                    disabled={isDeleting}
-                    className="flex-1 rounded-button border border-border-strong py-2 type-meta text-text-secondary disabled:opacity-50"
-                  >
-                    Cancelar
-                  </button>
-                  <button
-                    onClick={() => void deleteCard()}
-                    disabled={isDeleting}
-                    className="flex-1 rounded-button bg-danger py-2 type-meta font-semibold text-white disabled:opacity-50"
-                  >
-                    {isDeleting ? 'Eliminando...' : 'Confirmar'}
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsDeletingConfirm(true)}
-                className="type-meta text-text-dim underline-offset-2 hover:underline"
-              >
-                Eliminar tarjeta
-              </button>
-            )}
-          </div>
         </section>
+
+        {/* Eliminar tarjeta */}
+        <div className="pt-2 text-center">
+          {isDeletingConfirm ? (
+            <div className="space-y-2 rounded-card bg-danger/5 px-4 py-3 text-left">
+              <p className="type-meta font-medium text-danger">Eliminar &quot;{currentCard.name}&quot;?</p>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setIsDeletingConfirm(false)}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-button border border-border-strong py-2 type-meta text-text-secondary disabled:opacity-50"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={() => void deleteCard()}
+                  disabled={isDeleting}
+                  className="flex-1 rounded-button bg-danger py-2 type-meta font-semibold text-white disabled:opacity-50"
+                >
+                  {isDeleting ? 'Eliminando...' : 'Confirmar'}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              onClick={() => setIsDeletingConfirm(true)}
+              className="type-meta text-text-dim underline-offset-2 hover:underline"
+            >
+              Eliminar tarjeta
+            </button>
+          )}
+        </div>
       </div>
 
       {isEditingCycle && (
