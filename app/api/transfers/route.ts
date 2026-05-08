@@ -43,7 +43,7 @@ export async function POST(request: Request) {
   if (!from_account_id || !to_account_id || !amount_from || !amount_to || !currency_from || !currency_to || !date) {
     return NextResponse.json({ error: 'Faltan campos requeridos' }, { status: 400 })
   }
-  if (from_account_id === to_account_id) {
+  if (from_account_id === to_account_id && currency_from === currency_to) {
     return NextResponse.json({ error: 'Origen y destino no pueden ser la misma cuenta' }, { status: 400 })
   }
 

@@ -37,11 +37,11 @@ export async function PATCH(
     date,
   } = body
 
-  if (from_account_id === to_account_id) {
+  if (from_account_id === to_account_id && currency_from === currency_to) {
     return NextResponse.json({ error: 'Origen y destino no pueden ser la misma cuenta' }, { status: 400 })
   }
 
-  const { error } = await supabase
+  const { data: updated, error } = await supabase
     .from('transfers')
     .update({
       from_account_id,
@@ -56,8 +56,12 @@ export async function PATCH(
     })
     .eq('id', id)
     .eq('user_id', user.id)
+    .select('id')
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (!updated || updated.length === 0) {
+    return NextResponse.json({ error: 'No se encontró la transferencia' }, { status: 404 })
+  }
   return NextResponse.json({ ok: true })
 }
 

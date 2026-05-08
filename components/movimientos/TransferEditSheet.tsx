@@ -64,7 +64,7 @@ export function TransferEditSheet({ transfer, accounts, onClose, onUpdate }: Pro
 
   const handleSave = async () => {
     if (!fromAccountId || !toAccountId) return setError('Seleccioná las cuentas')
-    if (fromAccountId === toAccountId) return setError('Origen y destino no pueden ser la misma cuenta')
+    if (fromAccountId === toAccountId && currencyFrom === currencyTo) return setError('Origen y destino no pueden ser la misma cuenta')
     if (!amountFrom || Number(amountFrom) <= 0) return setError('Ingresá el monto')
     if (!amountTo || Number(amountTo) <= 0) return setError('Ingresá el monto de destino')
     if (!date) return setError('Ingresá la fecha')

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import { CaretLeft, CaretRight, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
@@ -113,6 +114,7 @@ interface Props {
 }
 
 export function MovimientosClient({ initialMonth, initialData, initialCategoria, initialSoloPercibidos }: Props) {
+  const router = useRouter()
   const [selectedMonth, setSelectedMonth] = useState(initialMonth)
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>(() => {
     if (!initialCategoria) return EMPTY_FILTERS
@@ -211,7 +213,8 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
   const handleRefresh = useCallback(() => {
     setPage(1)
     fetchMovements(selectedMonth, activeFilters, 1, false)
-  }, [fetchMovements, selectedMonth, activeFilters])
+    router.refresh()
+  }, [fetchMovements, selectedMonth, activeFilters, router])
 
   const handlePrevMonth = () => setSelectedMonth((m) => addMonths(m, -1))
   const handleNextMonth = () => setSelectedMonth((m) => addMonths(m, 1))
