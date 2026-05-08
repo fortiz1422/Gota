@@ -113,7 +113,7 @@ export function CardDetailClient({
   const [saveCycleError, setSaveCycleError] = useState<string | null>(null)
   const [revertError, setRevertError] = useState<string | null>(null)
   const [detailKey, setDetailKey] = useState<string | null>(null)
-  const [expandedStatementKey, setExpandedStatementKey] = useState<string | null | undefined>(undefined)
+  const [expandedStatementKey, setExpandedStatementKey] = useState<string | null>(null)
   const [isEditingAccountConfig, setIsEditingAccountConfig] = useState(false)
 
   const cycleExpensesMap = useMemo(() => {
@@ -175,9 +175,17 @@ export function CardDetailClient({
     [combinedCycles],
   )
 
-  // undefined = user hasn't interacted, use currentGroupKey as default
-  // null = user explicitly collapsed all
-  const expandedKey = expandedStatementKey !== undefined ? expandedStatementKey : currentGroupKey
+  const heroGroup = useMemo(
+    () =>
+      combinedCycles.find((g) => getGroupStatus(g) === 'vencido') ??
+      combinedCycles.find((g) => getGroupStatus(g) === 'cerrado') ??
+      combinedCycles.find((g) => g.isCurrent) ??
+      combinedCycles[0] ??
+      null,
+    [combinedCycles],
+  )
+
+  const expandedKey = expandedStatementKey
 
   function toggleStatement(key: string) {
     setExpandedStatementKey((prev) => (prev === key ? null : key))
@@ -284,7 +292,6 @@ export function CardDetailClient({
   }
 
   const renderHero = () => {
-    const heroGroup = combinedCycles.find((g) => g.isCurrent) ?? combinedCycles[0]
     if (!heroGroup) return null
 
     const arsBlock = heroGroup.blocks.find((b) => b.currency === 'ARS')
@@ -302,8 +309,11 @@ export function CardDetailClient({
             <span className="inline-flex items-center rounded-full bg-primary/10 px-2.5 py-0.5 text-[10px] font-semibold text-primary">
               A pagar
             </span>
+            <p className="mt-1.5 type-meta text-text-tertiary">
+              Resumen de {periodMonthLabel(heroGroup.periodMonth)}
+            </p>
 
-            <div className="mt-3">
+            <div className="mt-2">
               {arsRemaining > 0 && (
                 <p className="text-[28px] font-bold tabular-nums leading-tight text-text-primary">
                   {formatAmount(arsRemaining, 'ARS')}
@@ -585,11 +595,15 @@ export function CardDetailClient({
     )
   }
 
-  const heroGroup = combinedCycles.find((g) => g.isCurrent) ?? combinedCycles[0]
+  const heroGroupStatus = heroGroup ? getGroupStatus(heroGroup) : null
   const headerSubtitle = heroGroup
-    ? heroGroup.isCurrent
-      ? `Resumen actual · vence ${formatUpcomingShort(heroGroup.dueDate)}`
-      : `Resumen cerrado · vence ${formatUpcomingShort(heroGroup.dueDate)}`
+    ? heroGroupStatus === 'vencido'
+      ? `Resumen vencido · venció ${formatUpcomingShort(heroGroup.dueDate)}`
+      : heroGroupStatus === 'cerrado'
+        ? `Resumen cerrado · vence ${formatUpcomingShort(heroGroup.dueDate)}`
+        : heroGroup.isCurrent
+          ? `Resumen actual · vence ${formatUpcomingShort(heroGroup.dueDate)}`
+          : null
     : null
 
   return (

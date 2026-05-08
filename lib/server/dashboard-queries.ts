@@ -8,7 +8,7 @@ import {
   sumActiveInstrumentCapital,
   sumCrossCurrencyTransferAdjustment,
 } from '@/lib/live-balance'
-import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
+import { computeCompromisos, type CompromisosData } from '@/lib/analytics/computeCompromisos'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
@@ -56,6 +56,7 @@ export type DashboardApiData = {
   capitalInstrumentosMes: number
   recurringPending: RecurringIncome[]
   activeRecurring: RecurringIncome[]
+  compromisos: CompromisosData | null
 }
 
 type ReadDashboardDataParams = {
@@ -363,24 +364,33 @@ export async function readDashboardData({
     ...((paidCyclesData ?? []) as CardCycle[]),
   ]
   const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmountsData ?? []) as CardCycleAmount[])
-  const computeCardCommitmentDebt = (commitmentCurrency: 'ARS' | 'USD') => {
-    const compromisos = computeCompromisos(
-      compromisoExpenses.filter((expense) => expense.currency === commitmentCurrency),
-      cards,
-      allCardCycles,
-      null,
-      selectedMonth,
-      isCurrentMonth,
-      activeSubscriptions,
-      commitmentCurrency,
-      cycleAmountsMap,
-    )
-    return compromisos.totalAPagar + compromisos.totalEnCurso
-  }
+  const otherCurrency = viewCurrency === 'ARS' ? 'USD' : 'ARS'
+  const compromisosView = computeCompromisos(
+    compromisoExpenses.filter((expense) => expense.currency === viewCurrency),
+    cards,
+    allCardCycles,
+    null,
+    selectedMonth,
+    isCurrentMonth,
+    activeSubscriptions,
+    viewCurrency,
+    cycleAmountsMap,
+  )
+  const otherCurrencyCompromisos = computeCompromisos(
+    compromisoExpenses.filter((expense) => expense.currency === otherCurrency),
+    cards,
+    allCardCycles,
+    null,
+    selectedMonth,
+    isCurrentMonth,
+    activeSubscriptions,
+    otherCurrency,
+    cycleAmountsMap,
+  )
   const liveGastosTarjetaByCurrency = {
-    ARS: computeCardCommitmentDebt('ARS'),
-    USD: computeCardCommitmentDebt('USD'),
-  }
+    [viewCurrency]: compromisosView.totalAPagar + compromisosView.totalEnCurso,
+    [otherCurrency]: otherCurrencyCompromisos.totalAPagar + otherCurrencyCompromisos.totalEnCurso,
+  } as Record<'ARS' | 'USD', number>
   const liveGastosTarjeta = liveGastosTarjetaByCurrency[viewCurrency]
 
   const transferAdjustmentByCurrency = {
@@ -485,5 +495,6 @@ export async function readDashboardData({
     capitalInstrumentosMes,
     recurringPending,
     activeRecurring,
+    compromisos: compromisosView,
   }
 }

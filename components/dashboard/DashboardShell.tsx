@@ -1,7 +1,7 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { CommitmentsSummary } from '@/components/dashboard/CommitmentsSummary'
@@ -15,11 +15,8 @@ import { SubscriptionReviewBanner } from '@/components/subscriptions/Subscriptio
 import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
-import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
-import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
-import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
 
@@ -122,16 +119,6 @@ export function DashboardShell({
     initialData,
   })
 
-  const analyticsQuery = useQuery<AnalyticsApiData>({
-    queryKey: ['analytics', selectedMonth, viewCurrency],
-    queryFn: async () => {
-      const res = await fetch(`/api/analytics-data?month=${selectedMonth}&currency=${viewCurrency}`)
-      if (!res.ok) throw new Error('analytics fetch failed')
-      return res.json()
-    },
-    staleTime: 60_000,
-  })
-
   const cotizacionQuery = useQuery<CotizacionApiData | null>({
     queryKey: ['cotizacion-bna'],
     queryFn: async () => {
@@ -193,20 +180,7 @@ export function DashboardShell({
     })
   }, [selectedMonth, viewCurrency, queryClient])
 
-  const compromisos = useMemo(() => {
-    if (!analyticsQuery.data || !data) return null
-    return computeCompromisos(
-      analyticsQuery.data.compromisoExpenses,
-      analyticsQuery.data.cards,
-      analyticsQuery.data.cardCycles,
-      analyticsQuery.data.ingresoMes,
-      selectedMonth,
-      data.isCurrentMonth,
-      analyticsQuery.data.subscriptions,
-      analyticsQuery.data.currency,
-      buildCardCycleAmountsMap(analyticsQuery.data.cardCycleAmounts),
-    )
-  }, [analyticsQuery.data, data, selectedMonth])
+  const compromisos = data?.compromisos ?? null
 
   if (isLoading || !data) return <DashboardSkeleton />
 
