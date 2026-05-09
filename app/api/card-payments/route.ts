@@ -43,6 +43,7 @@ type UnifiedBody = {
   card_id: string
   date: string
   account_id: string | null
+  account_id_usd?: string | null
   payment_method?: PaymentMethod
   description?: string
   payments: PaymentItem[]
@@ -105,6 +106,17 @@ type CycleUpdatePlan = {
   }
 }
 
+type PlannedItem = {
+  plans: CycleUpdatePlan[]
+  item: PaymentItem
+}
+
+type Leg = {
+  items: PaymentItem[]
+  accountId: string | null
+  legCurrency: 'ARS' | 'USD'
+}
+
 // ─── Helpers ───────────────────────────────────────────────────────────────
 
 function isMissingCardPaymentAllocationsTableError(message: string | undefined): boolean {
@@ -113,6 +125,46 @@ function isMissingCardPaymentAllocationsTableError(message: string | undefined):
 
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function getRequestedAmountForLeg(params: {
+  leg: Leg
+  plannedItems: PlannedItem[]
+  exchangeRate?: number | null
+}): number {
+  const { leg, plannedItems, exchangeRate } = params
+
+  return roundMoney(
+    plannedItems.reduce((sum, planned) => {
+      const belongsToLeg = leg.items.some((item) => item === planned.item)
+      if (!belongsToLeg) return sum
+
+      const applied = roundMoney(planned.plans.reduce((subtotal, plan) => subtotal + plan.appliedAmount, 0))
+
+      if (planned.item.currency === leg.legCurrency) {
+        return sum + applied
+      }
+
+      if (planned.item.currency === 'USD' && leg.legCurrency === 'ARS' && exchangeRate) {
+        return sum + roundMoney(applied * exchangeRate)
+      }
+
+      return sum
+    }, 0),
+  )
+}
+
+function getCreatedExpenseIds(expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>>): string[] {
+  return Object.values(expenseIdByLegCurrency).filter((value): value is string => !!value)
+}
+
+function getAllocationExpenseCurrency(params: {
+  itemCurrency: 'ARS' | 'USD'
+  expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>>
+  fallbackCurrency: 'ARS' | 'USD'
+}): 'ARS' | 'USD' {
+  const { itemCurrency, expenseIdByLegCurrency, fallbackCurrency } = params
+  return expenseIdByLegCurrency[itemCurrency] ? itemCurrency : fallbackCurrency
 }
 
 function addOneDay(dateStr: string): string {
@@ -341,7 +393,7 @@ export async function POST(request: Request) {
     }
   }
 
-  const { card_id, account_id, from_currency, exchange_rate, payments, is_legacy_card_payment } = unifiedBody
+  const { card_id, account_id, account_id_usd, from_currency, exchange_rate, payments, is_legacy_card_payment } = unifiedBody
   const paymentMethod: PaymentMethod = unifiedBody.payment_method ?? 'DEBIT'
   const rawDate = typeof unifiedBody.date === 'string' ? unifiedBody.date : ''
   const paymentDate = rawDate.substring(0, 10)
@@ -446,7 +498,6 @@ export async function POST(request: Request) {
   const cycleAmountsMap = buildCardCycleAmountsMap(cycleAmountsData ?? [])
 
   // ── Build plans for each payment item ────────────────────────────────────
-  type PlannedItem = { plans: CycleUpdatePlan[]; item: PaymentItem }
   const allPlannedItems: PlannedItem[] = []
 
   try {
@@ -476,66 +527,91 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'No se pudo aplicar este pago a ningún resumen' }, { status: 400 })
   }
 
-  // ── Compute total amount in from_currency ─────────────────────────────────
-  let totalInFromCurrency = 0
-  for (const { plans, item } of allPlannedItems) {
-    const totalApplied = roundMoney(plans.reduce((sum, p) => sum + p.appliedAmount, 0))
-    if (item.currency === from_currency) {
-      totalInFromCurrency += totalApplied
-    } else if (item.currency === 'USD' && from_currency === 'ARS' && exchange_rate) {
-      totalInFromCurrency += roundMoney(totalApplied * exchange_rate)
-    }
-    // USD paid with USD (from_currency='USD'): totalApplied already in USD
-    // ARS paid with USD: not supported
-  }
-  totalInFromCurrency = roundMoney(totalInFromCurrency)
+  const arsItems = payments.filter((item) => item.currency === 'ARS' && roundMoney(item.amount ?? 0) > 0)
+  const usdItems = payments.filter((item) => item.currency === 'USD' && roundMoney(item.amount ?? 0) > 0)
+  const hasSplitLegs = !!account_id_usd && arsItems.length > 0 && usdItems.length > 0 && from_currency === 'ARS'
 
-  if (account_id) {
+  const legs: Leg[] = hasSplitLegs
+    ? [
+        { items: arsItems, accountId: account_id, legCurrency: 'ARS' },
+        { items: usdItems, accountId: account_id_usd, legCurrency: 'USD' },
+      ]
+    : [{ items: payments, accountId: account_id, legCurrency: from_currency }]
+
+  for (const leg of legs) {
+    if (!leg.accountId) continue
+
+    const requestedAmount = getRequestedAmountForLeg({
+      leg,
+      plannedItems: allPlannedItems,
+      exchangeRate: exchange_rate,
+    })
+
+    if (requestedAmount <= 0) continue
+
     const availableBalance = await getCurrentAccountBalance({
       supabase,
       userId: user.id,
-      accountId: account_id,
-      currency: from_currency,
+      accountId: leg.accountId,
+      currency: leg.legCurrency,
     })
 
-    if (availableBalance != null && !hasSufficientFunds(availableBalance, totalInFromCurrency)) {
+    if (availableBalance != null && !hasSufficientFunds(availableBalance, requestedAmount)) {
       return NextResponse.json(
         {
-          error: `No alcanza el saldo de la cuenta seleccionada. Disponible hoy: ${formatAmount(availableBalance, from_currency)}.`,
+          error: `No alcanza el saldo de la cuenta seleccionada. Disponible hoy: ${formatAmount(availableBalance, leg.legCurrency)}.`,
           code: 'INSUFFICIENT_FUNDS',
           availableBalance,
-          requestedAmount: totalInFromCurrency,
-          currency: from_currency,
+          requestedAmount,
+          currency: leg.legCurrency,
         },
         { status: 400 },
       )
     }
   }
 
-  // ── Create single payment expense ─────────────────────────────────────────
-  const { data: paymentExpense, error: paymentExpenseError } = await supabase
-    .from('expenses')
-    .insert({
-      user_id: user.id,
-      amount: totalInFromCurrency,
-      currency: from_currency,
-      category: 'Pago de Tarjetas',
-      description: unifiedBody.description ?? `Pago ${card.name}`,
-      payment_method: paymentMethod,
-      card_id: card.id,
-      account_id,
-      date: rawDate,
-      is_want: null,
-      is_legacy_card_payment: false,
-    })
-    .select('id')
-    .single()
+  // ── Create one payment expense per leg ────────────────────────────────────
+  const expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>> = {}
 
-  if (paymentExpenseError || !paymentExpense) {
-    return NextResponse.json(
-      { error: paymentExpenseError?.message ?? 'No se pudo registrar el pago' },
-      { status: 500 },
-    )
+  for (const leg of legs) {
+    const legTotal = getRequestedAmountForLeg({
+      leg,
+      plannedItems: allPlannedItems,
+      exchangeRate: exchange_rate,
+    })
+
+    if (legTotal <= 0) continue
+
+    const { data: paymentExpense, error: paymentExpenseError } = await supabase
+      .from('expenses')
+      .insert({
+        user_id: user.id,
+        amount: legTotal,
+        currency: leg.legCurrency,
+        category: 'Pago de Tarjetas',
+        description: unifiedBody.description ?? `Pago ${card.name}`,
+        payment_method: paymentMethod,
+        card_id: card.id,
+        account_id: leg.accountId,
+        date: rawDate,
+        is_want: null,
+        is_legacy_card_payment: false,
+      })
+      .select('id')
+      .single()
+
+    if (paymentExpenseError || !paymentExpense) {
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      if (createdExpenseIds.length > 0) {
+        await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
+      }
+      return NextResponse.json(
+        { error: paymentExpenseError?.message ?? 'No se pudo registrar el pago' },
+        { status: 500 },
+      )
+    }
+
+    expenseIdByLegCurrency[leg.legCurrency] = paymentExpense.id
   }
 
   // ── Create adjustment expenses (per payment item, if applicable) ──────────
@@ -543,7 +619,6 @@ export async function POST(request: Request) {
 
   for (const { plans, item } of allPlannedItems) {
     if (!item.adjustment || item.adjustment.amount <= 0) continue
-    // Only apply adjustment when there's an explicit cycle target
     const hasExplicitCycle = !!(item.cycle_id || item.cycle?.period_month)
     if (!hasExplicitCycle) continue
 
@@ -568,8 +643,10 @@ export async function POST(request: Request) {
       .single()
 
     if (adjustmentError || !adjustmentExpense) {
-      // Rollback payment expense
-      await supabase.from('expenses').delete().eq('id', paymentExpense.id).eq('user_id', user.id)
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      if (createdExpenseIds.length > 0) {
+        await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
+      }
       for (const adjId of adjustmentExpenseIds) {
         await supabase.from('expenses').delete().eq('id', adjId).eq('user_id', user.id)
       }
@@ -583,23 +660,38 @@ export async function POST(request: Request) {
   }
 
   // ── Insert allocations ────────────────────────────────────────────────────
-  const allocationRows = allPlannedItems.flatMap(({ plans, item }) =>
-    plans.map((plan) => ({
+  const allocationRows = allPlannedItems.flatMap(({ plans, item }) => {
+    const expenseId = expenseIdByLegCurrency[item.currency] ?? expenseIdByLegCurrency[from_currency]
+    if (!expenseId) return []
+
+    const expenseCurrency = getAllocationExpenseCurrency({
+      itemCurrency: item.currency,
+      expenseIdByLegCurrency,
+      fallbackCurrency: from_currency,
+    })
+
+    return plans.map((plan) => ({
       user_id: user.id,
-      expense_id: paymentExpense.id,
+      expense_id: expenseId,
       card_cycle_id: plan.cycle.id,
       amount_applied: plan.appliedAmount,
       currency: item.currency,
-      exchange_rate: item.currency !== from_currency ? (exchange_rate ?? null) : null,
-    })),
-  )
+      exchange_rate:
+        item.currency !== expenseCurrency && item.currency === 'USD' && expenseCurrency === 'ARS'
+          ? (exchange_rate ?? null)
+          : null,
+    }))
+  })
 
   let allocationsCreated = false
   const { error: allocationsError } = await supabase.from('card_payment_allocations').insert(allocationRows)
 
   if (allocationsError) {
     if (!isMissingCardPaymentAllocationsTableError(allocationsError.message)) {
-      await supabase.from('expenses').delete().eq('id', paymentExpense.id).eq('user_id', user.id)
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      if (createdExpenseIds.length > 0) {
+        await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
+      }
       for (const adjId of adjustmentExpenseIds) {
         await supabase.from('expenses').delete().eq('id', adjId).eq('user_id', user.id)
       }
@@ -629,7 +721,6 @@ export async function POST(request: Request) {
         .upsert(payload, { onConflict: 'card_cycle_id,currency' })
 
       if (error) {
-        // Rollback previously updated cycle amounts
         for (const updatedKey of updatedCycleKeys) {
           const [cycleId, currency] = updatedKey.split(':')
           const matchedPlan = allPlannedItems
@@ -652,15 +743,19 @@ export async function POST(request: Request) {
             )
         }
 
-        if (allocationsCreated) {
+        const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+
+        if (allocationsCreated && createdExpenseIds.length > 0) {
           await supabase
             .from('card_payment_allocations')
             .delete()
             .eq('user_id', user.id)
-            .eq('expense_id', paymentExpense.id)
+            .in('expense_id', createdExpenseIds)
         }
 
-        await supabase.from('expenses').delete().eq('id', paymentExpense.id).eq('user_id', user.id)
+        if (createdExpenseIds.length > 0) {
+          await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
+        }
         for (const adjId of adjustmentExpenseIds) {
           await supabase.from('expenses').delete().eq('id', adjId).eq('user_id', user.id)
         }
@@ -673,10 +768,12 @@ export async function POST(request: Request) {
   }
 
   const allPlans = allPlannedItems.flatMap((x) => x.plans)
+  const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
 
   return NextResponse.json({
     ok: true,
-    expenseId: paymentExpense.id,
+    expenseId: createdExpenseIds[0] ?? null,
+    expenseIds: createdExpenseIds,
     cycleIds: allPlans.map((plan) => plan.cycle.id),
     allocationsCreated,
     fullySettled: allPlans.every((plan) => plan.next.status === 'paid'),

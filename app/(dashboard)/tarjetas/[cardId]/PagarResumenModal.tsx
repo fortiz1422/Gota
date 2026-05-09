@@ -62,14 +62,18 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     : 0
 
   const defaultAccountId = card.account_id ?? (accounts[0]?.id ?? '')
+  const bothCurrencies = !!(arsBlock && usdBlock)
 
   const [arsAmount, setArsAmount] = useState(Math.round(arsRemaining))
   const [usdAmount, setUsdAmount] = useState(usdRemaining)
   const [usdPayMode, setUsdPayMode] = useState<'USD' | 'ARS'>('ARS')
   const [exchangeRateStr, setExchangeRateStr] = useState('')
   const [accountId, setAccountId] = useState(defaultAccountId)
+  const [usdAccountId, setUsdAccountId] = useState(defaultAccountId)
   const [fecha, setFecha] = useState(todayAR())
   const [availableBalance, setAvailableBalance] = useState<number | null>(null)
+  const [arsAvailableBalance, setArsAvailableBalance] = useState<number | null>(null)
+  const [usdAvailableBalance, setUsdAvailableBalance] = useState<number | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -80,8 +84,11 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     setUsdPayMode('ARS')
     setExchangeRateStr('')
     setAccountId(defaultAccountId)
+    setUsdAccountId(defaultAccountId)
     setFecha(todayAR())
     setAvailableBalance(null)
+    setArsAvailableBalance(null)
+    setUsdAvailableBalance(null)
     setError(null)
   }, [cycleGroup.key]) // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -108,11 +115,13 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
   const hasArsPortion = !!(arsBlock && arsAmount > 0)
   const hasUsdInArsPortion = !!(usdBlock && usdAmount > 0 && usdPayMode === 'ARS')
   const fromCurrency: Currency = hasArsPortion || hasUsdInArsPortion ? 'ARS' : 'USD'
+  const isSplitMode = bothCurrencies && usdPayMode === 'USD' && hasArsPortion && usdAmount > 0
+  const primaryAccountLabel = isSplitMode ? 'Cuenta ARS' : fromCurrency === 'USD' ? 'Cuenta USD' : 'Cuenta'
 
   useEffect(() => {
     let cancelled = false
 
-    if (!accountId) {
+    if (!accountId || isSplitMode) {
       setAvailableBalance(null)
       return
     }
@@ -131,7 +140,55 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     return () => {
       cancelled = true
     }
-  }, [accountId, fromCurrency])
+  }, [accountId, fromCurrency, isSplitMode])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isSplitMode || !accountId || arsAmount <= 0) {
+      setArsAvailableBalance(null)
+      return
+    }
+
+    void fetch('/api/dashboard/account-breakdown?currency=ARS')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const match = data?.breakdown?.find?.((account: { id: string; saldo: number }) => account.id === accountId)
+        setArsAvailableBalance(typeof match?.saldo === 'number' ? match.saldo : null)
+      })
+      .catch(() => {
+        if (!cancelled) setArsAvailableBalance(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [accountId, arsAmount, isSplitMode])
+
+  useEffect(() => {
+    let cancelled = false
+
+    if (!isSplitMode || !usdAccountId || usdAmount <= 0) {
+      setUsdAvailableBalance(null)
+      return
+    }
+
+    void fetch('/api/dashboard/account-breakdown?currency=USD')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return
+        const match = data?.breakdown?.find?.((account: { id: string; saldo: number }) => account.id === usdAccountId)
+        setUsdAvailableBalance(typeof match?.saldo === 'number' ? match.saldo : null)
+      })
+      .catch(() => {
+        if (!cancelled) setUsdAvailableBalance(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [usdAccountId, usdAmount, isSplitMode])
 
   // Total that leaves the account
   const totalArsOut = (hasArsPortion ? arsAmount : 0) + usdInArs
@@ -142,8 +199,18 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
   const hasAnyAmount = (arsBlock ? arsAmount > 0 : false) || (usdBlock ? usdAmount > 0 : false)
   const requestedAmount = fromCurrency === 'ARS' ? totalArsOut : totalUsdOut
   const exceedsBalance = availableBalance != null && requestedAmount > availableBalance + 0.01
+  const arsExceedsBalance = arsAvailableBalance != null && arsAmount > arsAvailableBalance + 0.01
+  const usdExceedsBalance = usdAvailableBalance != null && usdAmount > usdAvailableBalance + 0.01
+  const requiresPrimaryAccount = isSplitMode ? hasArsPortion : hasAnyAmount
+  const requiresUsdAccount = isSplitMode && usdAmount > 0
   const canSubmit =
-    hasAnyAmount && !!accountId && !!fecha && (!needsRate || exchangeRateNum > 0) && !isSaving && !exceedsBalance
+    hasAnyAmount &&
+    !!fecha &&
+    (!needsRate || exchangeRateNum > 0) &&
+    !isSaving &&
+    (!requiresPrimaryAccount || !!accountId) &&
+    (!requiresUsdAccount || !!usdAccountId) &&
+    (isSplitMode ? !arsExceedsBalance && !usdExceedsBalance : !exceedsBalance)
 
   const handleSubmit = async () => {
     if (!canSubmit) return
@@ -201,6 +268,10 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         from_currency: fromCurrency,
       }
 
+      if (isSplitMode && usdAmount > 0) {
+        body.account_id_usd = usdAccountId
+      }
+
       if (needsRate && exchangeRateNum > 0) {
         body.exchange_rate = exchangeRateNum
       }
@@ -223,8 +294,6 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
       setIsSaving(false)
     }
   }
-
-  const bothCurrencies = !!(arsBlock && usdBlock)
 
   return (
     <Modal open={open} onClose={onClose}>
@@ -431,24 +500,46 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         {/* ── Cuenta & Fecha ── */}
         <div className="overflow-hidden rounded-[18px] bg-bg-tertiary">
           {accounts.length > 0 && (
-            <div className="border-b border-border-subtle px-4 py-3.5">
-              <p className="mb-2 text-xs text-text-secondary">Cuenta</p>
-              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                {accounts.map((account) => (
-                  <button
-                    key={account.id}
-                    onClick={() => setAccountId(account.id)}
-                    className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
-                      accountId === account.id
-                        ? 'border-primary bg-primary/15 text-primary'
-                        : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
-                    }`}
-                  >
-                    {account.name}
-                  </button>
-                ))}
+            <>
+              <div className="border-b border-border-subtle px-4 py-3.5">
+                <p className="mb-2 text-xs text-text-secondary">{primaryAccountLabel}</p>
+                <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                  {accounts.map((account) => (
+                    <button
+                      key={account.id}
+                      onClick={() => setAccountId(account.id)}
+                      className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                        accountId === account.id
+                          ? 'border-primary bg-primary/15 text-primary'
+                          : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                      }`}
+                    >
+                      {account.name}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+              {isSplitMode && (
+                <div className="border-b border-border-subtle px-4 py-3.5">
+                  <p className="mb-2 text-xs text-text-secondary">Cuenta USD</p>
+                  <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {accounts.map((account) => (
+                      <button
+                        key={`usd-${account.id}`}
+                        onClick={() => setUsdAccountId(account.id)}
+                        className={`flex shrink-0 items-center rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                          usdAccountId === account.id
+                            ? 'border-primary bg-primary/15 text-primary'
+                            : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+                        }`}
+                      >
+                        {account.name}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
           )}
           <div className="flex items-center justify-between px-4 py-3.5">
             <span className="text-sm text-text-secondary">Fecha</span>
@@ -462,32 +553,75 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         </div>
 
         {/* ── Summary hints (plain text, no extra cards) ── */}
-        {(showTotal || availableBalance != null) && (
+        {isSplitMode ? (
           <div className="space-y-1 px-1">
-            {showTotal && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-tertiary">Total que sale de tu cuenta</span>
-                <span className="text-xs font-bold tabular-nums text-text-primary">
-                  {fromCurrency === 'ARS'
-                    ? formatAmount(totalArsOut, 'ARS')
-                    : formatAmount(totalUsdOut, 'USD')}
-                </span>
-              </div>
+            {hasArsPortion && (
+              <>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-tertiary">Sale de cuenta ARS</span>
+                  <span className="text-xs font-bold tabular-nums text-text-primary">
+                    {formatAmount(arsAmount, 'ARS')}
+                  </span>
+                </div>
+                {arsAvailableBalance != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-tertiary">Disponible ARS</span>
+                    <span className={`text-xs font-semibold tabular-nums ${arsExceedsBalance ? 'text-danger' : 'text-text-secondary'}`}>
+                      {formatAmount(arsAvailableBalance, 'ARS')}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
-            {availableBalance != null && (
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-text-tertiary">Disponible hoy</span>
-                <span className={`text-xs font-semibold tabular-nums ${exceedsBalance ? 'text-danger' : 'text-text-secondary'}`}>
-                  {formatAmount(availableBalance, fromCurrency)}
-                </span>
-              </div>
+            {usdAmount > 0 && (
+              <>
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-xs text-text-tertiary">Sale de cuenta USD</span>
+                  <span className="text-xs font-bold tabular-nums text-text-primary">
+                    {formatAmount(usdAmount, 'USD')}
+                  </span>
+                </div>
+                {usdAvailableBalance != null && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs text-text-tertiary">Disponible USD</span>
+                    <span className={`text-xs font-semibold tabular-nums ${usdExceedsBalance ? 'text-danger' : 'text-text-secondary'}`}>
+                      {formatAmount(usdAvailableBalance, 'USD')}
+                    </span>
+                  </div>
+                )}
+              </>
             )}
           </div>
+        ) : (
+          (showTotal || availableBalance != null) && (
+            <div className="space-y-1 px-1">
+              {showTotal && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-tertiary">Total que sale de tu cuenta</span>
+                  <span className="text-xs font-bold tabular-nums text-text-primary">
+                    {fromCurrency === 'ARS'
+                      ? formatAmount(totalArsOut, 'ARS')
+                      : formatAmount(totalUsdOut, 'USD')}
+                  </span>
+                </div>
+              )}
+              {availableBalance != null && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-tertiary">Disponible hoy</span>
+                  <span className={`text-xs font-semibold tabular-nums ${exceedsBalance ? 'text-danger' : 'text-text-secondary'}`}>
+                    {formatAmount(availableBalance, fromCurrency)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )
         )}
 
-        {exceedsBalance && (
-          <p className="text-xs text-danger px-1">
-            El pago supera el saldo de la cuenta seleccionada.
+        {(isSplitMode ? arsExceedsBalance || usdExceedsBalance : exceedsBalance) && (
+          <p className="px-1 text-xs text-danger">
+            {isSplitMode
+              ? 'El pago supera el saldo de una de las cuentas seleccionadas.'
+              : 'El pago supera el saldo de la cuenta seleccionada.'}
           </p>
         )}
 
