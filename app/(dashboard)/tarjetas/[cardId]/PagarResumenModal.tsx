@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
+import { CATEGORIES } from '@/lib/validation/schemas'
 import type { Account, Card, Currency } from '@/types/database'
 import type { CycleGroup } from './CardDetailClient'
 
@@ -35,6 +36,15 @@ function formatMoneyInput(n: number): string {
   if (n === 0) return ''
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
+
+type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
+
+type AdjustmentDraft = {
+  motivo: Motivo
+  categoriaExtra: string
+}
+
+const ADJUSTABLE_CATEGORIES = CATEGORIES.filter((category) => category !== 'Pago de Tarjetas')
 
 interface Props {
   open: boolean
@@ -71,6 +81,14 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
   const [accountId, setAccountId] = useState(defaultAccountId)
   const [usdAccountId, setUsdAccountId] = useState(defaultAccountId)
   const [fecha, setFecha] = useState(todayAR())
+  const [arsAdjustment, setArsAdjustment] = useState<AdjustmentDraft>({
+    motivo: 'no_detallar',
+    categoriaExtra: 'Otros',
+  })
+  const [usdAdjustment, setUsdAdjustment] = useState<AdjustmentDraft>({
+    motivo: 'no_detallar',
+    categoriaExtra: 'Otros',
+  })
   const [availableBalance, setAvailableBalance] = useState<number | null>(null)
   const [arsAvailableBalance, setArsAvailableBalance] = useState<number | null>(null)
   const [usdAvailableBalance, setUsdAvailableBalance] = useState<number | null>(null)
@@ -86,6 +104,8 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     setAccountId(defaultAccountId)
     setUsdAccountId(defaultAccountId)
     setFecha(todayAR())
+    setArsAdjustment({ motivo: 'no_detallar', categoriaExtra: 'Otros' })
+    setUsdAdjustment({ motivo: 'no_detallar', categoriaExtra: 'Otros' })
     setAvailableBalance(null)
     setArsAvailableBalance(null)
     setUsdAvailableBalance(null)
@@ -195,6 +215,11 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
   const totalUsdOut = usdBlock && usdPayMode === 'USD' && usdAmount > 0 ? usdAmount : 0
   const showTotal = fromCurrency === 'ARS' ? totalArsOut > 0 : totalUsdOut > 0
 
+  const arsAdjustmentAmount = arsBlock ? Math.max(Math.round((arsAmount - arsRemaining) * 100) / 100, 0) : 0
+  const usdAdjustmentAmount = usdBlock ? Math.max(Math.round((usdAmount - usdRemaining) * 100) / 100, 0) : 0
+  const hasArsAdjustment = arsAdjustmentAmount >= 0.01
+  const hasUsdAdjustment = usdAdjustmentAmount >= 0.01
+
   const needsRate = !!(usdBlock && usdAmount > 0 && usdPayMode === 'ARS')
   const hasAnyAmount = (arsBlock ? arsAmount > 0 : false) || (usdBlock ? usdAmount > 0 : false)
   const requestedAmount = fromCurrency === 'ARS' ? totalArsOut : totalUsdOut
@@ -212,6 +237,38 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     (!requiresUsdAccount || !!usdAccountId) &&
     (isSplitMode ? !arsExceedsBalance && !usdExceedsBalance : !exceedsBalance)
 
+  const buildAdjustmentPayload = (draft: AdjustmentDraft, amount: number) => {
+    if (amount < 0.01 || draft.motivo === 'no_detallar') return undefined
+
+    return {
+      amount,
+      category: draft.motivo === 'cargo_banco' ? 'Cargos Bancarios' : draft.categoriaExtra,
+      description: draft.motivo === 'cargo_banco' ? 'Cargo bancario' : 'Gasto no registrado',
+      is_want: false,
+    }
+  }
+
+  const adjustmentSections = [
+    {
+      key: 'ars',
+      label: 'ARS',
+      currency: 'ARS' as const,
+      amount: arsAdjustmentAmount,
+      visible: hasArsAdjustment,
+      draft: arsAdjustment,
+      setDraft: setArsAdjustment,
+    },
+    {
+      key: 'usd',
+      label: 'USD',
+      currency: 'USD' as const,
+      amount: usdAdjustmentAmount,
+      visible: hasUsdAdjustment,
+      draft: usdAdjustment,
+      setDraft: setUsdAdjustment,
+    },
+  ].filter((section) => section.visible)
+
   const handleSubmit = async () => {
     if (!canSubmit) return
     setIsSaving(true)
@@ -227,11 +284,19 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         amount: number
         cycle_id?: string
         cycle?: { period_month: string; closing_date: string; due_date: string }
+        adjustment?: {
+          amount: number
+          category: string
+          description: string
+          is_want: boolean
+        }
       }
       const paymentItems: PaymentItem[] = []
 
       if (arsBlock && arsAmount > 0) {
         const item: PaymentItem = { currency: 'ARS', amount: arsAmount }
+        const adjustment = buildAdjustmentPayload(arsAdjustment, arsAdjustmentAmount)
+        if (adjustment) item.adjustment = adjustment
         if (arsBlock.cycle.source === 'stored') {
           item.cycle_id = arsBlock.cycle.id
         } else {
@@ -246,6 +311,8 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
 
       if (usdBlock && usdAmount > 0) {
         const item: PaymentItem = { currency: 'USD', amount: usdAmount }
+        const adjustment = buildAdjustmentPayload(usdAdjustment, usdAdjustmentAmount)
+        if (adjustment) item.adjustment = adjustment
         if (usdBlock.cycle.source === 'stored') {
           item.cycle_id = usdBlock.cycle.id
         } else {
@@ -346,7 +413,22 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
 
               {/* USD row */}
               <div className={usdPayMode === 'ARS' ? 'border-b border-border-subtle' : ''}>
-                <div className="flex items-center gap-3 px-4 py-3.5">
+                <div className="flex justify-end px-4 pt-3">
+                  <div className="flex items-center rounded-full bg-bg-secondary p-0.5">
+                    {(['USD', 'ARS'] as const).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setUsdPayMode(mode)}
+                        className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
+                          usdPayMode === mode ? 'bg-primary text-white' : 'text-text-tertiary'
+                        }`}
+                      >
+                        {mode}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 px-4 pb-3.5 pt-2">
                   <span className="w-8 shrink-0 text-xs font-semibold text-text-secondary">USD</span>
                   <input
                     type="text"
@@ -356,23 +438,9 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                       const raw = fromAR(e.target.value)
                       setUsdAmount(raw === '' ? 0 : parseFloat(raw))
                     }}
-                    className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
+                    className="min-w-0 flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
                     placeholder="0"
                   />
-                  {/* Mode toggle */}
-                  <div className="flex shrink-0 items-center rounded-full bg-bg-secondary p-0.5">
-                    {(['USD', 'ARS'] as const).map((mode) => (
-                      <button
-                        key={mode}
-                        onClick={() => setUsdPayMode(mode)}
-                        className={`rounded-full px-2.5 py-0.5 text-[10px] font-semibold transition-colors ${
-                          usdPayMode === mode ? 'bg-primary text-white' : 'text-text-tertiary'
-                        }`}
-                      >
-                        {mode}
-                      </button>
-                    ))}
-                  </div>
                 </div>
                 {usdRemaining > 0 && (
                   <p className="pb-2.5 pr-4 text-right text-xs text-text-tertiary">
@@ -623,6 +691,61 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
               ? 'El pago supera el saldo de una de las cuentas seleccionadas.'
               : 'El pago supera el saldo de la cuenta seleccionada.'}
           </p>
+        )}
+
+        {adjustmentSections.length > 0 && (
+          <div className="space-y-3 rounded-[18px] bg-bg-secondary px-4 py-4">
+            {adjustmentSections.map((section) => (
+              <div key={section.key} className="space-y-3 first:mt-0">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-tertiary">
+                  {section.label}: pagas {formatAmount(section.amount, section.currency)} de más · ¿Por qué?
+                </p>
+
+                {(['gasto_olvidado', 'cargo_banco', 'no_detallar'] as Motivo[]).map((motivo) => (
+                  <button
+                    key={`${section.key}-${motivo}`}
+                    type="button"
+                    onClick={() => section.setDraft((current) => ({ ...current, motivo }))}
+                    className="flex w-full items-center gap-3 text-left"
+                  >
+                    <div
+                      className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                        section.draft.motivo === motivo ? 'border-primary bg-primary' : 'border-border-strong'
+                      }`}
+                    >
+                      {section.draft.motivo === motivo && <div className="h-1.5 w-1.5 rounded-full bg-white" />}
+                    </div>
+                    <span className="text-sm text-text-primary">
+                      {motivo === 'gasto_olvidado'
+                        ? 'Gasto olvidado'
+                        : motivo === 'cargo_banco'
+                          ? 'Cargo del banco'
+                          : 'No detallar'}
+                    </span>
+                  </button>
+                ))}
+
+                {section.draft.motivo === 'gasto_olvidado' && (
+                  <div className="mt-1 border-t border-border-subtle pt-3">
+                    <p className="mb-2 text-[11px] text-text-tertiary">Categoría del gasto olvidado</p>
+                    <select
+                      value={section.draft.categoriaExtra}
+                      onChange={(event) =>
+                        section.setDraft((current) => ({ ...current, categoriaExtra: event.target.value }))
+                      }
+                      className="w-full rounded-input border border-border-strong bg-bg-primary px-3 py-2 text-sm text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+                    >
+                      {ADJUSTABLE_CATEGORIES.map((category) => (
+                        <option key={`${section.key}-${category}`} value={category}>
+                          {category}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
         )}
 
         {error && <p className="rounded-[14px] bg-danger-soft px-4 py-3 text-sm text-danger">{error}</p>}

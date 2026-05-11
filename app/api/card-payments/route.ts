@@ -308,8 +308,11 @@ async function buildPlansForItem(
     )
     const remainingAmount = getRemainingCardCycleAmount(statementAmount, originalCycle.amount_paid)
     const applyAllAsAdvance = !explicitCycle && originalCycle.closing_date >= paymentDate
+    const isFinalExplicitCycle = !!explicitCycle && index === targetCycles.length - 1
     const applyAmount = roundMoney(
-      applyAllAsAdvance ? remainingPayment : Math.min(remainingPayment, remainingAmount),
+      applyAllAsAdvance || isFinalExplicitCycle
+        ? remainingPayment
+        : Math.min(remainingPayment, remainingAmount),
     )
 
     if (applyAmount <= 0) continue

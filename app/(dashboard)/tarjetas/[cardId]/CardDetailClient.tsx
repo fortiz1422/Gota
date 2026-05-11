@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CaretDown, CaretUp, CheckCircle, ClockCounterClockwise } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { EnrichedCycle } from '@/lib/card-summaries'
@@ -96,6 +97,7 @@ export function CardDetailClient({
   initialCurrency,
 }: Props) {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const [currentCard, setCurrentCard] = useState<Card>(card)
   const [isDeleting, setIsDeleting] = useState(false)
   const [isDeletingConfirm, setIsDeletingConfirm] = useState(false)
@@ -229,6 +231,9 @@ export function CardDetailClient({
         throw new Error(data?.error ?? 'Error al revertir el pago.')
       }
       setRevertingKey(null)
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] })
+      queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
+      queryClient.invalidateQueries({ queryKey: ['analytics'] })
       router.refresh()
     } catch (error) {
       setRevertError(error instanceof Error ? error.message : 'Error al revertir el pago.')
@@ -396,7 +401,7 @@ export function CardDetailClient({
           />
         )}
 
-        {cycle.cycleStatus === 'pagado' && (
+        {(cycle.cycleStatus === 'pagado' || (cycle.amount_paid ?? 0) > 0) && (
           <>
             {revertingKey === actionKey ? (
               <div className="mx-3 mb-2.5 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
