@@ -14,6 +14,7 @@ import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
 import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
+import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
@@ -245,6 +246,11 @@ export function DashboardShell({
           </button>
           <HomePlusButton accounts={accounts} currency={currency} cards={cards} month={selectedMonth} />
         </div>
+
+        <PendingSharedReceiptBanner
+          canOpenComposer={accounts.length > 0}
+          onOpenComposer={promptFirstExpense}
+        />
 
         {accounts.length === 0 ? (
           <section className="rounded-card border border-border-subtle bg-bg-secondary/70 px-5 py-6">
