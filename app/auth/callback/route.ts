@@ -6,6 +6,7 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url)
   const code = requestUrl.searchParams.get('code')
   const authIntent = requestUrl.searchParams.get('auth_intent')
+  const next = requestUrl.searchParams.get('next')
 
   if (code) {
     const supabase = await createClient()
@@ -22,5 +23,7 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.redirect(new URL('/', request.url))
+  const fallbackNext = authIntent === 'anon_email_upgrade' ? '/auth/create-password' : '/'
+  const safeNext = next && next.startsWith('/') ? next : fallbackNext
+  return NextResponse.redirect(new URL(safeNext, request.url))
 }

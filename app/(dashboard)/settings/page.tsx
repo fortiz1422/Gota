@@ -12,6 +12,11 @@ export default async function SettingsPage() {
   } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const rawProviders = (user.app_metadata as { providers?: unknown } | undefined)?.providers
+  const authProviders = Array.isArray(rawProviders)
+    ? rawProviders.filter((provider): provider is string => typeof provider === 'string')
+    : []
+
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
       .from('user_config')
@@ -50,7 +55,11 @@ export default async function SettingsPage() {
         {/* Cuenta */}
         <section className="mt-10">
           <p className="mb-4 type-label text-text-label">Cuenta</p>
-          <AccountSection email={user.email ?? ''} />
+          <AccountSection
+            email={user.email ?? ''}
+            isAnonymous={user.is_anonymous === true}
+            authProviders={authProviders}
+          />
         </section>
       </div>
     </div>
