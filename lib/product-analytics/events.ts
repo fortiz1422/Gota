@@ -21,6 +21,9 @@ export const PRODUCT_EVENT_NAMES = [
   'share_target_received',
   'share_target_ready',
   'share_target_failed',
+  'share_target_preview_opened',
+  'share_target_continue_requested',
+  'share_target_dismissed',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]
