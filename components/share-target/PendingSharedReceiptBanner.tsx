@@ -13,6 +13,7 @@ import {
 interface PendingSharedReceiptBannerProps {
   canOpenComposer: boolean
   onOpenComposer: () => void
+  onOpenPreview: () => void
 }
 
 function bucketSharedFileType(type: string): 'image' | 'other' {
@@ -22,6 +23,7 @@ function bucketSharedFileType(type: string): 'image' | 'other' {
 export function PendingSharedReceiptBanner({
   canOpenComposer,
   onOpenComposer,
+  onOpenPreview,
 }: PendingSharedReceiptBannerProps) {
   const [pendingShare, setPendingShare] = useState<PendingSharedReceipt | null>(null)
   const trackedReadyRef = useRef<string | null>(null)
@@ -60,7 +62,7 @@ export function PendingSharedReceiptBanner({
       }
 
       if (canOpenComposer && consumeShareTargetFocusRequest()) {
-        onOpenComposer()
+        onOpenPreview()
       }
     }
 
@@ -71,7 +73,7 @@ export function PendingSharedReceiptBanner({
       cancelled = true
       window.removeEventListener('focus', syncPendingShare)
     }
-  }, [canOpenComposer, onOpenComposer])
+  }, [canOpenComposer, onOpenPreview])
 
   if (!pendingShare) return null
 
@@ -95,11 +97,18 @@ export function PendingSharedReceiptBanner({
         {pendingShare.name} · {pendingShare.type || 'archivo'}
       </p>
       <div className="mt-4 flex flex-wrap gap-3">
+        <button
+          type="button"
+          onClick={onOpenPreview}
+          className="rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:brightness-105"
+        >
+          Revisar captura
+        </button>
         {canOpenComposer && (
           <button
             type="button"
             onClick={onOpenComposer}
-            className="rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:brightness-105"
+            className="rounded-button border border-primary/20 bg-white/70 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-white"
           >
             Abrir carga
           </button>
