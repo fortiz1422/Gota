@@ -14,6 +14,7 @@ export const PRODUCT_EVENT_NAMES = [
   'anonymous_banner_seen',
   'anonymous_link_started',
   'anonymous_link_completed',
+  'anonymous_upgrade_existing_account_selected',
   'card_payment_prompt_seen',
   'card_payment_prompt_confirmed',
   'card_payment_prompt_dismissed',
