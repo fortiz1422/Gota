@@ -46,7 +46,9 @@ export function TourOverlay() {
   }, [step, updateRect])
 
   useEffect(() => {
-    updateRect()
+    const frameId = window.requestAnimationFrame(() => {
+      updateRect()
+    })
 
     const handleScroll = () => updateRect()
     const handleResize = () => updateRect()
@@ -61,6 +63,7 @@ export function TourOverlay() {
     }
 
     return () => {
+      window.cancelAnimationFrame(frameId)
       window.removeEventListener('scroll', handleScroll, true)
       window.removeEventListener('resize', handleResize)
       observerRef.current?.disconnect()

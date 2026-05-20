@@ -53,6 +53,23 @@ describe('card-cycle-payments', () => {
     expect(result.remainingAmount).toBe(0)
   })
 
+  it('closes a documented overpayment when the paid amount includes the adjustment', () => {
+    const result = resolveCardCyclePayment({
+      statementAmount: 1000,
+      amountPaid: null,
+      paymentAmount: 1100,
+      paymentDate: '2026-04-25',
+      closingDate: '2026-04-10',
+      adjustmentAmount: 100,
+    })
+
+    expect(result.status).toBe('paid')
+    expect(result.effectiveStatementAmount).toBe(1100)
+    expect(result.nextAmountPaid).toBe(1100)
+    expect(result.remainingAmount).toBe(0)
+    expect(result.snapshotAmountDraft).toBe(1100)
+  })
+
   it('treats payments on an open cycle as prepayments', () => {
     const result = resolveCardCyclePayment({
       statementAmount: 800,

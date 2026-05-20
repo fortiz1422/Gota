@@ -89,6 +89,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
   const [isRecurring, setIsRecurring] = useState(expense.is_recurring ?? false)
   const [isExtraordinary, setIsExtraordinary] = useState(expense.is_extraordinary ?? false)
 
+  const isSubscriptionExpense = expense.subscription_id != null
   const isInstallmentGroup = expense.installment_group_id != null
   const canEditInstallmentGroup = isInstallmentGroup && (groupSummary?.first_installment_number ?? 1) === 1
 
@@ -311,11 +312,51 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
       }}>
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
         <h2 className="text-lg font-semibold text-text-primary">
-          {isInstallmentGroup ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota') : 'Editar gasto'}
+          {isSubscriptionExpense
+            ? 'Detalle de suscripción'
+            : isInstallmentGroup
+              ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota')
+              : 'Editar gasto'}
         </h2>
 
-        {/* Vista read-only de cuota individual */}
-        {isInstallmentGroup && !editingGroup ? (
+        {/* Vista read-only de suscripción generada */}
+        {isSubscriptionExpense ? (
+          <div className="mt-5 space-y-5">
+            {error && <p className="text-xs text-danger">{error}</p>}
+
+            <div className="space-y-3 rounded-[14px] bg-bg-secondary px-4 py-3">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-text-primary">
+                    {expense.description || expense.category}
+                  </p>
+                  <p className="mt-0.5 text-xs text-text-tertiary">{expense.category}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm font-semibold tabular-nums text-text-primary">
+                    {formatAmount(expense.amount, expense.currency)}
+                  </p>
+                  <p className="text-[11px] text-text-tertiary">{expense.payment_method === 'CREDIT' ? 'Crédito' : 'Débito'}</p>
+                </div>
+              </div>
+              <p className="text-xs text-text-tertiary">{formatDate(expense.date)}</p>
+            </div>
+
+            <div className="rounded-[14px] border border-border-subtle bg-bg-secondary px-4 py-3">
+              <p className="text-sm font-medium text-text-primary">Este movimiento viene de una suscripción.</p>
+              <p className="mt-1 text-xs text-text-secondary">
+                Desde Movimientos y Últimos solo podés ver el cargo generado. Para cambiar monto, moneda, fecha o próximos cargos, editá la suscripción desde la sección Suscripciones.
+              </p>
+            </div>
+
+            <button
+              onClick={() => setOpen(false)}
+              className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white"
+            >
+              Entendido
+            </button>
+          </div>
+        ) : isInstallmentGroup && !editingGroup ? (
           <div className="mt-5 space-y-5">
             {error && <p className="text-xs text-danger">{error}</p>}
 

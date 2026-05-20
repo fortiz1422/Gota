@@ -1,5 +1,5 @@
 import { addMonths } from '@/lib/dates'
-import { buildCycleDate } from '@/lib/card-cycles'
+import { buildCycleDate, resolveDueMonth } from '@/lib/card-cycles'
 import type { createClient } from '@/lib/supabase/server'
 import type { Card, CardCycle } from '@/types/database'
 
@@ -19,7 +19,7 @@ function getCyclePeriodMonthForDate(card: Pick<Card, 'closing_day'>, date: strin
 
 function buildCyclePayload(userId: string, card: Card, periodMonth: string) {
   const closingDate = buildCycleDate(periodMonth, card.closing_day ?? 1)
-  const dueMonth = addMonths(periodMonth, 1)
+  const dueMonth = resolveDueMonth(periodMonth, card.closing_day, card.due_day)
   const dueDate = buildCycleDate(dueMonth, card.due_day ?? Math.min((card.closing_day ?? 1) + 10, 31))
 
   return {
