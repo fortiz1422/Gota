@@ -1,0 +1,7 @@
+# Gota
+
+App de finanzas personales para el mercado argentino.
+
+## Descripción
+
+Gota te ayuda a registrar gastos, visualizar tu Saldo Vivo y tomar mejores decisiones financieras.

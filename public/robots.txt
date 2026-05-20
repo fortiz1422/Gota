@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://gota.app/sitemap.xml
