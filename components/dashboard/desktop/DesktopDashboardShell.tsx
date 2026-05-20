@@ -1,24 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useMemo } from 'react'
 import {
-  ArrowsClockwise,
-  Bank,
-  CalendarBlank,
-  CaretRight,
-  ChartPieSlice,
-  CirclesThree,
-  ClockCountdown,
-  House,
-  Info,
+  ArrowRight,
+  ArrowUpRight,
+  Bell,
   MagnifyingGlass,
-  Receipt,
-  SquaresFour,
-  Star,
-  WarningCircle,
+  Sparkle,
+  Target,
 } from '@phosphor-icons/react'
-import { addMonths } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
@@ -61,55 +52,53 @@ function maskAmount(currency: 'ARS' | 'USD') {
   return currency === 'USD' ? 'USD ****' : '$ ******'
 }
 
-function toneStyles(tone: 'high' | 'medium' | 'low') {
-  if (tone === 'high') return 'bg-danger-soft text-danger'
-  if (tone === 'medium') return 'bg-warning-soft text-warning'
-  return 'bg-success-soft text-success'
+function greetingByHour(): string {
+  const h = new Date().getHours()
+  if (h < 12) return 'Buen día'
+  if (h < 19) return 'Buenas tardes'
+  return 'Buenas noches'
 }
 
-function statusPill(status: CompromisosData['tarjetas'][number]['cycleStatus']) {
-  if (status === 'vencido') return 'bg-danger-soft text-danger'
-  if (status === 'cerrado') return 'bg-warning-soft text-warning'
-  if (status === 'pagado') return 'bg-success-soft text-success'
-  return 'bg-primary-soft text-primary'
+function firstNameFromEmail(email: string): string {
+  const local = email.split('@')[0]
+  const part = local.split('.')[0].split('_')[0]
+  return part.charAt(0).toUpperCase() + part.slice(1)
 }
 
-function statusLabel(status: CompromisosData['tarjetas'][number]['cycleStatus']) {
-  if (status === 'vencido') return 'Vencido'
-  if (status === 'cerrado') return 'Por vencer'
-  if (status === 'pagado') return 'Pagado'
-  return 'En curso'
+function todayLabel(): string {
+  const d = new Date()
+  const weekday = d.toLocaleDateString('es-AR', { weekday: 'short' })
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yy = String(d.getFullYear()).slice(2)
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  const w = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '')
+  return `${w} ${dd} · ${mm} · ${yy} — ${hh}:${min}`
 }
 
-function eventDot(kind: 'card' | 'due' | 'income') {
-  if (kind === 'card') return 'bg-danger'
-  if (kind === 'due') return 'bg-warning'
-  return 'bg-success'
-}
-
-function eventChipTone(kind: 'card' | 'due' | 'income') {
-  if (kind === 'card') return 'border-danger/20 bg-danger-soft text-danger'
-  if (kind === 'due') return 'border-warning/20 bg-warning-soft text-warning'
-  return 'border-success/20 bg-success-soft text-success'
-}
-
-function buildPath(values: number[]) {
-  const width = 400
-  const height = 150
+/** Builds SVG polyline points for a sparkline in a viewBox */
+function buildSparklinePath(values: number[], w = 380, h = 180): string {
+  if (values.length < 2) return ''
   const max = Math.max(...values)
   const min = Math.min(...values)
   const range = Math.max(max - min, 1)
-
   return values
-    .map((value, index) => {
-      const x = (index / (values.length - 1)) * width
-      const y = height - ((value - min) / range) * height
-      return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`
+    .map((v, i) => {
+      const x = (i / (values.length - 1)) * w
+      const y = h - ((v - min) / range) * (h * 0.85) - h * 0.05
+      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
     })
     .join(' ')
 }
 
-function instrumentLabel(instrument: Instrument) {
+function accountTypeLabel(type: 'bank' | 'cash' | 'digital'): string {
+  if (type === 'bank') return 'Banco'
+  if (type === 'digital') return 'Digital'
+  return 'Efectivo'
+}
+
+function instrumentLabel(instrument: Instrument): string {
   return instrument.label?.trim()
     ? instrument.label.trim()
     : instrument.type === 'plazo_fijo'
@@ -117,74 +106,50 @@ function instrumentLabel(instrument: Instrument) {
       : 'FCI'
 }
 
-function instrumentDateLabel(instrument: Instrument) {
+function instrumentDueDateLabel(instrument: Instrument): string {
   if (instrument.type === 'plazo_fijo' && instrument.due_date) {
-    return `Vence ${new Date(`${instrument.due_date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-      day: 'numeric',
-      month: 'short',
-    })}`
+    return `vence ${new Date(`${instrument.due_date}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}`
   }
-
-  return 'Capital invertido'
+  return 'disponible'
 }
 
-function buildTimelineDate(date: string) {
-  return new Date(`${date}T12:00:00-03:00`)
+function horizonDotColor(kind: 'card' | 'due' | 'income' | 'instrument'): string {
+  if (kind === 'card') return 'bg-danger'
+  if (kind === 'due') return 'bg-primary'
+  if (kind === 'income') return 'bg-success'
+  return 'bg-warning'
 }
 
-function clamp(value: number, min: number, max: number) {
-  return Math.min(Math.max(value, min), max)
+function horizonAmountColor(kind: 'card' | 'due' | 'income' | 'instrument', estimated?: boolean): string {
+  if (estimated) return 'text-text-dim'
+  if (kind === 'income') return 'text-success'
+  if (kind === 'instrument') return 'text-primary'
+  return 'text-text-primary'
 }
 
-function compactHorizonTitle(title: string, kind: 'card' | 'due' | 'income') {
-  if (kind === 'card') return title.replace(/^Cierre\s+/i, '')
-  if (kind === 'due') return title.replace(/^Vence\s+/i, '')
-  return title
+function horizonAmountPrefix(kind: 'card' | 'due' | 'income' | 'instrument'): string {
+  if (kind === 'income') return '+'
+  if (kind === 'due') return '−'
+  return ''
 }
 
-function SectionTitle({
-  title,
-  subtitle,
-  icon,
-  action,
-}: {
+/** Panel card used in 2-col and module sections */
+function Panel({ title, tag, tagColor = 'primary', children }: {
   title: string
-  subtitle?: string
-  icon: React.ReactNode
-  action?: React.ReactNode
-}) {
-  return (
-    <div className="mb-4 flex items-start justify-between gap-4">
-      <div className="flex items-start gap-3">
-        <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
-          {icon}
-        </div>
-        <div>
-          <h2 className="text-[26px] font-bold tracking-[-0.04em] text-text-primary">{title}</h2>
-          {subtitle ? <p className="mt-1 text-[13px] leading-6 text-text-secondary">{subtitle}</p> : null}
-        </div>
-      </div>
-      {action}
-    </div>
-  )
-}
-
-function CompactPanel({
-  title,
-  icon,
-  action,
-  children,
-}: {
-  title: string
-  icon: React.ReactNode
-  action?: React.ReactNode
+  tag?: string
+  tagColor?: 'primary' | 'muted' | 'warn'
   children: React.ReactNode
 }) {
+  const tagClass =
+    tagColor === 'warn' ? 'text-warning' : tagColor === 'muted' ? 'text-text-dim' : 'text-primary'
   return (
-    <section className="rounded-[26px] border border-border-subtle bg-white p-5 shadow-sm">
-      <SectionTitle title={title} icon={icon} action={action} />
+    <div className="rounded-[14px] border border-border-subtle bg-white p-7">
+      <div className="mb-6 flex items-center justify-between font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-text-dim">
+        <span>{title}</span>
+        {tag && <span className={`normal-case tracking-[0.01em] ${tagClass}`}>{tag}</span>}
+      </div>
       {children}
-    </section>
+    </div>
   )
 }
 
@@ -200,9 +165,6 @@ export function DesktopDashboardShell({
   quote,
   amountsVisible,
 }: Props) {
-  const [activeHorizonId, setActiveHorizonId] = useState<string | null>(null)
-  const horizonPopoverRef = useRef<HTMLDivElement | null>(null)
-
   const stats = useMemo(
     () =>
       buildDesktopHeroStats({
@@ -230,10 +192,26 @@ export function DesktopDashboardShell({
       buildHorizonEvents({
         cards: data.cards,
         recurringIncomes: data.activeRecurring,
+        activeInstruments: data.activeInstruments,
+        compromisos,
         selectedMonth,
       }),
-    [data.activeRecurring, data.cards, selectedMonth],
+    [compromisos, data.activeInstruments, data.activeRecurring, data.cards, selectedMonth],
   )
+
+  const groupedHorizon = useMemo(() => {
+    const byMonth = new Map<string, typeof horizon>()
+    for (const event of horizon) {
+      const month = event.date.slice(0, 7)
+      if (!byMonth.has(month)) byMonth.set(month, [])
+      byMonth.get(month)!.push(event)
+    }
+    return Array.from(byMonth.entries()).map(([month, events]) => ({
+      month,
+      label: new Date(`${month}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' }),
+      events,
+    }))
+  }, [horizon])
 
   const recentActivity = useMemo(
     () =>
@@ -246,726 +224,1007 @@ export function DesktopDashboardShell({
     [data.accounts, data.allUltimos, data.incomeEntries, data.transfers],
   )
 
-  const graphValues = [
-    Math.max(stats.saldoVivo, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.985, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.95, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.9, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.84, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.77, stats.disponibleReal),
-    Math.max(stats.saldoVivo * 0.73, stats.disponibleReal),
-    stats.disponibleReal,
-  ]
-  const graphPath = buildPath(graphValues)
-  const topbarDate = new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', {
-    weekday: 'long',
-    day: 'numeric',
-    month: 'long',
-  })
-  const topbarDateLabel = topbarDate.charAt(0).toUpperCase() + topbarDate.slice(1)
-  const horizonMonthLabels = [
-    selectedMonth,
-    addMonths(selectedMonth, 1),
-    addMonths(selectedMonth, 2),
-  ].map((month) =>
-    new Date(`${month}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' }),
+  // KPI: gastos del mes (percibidos) — use monthlySeries for the full month total
+  const gastosMes = useMemo(() => {
+    const current = analyticsData?.monthlySeries?.find((m) => m.isCurrent)
+    if (current != null) return current.percibidoTotal
+    return data.allUltimos.filter((e) => e.currency === viewCurrency).reduce((s, e) => s + e.amount, 0)
+  }, [analyticsData?.monthlySeries, data.allUltimos, viewCurrency])
+
+  const gastosMesCount = useMemo(
+    () =>
+      analyticsData?.rawExpenses.filter(
+        (e) => e.currency === viewCurrency && e.payment_method !== 'CREDIT',
+      ).length ?? data.allUltimos.length,
+    [analyticsData?.rawExpenses, data.allUltimos.length, viewCurrency],
   )
-  const availableArsLabel = amountsVisible ? formatAmount(availableBreakdown.ARS, 'ARS') : maskAmount('ARS')
-  const availableUsdLabel = amountsVisible ? formatAmount(availableBreakdown.USD, 'USD') : maskAmount('USD')
-  const totalCompromisos = Math.max(1, stats.brecha)
+
+  // KPI: ingresos del mes
+  const ingresosMes = useMemo(
+    () =>
+      analyticsData?.ingresoMes ??
+      data.incomeEntries.filter((e) => e.currency === viewCurrency).reduce((s, e) => s + e.amount, 0),
+    [analyticsData?.ingresoMes, data.incomeEntries, viewCurrency],
+  )
+
+  // Sparkline: expense trend inverted (less spending = higher on chart = healthier)
+  const sparklinePath = useMemo(() => {
+    const series = analyticsData?.monthlySeries.slice(-6) ?? []
+    if (series.length < 2) return ''
+    // Invert so lower spending shows as higher on chart
+    const values = series.map((m) => -m.percibidoTotal)
+    return buildSparklinePath(values)
+  }, [analyticsData?.monthlySeries])
+
+  const sparklineMonths = useMemo(() => {
+    const series = analyticsData?.monthlySeries.slice(-6) ?? []
+    return series.map((m) => m.label.slice(0, 3).toUpperCase())
+  }, [analyticsData?.monthlySeries])
+
+  // Ciclo: find first active tarjeta
+  const cicloTarjeta = useMemo(() => {
+    if (!compromisos?.tarjetas.length) return null
+    return (
+      [...compromisos.tarjetas]
+        .filter((t) => t.cycleStatus !== 'pagado')
+        .sort((a, b) => (a.daysUntilClosing ?? 99) - (b.daysUntilClosing ?? 99))[0] ?? null
+    )
+  }, [compromisos])
+
+  const cicloCard = useMemo(
+    () => (cicloTarjeta ? data.cards.find((c) => c.id === cicloTarjeta.id) ?? null : null),
+    [cicloTarjeta, data.cards],
+  )
+
+  const cicloProgress = useMemo(() => {
+    if (!cicloTarjeta?.daysUntilClosing == null) return 0
+    const days = cicloTarjeta?.daysUntilClosing ?? 15
+    return Math.max(0.05, Math.min(0.98, (30 - days) / 30))
+  }, [cicloTarjeta])
+
+  // Flujo: monthly cashflow bars (last 6 months expenses)
+  const cashflowBars = useMemo(() => {
+    const series = analyticsData?.monthlySeries.slice(-6) ?? []
+    if (!series.length) return []
+    const maxVal = Math.max(...series.map((m) => m.percibidoTotal), 1)
+    return series.map((m) => ({
+      label: m.label.slice(0, 3).toUpperCase(),
+      height: Math.round((m.percibidoTotal / maxVal) * 80),
+      isCurrent: m.isCurrent,
+    }))
+  }, [analyticsData?.monthlySeries])
+
+  const instruments = [...data.activeInstruments].sort((a, b) => b.amount - a.amount).slice(0, 4)
+  const subscriptions = [...data.activeSubscriptions].sort((a, b) => a.day_of_month - b.day_of_month)
   const hasAccounts = data.accounts.length > 0
-  const subscriptions = [...data.activeSubscriptions].sort((a, b) => a.day_of_month - b.day_of_month).slice(0, 4)
-  const subscriptionsTotal = data.activeSubscriptions.reduce((sum, item) => {
-    if (item.currency !== viewCurrency) return sum
-    return sum + item.amount
-  }, 0)
-  const instruments = [...data.activeInstruments].sort((a, b) => b.amount - a.amount).slice(0, 3)
-  const periodPills = ['Este mes', '30 dias', '90 dias']
-  const horizonTimelineItems = useMemo(() => {
-    const start = buildTimelineDate(`${selectedMonth}-01`)
-    const end = buildTimelineDate(`${addMonths(selectedMonth, 3)}-01`)
-    const totalRange = Math.max(end.getTime() - start.getTime(), 1)
-    const positioned = horizon.map((event) => {
-      const eventTime = buildTimelineDate(event.date).getTime()
-      const progress = clamp((eventTime - start.getTime()) / totalRange, 0, 0.999)
-
-      return {
-        ...event,
-        leftPercent: clamp(progress * 100, 6, 94),
-      }
-    })
-
-    const grouped = positioned.reduce<
-      Array<{
-        id: string
-        items: typeof positioned
-        leftPercent: number
-      }>
-    >((acc, event) => {
-      const last = acc[acc.length - 1]
-      if (last && Math.abs(last.leftPercent - event.leftPercent) < 7) {
-        last.items.push(event)
-        last.leftPercent =
-          last.items.reduce((sum, item) => sum + item.leftPercent, 0) / last.items.length
-        return acc
-      }
-
-      acc.push({
-        id: `group-${event.id}`,
-        items: [event],
-        leftPercent: event.leftPercent,
-      })
-      return acc
-    }, [])
-
-    let topIndex = 0
-    let bottomIndex = 0
-
-    return grouped.map((group, index) => {
-      const side = index % 2 === 0 ? ('top' as const) : ('bottom' as const)
-      const laneIndex = side === 'top' ? topIndex++ % 3 : bottomIndex++ % 3
-      const first = group.items[0]
-      const kinds = Array.from(new Set(group.items.map((item) => item.kind)))
-
-      return {
-        id: group.id,
-        items: group.items,
-        side,
-        laneIndex,
-        leftPercent: group.leftPercent,
-        date: first.date,
-        kind: kinds.length === 1 ? first.kind : ('due' as const),
-        title:
-          group.items.length === 1
-            ? compactHorizonTitle(first.title, first.kind)
-            : `${group.items.length} hitos`,
-        subtitle:
-          group.items.length === 1
-            ? new Date(`${first.date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                day: 'numeric',
-                month: 'short',
-              })
-            : `${group.items[0].subtitle} + ${group.items.length - 1}`,
-      }
-    })
-  }, [horizon, selectedMonth])
-  const activeHorizonEvent =
-    horizonTimelineItems.find((event) => event.id === activeHorizonId) ?? null
-
-  useEffect(() => {
-    function handlePointerDown(event: MouseEvent) {
-      if (!horizonPopoverRef.current) return
-      if (horizonPopoverRef.current.contains(event.target as Node)) return
-      setActiveHorizonId(null)
-    }
-
-    if (!activeHorizonId) return
-
-    window.addEventListener('mousedown', handlePointerDown)
-    return () => window.removeEventListener('mousedown', handlePointerDown)
-  }, [activeHorizonId])
+  const firstName = firstNameFromEmail(userEmail)
+  const avatarInitial = firstName.charAt(0).toUpperCase()
+  const flujoResult = ingresosMes - gastosMes
 
   return (
-    <div className="min-h-screen bg-[linear-gradient(180deg,#FFFFFF_0%,#F7FBFD_100%)]">
-      <div className="mx-auto flex min-h-screen max-w-[1880px] gap-7 px-7 py-7 xl:px-10">
-        <aside className="flex w-[240px] shrink-0 flex-col rounded-[30px] border border-border-subtle bg-white/90 px-5 py-6 shadow-sm">
-          <div className="px-3">
-            <p className="text-[18px] font-extrabold tracking-[-0.03em] text-text-primary">Gota</p>
-            <p className="mt-1 type-meta text-text-dim">Web</p>
-          </div>
+    <div className="min-h-screen" style={{ background: '#FAFAF8', fontFamily: 'var(--font-sans)' }}>
 
-          <nav className="mt-10 space-y-2.5">
-            <Link href="/web" className="flex items-center gap-3 rounded-2xl bg-primary-soft px-4 py-3.5 text-primary">
-              <House size={20} weight="regular" />
-              <span className="text-[15px] font-semibold">Hoy</span>
+      {/* ======== TOPBAR ======== */}
+      <header
+        className="sticky top-0 z-10 flex items-center justify-between border-b border-border-subtle px-12"
+        style={{ height: 64, background: '#FAFAF8' }}
+      >
+        <div className="flex items-center">
+          <Link href="/web" className="text-[22px] font-bold tracking-[-0.045em] text-text-primary">
+            gota<span className="text-primary">.</span>
+          </Link>
+          <nav className="ml-12 flex">
+            <Link
+              href="/web"
+              className="relative px-3.5 py-2 text-[12px] font-medium text-text-primary after:absolute after:bottom-[-1px] after:left-3.5 after:right-3.5 after:h-px after:bg-text-primary"
+            >
+              Panel
             </Link>
-            <a href="#horizonte-web" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <ClockCountdown size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Horizonte</span>
-            </a>
-            <a href="#compromisos-web" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <ChartPieSlice size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Compromisos</span>
-            </a>
-            <a href="#liquidez-web" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <CirclesThree size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Liquidez</span>
-            </a>
-            <a href="#actividad-web" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <Receipt size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Actividad</span>
-            </a>
-            <a href="#modulos-web" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <SquaresFour size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Modulos</span>
-            </a>
-            <Link href="/web/settings" className="flex items-center gap-3 rounded-2xl px-4 py-3.5 text-text-secondary transition-colors hover:bg-bg-secondary">
-              <Bank size={20} weight="regular" />
-              <span className="text-[15px] font-medium">Cuentas</span>
+            <Link
+              href="/web"
+              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Movimientos
             </Link>
-          </nav>
-
-          <div className="mt-auto rounded-[24px] border border-border-subtle bg-bg-secondary/80 p-4">
-            <p className="type-meta text-text-dim">Cuenta</p>
-            <p className="mt-2 truncate text-[15px] font-semibold text-text-primary">{userEmail}</p>
             <Link
               href="/web/settings"
-              className="mt-4 inline-flex items-center gap-2 rounded-button border border-primary/15 px-3 py-2 text-[13px] font-semibold text-primary transition-colors hover:bg-primary-soft"
+              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
             >
-              Ver ajustes
+              Cuentas
             </Link>
+            <Link
+              href="/web/settings"
+              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Tarjetas
+            </Link>
+            <Link
+              href="/web/settings"
+              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Instrumentos
+            </Link>
+            <Link
+              href="/analytics"
+              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
+            >
+              Análisis
+            </Link>
+          </nav>
+        </div>
+
+        <div className="flex items-center gap-[18px]">
+          {quote && (
+            <span className="font-mono text-[11px] text-text-secondary">
+              ARS · USD{' '}
+              <span className="text-primary">{quote.rate.toLocaleString('es-AR')}</span>
+            </span>
+          )}
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+            aria-label="Buscar"
+          >
+            <MagnifyingGlass size={18} />
+          </button>
+          <button
+            type="button"
+            className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
+            aria-label="Notificaciones"
+          >
+            <Bell size={18} />
+          </button>
+          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-text-primary text-[12px] font-semibold text-white">
+            {avatarInitial}
           </div>
-        </aside>
+        </div>
+      </header>
 
-        <main className="min-w-0 flex-1">
-          <div className="mb-5 flex items-center justify-between gap-6">
-            <div className="flex items-center gap-3 text-text-secondary">
-              <CalendarBlank size={20} weight="regular" className="text-primary" />
-              <span className="text-[15px] font-medium">{topbarDateLabel}</span>
-            </div>
+      <main className="mx-auto max-w-[1280px] px-12 pb-24 pt-14">
 
-            <div className="flex items-center gap-3">
-              <div className="flex items-center rounded-pill border border-border-subtle bg-white p-1 shadow-sm">
-                {periodPills.map((pill, index) => (
-                  <button
-                    key={pill}
-                    type="button"
-                    className={`rounded-pill px-4 py-2 text-[13px] font-semibold transition-colors ${
-                      index === 0 ? 'bg-primary text-white' : 'text-text-secondary hover:bg-bg-secondary'
-                    }`}
+        {/* ======== EMPTY STATE ======== */}
+        {!hasAccounts && (
+          <section className="rounded-[14px] border border-border-subtle bg-white px-10 py-12">
+            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">Panel</p>
+            <h1 className="mt-5 max-w-2xl text-[42px] font-medium leading-[1.05] tracking-[-0.045em] text-text-primary">
+              Empezá con tu primera cuenta para ver tu lectura financiera real.
+            </h1>
+            <p className="mt-4 max-w-xl text-[15px] leading-7 text-text-secondary">
+              Apenas tengas cuentas y movimientos, este panel muestra saldo vivo, disponible real y tensiones del mes.
+            </p>
+            <Link
+              href="/web/settings"
+              className="mt-8 inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-2.5 text-[13px] font-semibold text-white"
+            >
+              Agregar cuenta <ArrowRight size={14} />
+            </Link>
+          </section>
+        )}
+
+        {hasAccounts && (
+          <>
+
+            {/* ======== HERO ======== */}
+            <section
+              className="mb-[72px] grid items-end gap-16 pb-14"
+              style={{
+                gridTemplateColumns: '1.5fr 1fr',
+                borderBottom: '1px solid var(--color-border-subtle)',
+                minHeight: '38vh',
+              }}
+            >
+              {/* LEFT */}
+              <div>
+                <p
+                  className="mb-9 font-mono text-[11px] tracking-[0.02em] text-text-dim"
+                  style={{ letterSpacing: '0.02em' }}
+                >
+                  <span className="mr-1 text-text-dim">—</span>
+                  {todayLabel()}
+                </p>
+                <p className="mb-3 text-[22px] font-normal tracking-[-0.02em] text-text-secondary">
+                  {greetingByHour()}, <strong className="font-medium text-text-primary">{firstName}</strong>.{' '}
+                  <em className="font-normal not-italic text-text-dim">Esto es lo tuyo, hoy.</em>
+                </p>
+
+                <p
+                  className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-text-dim"
+                  style={{ marginBottom: 18, marginTop: 28 }}
+                >
+                  Saldo vivo
+                  <span
+                    className="ml-3 inline-block align-middle"
+                    style={{ width: 24, height: 1, background: 'var(--color-text-dim)', display: 'inline-block', verticalAlign: 'middle' }}
+                  />
+                </p>
+
+                <h1
+                  className="flex items-start gap-1.5 font-medium text-text-primary"
+                  style={{
+                    fontSize: 108,
+                    lineHeight: 0.9,
+                    letterSpacing: '-0.055em',
+                    marginBottom: 24,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  <span
+                    className="font-mono font-normal text-text-dim"
+                    style={{ fontSize: 18, marginTop: 14, letterSpacing: '-0.01em' }}
                   >
-                    {pill}
-                  </button>
-                ))}
-              </div>
-              <div className="flex items-center gap-2 rounded-pill border border-border-subtle bg-white px-4 py-2.5 text-text-dim shadow-sm">
-                <MagnifyingGlass size={16} weight="regular" />
-                <span className="text-[14px]">Buscar...</span>
-              </div>
-              <button
-                type="button"
-                className="rounded-button border border-border-subtle bg-white px-4 py-2.5 text-[14px] font-semibold text-text-primary shadow-sm transition-colors hover:bg-bg-secondary"
-              >
-                Resumen ejecutivo
-              </button>
-            </div>
-          </div>
+                    {viewCurrency === 'USD' ? 'US$' : '$'}
+                  </span>
+                  {amountsVisible
+                    ? stats.saldoVivo.toLocaleString('es-AR', { maximumFractionDigits: 0 })
+                    : '••••••'}
+                </h1>
 
-          {!hasAccounts ? (
-            <section className="rounded-[34px] border border-border-subtle bg-white px-8 py-10 shadow-sm">
-              <p className="text-[14px] font-semibold text-primary">Gota Web</p>
-              <h1 className="mt-4 max-w-3xl text-[44px] font-extrabold leading-[1.05] tracking-[-0.04em] text-text-primary">
-                Empeza con tu primera cuenta para que la Home tenga una lectura financiera real.
-              </h1>
-              <p className="mt-4 max-w-2xl text-[16px] leading-7 text-text-secondary">
-                La version web usa la misma base de datos y la misma logica financiera que el resto de Gota. Apenas tengas cuentas y movimientos, este dashboard puede explicar saldo vivo, disponible real y tensiones del mes.
-              </p>
-            </section>
-          ) : (
-            <div className="space-y-5">
-              <div className="grid gap-5 2xl:grid-cols-[minmax(0,1.62fr)_330px]">
-                <section className="rounded-[34px] border border-border-subtle bg-white px-8 py-7 shadow-sm">
-                  <div className="grid gap-8 xl:grid-cols-[minmax(0,1.5fr)_320px]">
-                    <div className="min-w-0">
-                      <p className="text-[14px] font-semibold text-primary">CFO Brief</p>
-                      <h1 className="mt-4 max-w-4xl text-[40px] font-extrabold leading-[0.98] tracking-[-0.05em] text-text-primary 2xl:text-[50px]">
-                        Tu mes viene ordenado.
-                        <br />
-                        La tension principal esta en el cierre del 12: cuidemos el margen.
-                      </h1>
-
-                      <div className="mt-6 grid gap-5 md:grid-cols-2">
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[15px] font-medium text-text-secondary">Saldo Vivo</p>
-                            <Info size={14} weight="regular" className="text-text-dim" />
-                          </div>
-                          <p className="mt-2 text-[25px] font-extrabold tracking-[-0.03em] text-text-primary">
-                            {amountsVisible ? formatAmount(stats.saldoVivo, viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                          <p className="mt-1 type-meta text-text-dim">ARS {heroBreakdown.ARS.toLocaleString('es-AR')}</p>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-1.5">
-                            <p className="text-[15px] font-medium text-text-secondary">Disponible Real</p>
-                            <Info size={14} weight="regular" className="text-text-dim" />
-                          </div>
-                          <p className="mt-2 text-[25px] font-extrabold tracking-[-0.03em] text-text-primary">
-                            {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                          <p className="mt-1 type-meta text-text-dim">USD {availableBreakdown.USD.toLocaleString('es-AR')}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-7">
-                        <p className="text-[15px] font-semibold text-text-primary">Plata con destino</p>
-                        <p className="mt-2 max-w-2xl text-[15px] leading-6 text-text-secondary">
-                          De cada {amountsVisible ? formatAmount(stats.brecha, viewCurrency) : maskAmount(viewCurrency)} de tu caja, esto ya tiene destino.
-                        </p>
-                        <div className="mt-3.5 flex h-3 overflow-hidden rounded-pill bg-bg-secondary">
-                          <div className="h-full bg-primary" style={{ width: `${(stats.compromisosProximos / totalCompromisos) * 100}%` }} />
-                          <div className="h-full bg-data" style={{ width: `${(stats.tarjetaEnCurso / totalCompromisos) * 100}%` }} />
-                          <div className="h-full bg-success" style={{ width: `${(stats.reservas / totalCompromisos) * 100}%` }} />
-                        </div>
-                        <div className="mt-4 grid gap-4 sm:grid-cols-3">
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="h-2.5 w-2.5 rounded-full bg-primary" />
-                              <span className="text-[14px] font-medium text-text-secondary">Compromisos proximos</span>
-                            </div>
-                            <p className="mt-2 text-[18px] font-bold tracking-[-0.02em] text-text-primary">
-                              {amountsVisible ? formatAmount(stats.compromisosProximos, viewCurrency) : maskAmount(viewCurrency)}
-                            </p>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="h-2.5 w-2.5 rounded-full bg-data" />
-                              <span className="text-[14px] font-medium text-text-secondary">Tarjeta en curso</span>
-                            </div>
-                            <p className="mt-2 text-[18px] font-bold tracking-[-0.02em] text-text-primary">
-                              {amountsVisible ? formatAmount(stats.tarjetaEnCurso, viewCurrency) : maskAmount(viewCurrency)}
-                            </p>
-                          </div>
-                          <div>
-                            <div className="flex items-center gap-2">
-                              <span className="h-2.5 w-2.5 rounded-full bg-success" />
-                              <span className="text-[14px] font-medium text-text-secondary">Reservas</span>
-                            </div>
-                            <p className="mt-2 text-[18px] font-bold tracking-[-0.02em] text-text-primary">
-                              {amountsVisible ? formatAmount(stats.reservas, viewCurrency) : maskAmount(viewCurrency)}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="rounded-[28px] bg-[linear-gradient(180deg,rgba(248,251,253,0.94),#FFFFFF)] p-5">
-                      <p className="text-[15px] font-semibold text-text-primary">Margen disponible proyectado</p>
-                      <svg viewBox="0 0 400 168" className="mt-3 h-[120px] w-full">
-                        <line x1="0" y1="112" x2="400" y2="112" stroke="rgba(33,120,168,0.22)" strokeDasharray="5 5" />
-                        <path d={graphPath} fill="none" stroke="var(--color-primary)" strokeWidth="4" strokeLinecap="round" />
-                      </svg>
-                      <div className="mt-3 flex items-start justify-between gap-4">
-                        <div>
-                          <p className="type-meta text-text-dim">Hoy</p>
-                          <p className="mt-1 text-[20px] font-extrabold tracking-[-0.03em] text-primary">
-                            {amountsVisible ? formatAmount(stats.disponibleReal, viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="type-meta text-text-dim">Piso comodo</p>
-                          <p className="mt-1 text-[15px] font-bold tracking-[-0.02em] text-text-secondary">
-                            {amountsVisible ? formatAmount(Math.max(stats.disponibleReal * 0.8, 0), viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="mt-7 border-t border-border-subtle pt-6">
-                    <SectionTitle
-                      title="Horizonte 90 dias"
-                      subtitle="Una franja temporal para leer que se viene sin bajar a detalle."
-                      icon={<ClockCountdown size={20} weight="regular" />}
-                      action={<span className="text-[13px] font-semibold text-primary">Curado</span>}
-                    />
-
-                    <div
-                      id="horizonte-web"
-                      ref={horizonPopoverRef}
-                      className="relative h-[220px] overflow-visible rounded-[24px] bg-[linear-gradient(180deg,#FBFDFE_0%,#FFFFFF_100%)] px-3"
-                    >
-                      <div className="absolute inset-x-3 top-1/2 h-[2px] -translate-y-1/2 bg-border-subtle" />
-                      <div className="absolute left-3 right-3 top-0 flex justify-between text-[12px] font-semibold uppercase tracking-[0.08em] text-text-dim">
-                        {horizonMonthLabels.map((label) => (
-                          <span key={label}>{label}</span>
-                        ))}
-                      </div>
-
-                      {horizonTimelineItems.map((event) => {
-                        const chipTop =
-                          event.side === 'top'
-                            ? event.laneIndex === 0
-                              ? 'top-[62px]'
-                              : event.laneIndex === 1
-                                ? 'top-[30px]'
-                                : 'top-[2px]'
-                            : event.laneIndex === 0
-                              ? 'top-[132px]'
-                              : event.laneIndex === 1
-                                ? 'top-[164px]'
-                                : 'top-[194px]'
-
-                        return (
-                          <button
-                            key={event.id}
-                            type="button"
-                            onClick={() => setActiveHorizonId((current) => (current === event.id ? null : event.id))}
-                            className={`absolute z-[2] w-[118px] -translate-x-1/2 rounded-[16px] border px-2.5 py-2 text-left shadow-sm transition-all hover:-translate-y-0.5 ${chipTop} ${
-                              activeHorizonId === event.id
-                                ? 'border-primary/35 bg-white shadow-md'
-                                : 'border-border-subtle bg-white/95 hover:border-primary/20'
-                            }`}
-                            style={{ left: `${event.leftPercent}%` }}
-                          >
-                            <div className="flex items-center gap-2">
-                              <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(event.kind)}`} />
-                              <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(event.kind)}`}>
-                                {event.items.length > 1 ? `${event.items.length}` : event.kind === 'card' ? 'Cierre' : event.kind === 'due' ? 'Vence' : 'Ingreso'}
-                              </span>
-                            </div>
-                            <p className="mt-2 line-clamp-2 text-[12px] font-semibold leading-4 text-text-primary">{event.title}</p>
-                            <p className="mt-1 truncate text-[10px] uppercase tracking-[0.06em] text-text-dim">{event.subtitle}</p>
-                          </button>
-                        )
-                      })}
-
-                      {activeHorizonEvent ? (
-                        <div
-                          className={`absolute z-[5] w-[250px] -translate-x-1/2 rounded-[20px] border border-border-subtle bg-white p-4 shadow-[0_18px_45px_rgba(15,23,42,0.12)] ${
-                            activeHorizonEvent.side === 'top' ? 'top-[102px]' : 'top-[34px]'
-                          }`}
-                          style={{ left: `${activeHorizonEvent.leftPercent}%` }}
-                        >
-                          {activeHorizonEvent.items.length === 1 ? (
-                            <div>
-                              <div className="flex items-center gap-2">
-                                <span className={`inline-flex h-2.5 w-2.5 rounded-full ${eventDot(activeHorizonEvent.items[0].kind)}`} />
-                                <span className={`inline-flex rounded-pill border px-2 py-0.5 text-[11px] font-semibold ${eventChipTone(activeHorizonEvent.items[0].kind)}`}>
-                                  {activeHorizonEvent.items[0].kind === 'card'
-                                    ? 'Cierre'
-                                    : activeHorizonEvent.items[0].kind === 'due'
-                                      ? 'Vencimiento'
-                                      : 'Ingreso'}
-                                </span>
-                              </div>
-                              <p className="mt-3 text-[14px] font-semibold text-text-primary">{activeHorizonEvent.items[0].title}</p>
-                              <div className="mt-2 flex items-center justify-between gap-3">
-                                <p className="text-[12px] text-text-secondary">{activeHorizonEvent.items[0].subtitle}</p>
-                                <p className="text-[12px] font-semibold text-text-secondary">
-                                  {new Date(`${activeHorizonEvent.items[0].date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                                    day: 'numeric',
-                                    month: 'short',
-                                  })}
-                                </p>
-                              </div>
-                            </div>
-                          ) : (
-                            <div>
-                              <div className="flex items-center justify-between gap-3">
-                                <p className="text-[13px] font-semibold text-text-primary">{activeHorizonEvent.items.length} hitos cercanos</p>
-                                <p className="text-[11px] uppercase tracking-[0.06em] text-text-dim">{activeHorizonEvent.subtitle}</p>
-                              </div>
-                              <div className="mt-3 space-y-2">
-                                {activeHorizonEvent.items.map((item) => (
-                                  <div key={item.id} className="rounded-xl bg-bg-secondary px-3 py-2">
-                                    <p className="text-[12px] font-semibold text-text-primary">{item.title}</p>
-                                    <div className="mt-1 flex items-center justify-between gap-3">
-                                      <p className="text-[11px] text-text-secondary">{item.subtitle}</p>
-                                      <p className="text-[11px] font-semibold text-text-secondary">
-                                        {new Date(`${item.date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                                          day: 'numeric',
-                                          month: 'short',
-                                        })}
-                                      </p>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ) : null}
-
-                      {horizonTimelineItems.map((event) => {
-                        const connectorHeight =
-                          event.side === 'top'
-                            ? event.laneIndex === 0
-                              ? 16
-                              : event.laneIndex === 1
-                                ? 48
-                                : 76
-                            : event.laneIndex === 0
-                              ? 18
-                              : event.laneIndex === 1
-                                ? 48
-                                : 76
-                        const connectorTop =
-                          event.side === 'top'
-                            ? event.laneIndex === 0
-                              ? 110
-                              : event.laneIndex === 1
-                                ? 78
-                                : 50
-                            : 110
-
-                        return (
-                          <div
-                            key={`${event.id}-connector`}
-                            className="absolute z-[1] w-px bg-border-default/70"
-                            style={{
-                              left: `${event.leftPercent}%`,
-                              top: `${connectorTop}px`,
-                              height: `${connectorHeight}px`,
-                            }}
-                          />
-                        )
-                      })}
-
-                      {horizonTimelineItems.map((event) => (
-                        <div
-                          key={`${event.id}-dot`}
-                          className={`absolute top-1/2 z-[3] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white ${eventDot(event.kind)}`}
-                          style={{ left: `${event.leftPercent}%` }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                </section>
-
-                <div className="grid gap-5">
-                  <CompactPanel title="Atencion ahora" icon={<WarningCircle size={20} weight="regular" />} action={<span className="text-[13px] font-semibold text-primary">{attention.length} senales</span>}>
-                    <div className="space-y-3">
-                      {attention.length === 0 ? (
-                        <p className="text-[15px] leading-7 text-text-secondary">
-                          No hay senales tacticas urgentes. La lectura del mes esta estable con los datos actuales.
-                        </p>
-                      ) : (
-                        attention.map((signal) => (
-                          <div key={signal.id} className="rounded-2xl border border-border-subtle px-4 py-3.5">
-                            <div className="flex items-start justify-between gap-4">
-                              <div className="min-w-0">
-                                <p className="text-[15px] font-semibold text-text-primary">{signal.title}</p>
-                                <p className="mt-1 text-[14px] leading-6 text-text-secondary">{signal.detail}</p>
-                              </div>
-                              <div className="shrink-0 text-right">
-                                <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${toneStyles(signal.tone)}`}>
-                                  {signal.tone === 'high' ? 'Alta' : signal.tone === 'medium' ? 'Media' : 'Baja'}
-                                </span>
-                                <p className="mt-2 type-meta text-text-dim">{signal.dateLabel}</p>
-                              </div>
-                            </div>
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </CompactPanel>
-
-                  <CompactPanel
-                    title="Compromisos"
-                    icon={<ChartPieSlice size={20} weight="regular" />}
-                    action={
-                      <Link href={`/analytics?month=${selectedMonth}&drill=compromisos`} className="inline-flex items-center gap-1 text-[13px] font-semibold text-primary">
-                        Ver todos
-                        <CaretRight size={12} weight="bold" />
-                      </Link>
-                    }
-                  >
-                    <div id="compromisos-web" className="mb-4 grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                        <p className="type-meta text-text-dim">A pagar</p>
-                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
-                          {amountsVisible ? formatAmount(compromisos?.totalAPagar ?? 0, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                        <p className="type-meta text-text-dim">En curso</p>
-                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">
-                          {amountsVisible ? formatAmount(compromisos?.totalEnCurso ?? 0, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
-                      </div>
-                      <div className="rounded-2xl bg-bg-secondary px-4 py-3.5">
-                        <p className="type-meta text-text-dim">Tarjetas</p>
-                        <p className="mt-2 text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">{compromisos?.tarjetas.length ?? 0}</p>
-                      </div>
-                    </div>
-
-                    <div className="space-y-3">
-                      {compromisos?.tarjetas.slice(0, 4).map((card) => (
-                        <div key={card.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3.5">
-                          <div className="min-w-0">
-                            <div className="flex items-center gap-2">
-                              <p className="truncate text-[15px] font-semibold text-text-primary">{card.name}</p>
-                              <span className={`inline-flex rounded-pill px-2.5 py-1 text-[12px] font-semibold ${statusPill(card.cycleStatus)}`}>
-                                {statusLabel(card.cycleStatus)}
-                              </span>
-                            </div>
-                            <p className="mt-1 text-[14px] text-text-secondary">
-                              {card.dueDate ? `Vence ${new Date(`${card.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })}` : 'Seguimiento en curso'}
-                            </p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[17px] font-bold tracking-[-0.02em] text-text-primary">
-                              {amountsVisible ? formatAmount(Math.max(card.debtTotal, card.currentSpend), viewCurrency) : maskAmount(viewCurrency)}
-                            </p>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CompactPanel>
+                <div className="flex items-baseline gap-4 text-[13px] text-text-secondary">
+                  {flujoResult > 0 && ingresosMes > 0 && (
+                    <>
+                      <span className="inline-flex items-center gap-0.5 font-medium text-success">
+                        <ArrowUpRight size={13} weight="fill" />
+                        {amountsVisible
+                          ? `+${((flujoResult / ingresosMes) * 100).toFixed(1)}%`
+                          : '+•••'}
+                      </span>
+                      <span className="font-mono text-[12px] text-text-dim">
+                        resultado del mes ·{' '}
+                        <strong className="font-medium text-text-secondary">
+                          {amountsVisible ? formatAmount(flujoResult, viewCurrency) : '••••••'}
+                        </strong>
+                      </span>
+                    </>
+                  )}
+                  {!(flujoResult > 0 && ingresosMes > 0) && (
+                    <span className="font-mono text-[12px] text-text-dim">
+                      Disponible real ·{' '}
+                      <strong className="font-medium text-text-secondary">
+                        {amountsVisible ? formatAmount(availableBreakdown[viewCurrency], viewCurrency) : '••••••'}
+                      </strong>
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div className="grid gap-5 2xl:grid-cols-[minmax(0,0.95fr)_minmax(0,0.9fr)_330px]">
-                <section id="actividad-web" className="rounded-[28px] border border-border-subtle bg-white p-5 shadow-sm">
-                  <SectionTitle
-                    title="Actividad reciente"
-                    subtitle="Movimientos relevantes en una columna util, no una banda larga."
-                    icon={<Receipt size={20} weight="regular" />}
-                    action={<span className="text-[13px] font-semibold text-primary">Curada</span>}
-                  />
+              {/* RIGHT: sparkline chart */}
+              <div className="pb-1.5">
+                <div
+                  className="mb-3.5 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-text-dim"
+                >
+                  <span>Últimos meses · gastos</span>
+                  {analyticsData?.monthlySeries.length ? (
+                    <span className="inline-flex items-center gap-0.5 font-sans normal-case tracking-normal">
+                      <span
+                        className="text-[17px] font-medium text-text-primary"
+                        style={{ letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums' }}
+                      >
+                        {analyticsData.monthlySeries.length} meses
+                      </span>
+                    </span>
+                  ) : null}
+                </div>
 
-                  <div className="space-y-3">
-                    {recentActivity.map((item) => (
-                      <div key={item.id} className="flex items-center justify-between gap-4 border-t border-border-subtle pt-3 first:border-t-0 first:pt-0">
-                        <div className="min-w-0">
-                          <p className="truncate text-[15px] font-semibold text-text-primary">{item.title}</p>
-                          <p className="mt-1 text-[14px] text-text-secondary">{item.subtitle}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className={`text-[17px] font-bold tracking-[-0.02em] ${item.tone === 'positive' ? 'text-success' : 'text-text-primary'}`}>
-                            {item.amountLabel}
-                          </p>
-                          <p className="mt-1 type-meta text-text-dim">{item.dateLabel}</p>
+                <svg width="100%" height="200" viewBox="0 0 380 200" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="#2178A8" stopOpacity="0.14" />
+                      <stop offset="100%" stopColor="#2178A8" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+                  {/* grid lines */}
+                  <g stroke="rgba(13,24,41,0.04)" strokeWidth="1">
+                    <line x1="0" y1="40" x2="380" y2="40" />
+                    <line x1="0" y1="100" x2="380" y2="100" />
+                    <line x1="0" y1="160" x2="380" y2="160" />
+                  </g>
+                  {sparklinePath ? (
+                    <>
+                      <path d={`${sparklinePath} L 380,200 L 0,200 Z`} fill="url(#heroGrad)" />
+                      <path
+                        d={sparklinePath}
+                        fill="none"
+                        stroke="#2178A8"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
+                  ) : (
+                    /* Decorative fallback */
+                    <>
+                      <path
+                        d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34 L 380,200 L 0,200 Z"
+                        fill="url(#heroGrad)"
+                      />
+                      <path
+                        d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34"
+                        fill="none"
+                        stroke="#2178A8"
+                        strokeWidth="1.5"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </>
+                  )}
+                  {/* month labels */}
+                  {sparklineMonths.length >= 2 && (
+                    <g
+                      fontFamily="var(--font-dm-mono), ui-monospace"
+                      fontSize="10"
+                      fill="var(--color-text-dim)"
+                    >
+                      {sparklineMonths.map((label, i) => (
+                        <text
+                          key={label}
+                          x={(i / (sparklineMonths.length - 1)) * 360}
+                          y="196"
+                        >
+                          {label}
+                        </text>
+                      ))}
+                    </g>
+                  )}
+                  {/* current endpoint dot */}
+                  <circle cx="380" cy="34" r="7" fill="#2178A8" fillOpacity="0.18" />
+                  <circle cx="380" cy="34" r="3.5" fill="#2178A8" />
+                </svg>
+              </div>
+            </section>
+
+            {/* ======== KPIs ======== */}
+            <section className="mb-[88px] grid grid-cols-4">
+              {[
+                {
+                  label: 'Disponible real',
+                  value: amountsVisible ? formatAmount(availableBreakdown[viewCurrency], viewCurrency) : maskAmount(viewCurrency),
+                  sub: `en ${data.accounts.length} cuenta${data.accounts.length !== 1 ? 's' : ''}`,
+                  subColor: '',
+                },
+                {
+                  label: `Ingresos · ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`,
+                  value: amountsVisible ? formatAmount(ingresosMes, viewCurrency) : maskAmount(viewCurrency),
+                  sub: ingresosMes > 0 ? 'registrados este mes' : 'sin ingresos registrados',
+                  subColor: ingresosMes > 0 ? 'text-success' : '',
+                },
+                {
+                  label: `Gastos · ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`,
+                  value: amountsVisible ? formatAmount(gastosMes, viewCurrency) : maskAmount(viewCurrency),
+                  sub: `${gastosMesCount} movimiento${gastosMesCount !== 1 ? 's' : ''} percibidos`,
+                  subColor: '',
+                },
+                {
+                  label: 'Compromisos',
+                  value: amountsVisible
+                    ? formatAmount((compromisos?.totalAPagar ?? 0) + (compromisos?.totalEnCurso ?? 0), viewCurrency)
+                    : maskAmount(viewCurrency),
+                  sub: `${data.activeSubscriptions.length} suscripciones · ${compromisos?.tarjetas.length ?? 0} tarjetas`,
+                  subColor: '',
+                },
+              ].map((kpi, i) => (
+                <div
+                  key={kpi.label}
+                  className={`${i !== 0 ? 'border-l border-border-subtle pl-7' : ''} ${i !== 3 ? 'pr-7' : ''}`}
+                >
+                  <p className="mb-[18px] font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-text-dim">
+                    {kpi.label}
+                  </p>
+                  <p
+                    className="mb-2.5 font-medium text-text-primary"
+                    style={{ fontSize: 30, lineHeight: 1, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}
+                  >
+                    {kpi.value}
+                  </p>
+                  <p className={`text-[12px] leading-snug text-text-dim ${kpi.subColor}`}>{kpi.sub}</p>
+                </div>
+              ))}
+            </section>
+
+            {/* ======== CUENTAS ======== */}
+            <section className="mb-[88px]">
+              <div className="mb-8 flex items-baseline justify-between">
+                <h2
+                  className="font-medium text-text-primary"
+                  style={{ fontSize: 24, letterSpacing: '-0.04em' }}
+                >
+                  Cuentas{' '}
+                  <em className="font-normal not-italic text-text-dim">— las tuyas</em>
+                </h2>
+                <Link
+                  href="/web/settings"
+                  className="inline-flex items-center gap-1.5 border-b border-border-subtle pb-1 font-mono text-[11px] text-text-secondary transition-colors hover:border-primary hover:text-primary"
+                >
+                  Gestionar <ArrowRight size={13} />
+                </Link>
+              </div>
+              <div
+                className="grid gap-x-8"
+                style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', rowGap: 36 }}
+              >
+                {data.accounts.map((account) => {
+                  const balance = data.accountBalances.find((b) => b.id === account.id)
+                  return (
+                    <div
+                      key={account.id}
+                      className="cursor-pointer py-[22px] transition-opacity hover:opacity-65"
+                      style={{
+                        borderTop: account.is_primary
+                          ? '2px solid var(--color-text-primary)'
+                          : '1px solid var(--color-text-primary)',
+                      }}
+                    >
+                      <div className="mb-7 flex items-center justify-between gap-2">
+                        <span className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
+                          {accountTypeLabel(account.type)}{account.is_primary ? ' · principal' : ''}
+                        </span>
+                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                      </div>
+                      <p className="mb-3 text-[14px] font-normal leading-snug tracking-[-0.015em] text-text-secondary">
+                        {account.name}
+                      </p>
+                      {balance != null ? (
+                        <p
+                          className="font-medium text-text-primary"
+                          style={{ fontSize: 20, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
+                        >
+                          {amountsVisible ? formatAmount(balance.saldo, viewCurrency) : maskAmount(viewCurrency)}
+                        </p>
+                      ) : (
+                        <p className="font-mono text-[11px] text-text-dim">cuenta registrada</p>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
+
+            {/* ======== CICLO + FLUJO ======== */}
+            <section className="mb-[88px] grid grid-cols-2 gap-7">
+              {/* Ciclo */}
+              <Panel
+                title={cicloCard ? `Ciclo · ${cicloTarjeta?.name ?? 'Tarjeta'}` : 'Ciclo tarjeta'}
+                tag={
+                  cicloTarjeta?.daysUntilClosing != null
+                    ? `cierra en ${cicloTarjeta.daysUntilClosing} días`
+                    : cicloTarjeta?.cycleStatus ?? 'sin tarjeta'
+                }
+                tagColor={
+                  (cicloTarjeta?.daysUntilClosing ?? 99) <= 3 ? 'warn' : 'primary'
+                }
+              >
+                {cicloTarjeta ? (
+                  <>
+                    <p
+                      className="mb-2 font-medium text-text-primary"
+                      style={{ fontSize: 48, lineHeight: 1, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      <span
+                        className="mr-1 font-mono font-normal text-text-dim"
+                        style={{ fontSize: 16, verticalAlign: '0.3em' }}
+                      >
+                        $
+                      </span>
+                      {amountsVisible
+                        ? cicloTarjeta.currentSpend.toLocaleString('es-AR', { maximumFractionDigits: 0 })
+                        : '••••••'}
+                    </p>
+                    <p className="mb-8 text-[13px] text-text-secondary">
+                      {cicloTarjeta.currentSpend === 0
+                        ? 'nuevo ciclo · sin consumos aún'
+                        : 'consumido del período'}
+                      {cicloCard?.closing_day && cicloTarjeta.currentSpend > 0
+                        ? ` · cierre ${cicloCard.closing_day} de ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`
+                        : ''}
+                    </p>
+                    {/* progress bar */}
+                    <div
+                      className="relative mb-4 h-1 overflow-visible rounded-sm"
+                      style={{ background: 'var(--color-bg-tertiary)' }}
+                    >
+                      <div
+                        className="h-full rounded-sm bg-text-primary"
+                        style={{ width: `${Math.round(cicloProgress * 100)}%` }}
+                      />
+                      <div
+                        className="absolute top-[-4px] h-3 w-px bg-primary"
+                        style={{ left: `${Math.round(cicloProgress * 100)}%` }}
+                      >
+                        <span
+                          className="absolute left-1/2 top-4 -translate-x-1/2 font-mono text-[10px] text-primary"
+                          style={{ whiteSpace: 'nowrap' }}
+                        >
+                          hoy
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className="mt-9 flex justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim"
+                    >
+                      <span>
+                        Ciclo anterior{' '}
+                        <strong
+                          className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
+                          style={{ fontSize: 14, letterSpacing: '-0.02em' }}
+                        >
+                          {amountsVisible
+                            ? formatAmount(cicloTarjeta.debtTotal, viewCurrency)
+                            : maskAmount(viewCurrency)}
+                        </strong>
+                      </span>
+                      {cicloTarjeta.dueDate && (
+                        <span>
+                          Vence{' '}
+                          <strong
+                            className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
+                            style={{ fontSize: 14 }}
+                          >
+                            {new Date(`${cicloTarjeta.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', {
+                              day: 'numeric',
+                              month: 'short',
+                            })}
+                          </strong>
+                        </span>
+                      )}
+                      <span>
+                        Tarjetas activas{' '}
+                        <strong
+                          className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
+                          style={{ fontSize: 14 }}
+                        >
+                          {compromisos?.tarjetas.length ?? 0}
+                        </strong>
+                      </span>
+                    </div>
+                  </>
+                ) : (
+                  <p className="py-4 text-[14px] text-text-secondary">
+                    Sin tarjetas activas para mostrar ciclo.
+                  </p>
+                )}
+              </Panel>
+
+              {/* Flujo */}
+              <Panel
+                title={`Flujo de ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`}
+                tag={`${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })} corridos`}
+                tagColor="muted"
+              >
+                <div className="mb-7 grid grid-cols-3 gap-3.5 border-b border-border-subtle pb-6">
+                  <div>
+                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
+                      Ingresos
+                    </p>
+                    <p
+                      className="font-medium text-success"
+                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {amountsVisible ? formatAmount(ingresosMes, viewCurrency) : maskAmount(viewCurrency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
+                      Gastos percibidos
+                    </p>
+                    <p
+                      className="font-medium text-warning"
+                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {amountsVisible ? formatAmount(gastosMes, viewCurrency) : maskAmount(viewCurrency)}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
+                      Resultado
+                    </p>
+                    <p
+                      className={`font-medium ${flujoResult >= 0 ? 'text-primary' : 'text-danger'}`}
+                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
+                    >
+                      {amountsVisible
+                        ? `${flujoResult >= 0 ? '+' : ''}${formatAmount(flujoResult, viewCurrency)}`
+                        : maskAmount(viewCurrency)}
+                    </p>
+                  </div>
+                </div>
+                {/* expense bar chart */}
+                {cashflowBars.length >= 2 ? (
+                  <svg width="100%" height="120" viewBox="0 0 460 120" preserveAspectRatio="none">
+                    {cashflowBars.map((bar, i) => {
+                      const x = 20 + i * 72
+                      return (
+                        <g key={bar.label}>
+                          <rect
+                            x={x}
+                            y={100 - bar.height}
+                            width={36}
+                            height={bar.height}
+                            fill={bar.isCurrent ? 'var(--color-primary)' : 'var(--color-bg-tertiary)'}
+                            rx="2"
+                          />
+                          <text
+                            x={x + 18}
+                            y="115"
+                            fontFamily="var(--font-dm-mono), ui-monospace"
+                            fontSize="9"
+                            fill="var(--color-text-dim)"
+                            textAnchor="middle"
+                          >
+                            {bar.label}
+                          </text>
+                        </g>
+                      )
+                    })}
+                  </svg>
+                ) : (
+                  <p className="py-3 text-[13px] text-text-dim">
+                    Acumulá más meses para ver la tendencia.
+                  </p>
+                )}
+              </Panel>
+            </section>
+
+            {/* ======== METAS + INSTRUMENTOS ======== */}
+            <section className="mb-[88px] grid grid-cols-2 gap-7">
+              {/* Metas — UI only, no backend yet */}
+              <Panel title="Metas" tag="próximamente" tagColor="muted">
+                <div className="flex flex-col items-center justify-center py-8 text-center">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-bg-secondary text-text-dim">
+                    <Target size={22} />
+                  </div>
+                  <p className="text-[15px] font-medium text-text-primary">Metas financieras</p>
+                  <p className="mt-2 max-w-xs text-[13px] leading-6 text-text-secondary">
+                    Podrás crear metas de ahorro como fondo de emergencia, vacaciones o cualquier objetivo personal, y seguir tu progreso mes a mes.
+                  </p>
+                </div>
+              </Panel>
+
+              {/* Instrumentos */}
+              <Panel
+                title="Instrumentos"
+                tag={instruments.length > 0 ? `${instruments.length} activos` : undefined}
+              >
+                {instruments.length === 0 ? (
+                  <p className="py-4 text-[14px] text-text-secondary">No hay instrumentos activos.</p>
+                ) : (
+                  <div
+                    className="overflow-hidden rounded-[10px]"
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 1,
+                      background: 'var(--color-border-subtle)',
+                    }}
+                  >
+                    {instruments.map((instrument) => (
+                      <div key={instrument.id} className="bg-white p-5">
+                        <p className="mb-3.5 font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-text-dim">
+                          {instrument.type === 'plazo_fijo' ? 'Plazo fijo' : 'FCI'} · {instrument.currency}
+                        </p>
+                        <p className="mb-1.5 text-[13px] font-normal leading-snug tracking-[-0.015em] text-text-secondary">
+                          {instrumentLabel(instrument)}
+                        </p>
+                        <p
+                          className="mb-3.5 font-medium text-text-primary"
+                          style={{ fontSize: 22, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}
+                        >
+                          <span
+                            className="mr-0.5 font-mono font-normal text-text-dim"
+                            style={{ fontSize: 11, verticalAlign: '0.2em' }}
+                          >
+                            {instrument.currency === 'USD' ? 'US$' : '$'}
+                          </span>
+                          {amountsVisible
+                            ? instrument.amount.toLocaleString('es-AR', { maximumFractionDigits: 0 })
+                            : '••••••'}
+                        </p>
+                        <div className="flex justify-between font-mono text-[10px] text-text-dim" style={{ letterSpacing: '0.02em' }}>
+                          <span>{instrumentDueDateLabel(instrument)}</span>
                         </div>
                       </div>
                     ))}
                   </div>
+                )}
+              </Panel>
+            </section>
 
-                  {analyticsData ? (
-                    <div className="mt-6 border-t border-border-subtle pt-4">
-                      <p className="type-meta text-text-dim">Contexto de lectura</p>
-                      <p className="mt-2 text-[15px] leading-7 text-text-secondary">
-                        Hay {analyticsData.monthlySeries.length} meses disponibles para comparar habitos y tensiones del gasto.
-                      </p>
-                    </div>
-                  ) : null}
-                </section>
+            {/* ======== INSIGHTS ======== */}
+            <section
+              className="relative mb-[88px] py-12"
+              style={{
+                borderTop: '1px solid var(--color-text-primary)',
+                borderBottom: '1px solid var(--color-border-subtle)',
+              }}
+            >
+              {/* blue accent line */}
+              <div
+                className="absolute left-0 top-[-1px] h-0.5 w-14 bg-primary"
+              />
 
-                <section id="liquidez-web" className="rounded-[28px] border border-border-subtle bg-white p-5 shadow-sm">
-                  <SectionTitle
-                    title="Liquidez por moneda"
-                    subtitle="Un snapshot rapido para caja y referencia cambiaria."
-                    icon={<CirclesThree size={20} weight="regular" />}
-                  />
-
-                  <div className="space-y-5">
-                    <div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[15px] font-medium text-text-secondary">ARS disponible</span>
-                        <span className="text-[16px] font-bold text-text-primary">{availableArsLabel}</span>
-                      </div>
-                      <div className="mt-3 h-3.5 rounded-pill bg-bg-secondary">
-                        <div
-                          className="h-full rounded-pill bg-primary"
-                          style={{
-                            width: `${heroBreakdown.ARS > 0 ? Math.min((availableBreakdown.ARS / heroBreakdown.ARS) * 100, 100) : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="flex items-center justify-between gap-4">
-                        <span className="text-[15px] font-medium text-text-secondary">USD disponible</span>
-                        <span className="text-[16px] font-bold text-text-primary">{availableUsdLabel}</span>
-                      </div>
-                      <div className="mt-3 h-3.5 rounded-pill bg-bg-secondary">
-                        <div
-                          className="h-full rounded-pill bg-data"
-                          style={{
-                            width: `${heroBreakdown.USD > 0 ? Math.min((availableBreakdown.USD / heroBreakdown.USD) * 100, 100) : 0}%`,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  {quote ? (
-                    <div className="mt-5 border-t border-border-subtle pt-4">
-                      <p className="type-meta text-text-dim">Tipo de cambio de referencia</p>
-                      <div className="mt-2 flex items-end justify-between gap-4">
-                        <p className="text-[20px] font-extrabold tracking-[-0.03em] text-text-primary">USD/ARS {quote.rate.toLocaleString('es-AR')}</p>
-                        <p className="type-meta text-text-dim">{quote.effectiveDate}</p>
-                      </div>
-                    </div>
-                  ) : null}
-                </section>
-
-                <div id="modulos-web" className="grid gap-5">
-                  <CompactPanel
-                    title="Suscripciones"
-                    icon={<ArrowsClockwise size={20} weight="regular" />}
-                    action={<span className="text-[13px] font-semibold text-primary">Secundario</span>}
+              <div className="mb-9 flex items-baseline gap-4">
+                <div>
+                  <span className="inline-flex items-center gap-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
+                    <Sparkle size={13} weight="duotone" />
+                    Esta semana, según gota
+                  </span>
+                  <h2
+                    className="mt-2 font-medium text-text-primary"
+                    style={{ fontSize: 26, letterSpacing: '-0.04em' }}
                   >
-                    {subscriptions.length === 0 ? (
-                      <p className="text-[15px] leading-7 text-text-secondary">Todavia no hay suscripciones activas visibles para esta lectura.</p>
-                    ) : (
-                      <>
-                        <div className="mb-4 border-b border-border-subtle pb-4">
-                          <p className="type-meta text-text-dim">Total mensual visible</p>
-                          <p className="mt-2 text-[22px] font-extrabold tracking-[-0.03em] text-text-primary">
-                            {amountsVisible ? formatAmount(subscriptionsTotal, viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                        </div>
-                        <div className="space-y-3">
-                          {subscriptions.map((subscription: Subscription) => (
-                            <div key={subscription.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-[14px] font-semibold text-text-primary">{subscription.description}</p>
-                                <p className="mt-1 text-[13px] text-text-secondary">Proximo debito el {subscription.day_of_month}</p>
-                              </div>
-                              <p className="text-[15px] font-bold tracking-[-0.02em] text-text-primary">
-                                {amountsVisible ? formatAmount(subscription.amount, subscription.currency) : maskAmount(subscription.currency)}
-                              </p>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </CompactPanel>
-
-                  <CompactPanel
-                    title="Instrumentos"
-                    icon={<Star size={20} weight="regular" />}
-                    action={<span className="text-[13px] font-semibold text-primary">Opcional</span>}
-                  >
-                    {instruments.length === 0 ? (
-                      <p className="text-[15px] leading-7 text-text-secondary">No hay instrumentos activos en esta cuenta por ahora.</p>
-                    ) : (
-                      <>
-                        <div className="mb-4 border-b border-border-subtle pb-4">
-                          <p className="type-meta text-text-dim">Capital visible</p>
-                          <p className="mt-2 text-[22px] font-extrabold tracking-[-0.03em] text-text-primary">
-                            {amountsVisible ? formatAmount(data.capitalInstrumentosMes, viewCurrency) : maskAmount(viewCurrency)}
-                          </p>
-                        </div>
-                        <div className="space-y-3">
-                          {instruments.map((instrument) => (
-                            <div key={instrument.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-3">
-                              <div className="min-w-0">
-                                <p className="truncate text-[14px] font-semibold text-text-primary">{instrumentLabel(instrument)}</p>
-                                <p className="mt-1 text-[13px] text-text-secondary">{instrumentDateLabel(instrument)}</p>
-                              </div>
-                              <div className="text-right">
-                                <p className="text-[15px] font-bold tracking-[-0.02em] text-text-primary">
-                                  {amountsVisible ? formatAmount(instrument.amount, instrument.currency) : maskAmount(instrument.currency)}
-                                </p>
-                                <p className="mt-1 type-meta text-text-dim">{instrument.type === 'plazo_fijo' ? 'Plazo fijo' : 'FCI'}</p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </>
-                    )}
-                  </CompactPanel>
+                    {attention.length > 0
+                      ? 'Señales para mirar.'
+                      : 'Todo en orden.'}
+                  </h2>
                 </div>
+                <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-text-dim">
+                  {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </span>
               </div>
-            </div>
-          )}
-        </main>
-      </div>
+
+              {attention.length === 0 ? (
+                <div className="grid grid-cols-3 gap-7">
+                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
+                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">01 · estado</span>
+                    Sin señales tácticas urgentes. La lectura del mes está estable con los datos actuales.
+                  </div>
+                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
+                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">02 · hábito</span>
+                    Seguí registrando para que el análisis mejore con el tiempo y sea más preciso.
+                  </div>
+                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
+                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">03 · horizonte</span>
+                    Revisá la sección de Horizonte para ver los eventos financieros que se vienen.
+                  </div>
+                </div>
+              ) : (
+                <div className="grid gap-7" style={{ gridTemplateColumns: `repeat(${Math.min(attention.length, 3)}, 1fr)` }}>
+                  {attention.slice(0, 3).map((signal, i) => (
+                    <div
+                      key={signal.id}
+                      className={`${i > 0 ? 'border-l border-border-subtle pl-7' : ''} font-medium leading-[1.5] tracking-[-0.015em] text-text-primary`}
+                      style={{ fontSize: 15 }}
+                    >
+                      <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
+                        {String(i + 1).padStart(2, '0')} · {signal.tone === 'high' ? 'urgente' : signal.tone === 'medium' ? 'atención' : 'nota'}
+                      </span>
+                      {signal.title}.{' '}
+                      <span className="font-normal text-text-secondary">{signal.detail}</span>
+                      <span className="mt-3.5 block border-b border-primary pb-0.5 font-mono text-[11px] font-medium text-primary" style={{ display: 'inline-block' }}>
+                        {signal.dateLabel}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </section>
+
+            {/* ======== 3-COL BOTTOM ======== */}
+            <section className="mb-[88px] grid grid-cols-3 gap-9">
+
+              {/* Últimos movimientos */}
+              <div
+                className="pt-6"
+                style={{ borderTop: '1px solid var(--color-text-primary)' }}
+              >
+                <div
+                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
+                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
+                >
+                  <span>
+                    Últimos movimientos
+                  </span>
+                  <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
+                    {recentActivity.length} ítems
+                  </span>
+                </div>
+                <div>
+                  {recentActivity.map((item) => (
+                    <div
+                      key={item.id}
+                      className="flex cursor-pointer items-center gap-3.5 border-t border-border-subtle py-4 transition-opacity hover:opacity-65 first:border-t-0 first:pt-1"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span
+                            className="overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
+                            style={{ fontSize: 14 }}
+                          >
+                            {item.title}
+                          </span>
+                          <span
+                            className={`whitespace-nowrap font-medium tracking-[-0.025em] ${item.tone === 'positive' ? 'text-success' : 'text-text-primary'}`}
+                            style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}
+                          >
+                            {item.amountLabel}
+                          </span>
+                        </div>
+                        <div className="mt-1 flex justify-between font-mono text-[11px] tracking-[0.02em] text-text-dim">
+                          <span>{item.subtitle}</span>
+                          <span>{item.dateLabel}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href="/analytics"
+                  className="mt-5 inline-flex items-center gap-1.5 border-b border-border-subtle pb-1 font-mono text-[11px] text-text-secondary transition-colors hover:border-primary hover:text-primary"
+                >
+                  Ver análisis completo <ArrowRight size={12} />
+                </Link>
+              </div>
+
+              {/* Suscripciones */}
+              <div
+                className="pt-6"
+                style={{ borderTop: '1px solid var(--color-text-primary)' }}
+              >
+                <div
+                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
+                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
+                >
+                  <span>Suscripciones</span>
+                  {subscriptions.length > 0 && (
+                    <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
+                      {amountsVisible
+                        ? formatAmount(
+                            subscriptions
+                              .filter((s) => s.currency === viewCurrency)
+                              .reduce((sum, s) => sum + s.amount, 0),
+                            viewCurrency,
+                          )
+                        : '•••'}{' '}
+                      / mes
+                    </span>
+                  )}
+                </div>
+
+                {subscriptions.length === 0 ? (
+                  <p className="pt-1 text-[14px] text-text-secondary">Sin suscripciones activas.</p>
+                ) : (
+                  <>
+                    {subscriptions.map((sub: Subscription) => (
+                      <div
+                        key={sub.id}
+                        className="flex items-center justify-between border-t border-border-subtle py-4 first:border-t-0 first:pt-1"
+                      >
+                        <div className="flex min-w-0 items-center gap-3">
+                          <div
+                            className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-[9px] text-[15px]"
+                            style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}
+                          >
+                            <span className="font-medium" style={{ fontSize: 12 }}>
+                              {sub.description.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p
+                              className="overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
+                              style={{ fontSize: 14 }}
+                            >
+                              {sub.description}
+                            </p>
+                            <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.02em] text-text-dim">
+                              Renueva el {sub.day_of_month}
+                            </p>
+                          </div>
+                        </div>
+                        <span
+                          className="ml-2.5 whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
+                          style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}
+                        >
+                          {amountsVisible ? formatAmount(sub.amount, sub.currency) : maskAmount(sub.currency)}
+                        </span>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+
+              {/* Lo que viene */}
+              <div
+                className="pt-6"
+                style={{ borderTop: '1px solid var(--color-text-primary)' }}
+              >
+                <div
+                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
+                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
+                >
+                  <span>Lo que viene</span>
+                  <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
+                    {horizon.length} eventos · 90 días
+                  </span>
+                </div>
+
+                {groupedHorizon.length === 0 ? (
+                  <p className="pt-1 text-[14px] text-text-secondary">Sin eventos próximos en 90 días.</p>
+                ) : (
+                  <>
+                    {groupedHorizon.map(({ month, label, events }) => (
+                      <div key={month}>
+                        <p className="mb-2.5 mt-6 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-text-dim first:mt-0">
+                          En {label}
+                        </p>
+                        {events.map((event) => {
+                          const d = new Date(`${event.date}T12:00:00-03:00`)
+                          return (
+                            <div
+                              key={event.id}
+                              className="grid items-start gap-3.5 py-3"
+                              style={{ gridTemplateColumns: '42px 1fr auto' }}
+                            >
+                              <div className="font-mono text-[11px] uppercase tracking-[0.04em] text-text-dim" style={{ paddingTop: 4, fontVariantNumeric: 'tabular-nums' }}>
+                                <span
+                                  className="mb-0.5 block font-sans font-medium text-text-primary"
+                                  style={{ fontSize: 20, letterSpacing: '-0.04em', lineHeight: 1 }}
+                                >
+                                  {d.getDate()}
+                                </span>
+                                {d.toLocaleDateString('es-AR', { month: 'short' }).toUpperCase().replace('.', '')}
+                              </div>
+
+                              <div
+                                className="relative border-l border-border-subtle pl-4"
+                                style={{ paddingTop: 2 }}
+                              >
+                                <span
+                                  className={`absolute -left-[4px] top-[7px] h-[7px] w-[7px] rounded-full border-[1.5px] ${horizonDotColor(event.kind)}`}
+                                  style={{ borderColor: '#FAFAF8' }}
+                                />
+                                <p
+                                  className="font-medium leading-snug tracking-[-0.02em] text-text-primary"
+                                  style={{ fontSize: 14 }}
+                                >
+                                  {event.title}
+                                </p>
+                                <span
+                                  className={`font-mono text-[11px] tracking-[0.02em] ${
+                                    event.kind === 'due' ? 'text-primary' : event.kind === 'income' ? 'text-success' : 'text-text-dim'
+                                  }`}
+                                >
+                                  {event.subtitle}
+                                </span>
+                              </div>
+
+                              <div style={{ paddingTop: 2 }}>
+                                {event.amount !== undefined && event.amount > 0 && (
+                                  <p
+                                    className={`whitespace-nowrap font-medium tracking-[-0.025em] ${horizonAmountColor(event.kind, event.estimated)}`}
+                                    style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}
+                                  >
+                                    {horizonAmountPrefix(event.kind)}
+                                    {amountsVisible
+                                      ? formatAmount(event.amount, event.currency ?? viewCurrency)
+                                      : '••••'}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    ))}
+                  </>
+                )}
+              </div>
+            </section>
+
+          </>
+        )}
+
+        {/* ======== COLOPHON ======== */}
+        <div
+          className="mt-[88px] border-t border-border-subtle pt-14 text-center font-mono text-[11px] tracking-[0.04em] text-text-dim"
+        >
+          <span
+            className="mb-2.5 block font-sans font-bold tracking-[-0.045em] text-primary"
+            style={{ fontSize: 18 }}
+          >
+            gota.
+          </span>
+          Tu dinero, con menos ruido.
+        </div>
+
+      </main>
     </div>
   )
 }

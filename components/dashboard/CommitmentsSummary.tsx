@@ -56,7 +56,6 @@ export function CommitmentsSummary({
   return (
     <Link
       href={href}
-      aria-label="Ver compromisos pendientes"
       className="block px-1 py-1 transition-opacity hover:opacity-90"
     >
       <div className="border-t border-[color:var(--color-separator)] pt-4">

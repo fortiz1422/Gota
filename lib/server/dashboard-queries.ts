@@ -4,9 +4,11 @@ import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
 import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
+  buildLiveBalanceBreakdown,
   buildLiveBalanceHeroSummary,
   sumActiveInstrumentCapital,
   sumCrossCurrencyTransferAdjustment,
+  type LiveBreakdownRow,
 } from '@/lib/live-balance'
 import { computeCompromisos, type CompromisosData } from '@/lib/analytics/computeCompromisos'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
@@ -57,6 +59,7 @@ export type DashboardApiData = {
   recurringPending: RecurringIncome[]
   activeRecurring: RecurringIncome[]
   compromisos: CompromisosData | null
+  accountBalances: LiveBreakdownRow[]
 }
 
 type ReadDashboardDataParams = {
@@ -185,35 +188,35 @@ export async function readDashboardData({
       .eq('is_active', true),
     supabase
       .from('income_entries')
-      .select('amount, currency')
+      .select('amount, currency, account_id')
       .eq('user_id', userId)
       .lte('date', todayDate),
     supabase
       .from('expenses')
-      .select('amount, currency')
+      .select('amount, currency, account_id')
       .eq('user_id', userId)
       .lte('date', todayDate)
       .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
       .neq('category', 'Pago de Tarjetas'),
     supabase
       .from('expenses')
-      .select('amount, currency')
+      .select('amount, currency, account_id')
       .eq('user_id', userId)
       .lte('date', todayDate)
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('transfers')
-      .select('amount_from, amount_to, currency_from, currency_to')
+      .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
       .eq('user_id', userId)
       .lte('date', todayDate),
     supabase
       .from('yield_accumulator')
-      .select('accumulated')
+      .select('accumulated, account_id')
       .eq('user_id', userId)
       .lte('month', currentMonth),
     supabase
       .from('instruments')
-      .select('amount, currency')
+      .select('amount, currency, account_id')
       .eq('user_id', userId)
       .eq('status', 'active'),
     supabase
@@ -336,6 +339,26 @@ export async function readDashboardData({
       currency: row.currency,
     })),
     yields: FF_YIELD ? ((liveYieldData ?? []) as { accumulated: number }[]) : [],
+  })
+
+  const accountBalances = buildLiveBalanceBreakdown({
+    accounts,
+    currency: viewCurrency,
+    incomes: (liveIncomeData ?? []) as { account_id: string | null; amount: number }[],
+    debitExpenses: (liveDebitExpenseData ?? []) as { account_id: string | null; amount: number }[],
+    cardPayments: (liveCardPaymentData ?? []) as { account_id: string | null; amount: number }[],
+    transfers: (liveTransfersData ?? []) as {
+      from_account_id: string
+      to_account_id: string
+      amount_from: number
+      amount_to: number
+      currency_from: 'ARS' | 'USD'
+      currency_to: 'ARS' | 'USD'
+    }[],
+    yields: FF_YIELD ? ((liveYieldData ?? []) as { account_id: string; accumulated: number }[]) : [],
+    activeInstruments: FF_INSTRUMENTS
+      ? ((liveInstrumentsData ?? []) as Pick<Instrument, 'account_id' | 'amount' | 'currency'>[])
+      : [],
   })
 
   const activeInstruments = (instrumentsData ?? []) as Instrument[]
@@ -496,5 +519,6 @@ export async function readDashboardData({
     recurringPending,
     activeRecurring,
     compromisos: compromisosView,
+    accountBalances,
   }
 }

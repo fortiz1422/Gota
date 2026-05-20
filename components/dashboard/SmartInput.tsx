@@ -211,6 +211,8 @@ export function SmartInput({
       >
         <input
           ref={inputRef}
+          id="smart-input"
+          name="movimiento"
           type="text"
           value={input}
           onChange={(e) => {

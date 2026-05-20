@@ -311,7 +311,7 @@ export function DashboardShell({
                 <button
                   type="button"
                   onClick={promptFirstExpense}
-                  className="mt-4 rounded-button border border-primary/20 bg-primary/8 px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/12"
+                  className="mt-4 rounded-button border border-primary/30 bg-white px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/8"
                 >
                   Cargar primer gasto
                 </button>

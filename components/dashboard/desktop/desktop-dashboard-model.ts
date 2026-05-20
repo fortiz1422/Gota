@@ -1,7 +1,7 @@
 import { addMonths } from '@/lib/dates'
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
-import type { Account, Card, Expense, IncomeEntry, RecurringIncome, Transfer } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome, Transfer } from '@/types/database'
 
 export type DesktopHeroStats = {
   saldoVivo: number
@@ -25,7 +25,10 @@ export type HorizonEvent = {
   date: string
   title: string
   subtitle: string
-  kind: 'card' | 'due' | 'income'
+  kind: 'card' | 'due' | 'income' | 'instrument'
+  amount?: number
+  currency?: 'ARS' | 'USD'
+  estimated?: boolean
 }
 
 export type RecentActivityItem = {
@@ -180,16 +183,20 @@ export function buildAttentionSignals(params: {
 export function buildHorizonEvents(params: {
   cards: Card[]
   recurringIncomes: RecurringIncome[]
+  activeInstruments: Instrument[]
+  compromisos: CompromisosData | null
   selectedMonth: string
   today?: string
 }): HorizonEvent[] {
-  const { cards, recurringIncomes, selectedMonth, today = todayAR() } = params
+  const { cards, recurringIncomes, activeInstruments, compromisos, selectedMonth, today = todayAR() } = params
   const events: HorizonEvent[] = []
 
   for (let offset = 0; offset < 3; offset += 1) {
     const month = addMonths(selectedMonth, offset)
 
     cards.forEach((card) => {
+      const tarjeta = compromisos?.tarjetas.find((t) => t.id === card.id) ?? null
+
       if (card.closing_day) {
         const closingDate = `${month}-${String(card.closing_day).padStart(2, '0')}`
         if (closingDate >= today) {
@@ -197,8 +204,11 @@ export function buildHorizonEvents(params: {
             id: `close-${card.id}-${month}`,
             date: closingDate,
             title: `Cierre ${card.name}`,
-            subtitle: monthLabel(month),
+            subtitle: 'CIERRE DE CICLO',
             kind: 'card',
+            amount: offset === 0 && tarjeta ? tarjeta.currentSpend : undefined,
+            currency: 'ARS',
+            estimated: offset > 0,
           })
         }
       }
@@ -209,8 +219,11 @@ export function buildHorizonEvents(params: {
           id: `due-${card.id}-${month}`,
           date: dueDate,
           title: `Vence ${card.name}`,
-          subtitle: monthLabel(month),
+          subtitle: 'VENCIMIENTO',
           kind: 'due',
+          amount: offset === 0 && tarjeta ? tarjeta.debtTotal : undefined,
+          currency: 'ARS',
+          estimated: offset > 0,
         })
       }
     })
@@ -222,16 +235,32 @@ export function buildHorizonEvents(params: {
           id: `income-${recurring.id}-${month}`,
           date: incomeDate,
           title: recurringIncomeLabel(recurring),
-          subtitle: 'Ingreso esperado',
+          subtitle: 'INGRESO ESTIMADO',
           kind: 'income',
+          amount: recurring.amount,
+          currency: recurring.currency,
+          estimated: true,
         })
       }
     })
   }
 
-  return events
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(0, 8)
+  activeInstruments.forEach((instrument) => {
+    if (instrument.type === 'plazo_fijo' && instrument.due_date && instrument.due_date >= today) {
+      const label = instrument.label?.trim() ? instrument.label.trim() : 'Plazo fijo'
+      events.push({
+        id: `instrument-${instrument.id}`,
+        date: instrument.due_date,
+        title: label,
+        subtitle: 'PLAZO FIJO · VENCE',
+        kind: 'instrument',
+        amount: instrument.amount,
+        estimated: false,
+      })
+    }
+  })
+
+  return events.sort((a, b) => a.date.localeCompare(b.date))
 }
 
 export function buildRecentActivityItems(params: {
