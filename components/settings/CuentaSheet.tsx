@@ -3,15 +3,19 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowsClockwise, Bank, CaretRight, CreditCard, X } from '@phosphor-icons/react'
+import { ArrowsClockwise, Bank, CaretRight, CreditCard, Lock, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
 import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
 import { SubscriptionsSubSheet } from '@/components/settings/SubscriptionsSubSheet'
 import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
 import { createClient } from '@/lib/supabase/client'
+import { updatePassword } from '@/lib/auth'
 import type { HeroBalanceMode } from '@/types/database'
+
+const MIN_PASSWORD_LENGTH = 8
 
 interface Props {
   open: boolean
@@ -42,16 +46,29 @@ export function CuentaSheet({
   const [isSavingHeroMode, setIsSavingHeroMode] = useState(false)
   const [isLoggingOut, setIsLoggingOut] = useState(false)
   const [heroBalanceModeOpen, setHeroBalanceModeOpen] = useState(false)
+  const [authProviders, setAuthProviders] = useState<string[]>([])
+  const [isAnonymous, setIsAnonymous] = useState(false)
+  const [passwordModalOpen, setPasswordModalOpen] = useState(false)
+  const [password, setPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordError, setPasswordError] = useState<string | null>(null)
+  const [passwordSuccess, setPasswordSuccess] = useState<string | null>(null)
+  const [isSavingPassword, setIsSavingPassword] = useState(false)
 
   useEffect(() => {
     if (!open) return
+    const supabase = createClient()
     Promise.all([
       fetch('/api/accounts').then((r) => r.json()),
       fetch('/api/cards').then((r) => r.json()),
       fetch('/api/subscriptions').then((r) => r.json()),
       fetch('/api/user-config').then((r) => r.json()),
+      supabase.auth.getUser(),
     ])
-      .then(([accounts, cards, subscriptions, config]) => {
+      .then(([accounts, cards, subscriptions, config, { data: { user } }]) => {
+        const rawProviders = (user?.app_metadata as { providers?: unknown } | undefined)?.providers
+        setAuthProviders(Array.isArray(rawProviders) ? (rawProviders as string[]) : [])
+        setIsAnonymous(user?.is_anonymous === true)
         setAccountCount(
           Array.isArray(accounts)
             ? accounts.filter((a: { archived: boolean }) => !a.archived).length
@@ -112,6 +129,45 @@ export function CuentaSheet({
     } finally {
       setIsSavingHeroMode(false)
     }
+  }
+
+  const hasEmailProvider = authProviders.includes('email')
+  const passwordLabel = hasEmailProvider ? 'Actualizar contraseña' : 'Crear contraseña'
+
+  const resetPasswordForm = () => {
+    setPassword('')
+    setConfirmPassword('')
+    setPasswordError(null)
+  }
+
+  const handlePasswordSave = async () => {
+    setPasswordError(null)
+    setPasswordSuccess(null)
+
+    if (password.length < MIN_PASSWORD_LENGTH) {
+      setPasswordError('La contraseña debe tener al menos 8 caracteres.')
+      return
+    }
+    if (password !== confirmPassword) {
+      setPasswordError('Las contraseñas no coinciden.')
+      return
+    }
+
+    setIsSavingPassword(true)
+    const { error } = await updatePassword(password)
+    setIsSavingPassword(false)
+
+    if (error) {
+      setPasswordError(error.message)
+      return
+    }
+
+    setPasswordSuccess(
+      hasEmailProvider
+        ? 'Contraseña actualizada.'
+        : 'Contraseña creada. Ya podés entrar con mail y contraseña.'
+    )
+    resetPasswordForm()
   }
 
   const handleLogout = async () => {
@@ -243,6 +299,36 @@ export function CuentaSheet({
             </button>
           </div>
 
+          {!isAnonymous && userEmail && (
+            <div
+              className="overflow-hidden rounded-card"
+              style={{
+                background: 'rgba(255,255,255,0.38)',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                border: '1px solid rgba(255,255,255,0.70)',
+              }}
+            >
+              <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
+                Seguridad
+              </p>
+              <button
+                onClick={() => {
+                  setPasswordSuccess(null)
+                  resetPasswordForm()
+                  setPasswordModalOpen(true)
+                }}
+                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary/5"
+              >
+                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
+                  <Lock weight="duotone" size={15} className="text-text-label" />
+                </div>
+                <span className="flex-1 text-sm text-text-primary">{passwordLabel}</span>
+                <CaretRight size={14} className="text-text-dim" />
+              </button>
+            </div>
+          )}
+
           <div className="space-y-2">
             <div className="rounded-input bg-bg-tertiary px-3 py-2.5">
               <Link
@@ -265,6 +351,68 @@ export function CuentaSheet({
             </button>
 
             <DeleteAccountControl />
+          </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={passwordModalOpen}
+        onClose={() => {
+          setPasswordModalOpen(false)
+          setPasswordSuccess(null)
+          resetPasswordForm()
+        }}
+      >
+        <div className="space-y-4">
+          <div>
+            <h2 className="text-base font-semibold text-text-primary">{passwordLabel}</h2>
+            <p className="mt-1 text-sm text-text-tertiary">
+              {hasEmailProvider
+                ? 'Vas a actualizar la contraseña de esta cuenta.'
+                : 'Vas a sumar una contraseña a esta misma cuenta. Tus datos no cambian.'}
+            </p>
+          </div>
+
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Nueva contraseña (mínimo 8 caracteres)"
+            className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
+          />
+
+          <input
+            type="password"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            placeholder="Repetí la contraseña"
+            className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
+          />
+
+          <InlineError message={passwordError} />
+
+          {passwordSuccess && (
+            <p className="text-xs font-medium text-success">{passwordSuccess}</p>
+          )}
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setPasswordModalOpen(false)
+                setPasswordSuccess(null)
+                resetPasswordForm()
+              }}
+              className="flex-1 rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-primary/5"
+            >
+              Cancelar
+            </button>
+            <button
+              onClick={handlePasswordSave}
+              disabled={isSavingPassword}
+              className="flex-1 rounded-button bg-primary py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+            >
+              {isSavingPassword ? 'Guardando...' : passwordLabel}
+            </button>
           </div>
         </div>
       </Modal>
