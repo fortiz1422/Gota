@@ -3,6 +3,7 @@
 import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { ImageSquare, WarningCircle } from '@phosphor-icons/react'
+import { ParsePreview } from '@/components/dashboard/ParsePreview'
 import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
 import { trackEvent } from '@/lib/product-analytics/client'
@@ -11,14 +12,37 @@ import {
   readSharedReceiptFile,
   type PendingSharedReceipt,
 } from '@/lib/share-target'
+import type { Account, Card } from '@/types/database'
+
+interface ParsedData {
+  is_valid: true
+  amount: number
+  currency: 'ARS' | 'USD'
+  category: string
+  description: string
+  is_want: boolean | null
+  is_recurring?: boolean | null
+  is_extraordinary?: boolean | null
+  payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
+  card_id: string | null
+  installments?: number | null
+  date: string
+}
+
+type InvalidParsedData = {
+  is_valid: false
+  reason?: string
+}
 
 interface SharedReceiptPreviewModalProps {
   open: boolean
   pendingShare: PendingSharedReceipt | null
   canContinue: boolean
+  accounts: Account[]
+  cards: Card[]
   onClose: () => void
-  onContinue: () => void
   onCleared: () => void
+  onSaved: () => void
 }
 
 function bucketSharedFileType(type: string): 'image' | 'other' {
@@ -29,13 +53,17 @@ export function SharedReceiptPreviewModal({
   open,
   pendingShare,
   canContinue,
+  accounts,
+  cards,
   onClose,
-  onContinue,
   onCleared,
+  onSaved,
 }: SharedReceiptPreviewModalProps) {
   const [file, setFile] = useState<File | null>(null)
   const [loading, setLoading] = useState(false)
+  const [isParsing, setIsParsing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [parsedData, setParsedData] = useState<ParsedData | null>(null)
   const previewUrl = useMemo(() => {
     if (!file || !file.type.startsWith('image/')) return null
     return URL.createObjectURL(file)
@@ -57,8 +85,10 @@ export function SharedReceiptPreviewModal({
       if (cancelled) return
 
       setLoading(true)
+      setIsParsing(false)
       setError(null)
       setFile(null)
+      setParsedData(null)
 
       const sharedFile = await readSharedReceiptFile(pendingShare.id)
       if (cancelled) return
@@ -96,12 +126,79 @@ export function SharedReceiptPreviewModal({
     onCleared()
   }
 
-  const handleContinue = () => {
+  const handleContinue = async () => {
+    if (!file) {
+      setError('No encontramos la captura compartida. Intentá compartirla de nuevo.')
+      return
+    }
+
+    setIsParsing(true)
+    setError(null)
     trackEvent('share_target_continue_requested', {
-      file_kind: bucketSharedFileType(pendingShare.type),
+      file_kind: bucketSharedFileType(file.type),
       has_preview: Boolean(previewUrl),
     })
-    onContinue()
+    trackEvent('share_target_parse_started', {
+      file_kind: bucketSharedFileType(file.type),
+    })
+
+    try {
+      const formData = new FormData()
+      formData.append('receipt', file)
+
+      const response = await fetch('/api/parse-expense', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (!response.ok) {
+        throw new Error('parse failed')
+      }
+
+      const result = (await response.json()) as ParsedData | InvalidParsedData
+      if (result.is_valid !== true) {
+        const reason = result.reason ? result.reason : 'No pudimos interpretar la captura.'
+        setError(reason)
+        trackEvent('share_target_failed', {
+          failure_type: 'invalid_parse',
+          file_kind: bucketSharedFileType(file.type),
+        })
+        setIsParsing(false)
+        return
+      }
+
+      setParsedData(result)
+      setIsParsing(false)
+      trackEvent('share_target_parse_succeeded', {
+        file_kind: bucketSharedFileType(file.type),
+        currency: result.currency,
+        payment_method: result.payment_method,
+      })
+    } catch {
+      setError('No pudimos leer la captura. Probá de nuevo o cargá el gasto manualmente.')
+      trackEvent('share_target_failed', {
+        failure_type: 'parse_request_failed',
+        file_kind: bucketSharedFileType(file.type),
+      })
+      setIsParsing(false)
+    }
+  }
+
+  if (parsedData) {
+    return (
+      <ParsePreview
+        data={parsedData}
+        cards={cards}
+        accounts={accounts}
+        onCancel={() => setParsedData(null)}
+        onSave={() => {
+          void clearPendingSharedReceipt(pendingShare.id).then(() => {
+            onCleared()
+            onSaved()
+          })
+        }}
+      />
+    )
   }
 
   return (
@@ -174,10 +271,13 @@ export function SharedReceiptPreviewModal({
         {canContinue && (
           <button
             type="button"
-            onClick={handleContinue}
-            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-transform active:scale-95 hover:scale-[1.02]"
+            onClick={() => {
+              void handleContinue()
+            }}
+            disabled={loading || isParsing}
+            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-transform active:scale-95 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Seguir con la carga
+            {isParsing ? 'Leyendo captura...' : 'Seguir con la carga'}
           </button>
         )}
         <button

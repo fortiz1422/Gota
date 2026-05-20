@@ -23,6 +23,8 @@ export const PRODUCT_EVENT_NAMES = [
   'share_target_failed',
   'share_target_preview_opened',
   'share_target_continue_requested',
+  'share_target_parse_started',
+  'share_target_parse_succeeded',
   'share_target_dismissed',
 ] as const
 
