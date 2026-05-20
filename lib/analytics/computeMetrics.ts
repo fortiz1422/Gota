@@ -28,6 +28,15 @@ export type HabitosDayEntry = {
   txs: HabitosTx[]
 }
 
+export type MonthStatusData = {
+  income: number | null
+  expenses: number
+  net: number | null
+  savingsRate: number | null
+  spentPctOfIncome: number | null
+  status: 'positive' | 'negative' | 'neutral' | 'no_income'
+}
+
 export type CategoriaMetric = {
   category: string
   total: number
@@ -78,6 +87,7 @@ export type Metrics = {
   ahorroProyectado: number | null
   diasDeRunway: number | null
   diasRestantes: number
+  monthStatus: MonthStatusData
 
   // ANÁLISIS VIEW
   fugaSilenciosa: FugaSilenciosaData
@@ -141,6 +151,15 @@ export function computeMetrics(
     byCategory: [],
   }
 
+  const emptyMonthStatus: MonthStatusData = {
+    income: hasIngreso ? ingresoMes : null,
+    expenses: 0,
+    net: null,
+    savingsRate: null,
+    spentPctOfIncome: null,
+    status: hasIngreso ? 'neutral' : 'no_income',
+  }
+
   if (cantidadTransacciones === 0) {
     return {
       totalGastado: 0,
@@ -173,6 +192,7 @@ export function computeMetrics(
       ahorroProyectado: null,
       diasDeRunway: null,
       diasRestantes,
+      monthStatus: emptyMonthStatus,
       cantidadTransacciones: 0,
       hasIngreso,
       esPrimerosDias: true,
@@ -434,6 +454,24 @@ export function computeMetrics(
     diasDeRunway = dailyRate > 0 ? Math.floor(ingresoMes / dailyRate) : null
   }
 
+  const monthStatus: MonthStatusData = {
+    income: hasIngreso ? ingresoMes : null,
+    expenses: totalGastado,
+    net: ahorroActual,
+    savingsRate:
+      hasIngreso && ingresoMes && ahorroActual !== null
+        ? Math.round((ahorroActual / ingresoMes) * 100)
+        : null,
+    spentPctOfIncome: pctGastadoDelIngreso,
+    status: !hasIngreso
+      ? 'no_income'
+      : (ahorroActual ?? 0) > 0
+        ? 'positive'
+        : (ahorroActual ?? 0) < 0
+          ? 'negative'
+          : 'neutral',
+  }
+
   return {
     totalGastado,
     currency,
@@ -465,6 +503,7 @@ export function computeMetrics(
     ahorroProyectado,
     diasDeRunway,
     diasRestantes,
+    monthStatus,
     cantidadTransacciones,
     hasIngreso,
     esPrimerosDias: cantidadTransacciones < 3,

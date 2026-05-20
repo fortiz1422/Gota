@@ -17,7 +17,7 @@ export default async function AnalyticsPage({
   const { month, drill } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
   const initialDrill =
-    drill === 'fuga' || drill === 'habitos' || drill === 'compromisos'
+    drill === 'estado_mes' || drill === 'fuga' || drill === 'habitos' || drill === 'compromisos'
       ? drill
       : undefined
 

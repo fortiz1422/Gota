@@ -31,7 +31,7 @@ export type AnalyticsApiData = {
 
 interface Props {
   selectedMonth: string
-  initialDrill?: 'fuga' | 'habitos' | 'compromisos'
+  initialDrill?: 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 }
 
 function AnalyticsSkeleton() {

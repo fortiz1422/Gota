@@ -23,9 +23,10 @@ import {
 } from '@/lib/analytics/analytics-overview'
 import type { Card, Expense, Subscription } from '@/types/database'
 
-type Drill = 'fuga' | 'habitos' | 'compromisos'
+type Drill = 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 
 const drillTitles: Record<Drill, string> = {
+  estado_mes: 'Estado del mes',
   fuga: 'Fuga Silenciosa',
   habitos: 'Mapa de Hábitos',
   compromisos: 'Compromisos',

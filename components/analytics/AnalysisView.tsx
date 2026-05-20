@@ -1,12 +1,13 @@
 'use client'
 
+import { EstadoMesCard, DrillEstadoMes } from './EstadoMes'
 import { FugaSilenciosaCard, DrillFugaSilenciosa } from './FugaSilenciosa'
 import { MapaHabitosCard, DrillMapaHabitos } from './MapaHabitos'
 import { CompromisosCard, DrillCompromisos } from './Compromisos'
 import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 
-type DrillTarget = 'fuga' | 'habitos' | 'compromisos'
+type DrillTarget = 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 
 interface Props {
   metrics: Metrics
@@ -28,6 +29,10 @@ export function AnalysisView({
   selectedMonth,
 }: Props) {
   const { currency, fugaSilenciosa, habitosMap } = metrics
+
+  if (drill === 'estado_mes') {
+    return <DrillEstadoMes metrics={metrics} />
+  }
 
   if (drill === 'fuga') {
     return <DrillFugaSilenciosa data={fugaSilenciosa} currency={currency} />
@@ -58,6 +63,7 @@ export function AnalysisView({
   // Overview: 3 bento cards
   return (
     <div className="px-5 space-y-3">
+      <EstadoMesCard metrics={metrics} onClick={() => setDrill('estado_mes')} />
       <FugaSilenciosaCard
         data={fugaSilenciosa}
         currency={currency}
