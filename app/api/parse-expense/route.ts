@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server'
 import { ZodError } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { buildExpenseContentParts } from '@/lib/gemini/expense-content'
 import { geminiModel } from '@/lib/gemini/client'
-import { createExpensePrompt } from '@/lib/gemini/prompts'
+import { buildReceiptInlineData } from '@/lib/gemini/receipt-inline-data'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { captureRouteError } from '@/lib/observability/sentry'
@@ -25,9 +26,25 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { input } = await request.json()
+    const contentType = request.headers.get('content-type') || ''
+    const isMultipart = contentType.includes('multipart/form-data')
 
-    if (!input || input.trim().length === 0) {
+    let input = ''
+    let receiptInlineData: Awaited<ReturnType<typeof buildReceiptInlineData>> | null = null
+
+    if (isMultipart) {
+      const formData = await request.formData()
+      input = String(formData.get('input') ?? '').trim()
+      const receipt = formData.get('receipt')
+      if (receipt instanceof File && receipt.size > 0) {
+        receiptInlineData = await buildReceiptInlineData(receipt)
+      }
+    } else {
+      const body = await request.json()
+      input = String(body.input ?? '').trim()
+    }
+
+    if (!input && !receiptInlineData) {
       return NextResponse.json({ is_valid: false, reason: 'Input vacío' })
     }
 
@@ -35,7 +52,11 @@ export async function POST(request: Request) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: createExpensePrompt(input) }],
+          parts: buildExpenseContentParts({
+            input,
+            hasReceiptImage: Boolean(receiptInlineData),
+            receiptInlineData,
+          }),
         },
       ],
       generationConfig: {

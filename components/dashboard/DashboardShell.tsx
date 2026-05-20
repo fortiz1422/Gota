@@ -389,9 +389,11 @@ export function DashboardShell({
         open={sharedReceiptPreviewOpen}
         pendingShare={sharedReceiptPreview}
         canContinue={accounts.length > 0}
+        accounts={accounts}
+        cards={cards}
         onClose={() => setSharedReceiptPreviewOpen(false)}
-        onContinue={promptFirstExpense}
         onCleared={handleSharedReceiptCleared}
+        onSaved={invalidateDashboardData}
       />
 
       {activePrompt && (
