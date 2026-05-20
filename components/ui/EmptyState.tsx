@@ -20,7 +20,7 @@ export function EmptyState({
   onCta,
 }: Props) {
   return (
-    <div className="rounded-card bg-bg-secondary px-4 py-12 text-center">
+    <div className="rounded-card bg-bg-primary px-4 py-12 text-center">
       <div
         className="mx-auto flex h-14 w-14 items-center justify-center rounded-full"
         style={{ backgroundColor: iconBgColor }}

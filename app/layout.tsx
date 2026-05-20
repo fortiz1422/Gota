@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, DM_Sans } from 'next/font/google'
+import { Geist, DM_Sans, DM_Mono } from 'next/font/google'
 import { ServiceWorkerRegistrar } from '@/components/ServiceWorkerRegistrar'
 import './globals.css'
 
@@ -12,6 +12,14 @@ const dmSans = DM_Sans({
   variable: '--font-dm-sans',
   subsets: ['latin'],
   weight: ['300', '400', '500', '600', '700', '800'],
+  style: ['normal', 'italic'],
+  display: 'swap',
+})
+
+const dmMono = DM_Mono({
+  variable: '--font-dm-mono',
+  subsets: ['latin'],
+  weight: ['300', '400', '500'],
   style: ['normal', 'italic'],
   display: 'swap',
 })
@@ -35,8 +43,7 @@ export const viewport: Viewport = {
   themeColor: '#F0F4F8',
   viewportFit: 'cover',
   minimumScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  maximumScale: 5,
 }
 
 export default function RootLayout({
@@ -46,7 +53,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="es">
-      <body className={`${geistSans.variable} ${dmSans.variable} antialiased`}>
+      <body className={`${geistSans.variable} ${dmSans.variable} ${dmMono.variable} antialiased`}>
         <ServiceWorkerRegistrar />
         {children}
       </body>

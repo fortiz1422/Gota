@@ -21,10 +21,10 @@
   /* Text */
   --color-text-primary:   #0D1829;
   --color-text-secondary: #4A6070;
-  --color-text-tertiary:  #90A4B0;
+  --color-text-tertiary:  #5C7A8A;
   --color-text-disabled:  #B8C9D4;
-  --color-text-label:     #90A4B0;
-  --color-text-dim:       #90A4B0;
+  --color-text-label:     #5C7A8A;
+  --color-text-dim:       #5C7A8A;
   --color-text-muted:     #B8C9D4;
 
   /* Borders */
@@ -73,6 +73,9 @@
   /* Font — DM Sans primary, Geist as fallback */
   --font-sans: var(--font-dm-sans), var(--font-geist-sans), -apple-system, BlinkMacSystemFont,
     "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+
+  /* Mono — DM Mono */
+  --font-mono: var(--font-dm-mono), ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
 }
 
 /* ============================================
