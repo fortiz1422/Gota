@@ -14,9 +14,12 @@ import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
 import { SubscriptionReviewBanner } from '@/components/subscriptions/SubscriptionReviewBanner'
 import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
+import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
+import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
+import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
 
@@ -80,6 +83,8 @@ export function DashboardShell({
   const [keyboardOffset, setKeyboardOffset] = useState(0)
   const [amountsVisible, setAmountsVisible] = useState(true)
   const [focusSignal, setFocusSignal] = useState(0)
+  const [sharedReceiptPreviewOpen, setSharedReceiptPreviewOpen] = useState(false)
+  const [sharedReceiptPreview, setSharedReceiptPreview] = useState<PendingSharedReceipt | null>(null)
   const [heroBalanceModeOverride, setHeroBalanceModeOverride] = useState<HeroBalanceMode | null>(() => {
     if (typeof window === 'undefined') return null
     const storedMode = window.localStorage.getItem(HERO_BALANCE_MODE_STORAGE_KEY)
@@ -216,8 +221,17 @@ export function DashboardShell({
 
   const promptCreateAccount = () => setCuentasOpen(true)
   const promptFirstExpense = () => {
+    setSharedReceiptPreviewOpen(false)
     window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' })
     setFocusSignal((signal) => signal + 1)
+  }
+  const openSharedReceiptPreview = () => {
+    setSharedReceiptPreview(readPendingSharedReceipt())
+    setSharedReceiptPreviewOpen(true)
+  }
+  const handleSharedReceiptCleared = () => {
+    setSharedReceiptPreview(null)
+    setSharedReceiptPreviewOpen(false)
   }
 
   return (
@@ -245,6 +259,12 @@ export function DashboardShell({
           </button>
           <HomePlusButton accounts={accounts} currency={currency} cards={cards} month={selectedMonth} />
         </div>
+
+        <PendingSharedReceiptBanner
+          canOpenComposer={accounts.length > 0}
+          onOpenComposer={promptFirstExpense}
+          onOpenPreview={openSharedReceiptPreview}
+        />
 
         {accounts.length === 0 ? (
           <section className="rounded-card border border-border-subtle bg-bg-secondary/70 px-5 py-6">
@@ -363,6 +383,17 @@ export function DashboardShell({
         keyboardOffset={keyboardOffset}
         onAfterSave={invalidateDashboardData}
         focusSignal={focusSignal}
+      />
+
+      <SharedReceiptPreviewModal
+        open={sharedReceiptPreviewOpen}
+        pendingShare={sharedReceiptPreview}
+        canContinue={accounts.length > 0}
+        accounts={accounts}
+        cards={cards}
+        onClose={() => setSharedReceiptPreviewOpen(false)}
+        onCleared={handleSharedReceiptCleared}
+        onSaved={invalidateDashboardData}
       />
 
       {activePrompt && (

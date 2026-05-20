@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { getEffectiveCardCycleState, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
+import { getAccumulatedPaidAmount } from '@/lib/card-cycle-payments'
 import { createClient } from '@/lib/supabase/server'
 
 function isMissingCardPaymentAllocationsTableError(message: string | undefined): boolean {
@@ -65,16 +66,16 @@ export async function POST(
     cycleAmountsData ? new Map([[id, { [currency]: cycleAmountsData }]]) : undefined,
   )
 
-  if (state.status !== 'paid') return NextResponse.json({ error: 'Cycle is not paid' }, { status: 400 })
-  if (!state.paid_at || state.amount_paid == null) {
+  if (getAccumulatedPaidAmount(state.amount_paid) <= 0) {
     return NextResponse.json({ error: 'Cycle payment data is incomplete' }, { status: 400 })
   }
 
   const { data: allocations, error: allocationsError } = await supabase
     .from('card_payment_allocations')
-    .select('id, expense_id, amount_applied')
+    .select('id, expense_id, amount_applied, currency')
     .eq('user_id', user.id)
     .eq('card_cycle_id', id)
+    .eq('currency', currency)
 
   if (allocationsError && !isMissingCardPaymentAllocationsTableError(allocationsError.message)) {
     return NextResponse.json({ error: allocationsError.message }, { status: 500 })
@@ -143,6 +144,11 @@ export async function POST(
 
     await deleteAdjustmentExpenses(supabase, user.id, cycle.closing_date, currency)
 
+    const nextAmountPaid = Math.max(
+      0,
+      getAccumulatedPaidAmount(state.amount_paid) - getAccumulatedPaidAmount(matchingAllocation.amount_applied),
+    )
+
     const { error: resetError } = await supabase
       .from('card_cycle_amounts')
       .upsert({
@@ -151,12 +157,19 @@ export async function POST(
         currency,
         status: 'open',
         paid_at: null,
-        amount_paid: null,
+        amount_paid: nextAmountPaid > 0 ? nextAmountPaid : null,
         amount_draft: null,
       }, { onConflict: 'card_cycle_id,currency' })
 
     if (resetError) return NextResponse.json({ error: resetError.message }, { status: 500 })
     return NextResponse.json({ ok: true, mode: 'allocations' })
+  }
+
+  if (!state.paid_at || state.amount_paid == null) {
+    return NextResponse.json(
+      { error: 'No se puede revertir este pago porque no hay un pago cerrado compatible.' },
+      { status: 400 },
+    )
   }
 
   const paidDate = state.paid_at.substring(0, 10)

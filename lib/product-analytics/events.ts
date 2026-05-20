@@ -19,6 +19,14 @@ export const PRODUCT_EVENT_NAMES = [
   'card_payment_prompt_confirmed',
   'card_payment_prompt_dismissed',
   'dashboard_loaded_with_data',
+  'share_target_received',
+  'share_target_ready',
+  'share_target_failed',
+  'share_target_preview_opened',
+  'share_target_continue_requested',
+  'share_target_parse_started',
+  'share_target_parse_succeeded',
+  'share_target_dismissed',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]

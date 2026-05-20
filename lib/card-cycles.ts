@@ -22,10 +22,16 @@ export function buildCycleDate(periodMonth: string, day: number | null): string 
   return `${periodMonth}-${String(normalizedDay).padStart(2, '0')}`
 }
 
+export function resolveDueMonth(periodMonth: string, closingDay: number | null, dueDay: number | null): string {
+  const safeClosingDay = closingDay ?? 1
+  const safeDueDay = dueDay ?? Math.min(safeClosingDay + 10, 31)
+  return safeDueDay > safeClosingDay ? periodMonth : addMonths(periodMonth, 1)
+}
+
 export function buildLegacyCardCycle(card: Card, periodMonth: string): ResolvedCardCycle {
   const closingDate = buildCycleDate(periodMonth, card.closing_day ?? 1)
-  const nextMonth = addMonths(periodMonth, 1)
-  const dueDate = buildCycleDate(nextMonth, card.due_day ?? Math.min((card.closing_day ?? 1) + 10, 31))
+  const dueMonth = resolveDueMonth(periodMonth, card.closing_day, card.due_day)
+  const dueDate = buildCycleDate(dueMonth, card.due_day ?? Math.min((card.closing_day ?? 1) + 10, 31))
 
   return {
     id: `legacy-${card.id}-${periodMonth}`,

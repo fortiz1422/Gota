@@ -1,11 +1,20 @@
 import { todayAR } from '@/lib/format'
 
-export function createExpensePrompt(input: string): string {
+interface CreateExpensePromptOptions {
+  input?: string
+  hasReceiptImage?: boolean
+}
+
+export function createExpensePrompt({ input, hasReceiptImage = false }: CreateExpensePromptOptions): string {
   const today = todayAR()
+  const normalizedInput = input?.trim() ?? ''
+  const inputLine = normalizedInput.length > 0 ? `Input: "${normalizedInput}"` : 'Input: ""'
+  const imageLine = `Imagen adjunta: ${hasReceiptImage ? 'sí' : 'no'}`
 
   return `Parseá este gasto en español argentino. Hoy es ${today}.
 
-Input: "${input}"
+${inputLine}
+${imageLine}
 
 Categorías válidas (elegí la más apropiada):
 Supermercado, Alimentos, Restaurantes, Delivery, Kiosco y Varios, Casa/Mantenimiento, Muebles y Hogar, Servicios del Hogar, Auto/Combustible, Auto/Mantenimiento, Transporte, Salud, Farmacia, Educación, Ropa e Indumentaria, Cuidado Personal, Suscripciones, Regalos, Transferencias Familiares, Entretenimiento, Mascotas, Hijos, Otros, Pago de Tarjetas
@@ -36,6 +45,9 @@ OTRAS REGLAS:
 - card_id: siempre null
 - is_want: true=deseo, false=necesidad, null si es "Pago de Tarjetas"
 - date: ISO 8601 con -03:00, hoy si no se menciona
+- Si hay imagen, usala para inferir monto, comercio, fecha y medio de pago cuando se vean razonablemente claros en el ticket o comprobante.
+- Si hay imagen y tambien Input, priorizá los datos explícitos del texto del usuario cuando contradigan la imagen.
+- Si la imagen no alcanza para inferir un gasto válido, respondé is_valid=false y explicá qué faltó.
 
 Si NO es un gasto o falta información clave, respondé: {"is_valid":false,"reason":"..."}
 Casos comunes:
