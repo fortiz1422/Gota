@@ -22,6 +22,18 @@ function GoalsSkeleton() {
   )
 }
 
+function SectionDivider({ label }: { label: string }) {
+  return (
+    <div className="mx-5 my-4 flex items-center gap-3">
+      <div className="h-px flex-1 bg-separator" />
+      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-tertiary">
+        {label}
+      </span>
+      <div className="h-px flex-1 bg-separator" />
+    </div>
+  )
+}
+
 export function GoalsSection({ selectedMonth }: Props) {
   const queryClient = useQueryClient()
   const [createOpen, setCreateOpen] = useState(false)
@@ -73,18 +85,24 @@ export function GoalsSection({ selectedMonth }: Props) {
   if (isLoading) return <GoalsSkeleton />
 
   const goals = data?.goals ?? []
-  const active = goals.filter((g) => g.status === 'active' || g.status === 'paused')
-  const completed = goals.filter((g) => g.status === 'completed')
+  const activas = goals.filter((g) => g.status === 'active')
+  const pausadas = goals.filter((g) => g.status === 'paused')
+  const completadas = goals.filter((g) => g.status === 'completed')
+
+  const hasAny = goals.length > 0
+  const firstGroupHasItems = activas.length > 0
+  const showPausadasDivider = pausadas.length > 0
+  const showCompletadasDivider = completadas.length > 0
 
   return (
     <div className="pb-4">
       <div className="mx-5 mb-3 flex items-center justify-between">
         <p className="text-[12px] text-text-tertiary">
-          {active.length > 0
-            ? `${active.length} meta${active.length !== 1 ? 's' : ''} activa${active.length !== 1 ? 's' : ''}`
+          {activas.length > 0
+            ? `${activas.length} meta${activas.length !== 1 ? 's' : ''} activa${activas.length !== 1 ? 's' : ''}`
             : 'Sin metas activas'}
         </p>
-        {goals.length > 0 && (
+        {hasAny && (
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
@@ -95,11 +113,11 @@ export function GoalsSection({ selectedMonth }: Props) {
         )}
       </div>
 
-      {goals.length === 0 ? (
+      {!hasAny ? (
         <GoalEmptyState onCreate={() => setCreateOpen(true)} />
       ) : (
         <>
-          {active.map((goal) => (
+          {activas.map((goal) => (
             <GoalRow
               key={goal.id}
               goal={goal}
@@ -108,16 +126,27 @@ export function GoalsSection({ selectedMonth }: Props) {
             />
           ))}
 
-          {completed.length > 0 && (
+          {showPausadasDivider && (
             <>
-              <div className="mx-5 my-4 flex items-center gap-3">
-                <div className="h-px flex-1 bg-separator" />
-                <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-tertiary">
-                  Completadas
-                </span>
-                <div className="h-px flex-1 bg-separator" />
-              </div>
-              {completed.map((goal) => (
+              {firstGroupHasItems && <SectionDivider label="Pausadas" />}
+              {!firstGroupHasItems && (
+                <SectionDivider label="Pausadas" />
+              )}
+              {pausadas.map((goal) => (
+                <GoalRow
+                  key={goal.id}
+                  goal={goal}
+                  onContribute={() => openContribute(goal)}
+                  onDetail={() => openDetail(goal)}
+                />
+              ))}
+            </>
+          )}
+
+          {showCompletadasDivider && (
+            <>
+              <SectionDivider label="Completadas" />
+              {completadas.map((goal) => (
                 <GoalRow
                   key={goal.id}
                   goal={goal}

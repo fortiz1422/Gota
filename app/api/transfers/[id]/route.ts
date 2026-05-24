@@ -76,6 +76,19 @@ export async function DELETE(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { id } = await params
+
+  // Cleanup transfer-linked goal contributions BEFORE deleting the transfer
+  // (schema has ON DELETE SET NULL on related_transfer_id, so we must delete them first
+  //  to prevent phantom goal progress)
+  const { error: contribError } = await supabase
+    .from('goal_contributions')
+    .delete()
+    .eq('related_transfer_id', id)
+    .eq('source_type', 'transfer_linked')
+    .eq('user_id', user.id)
+
+  if (contribError) return NextResponse.json({ error: contribError.message }, { status: 500 })
+
   const { error } = await supabase
     .from('transfers')
     .delete()
