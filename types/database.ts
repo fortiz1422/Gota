@@ -321,6 +321,159 @@ export type Database = {
         }
         Relationships: []
       }
+      goals: {
+        Row: {
+          id: string
+          user_id: string
+          name: string
+          emoji: string | null
+          color_token: string | null
+          target_amount: number
+          currency: 'ARS' | 'USD'
+          target_date: string | null
+          starting_amount: number
+          planned_monthly_contribution: number | null
+          linked_account_id: string | null
+          notes: string | null
+          status: 'active' | 'paused' | 'completed' | 'archived'
+          created_at: string
+          updated_at: string
+          completed_at: string | null
+          paused_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          name: string
+          emoji?: string | null
+          color_token?: string | null
+          target_amount: number
+          currency: 'ARS' | 'USD'
+          target_date?: string | null
+          starting_amount?: number
+          planned_monthly_contribution?: number | null
+          linked_account_id?: string | null
+          notes?: string | null
+          status?: 'active' | 'paused' | 'completed' | 'archived'
+          created_at?: string
+          updated_at?: string
+          completed_at?: string | null
+          paused_at?: string | null
+        }
+        Update: {
+          name?: string
+          emoji?: string | null
+          color_token?: string | null
+          target_amount?: number
+          target_date?: string | null
+          planned_monthly_contribution?: number | null
+          linked_account_id?: string | null
+          notes?: string | null
+          status?: 'active' | 'paused' | 'completed' | 'archived'
+          updated_at?: string
+          completed_at?: string | null
+          paused_at?: string | null
+        }
+        Relationships: []
+      }
+      goal_contributions: {
+        Row: {
+          id: string
+          goal_id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          contributed_at: string
+          source_type: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          note: string | null
+          related_transfer_id: string | null
+          related_income_entry_id: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          goal_id: string
+          user_id: string
+          amount: number
+          currency: 'ARS' | 'USD'
+          contributed_at: string
+          source_type?: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          note?: string | null
+          related_transfer_id?: string | null
+          related_income_entry_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          contributed_at?: string
+          source_type?: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          note?: string | null
+          related_transfer_id?: string | null
+          related_income_entry_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budget_plans: {
+        Row: {
+          id: string
+          user_id: string
+          period_month: string
+          base_currency: 'ARS' | 'USD'
+          status: 'active'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          period_month: string
+          base_currency?: 'ARS' | 'USD'
+          status?: 'active'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          period_month?: string
+          base_currency?: 'ARS' | 'USD'
+          status?: 'active'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      budget_items: {
+        Row: {
+          id: string
+          plan_id: string
+          user_id: string
+          category: string
+          amount: number
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          plan_id: string
+          user_id: string
+          category: string
+          amount: number
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          plan_id?: string
+          user_id?: string
+          category?: string
+          amount?: number
+          sort_order?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       cards: {
         Row: {
           id: string
@@ -817,6 +970,14 @@ export type InstrumentStatus = 'active' | 'closed'
 export type Instrument       = Database['public']['Tables']['instruments']['Row']
 export type InstrumentInsert = Database['public']['Tables']['instruments']['Insert']
 export type InstrumentUpdate = Database['public']['Tables']['instruments']['Update']
+
+export type Goal = Database['public']['Tables']['goals']['Row']
+export type GoalInsert = Database['public']['Tables']['goals']['Insert']
+export type GoalUpdate = Database['public']['Tables']['goals']['Update']
+
+export type GoalContribution = Database['public']['Tables']['goal_contributions']['Row']
+export type GoalContributionInsert = Database['public']['Tables']['goal_contributions']['Insert']
+export type GoalContributionUpdate = Database['public']['Tables']['goal_contributions']['Update']
 
 export type Currency = 'ARS' | 'USD'
 export type PaymentMethod = 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'

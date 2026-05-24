@@ -3,14 +3,18 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLineDown, CaretLeft } from '@phosphor-icons/react'
+import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
 import { AnalyticsModeToggle } from './AnalyticsModeToggle'
+import { BudgetsSection } from './BudgetsSection'
+import { GoalsSection } from './GoalsSection'
 import { CategoriaRow } from './CategoriaRow'
+import { ExploreModal } from './ExploreModal'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import type { BudgetSnapshot } from '@/lib/budgets/types'
 import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import {
@@ -43,6 +47,7 @@ interface Props {
   monthlySeries: MonthlySeriesPoint[]
   comparisonContext: AnalyticsComparisonContext
   initialDrill?: Drill | null
+  budget: BudgetSnapshot
 }
 
 export function AnalyticsClient({
@@ -54,16 +59,24 @@ export function AnalyticsClient({
   monthlySeries,
   comparisonContext,
   initialDrill,
+  budget,
 }: Props) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [mode, setMode] = useState<AnalyticsMode>('percibido_devengado')
   const [insightsOpen, setInsightsOpen] = useState(Boolean(initialDrill))
   const [drill, setDrill] = useState<Drill | null>(initialDrill ?? null)
+  const [controlOpen, setControlOpen] = useState(false)
+  const [metasOpen, setMetasOpen] = useState(false)
+  const [exploreOpen, setExploreOpen] = useState(false)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
 
   const { currency } = metrics
   const isPercibido = mode === 'percibido'
+
+  const alertCount = budget.plan
+    ? budget.summary.overBudgetCount + budget.summary.nearLimitCount
+    : 0
 
   const displayCategorias = useMemo(() => {
     if (!isPercibido) return metrics.categorias
@@ -110,15 +123,37 @@ export function AnalyticsClient({
     if (nextDrill !== 'habitos') setSelDay(null)
   }
 
+  function openInsights() {
+    setInsightsOpen(true)
+    setControlOpen(false)
+  }
+
+  function openControl() {
+    setControlOpen(true)
+    setInsightsOpen(false)
+    setMetasOpen(false)
+  }
+
+  function openMetas() {
+    setMetasOpen(true)
+    setInsightsOpen(false)
+    setControlOpen(false)
+  }
+
+  function closeSecondaryView() {
+    setInsightsOpen(false)
+    setControlOpen(false)
+    setMetasOpen(false)
+    handleSetDrill(null)
+  }
+
   return (
     <div>
+      {/* ── Header ── */}
       {insightsOpen ? (
         <div className="mb-4 flex items-center justify-between px-5 pt-5">
           <button
-            onClick={() => {
-              setInsightsOpen(false)
-              handleSetDrill(null)
-            }}
+            onClick={closeSecondaryView}
             className="flex items-center gap-1 text-[15px] font-semibold text-primary"
           >
             <CaretLeft weight="bold" size={16} />
@@ -127,6 +162,28 @@ export function AnalyticsClient({
           <h2 className="type-title text-text-primary">
             {drill !== null ? drillTitles[drill] : 'Insights'}
           </h2>
+        </div>
+      ) : controlOpen ? (
+        <div className="mb-4 flex items-center justify-between px-5 pt-5">
+          <button
+            onClick={closeSecondaryView}
+            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
+          >
+            <CaretLeft weight="bold" size={16} />
+            Análisis
+          </button>
+          <h2 className="type-title text-text-primary">Presupuesto</h2>
+        </div>
+      ) : metasOpen ? (
+        <div className="mb-4 flex items-center justify-between px-5 pt-5">
+          <button
+            onClick={closeSecondaryView}
+            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
+          >
+            <CaretLeft weight="bold" size={16} />
+            Análisis
+          </button>
+          <h2 className="type-title text-text-primary">Metas</h2>
         </div>
       ) : (
         <div className="mb-4 flex items-center justify-between px-5 pt-5">
@@ -137,15 +194,41 @@ export function AnalyticsClient({
             className=""
           />
           <button
-            onClick={() => setInsightsOpen(true)}
-            className="rounded-pill border border-primary px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
+            onClick={() => setExploreOpen(true)}
+            className="flex items-center gap-1.5 rounded-pill border border-primary px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
           >
-            Insights
+            <SquaresFour weight="regular" size={14} />
+            Explorar
+            {alertCount > 0 && (
+              <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+                {alertCount}
+              </span>
+            )}
           </button>
         </div>
       )}
 
-      {!insightsOpen ? (
+      {/* ── Contenido principal ── */}
+      {insightsOpen ? (
+        <AnalysisView
+          metrics={metrics}
+          compromisos={compromisos}
+          drill={drill}
+          setDrill={handleSetDrill}
+          selDay={selDay}
+          setSelDay={setSelDay}
+          selectedMonth={selectedMonth}
+        />
+      ) : controlOpen ? (
+        <BudgetsSection
+          budget={budget}
+          currency={currency}
+          selectedMonth={selectedMonth}
+          categories={metrics.categorias.map((item) => item.category)}
+        />
+      ) : metasOpen ? (
+        <GoalsSection selectedMonth={selectedMonth} />
+      ) : (
         <>
           <AnalyticsHero hero={hero} currency={currency} />
 
@@ -157,7 +240,11 @@ export function AnalyticsClient({
             }}
           />
 
-          <AnalyticsEvolution evolution={evolution} currency={currency} comparisonContext={comparisonContext} />
+          <AnalyticsEvolution
+            evolution={evolution}
+            currency={currency}
+            comparisonContext={comparisonContext}
+          />
 
           {!metrics.hasIngreso && (
             <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
@@ -173,9 +260,7 @@ export function AnalyticsClient({
           {displayCategorias.length > 0 && (
             <section className="mt-6 px-5">
               <div className="mb-3 flex items-center gap-2">
-                <h3 className="type-title text-text-primary">
-                  Qué movió el mes
-                </h3>
+                <h3 className="type-title text-text-primary">Qué movió el mes</h3>
                 {movers.featuredInsight ? (
                   <span
                     className="ml-auto flex-shrink-0"
@@ -225,19 +310,10 @@ export function AnalyticsClient({
             </section>
           )}
         </>
-      ) : (
-        <AnalysisView
-          metrics={metrics}
-          compromisos={compromisos}
-          drill={drill}
-          setDrill={handleSetDrill}
-          selDay={selDay}
-          setSelDay={setSelDay}
-          selectedMonth={selectedMonth}
-        />
       )}
 
-      {!insightsOpen && (
+      {/* Export — solo en vista resumen */}
+      {!insightsOpen && !controlOpen && !metasOpen && (
         <div className="px-5 pb-2 pt-4">
           <a
             href="/api/export"
@@ -249,6 +325,16 @@ export function AnalyticsClient({
           </a>
         </div>
       )}
+
+      {/* Modal de exploración */}
+      <ExploreModal
+        open={exploreOpen}
+        alertCount={alertCount}
+        onClose={() => setExploreOpen(false)}
+        onInsights={openInsights}
+        onPresupuesto={openControl}
+        onMetas={openMetas}
+      />
     </div>
   )
 }

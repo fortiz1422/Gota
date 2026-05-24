@@ -7,6 +7,8 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import { buildEmptyBudgetSnapshot } from '@/lib/budgets/computeBudgetMetrics'
+import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type {
   AnalyticsComparisonContext,
@@ -28,6 +30,8 @@ export type AnalyticsApiData = {
   monthlySeries: MonthlySeriesPoint[]
   comparisonContext: AnalyticsComparisonContext
 }
+
+export type BudgetApiData = BudgetSnapshot
 
 interface Props {
   selectedMonth: string
@@ -67,7 +71,20 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     refetchOnWindowFocus: true,
   })
 
-  if (isLoading || !data) return <AnalyticsSkeleton />
+  const { data: budgetData, isLoading: isBudgetLoading } = useQuery<BudgetApiData>({
+    queryKey: ['budgets', selectedMonth, data?.currency ?? 'ARS'],
+    queryFn: async () => {
+      const currency = data?.currency ?? 'ARS'
+      const res = await fetch(`/api/budgets/current?month=${selectedMonth}&currency=${currency}`)
+      if (!res.ok) throw new Error('budgets fetch failed')
+      return res.json()
+    },
+    enabled: Boolean(data?.currency),
+    staleTime: 0,
+    refetchOnWindowFocus: true,
+  })
+
+  if (isLoading || !data || isBudgetLoading) return <AnalyticsSkeleton />
 
   if (data.rawExpenses.length === 0 && data.compromisoExpenses.length === 0) {
     return (
@@ -128,6 +145,7 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
       monthlySeries={monthlySeries}
       comparisonContext={comparisonContext}
       initialDrill={initialDrill}
+      budget={budgetData ?? buildEmptyBudgetSnapshot()}
     />
   )
 }

@@ -802,22 +802,114 @@ No recomiendo meter goals enteras dentro del payload actual.
 
 ## 17. Diseño UI en Gota
 
-## 17.1 Ubicación
-Dentro de `Análisis`:
-- `Resumen`
-- `Budgets`
-- `Metas`
-- `Insights`
+## 17.1 Ubicación y patrón de navegación real
 
-Metas vive como sección propia.
+El patrón de navegación en `Análisis` **no usa tabs horizontales**.
+Usa un modal bottom sheet (`ExploreModal`) que se abre desde el botón "Explorar" en el header.
+
+Flujo real:
+```
+Overview principal
+    └── tap "Explorar"
+            ├── Insights     → panel full-width (insightsOpen = true)
+            ├── Presupuesto  → panel full-width (controlOpen = true)
+            └── Metas        → panel full-width (metasOpen = true)  ← NUEVO
+```
+
+Cada panel tiene su propio header con `← Análisis` + título, idéntico al de Insights y Presupuesto.
+
+`AnalysisSectionTabs` existe en el codebase pero no está integrado en `AnalyticsClient` — no usar como punto de entrada de Metas.
 
 ---
 
-## 17.2 Componentes nuevos
+## 17.2 Cambios de navegación en AnalyticsClient
+
+Agregar estado `metasOpen` con el mismo patrón que `insightsOpen` y `controlOpen`:
+
+```tsx
+const [metasOpen, setMetasOpen] = useState(false)
+
+function openMetas() {
+  setMetasOpen(true)
+  setInsightsOpen(false)
+  setControlOpen(false)
+}
+
+function closeSecondaryView() {
+  setInsightsOpen(false)
+  setControlOpen(false)
+  setMetasOpen(false)  // agregar
+  handleSetDrill(null)
+}
+```
+
+Render condicional:
+```tsx
+metasOpen ? (
+  <GoalsSection
+    selectedMonth={selectedMonth}
+    currency={currency}
+  />
+) : null
+```
+
+Header de Metas (mismo patrón que Presupuesto):
+```tsx
+metasOpen ? (
+  <div className="mb-4 flex items-center justify-between px-5 pt-5">
+    <button onClick={closeSecondaryView} ...>
+      ← Análisis
+    </button>
+    <h2 className="type-title text-text-primary">Metas</h2>
+  </div>
+) : null
+```
+
+---
+
+## 17.3 Cambios en ExploreModal
+
+Activar el ítem "Metas" (hoy disabled).
+
+Agregar prop `onMetas: () => void`.
+
+Cambiar subtitle:
+- Actual: `"Objetivos de ahorro por categoría"` ← confunde con Budgets
+- Nuevo: `"Objetivos de ahorro con progreso real"`
+
+El ítem Metas activo sigue el mismo markup que Insights y Presupuesto.
+
+---
+
+## 17.4 Limpieza en BudgetsSection
+
+`BudgetsSection` tiene al fondo:
+```tsx
+<SectionDivider label="Metas" />
+<MetasEmptyState />
+```
+
+Estos son placeholders temporales. Cuando `GoalsSection` esté activo, se eliminan.
+No reemplazarlos por nada — Metas tiene su propio panel ahora.
+
+---
+
+## 17.5 GoalsSection — panel principal
+
+`GoalsSection` es un componente self-contained que:
+- hace su propio `useQuery(['goals', selectedMonth])` interno
+- **no recibe goals como prop desde AnalyticsClient**
+- maneja sus propios sheets (create, detail, contribute)
+- no infla el payload de `AnalyticsDataLoader`
+
+Razón: Metas está detrás de un tap en "Explorar". No tiene sentido prefetchear antes de que el usuario abra el panel. Se puede revisar en Batch 4 si hay señales en Home.
+
+---
+
+## 17.6 Componentes nuevos
 
 ### Core
 - `components/analytics/GoalsSection.tsx`
-- `components/analytics/GoalsOverviewCard.tsx`
 - `components/analytics/GoalRow.tsx`
 - `components/analytics/GoalProgressBar.tsx`
 - `components/analytics/GoalEmptyState.tsx`
@@ -830,8 +922,7 @@ Metas vive como sección propia.
 - `components/analytics/GoalContributionHistory.tsx`
 - `components/analytics/LinkTransferToGoalSheet.tsx`
 
-### Shared navigation
-- `components/analytics/AnalysisSectionTabs.tsx`
+`GoalsOverviewCard` no es necesario como componente separado en v1 — la lógica de overview vive directamente en `GoalsSection`.
 
 ---
 
@@ -1002,50 +1093,77 @@ Mitigación:
 
 ## 21. Fases de implementación
 
-## Fase 1 — foundation
-Objetivo: tener metas confiables y usables.
+## Batch 1 — Foundation (DB + API + lógica)
+Objetivo: tener el modelo de datos y la API funcionando antes de tocar UI.
 
 Entregables:
-- tabla `goals`
-- tabla `goal_contributions`
-- tipos DB
+- migración SQL: tabla `goals` + tabla `goal_contributions`
+- actualizar `types/database.ts`
+- `lib/goals/types.ts`
+- `lib/goals/computeGoalMetrics.ts` (funciones puras, testeables)
 - `lib/server/goal-queries.ts`
-- `lib/goals/computeGoalMetrics.ts`
 - `GET /api/goals`
 - `POST /api/goals`
 - `PATCH /api/goals/:id`
 - `GET /api/goals/:id`
 - `POST /api/goals/:id/contributions`
-- `GoalsSection` básica en `Análisis`
-- create/edit/detail sheet
 
 No entra:
-- home snapshot
+- UI de ningún tipo
+- summary endpoint
 - income linked
-- auto cleanups sofisticados
+- cleanup reactivo de transferencias
 
 ---
 
-## Fase 2 — operabilidad
+## Batch 2 — UI base
+Objetivo: que Metas sea navegable y usable para el flujo happy path (crear + ver + aportar).
+
+Entregables de navegación:
+- `ExploreModal`: activar ítem Metas, agregar prop `onMetas`, corregir subtitle
+- `AnalyticsClient`: agregar `metasOpen` state, `openMetas()`, header de Metas, render condicional de `GoalsSection`
+- `BudgetsSection`: eliminar `<SectionDivider label="Metas" />` + `<MetasEmptyState />`
+
+Entregables de componentes:
+- `GoalEmptyState.tsx` — con copy exacto de sección 11.1
+- `GoalProgressBar.tsx`
+- `GoalRow.tsx` — card compacta con todos los campos de sección 17.3
+- `GoalsSection.tsx` — panel con `useQuery` interno, renderiza lista o empty state
+- `GoalCreateSheet.tsx`
+- `GoalDetailSheet.tsx` (sin historial de aportes todavía)
+- `GoalContributionSheet.tsx` — aporte manual únicamente
+
+No entra:
+- transfer-linked contributions
+- historial de aportes completo
+- edit/delete de contributions
+- subsecciones Pausadas / Completadas
+
+---
+
+## Batch 3 — Operabilidad
 Entregables:
-- link de transferencias existentes
-- historial de aportes
-- delete/edit de contributions
+- `LinkTransferToGoalSheet.tsx`
+- `GoalContributionHistory.tsx`
+- `GoalEditSheet.tsx`
+- `DELETE /api/goals/:id/contributions/:contributionId`
+- `PATCH /api/goals/:id/contributions/:contributionId` (solo manual)
+- cleanup al borrar transferencia vinculada (`app/api/transfers/[id]/route.ts`)
+- subsecciones Pausadas / Completadas dentro de `GoalsSection`
 - pace status refinado
-- subsección `Pausadas` / `Completadas`
 
 ---
 
-## Fase 3 — refinamiento
-Entregables:
-- `income_linked`
-- summary endpoint optimizado
-- eventuales señales a Home
+## Batch 4 — Señales Home (post-v1)
+- `GET /api/goals/summary?month=YYYY-MM`
+- fetch paralelo en `AnalyticsDataLoader` (Opción B del spec)
+- widget/señal en Home
+- `income_linked` contributions
 - alertas suaves de metas atrasadas
 
 ---
 
-## Fase 4 — v2 real
+## Fase v2 — extensiones futuras
 - reglas de ahorro automático
 - sugerencias basadas en cash flow
 - metas vinculadas a instrumentos
@@ -1201,14 +1319,21 @@ Es uno de estos dos:
 ### 28.1 Lo que ya existe y conviene respetar
 - `Análisis` ya existe como pantalla propia en `app/(dashboard)/analytics/page.tsx`
 - La pantalla actual se compone con `AnalyticsDataLoader` + `AnalyticsClient`
-- Hoy `Análisis` tiene dos modos de lectura: overview e `Insights`
-- El overview actual se arma con `EstadoMes`, `FugaSilenciosa`, `MapaHabitos` y `Compromisos`
-- `AnalyticsDataLoader` hoy consume `GET /api/analytics-data?month=...`
+- El patrón de navegación real **no usa tabs horizontales** — usa un modal bottom sheet llamado `ExploreModal` que se abre desde el botón "Explorar" en el header
+- Cada sección del `ExploreModal` abre un panel full-width que reemplaza el overview principal: `insightsOpen` (Insights) y `controlOpen` (Presupuesto)
+- `AnalyticsDataLoader` ya tiene dos fetches paralelos: `analytics-data` y `budgets/current`
+- `BudgetsSection` ya existe como panel completo que se renderiza cuando `controlOpen = true`
 - `DashboardShell` ya prefetchéa `analytics` y ya invalida `analytics` cuando cambia el estado del dashboard
 - El stack de API actual usa `createClient()` de Supabase SSR, auth por cookie, y ownership check por `user_id`
 - Los endpoints mutables existentes usan el patrón `auth -> parse body -> validar -> update/delete -> response`
 
-### 28.2 Lo que todavía no existe
+### 28.2 Componentes ya creados pero pendientes de activación
+- `AnalysisSectionTabs.tsx` existe con valores `resumen | control` pero **no está integrado en `AnalyticsClient`** — es un componente huérfano por ahora
+- `ExploreModal` ya tiene el ítem "Metas" pero está **disabled** (opacidad 40%, sin onClick, badge "Próximamente")
+- `BudgetsSection` ya incluye al fondo un `<SectionDivider label="Metas" />` + `<MetasEmptyState />` como placeholder temporal
+- `MetasEmptyState.tsx` existe pero es solo un estado vacío sin funcionalidad
+
+### 28.3 Lo que todavía no existe
 - No existe `goals` en `types/database.ts`
 - No existen rutas `app/api/goals/*`
 - No existen queries de dominio para metas en `lib/server/`
@@ -1331,9 +1456,12 @@ Cuidado: el sistema de analytics ya filtra claves sensibles, así que no mandar 
 - mantener ownership checks en todas las mutaciones
 
 ### 30.4 Frontend
-- crear `GoalsSection` dentro de `components/analytics/`
-- crear empty state, overview card, row, progress bar y sheets
-- integrar la nueva sección dentro de `AnalysisView`
+- crear `GoalsSection` dentro de `components/analytics/` con fetch interno (`useQuery`)
+- crear `GoalEmptyState`, `GoalRow`, `GoalProgressBar` y sheets
+- integrar `GoalsSection` como panel condicional en `AnalyticsClient` (cuando `metasOpen = true`), **no** dentro de `AnalysisView`
+- activar ítem Metas en `ExploreModal` y agregar prop `onMetas`
+- agregar estado `metasOpen` + `openMetas()` + header de Metas en `AnalyticsClient`
+- eliminar `<SectionDivider label="Metas" />` + `<MetasEmptyState />` de `BudgetsSection`
 - no romper la lectura principal del overview actual
 - mantener el detalle de meta en sheet, no en pantalla pesada nueva
 
@@ -1369,14 +1497,79 @@ Cuidado: el sistema de analytics ya filtra claves sensibles, así que no mandar 
 - una meta no es una subcuenta real
 - una meta no mezcla monedas en v1
 - no hay forecast sofisticado en v1
+- `planned_monthly_contribution` se persiste en `goals`: **sí**
+- `transfer_linked` cleanup al borrar transfer: **sí**
+- el patrón de navegación es `ExploreModal → panel full-width` (no tabs): **confirmado por código real**
+- `GoalsSection` hace su propio fetch interno (no depende de `AnalyticsDataLoader`): **sí para Batches 1-3**
+- `MetasEmptyState` + `SectionDivider` en `BudgetsSection` se eliminan en Batch 2: **sí**
+- `AnalysisSectionTabs` no se usa como entrada de Metas: **confirmado**
 
 ### Abiertas
-- si `income_linked` entra en el primer corte o en una fase posterior
-- si el resumen de Metas merece endpoint propio desde el día 1
-- si conviene mostrar `planned_monthly_contribution` siempre o solo cuando hay fecha
-- si la eliminación de transferencias se resuelve con cleanup reactivo, validación al vuelo o ambas
+- si `income_linked` entra en Batch 3 o en v2
+- si el resumen de Metas merece endpoint propio desde el día 1 o solo en Batch 4
+- si `planned_monthly_contribution` se muestra siempre o solo cuando hay fecha
 
-### Recomendación
-Para handoff, cerrar estas dos antes de codear:
-1. `planned_monthly_contribution` persistido: **sí**
-2. `transfer_linked` cleanup al borrar transfer: **sí**
+---
+
+## 32. Ajustes post-revisión de código (2026-05-23)
+
+Esta sección documenta las diferencias entre el spec original y la arquitectura real encontrada al leer el código.
+
+### 32.1 El patrón de navegación real no usa tabs
+
+El spec original describía la estructura de Análisis como:
+> `Resumen | Budgets | Metas | Insights`
+
+El código real usa un patrón distinto:
+- botón "Explorar" en el header abre `ExploreModal` (bottom sheet)
+- cada ítem del modal abre un panel full-width que reemplaza el overview
+- los estados son booleanos excluyentes: `insightsOpen`, `controlOpen`
+
+Consecuencia: Metas no necesita un tab. Necesita:
+1. un ítem activo en `ExploreModal` con prop `onMetas`
+2. un estado `metasOpen` en `AnalyticsClient`
+3. un header de Metas con `← Análisis`
+4. render condicional de `GoalsSection`
+
+### 32.2 GoalsSection es self-contained
+
+La spec original sugería pasar goals desde `AnalyticsDataLoader`. En la arquitectura real, `BudgetsSection` (el componente análogo) recibe datos desde `AnalyticsClient` que los recibe del loader.
+
+Sin embargo, para Metas conviene que `GoalsSection` haga su propio `useQuery` porque:
+- Metas está detrás de dos taps (Explorar → Metas)
+- prefetchear antes de ese click es gasto innecesario
+- desacopla el módulo completamente de `analytics-data`
+
+Cuando haya señales en Home (Batch 4), se puede agregar un fetch liviano a `/api/goals/summary` en `AnalyticsDataLoader`.
+
+### 32.3 BudgetsSection ya tiene placeholders de Metas
+
+`BudgetsSection` ya incluye:
+```tsx
+<SectionDivider label="Metas" />
+<MetasEmptyState />
+```
+
+Estos se eliminan en Batch 2 al activar el panel propio de Metas. No representan funcionalidad — son solo marcadores visuales.
+
+### 32.4 ExploreModal — copy a corregir
+
+El ítem Metas en `ExploreModal` tiene actualmente:
+- subtitle: `"Objetivos de ahorro por categoría"` ← confunde con Budgets (que también habla de categorías)
+- estado: disabled (opacity 40%, sin onClick)
+
+Cambios en Batch 2:
+- subtitle: `"Objetivos de ahorro con progreso real"`
+- activar con `onClick={() => { onClose(); onMetas() }}`
+- quitar opacity y badge "Próximamente"
+
+### 32.5 Archivos a modificar vs crear — delta real
+
+**Modificar** (además de lo listado en sección 22):
+- `components/analytics/ExploreModal.tsx` — activar Metas, agregar `onMetas` prop
+- `components/analytics/AnalyticsClient.tsx` — agregar `metasOpen`, `openMetas`, render de `GoalsSection`
+- `components/analytics/BudgetsSection.tsx` — eliminar placeholder de Metas
+
+**No modificar** (contrariamente a lo sugerido en sección 22):
+- `components/analytics/AnalysisView.tsx` — Metas no vive en AnalysisView, vive en AnalyticsClient como panel paralelo
+- `components/analytics/AnalysisSectionTabs.tsx` — no se toca, no es el patrón de navegación elegido
