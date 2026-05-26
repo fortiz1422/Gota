@@ -12,6 +12,7 @@ interface Props {
   earliestDataMonth?: string
   className?: string
   viewCurrency?: 'ARS' | 'USD'
+  variant?: 'standard' | 'in-header'
 }
 
 function buildMonthList(
@@ -37,7 +38,7 @@ function buildMonthList(
   return months
 }
 
-export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5', viewCurrency }: Props) {
+export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5', viewCurrency, variant = 'standard' }: Props) {
   const router = useRouter()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
@@ -56,6 +57,29 @@ export function DashboardHeader({ month, basePath = '/', earliestDataMonth, clas
     if (viewCurrency && viewCurrency !== 'ARS') params.set('currency', viewCurrency)
     const query = params.toString()
     router.push(query ? `${basePath}?${query}` : basePath)
+  }
+
+  if (variant === 'in-header') {
+    return (
+      <>
+        <button
+          onClick={() => setIsSheetOpen(true)}
+          className="header-glass flex items-center gap-2 rounded-pill px-3.5 py-2 transition-opacity hover:opacity-80 active:opacity-60"
+        >
+          <span className="text-[16px] font-extrabold tracking-[-0.01em] text-white">
+            {monthCap}
+          </span>
+          <CaretDown size={12} weight="bold" className="shrink-0" style={{ color: 'rgba(255,255,255,0.80)' }} />
+        </button>
+        <MonthSelectorSheet
+          isOpen={isSheetOpen}
+          onClose={() => setIsSheetOpen(false)}
+          selectedMonth={month}
+          onSelectMonth={handleSelectMonth}
+          months={months}
+        />
+      </>
+    )
   }
 
   return (

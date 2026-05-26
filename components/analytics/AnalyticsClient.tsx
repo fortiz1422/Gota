@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
@@ -147,184 +148,180 @@ export function AnalyticsClient({
     handleSetDrill(null)
   }
 
+  const isSecondaryView = insightsOpen || controlOpen || metasOpen
+
   return (
-    <div>
-      {/* ── Header ── */}
-      {insightsOpen ? (
-        <div className="mb-4 flex items-center justify-between px-5 pt-5">
-          <button
-            onClick={closeSecondaryView}
-            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
-          >
-            <CaretLeft weight="bold" size={16} />
-            Análisis
-          </button>
-          <h2 className="type-title text-text-primary">
-            {drill !== null ? drillTitles[drill] : 'Insights'}
-          </h2>
-        </div>
-      ) : controlOpen ? (
-        <div className="mb-4 flex items-center justify-between px-5 pt-5">
-          <button
-            onClick={closeSecondaryView}
-            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
-          >
-            <CaretLeft weight="bold" size={16} />
-            Análisis
-          </button>
-          <h2 className="type-title text-text-primary">Presupuesto</h2>
-        </div>
-      ) : metasOpen ? (
-        <div className="mb-4 flex items-center justify-between px-5 pt-5">
-          <button
-            onClick={closeSecondaryView}
-            className="flex items-center gap-1 text-[15px] font-semibold text-primary"
-          >
-            <CaretLeft weight="bold" size={16} />
-            Análisis
-          </button>
-          <h2 className="type-title text-text-primary">Metas</h2>
-        </div>
+    <div className="bg-bg-primary">
+      {/* ── Blue zone ── */}
+      {isSecondaryView ? (
+        <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center justify-between px-[22px] pt-4 pb-8">
+            <button
+              onClick={closeSecondaryView}
+              className="header-glass flex items-center gap-1.5 rounded-pill px-3 py-1.5 transition-opacity hover:opacity-80 active:opacity-60"
+            >
+              <CaretLeft weight="bold" size={14} style={{ color: 'rgba(255,255,255,0.85)' }} />
+              <span className="text-[14px] font-semibold text-white">Análisis</span>
+            </button>
+            <h2 className="text-[16px] font-bold text-white">
+              {insightsOpen
+                ? drill !== null
+                  ? drillTitles[drill]
+                  : 'Insights'
+                : controlOpen
+                  ? 'Presupuesto'
+                  : 'Metas'}
+            </h2>
+          </div>
+        </BlueHeaderZone>
       ) : (
-        <div className="mb-4 flex items-center justify-between px-5 pt-5">
-          <DashboardHeader
-            month={selectedMonth}
-            basePath="/analytics"
-            earliestDataMonth={earliestDataMonth}
-            className=""
-          />
-          <button
-            onClick={() => setExploreOpen(true)}
-            className="flex items-center gap-1.5 rounded-pill border border-primary px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
-          >
-            <SquaresFour weight="regular" size={14} />
-            Explorar
-            {alertCount > 0 && (
-              <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
-                {alertCount}
-              </span>
-            )}
-          </button>
-        </div>
-      )}
-
-      {/* ── Contenido principal ── */}
-      {insightsOpen ? (
-        <AnalysisView
-          metrics={metrics}
-          compromisos={compromisos}
-          drill={drill}
-          setDrill={handleSetDrill}
-          selDay={selDay}
-          setSelDay={setSelDay}
-          selectedMonth={selectedMonth}
-        />
-      ) : controlOpen ? (
-        <BudgetsSection
-          budget={budget}
-          currency={currency}
-          selectedMonth={selectedMonth}
-          categories={metrics.categorias.map((item) => item.category)}
-        />
-      ) : metasOpen ? (
-        <GoalsSection selectedMonth={selectedMonth} />
-      ) : (
-        <>
-          <AnalyticsHero hero={hero} currency={currency} />
-
-          <AnalyticsModeToggle
-            mode={mode}
-            onChange={(nextMode) => {
-              setMode(nextMode)
-              setExpanded(false)
-            }}
-          />
-
-          <AnalyticsEvolution
-            evolution={evolution}
-            currency={currency}
-            comparisonContext={comparisonContext}
-          />
-
-          {!metrics.hasIngreso && (
-            <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
-              <p className="type-meta text-text-primary">
-                Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
-                <Link href="/settings" className="underline">
-                  Ir a configuración
-                </Link>
-              </p>
-            </div>
-          )}
-
-          {displayCategorias.length > 0 && (
-            <section className="mt-6 px-5">
-              <div className="mb-3 flex items-center gap-2">
-                <h3 className="type-title text-text-primary">Qué movió el mes</h3>
-                {movers.featuredInsight ? (
-                  <span
-                    className="ml-auto flex-shrink-0"
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 700,
-                      color: 'var(--color-warning)',
-                      background: 'var(--color-warning-soft)',
-                      borderRadius: 20,
-                      padding: '3px 8px',
-                    }}
-                  >
-                    {movers.featuredInsight.label}
-                  </span>
-                ) : null}
-              </div>
-
-              {visibleCategorias.map((cat, idx) => (
-                <div
-                  key={cat.category}
-                  className={idx >= 5 ? 'slide-up' : undefined}
-                  style={idx >= 5 ? { animationDelay: `${(idx - 5) * 40}ms` } : undefined}
-                >
-                  <CategoriaRow
-                    cat={cat}
-                    currency={currency}
-                    mode={mode}
-                    onClick={() =>
-                      router.push(
-                        `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${isPercibido}`,
-                      )
-                    }
-                  />
-                </div>
-              ))}
-
-              {displayCategorias.length > 5 && (
-                <div className="mb-4 mt-2 flex justify-center">
-                  <button
-                    onClick={() => setExpanded(!expanded)}
-                    className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
-                  >
-                    {expanded ? 'Ver menos' : `Ver todas (${displayCategorias.length})`}
-                  </button>
-                </div>
+        <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center justify-between px-[22px] pt-4">
+            <DashboardHeader
+              month={selectedMonth}
+              basePath="/analytics"
+              earliestDataMonth={earliestDataMonth}
+              className=""
+              variant="in-header"
+            />
+            <button
+              onClick={() => setExploreOpen(true)}
+              className="header-glass flex items-center gap-1.5 rounded-pill px-3 py-1.5 text-[12px] font-semibold text-white transition-opacity hover:opacity-80 active:opacity-60"
+            >
+              <SquaresFour weight="regular" size={14} style={{ color: 'rgba(255,255,255,0.85)' }} />
+              Explorar
+              {alertCount > 0 && (
+                <span className="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-danger px-1 text-[9px] font-bold text-white">
+                  {alertCount}
+                </span>
               )}
-            </section>
-          )}
-        </>
+            </button>
+          </div>
+          <AnalyticsHero hero={hero} currency={currency} variant="in-header" />
+        </BlueHeaderZone>
       )}
 
-      {/* Export — solo en vista resumen */}
-      {!insightsOpen && !controlOpen && !metasOpen && (
-        <div className="px-5 pb-2 pt-4">
-          <a
-            href="/api/export"
-            download
-            className="flex w-full items-center justify-center gap-2 rounded-button py-3 type-meta text-text-tertiary transition-colors hover:text-text-secondary"
-          >
-            <ArrowLineDown weight="duotone" size={14} />
-            Exportar gastos (CSV)
-          </a>
-        </div>
-      )}
+      {/* ── White zone ── */}
+      <div
+        className="relative"
+        style={{
+          marginTop: -24,
+          paddingTop: isSecondaryView ? 16 : 0,
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)',
+        }}
+      >
+        {insightsOpen ? (
+          <AnalysisView
+            metrics={metrics}
+            compromisos={compromisos}
+            drill={drill}
+            setDrill={handleSetDrill}
+            selDay={selDay}
+            setSelDay={setSelDay}
+            selectedMonth={selectedMonth}
+          />
+        ) : controlOpen ? (
+          <BudgetsSection
+            budget={budget}
+            currency={currency}
+            selectedMonth={selectedMonth}
+            categories={metrics.categorias.map((item) => item.category)}
+          />
+        ) : metasOpen ? (
+          <GoalsSection selectedMonth={selectedMonth} />
+        ) : (
+          <>
+            <AnalyticsModeToggle
+              mode={mode}
+              onChange={(nextMode) => {
+                setMode(nextMode)
+                setExpanded(false)
+              }}
+            />
+
+            <AnalyticsEvolution
+              evolution={evolution}
+              currency={currency}
+              comparisonContext={comparisonContext}
+            />
+
+            {!metrics.hasIngreso && (
+              <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
+                <p className="type-meta text-text-primary">
+                  Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
+                  <Link href="/settings" className="underline">
+                    Ir a configuración
+                  </Link>
+                </p>
+              </div>
+            )}
+
+            {displayCategorias.length > 0 && (
+              <section className="mt-6 px-5">
+                <div className="mb-3 flex items-center gap-2">
+                  <h3 className="type-title text-text-primary">Qué movió el mes</h3>
+                  {movers.featuredInsight ? (
+                    <span
+                      className="ml-auto flex-shrink-0"
+                      style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: 'var(--color-warning)',
+                        background: 'var(--color-warning-soft)',
+                        borderRadius: 20,
+                        padding: '3px 8px',
+                      }}
+                    >
+                      {movers.featuredInsight.label}
+                    </span>
+                  ) : null}
+                </div>
+
+                {visibleCategorias.map((cat, idx) => (
+                  <div
+                    key={cat.category}
+                    className={idx >= 5 ? 'slide-up' : undefined}
+                    style={idx >= 5 ? { animationDelay: `${(idx - 5) * 40}ms` } : undefined}
+                  >
+                    <CategoriaRow
+                      cat={cat}
+                      currency={currency}
+                      mode={mode}
+                      onClick={() =>
+                        router.push(
+                          `/movimientos?month=${selectedMonth}&categoria=${encodeURIComponent(cat.category)}&soloPercibidos=${isPercibido}`,
+                        )
+                      }
+                    />
+                  </div>
+                ))}
+
+                {displayCategorias.length > 5 && (
+                  <div className="mb-4 mt-2 flex justify-center">
+                    <button
+                      onClick={() => setExpanded(!expanded)}
+                      className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
+                    >
+                      {expanded ? 'Ver menos' : `Ver todas (${displayCategorias.length})`}
+                    </button>
+                  </div>
+                )}
+              </section>
+            )}
+
+            <div className="px-5 pb-2 pt-4">
+              <a
+                href="/api/export"
+                download
+                className="flex w-full items-center justify-center gap-2 rounded-button py-3 type-meta text-text-tertiary transition-colors hover:text-text-secondary"
+              >
+                <ArrowLineDown weight="duotone" size={14} />
+                Exportar gastos (CSV)
+              </a>
+            </div>
+          </>
+        )}
+      </div>
 
       {/* Modal de exploración */}
       <ExploreModal

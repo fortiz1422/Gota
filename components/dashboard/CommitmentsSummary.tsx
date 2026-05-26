@@ -53,27 +53,19 @@ export function CommitmentsSummary({
   params.set('drill', 'compromisos')
   const href = `/analytics?${params.toString()}`
 
+  if (total <= 0) return null
+
   return (
     <Link
       href={href}
-      className="block px-1 py-1 transition-opacity hover:opacity-90"
+      className="card-s5 block transition-opacity hover:opacity-90 active:opacity-70"
     >
-      <div className="border-t border-[color:var(--color-separator)] pt-4">
-        {total <= 0 ? (
-          <div className="space-y-1.5">
-            <p className="text-[15px] font-semibold text-text-primary">
-              Sin compromisos en tarjetas
-            </p>
-            <p className="type-meta text-text-secondary">
-              Tu Disponible Real coincide con tu Saldo Vivo.
-            </p>
-          </div>
-        ) : (
-          <>
+      <div className="p-4">
+        <>
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
-                  <CreditCard size={22} weight="regular" className="text-primary" />
+                <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-warning/20 bg-warning/10">
+                  <CreditCard size={22} weight="regular" className="text-warning" />
                 </div>
                 <div className="min-w-0">
                   <p className="type-body text-text-secondary">Compromisos en tarjetas</p>
@@ -132,8 +124,7 @@ export function CommitmentsSummary({
               </div>
             </div>
 
-          </>
-        )}
+        </>
       </div>
     </Link>
   )

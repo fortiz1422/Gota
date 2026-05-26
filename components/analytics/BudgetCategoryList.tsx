@@ -11,7 +11,7 @@ interface Props {
 
 export function BudgetCategoryList({ items, currency, onOpenMovements }: Props) {
   return (
-    <div className="mx-5 mt-2">
+    <div className="mx-5 mt-2 card-s5 overflow-hidden py-0">
       {items.map((item, idx) => (
         <div key={item.id}>
           {idx > 0 && <div className="h-px bg-separator" />}

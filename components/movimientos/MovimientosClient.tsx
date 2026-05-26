@@ -6,6 +6,7 @@ import { CaretLeft, CaretRight, Funnel, X } from '@phosphor-icons/react'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
 import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
@@ -298,32 +299,31 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     [
       'shrink-0 rounded-[20px] px-3.5 py-1.5 text-[12px] font-semibold transition-colors',
       active
-        ? 'bg-primary text-white'
-        : 'border border-bg-secondary text-text-primary',
+        ? 'bg-primary text-white shadow-[0_2px_8px_rgba(33,120,168,0.22)]'
+        : 'border border-primary/20 bg-white text-text-primary',
     ].join(' ')
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <div
-        className="mx-auto flex max-w-md flex-col gap-5 px-4 pt-safe"
-        style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
-      >
-        <div className="flex items-center justify-between pt-5">
+      <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="mx-auto flex max-w-md items-center justify-between px-[22px] pt-4 pb-8">
           <div className="flex items-center gap-1">
             <button
               onClick={handlePrevMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-primary transition-opacity hover:opacity-70 active:opacity-50"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50"
+              style={{ color: 'rgba(255,255,255,0.85)' }}
               aria-label="Mes anterior"
             >
               <CaretLeft size={16} weight="bold" />
             </button>
-            <span className="min-w-[100px] text-center text-[15px] font-semibold text-text-primary">
+            <span className="min-w-[100px] text-center text-[15px] font-semibold text-white">
               {formatMonthLabel(selectedMonth).split(' ')[0]}
             </span>
             <button
               onClick={handleNextMonth}
               disabled={selectedMonth >= addMonths(currentMonth, 2)}
-              className="flex h-8 w-8 items-center justify-center rounded-full text-primary transition-opacity hover:opacity-70 active:opacity-50 disabled:opacity-30"
+              className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50 disabled:opacity-30"
+              style={{ color: 'rgba(255,255,255,0.85)' }}
               aria-label="Mes siguiente"
             >
               <CaretRight size={16} weight="bold" />
@@ -335,9 +335,15 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
             currency={statsCurrency}
             cards={cards}
             month={selectedMonth}
+            onBlue
           />
         </div>
+      </BlueHeaderZone>
 
+      <div
+        className="relative mx-auto flex max-w-md flex-col gap-5 px-4"
+        style={{ marginTop: -24, paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}
+      >
         <StripOperativo
           percibidos={stats.percibidos}
           tarjeta={stats.tarjeta}
@@ -385,7 +391,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="relative shrink-0 flex h-8 w-8 items-center justify-center rounded-full text-text-secondary transition-colors hover:text-text-primary active:opacity-60"
+            className="relative shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-primary/20 text-primary transition-opacity active:opacity-60"
             aria-label="Abrir filtros avanzados"
           >
             <Funnel weight="regular" size={16} />

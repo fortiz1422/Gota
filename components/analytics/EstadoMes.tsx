@@ -78,7 +78,7 @@ export function EstadoMesCard({ metrics, onClick }: CardProps) {
   return (
     <button
       onClick={onClick}
-      className="surface-glass-neutral w-full rounded-card p-4 text-left transition-opacity hover:opacity-90"
+      className="card-s5 w-full p-4 text-left transition-opacity hover:opacity-90"
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -134,7 +134,7 @@ export function DrillEstadoMes({ metrics }: { metrics: Metrics }) {
 
   return (
     <div className="space-y-4 px-5 pb-4">
-      <div className="surface-glass-neutral rounded-card p-6">
+      <div className="card-s5 p-6">
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
           {getStatusIcon(monthStatus.status)}
         </div>

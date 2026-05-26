@@ -309,9 +309,10 @@ export function AnalyticsEvolution({ evolution, comparisonContext, currency }: P
       <section style={{ margin: '20px 22px 0' }}>
         <div
           style={{
-            background: 'rgba(255,255,255,0.55)',
+            background: '#FFFFFF',
             borderRadius: 14,
-            border: '0.5px solid rgba(255,255,255,0.85)',
+            border: '1px solid rgba(13,24,41,0.06)',
+            boxShadow: '0 2px 8px rgba(8,40,70,0.06), 0 1px 2px rgba(13,24,41,0.04)',
             padding: '14px 16px',
           }}
         >
@@ -385,9 +386,10 @@ export function AnalyticsEvolution({ evolution, comparisonContext, currency }: P
 
       <div
         style={{
-          background: 'rgba(255,255,255,0.45)',
+          background: '#FFFFFF',
           borderRadius: 14,
-          border: '0.5px solid rgba(255,255,255,0.85)',
+          border: '1px solid rgba(13,24,41,0.06)',
+          boxShadow: '0 2px 8px rgba(8,40,70,0.06), 0 1px 2px rgba(13,24,41,0.04)',
           padding: '14px 16px 10px',
         }}
       >

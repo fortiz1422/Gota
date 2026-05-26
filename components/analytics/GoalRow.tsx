@@ -49,7 +49,7 @@ export function GoalRow({ goal, onContribute, onDetail }: Props) {
       : `Superaste tu meta por ${formatAmount(goal.currentAmount - goal.targetAmount, goal.currency)}`
 
   return (
-    <div className="mx-5 mb-3 rounded-card border border-border-subtle bg-bg-secondary px-4 py-4">
+    <div className="mx-5 mb-3 card-s5 px-4 py-4">
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">

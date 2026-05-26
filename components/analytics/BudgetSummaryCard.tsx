@@ -10,7 +10,7 @@ interface Props {
 
 export function BudgetSummaryCard({ summary, currency }: Props) {
   return (
-    <section className="mx-5 rounded-card border border-border-subtle bg-bg-secondary p-4">
+    <section className="mx-5 card-s5 p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
@@ -23,7 +23,7 @@ export function BudgetSummaryCard({ summary, currency }: Props) {
             de {formatAmount(summary.totalBudgeted, currency)} presupuestados
           </p>
         </div>
-        <div className="rounded-2xl bg-bg-tertiary px-3 py-2 text-right">
+        <div className="rounded-2xl px-3 py-2 text-right" style={{ background: 'rgba(33,120,168,0.06)' }}>
           <p className="text-[11px] font-medium text-text-secondary">Gastado</p>
           <p className="text-[15px] font-semibold text-text-primary">
             {formatAmount(summary.totalSpent, currency)}

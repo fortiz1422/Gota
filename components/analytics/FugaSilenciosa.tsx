@@ -17,7 +17,7 @@ export function FugaSilenciosaCard({ data, currency, onClick }: CardProps) {
   return (
     <button
       onClick={onClick}
-      className="surface-glass-neutral w-full rounded-card p-4 text-left transition-opacity hover:opacity-90"
+      className="card-s5 w-full p-4 text-left transition-opacity hover:opacity-90"
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -74,7 +74,7 @@ export function DrillFugaSilenciosa({ data, currency }: DrillProps) {
 
   return (
     <div className="space-y-4 px-5">
-      <div className="surface-glass-neutral flex flex-col items-center rounded-card p-6 text-center">
+      <div className="card-s5 flex flex-col items-center p-6 text-center">
         <div className="mb-3 flex h-10 w-10 items-center justify-center rounded-full border border-[color:var(--color-separator)] bg-bg-secondary">
           <Coins weight="regular" size={20} className="text-text-secondary" />
         </div>

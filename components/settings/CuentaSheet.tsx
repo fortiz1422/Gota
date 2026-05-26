@@ -182,172 +182,203 @@ export function CuentaSheet({
   return (
     <>
       <Modal open={open} onClose={onClose}>
-        <div className="space-y-6">
+        <div className="space-y-4">
+          {/* Header */}
           <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-text-primary">Mi cuenta</h2>
+            <h2 className="text-[18px] font-extrabold tracking-tight text-text-primary">Mi cuenta</h2>
             <button onClick={onClose} className="text-text-tertiary hover:text-text-secondary">
               <X size={20} />
             </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          {/* User card */}
+          <div className="card-s5 flex items-center gap-3 p-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-primary">
               <span className="text-lg font-bold text-white">{initial}</span>
             </div>
-            <div className="min-w-0">
-              <p className="truncate text-sm font-semibold text-text-primary">{userEmail}</p>
-              <p className="text-[11px] text-text-tertiary">Usuario</p>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[14px] font-bold text-text-primary">{userEmail}</p>
+              <p className="text-[11px] text-text-tertiary">Usuario · Plan Gratis</p>
+            </div>
+            <CaretRight size={14} className="text-text-dim" />
+          </div>
+
+          {/* Configuración */}
+          <div>
+            <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-label">
+              Configuración
+            </p>
+            <div className="card-s5 overflow-hidden">
+              <button
+                onClick={() => setCuentasOpen(true)}
+                className="flex w-full items-center gap-3 border-b border-border-subtle px-[18px] py-3.5 text-left transition-colors hover:bg-primary/5"
+              >
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(33,120,168,0.10)' }}
+                >
+                  <Bank weight="duotone" size={15} className="text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-medium text-text-primary">Cuentas</p>
+                  {accountCount > 0 && (
+                    <p className="text-[11px] text-text-tertiary">
+                      {accountCount} {accountCount === 1 ? 'cuenta conectada' : 'cuentas conectadas'}
+                    </p>
+                  )}
+                </div>
+                {accountCount > 0 && (
+                  <span className="text-[12px] font-semibold text-text-secondary">{accountCount}</span>
+                )}
+                <CaretRight size={12} className="text-text-dim" />
+              </button>
+
+              <button
+                onClick={() => setTarjetasOpen(true)}
+                className="flex w-full items-center gap-3 border-b border-border-subtle px-[18px] py-3.5 text-left transition-colors hover:bg-primary/5"
+              >
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(184,74,18,0.10)' }}
+                >
+                  <CreditCard weight="duotone" size={15} style={{ color: '#B84A12' }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-medium text-text-primary">Tarjetas</p>
+                  {cardCount > 0 && (
+                    <p className="text-[11px] text-text-tertiary">
+                      {cardCount} {cardCount === 1 ? 'tarjeta' : 'tarjetas'}
+                    </p>
+                  )}
+                </div>
+                {cardCount > 0 && (
+                  <span className="text-[12px] font-semibold text-text-secondary">{cardCount}</span>
+                )}
+                <CaretRight size={12} className="text-text-dim" />
+              </button>
+
+              <button
+                onClick={() => setSubscriptionsOpen(true)}
+                className="flex w-full items-center gap-3 px-[18px] py-3.5 text-left transition-colors hover:bg-primary/5"
+              >
+                <div
+                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                  style={{ background: 'rgba(26,122,66,0.10)' }}
+                >
+                  <ArrowsClockwise weight="duotone" size={15} style={{ color: '#1A7A42' }} />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-medium text-text-primary">Suscripciones</p>
+                  {subscriptionCount > 0 && (
+                    <p className="text-[11px] text-text-tertiary">
+                      {subscriptionCount} {subscriptionCount === 1 ? 'suscripción' : 'suscripciones'}
+                    </p>
+                  )}
+                </div>
+                {subscriptionCount > 0 && (
+                  <span className="text-[12px] font-semibold text-text-secondary">{subscriptionCount}</span>
+                )}
+                <CaretRight size={12} className="text-text-dim" />
+              </button>
             </div>
           </div>
 
-          <div
-            className="overflow-hidden rounded-card"
-            style={{
-              background: 'rgba(255,255,255,0.38)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.70)',
-            }}
-          >
-            <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
-              Configuracion
-            </p>
-
-            <button
-              onClick={() => setCuentasOpen(true)}
-              className="flex w-full items-center gap-3 border-b border-border-subtle px-4 py-3 text-left transition-colors hover:bg-primary/5"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
-                <Bank weight="duotone" size={15} className="text-text-label" />
-              </div>
-              <span className="flex-1 text-sm text-text-primary">
-                Cuentas{accountCount > 0 ? ` (${accountCount})` : ''}
-              </span>
-              <CaretRight size={14} className="text-text-dim" />
-            </button>
-
-            <button
-              onClick={() => setTarjetasOpen(true)}
-              className="flex w-full items-center gap-3 border-b border-border-subtle px-4 py-3 text-left transition-colors hover:bg-primary/5"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
-                <CreditCard weight="duotone" size={15} className="text-text-label" />
-              </div>
-              <span className="flex-1 text-sm text-text-primary">
-                Tarjetas{cardCount > 0 ? ` (${cardCount})` : ''}
-              </span>
-              <CaretRight size={14} className="text-text-dim" />
-            </button>
-
-            <button
-              onClick={() => setSubscriptionsOpen(true)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary/5"
-            >
-              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
-                <ArrowsClockwise weight="duotone" size={15} className="text-text-label" />
-              </div>
-              <span className="flex-1 text-sm text-text-primary">
-                Suscripciones{subscriptionCount > 0 ? ` (${subscriptionCount})` : ''}
-              </span>
-              <CaretRight size={14} className="text-text-dim" />
-            </button>
-          </div>
-
-          <div
-            className="overflow-hidden rounded-card"
-            style={{
-              background: 'rgba(255,255,255,0.38)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              border: '1px solid rgba(255,255,255,0.70)',
-            }}
-          >
-            <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
+          {/* Preferencias */}
+          <div>
+            <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-label">
               Preferencias
             </p>
-
-            <div className="flex items-center justify-between border-b border-border-subtle px-4 py-3">
-              <span className="text-sm text-text-primary">Moneda predeterminada</span>
-              <div
-                className="inline-flex items-center rounded-full border border-border-ocean p-0.5"
-                style={{ background: 'rgba(255,255,255,0.50)' }}
-              >
-                {(['ARS', 'USD'] as const).map((c) => (
-                  <button
-                    key={c}
-                    onClick={() => handleCurrencyChange(c)}
-                    disabled={isSavingCurrency}
-                    className={`rounded-button px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
-                      currency === c
-                        ? 'bg-primary text-white'
-                        : 'text-text-tertiary hover:text-text-secondary'
-                    }`}
-                  >
-                    {c}
-                  </button>
-                ))}
+            <div className="card-s5 overflow-hidden">
+              <div className="flex items-center justify-between border-b border-border-subtle px-[18px] py-3.5">
+                <div>
+                  <p className="text-[14px] font-medium text-text-primary">Moneda predeterminada</p>
+                  <p className="text-[11px] text-text-tertiary">Para nuevos movimientos</p>
+                </div>
+                <div
+                  className="inline-flex items-center rounded-full p-0.5"
+                  style={{ background: 'rgba(13,24,41,0.06)' }}
+                >
+                  {(['ARS', 'USD'] as const).map((c) => (
+                    <button
+                      key={c}
+                      onClick={() => handleCurrencyChange(c)}
+                      disabled={isSavingCurrency}
+                      className={`rounded-button px-2.5 py-1 text-[11px] font-semibold transition-colors duration-150 disabled:opacity-50 ${
+                        currency === c
+                          ? 'bg-primary text-white'
+                          : 'text-text-tertiary hover:text-text-secondary'
+                      }`}
+                    >
+                      {c}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
 
-            <button
-              onClick={() => setHeroBalanceModeOpen(true)}
-              className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary/5"
-            >
-              <span className="flex-1 text-sm text-text-primary">Saldo Vivo</span>
-              <span className="text-xs font-medium text-text-tertiary">{heroBalanceModeLabel}</span>
-              <CaretRight size={14} className="text-text-dim" />
-            </button>
+              <button
+                onClick={() => setHeroBalanceModeOpen(true)}
+                className="flex w-full items-center gap-3 px-[18px] py-3.5 text-left transition-colors hover:bg-primary/5"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-medium text-text-primary">Saldo Vivo</p>
+                  <p className="text-[11px] text-text-tertiary">Modo de cálculo del hero</p>
+                </div>
+                <span className="text-[12px] font-semibold text-text-secondary">{heroBalanceModeLabel}</span>
+                <CaretRight size={12} className="text-text-dim" />
+              </button>
+            </div>
           </div>
 
+          {/* Seguridad */}
           {!isAnonymous && userEmail && (
-            <div
-              className="overflow-hidden rounded-card"
-              style={{
-                background: 'rgba(255,255,255,0.38)',
-                backdropFilter: 'blur(12px)',
-                WebkitBackdropFilter: 'blur(12px)',
-                border: '1px solid rgba(255,255,255,0.70)',
-              }}
-            >
-              <p className="px-4 pb-1 pt-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-text-label">
+            <div>
+              <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-label">
                 Seguridad
               </p>
-              <button
-                onClick={() => {
-                  setPasswordSuccess(null)
-                  resetPasswordForm()
-                  setPasswordModalOpen(true)
-                }}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary/5"
-              >
-                <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8">
-                  <Lock weight="duotone" size={15} className="text-text-label" />
-                </div>
-                <span className="flex-1 text-sm text-text-primary">{passwordLabel}</span>
-                <CaretRight size={14} className="text-text-dim" />
-              </button>
+              <div className="card-s5 overflow-hidden">
+                <button
+                  onClick={() => {
+                    setPasswordSuccess(null)
+                    resetPasswordForm()
+                    setPasswordModalOpen(true)
+                  }}
+                  className="flex w-full items-center gap-3 px-[18px] py-3.5 text-left transition-colors hover:bg-primary/5"
+                >
+                  <div
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                    style={{ background: 'rgba(33,120,168,0.10)' }}
+                  >
+                    <Lock weight="duotone" size={15} className="text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-medium text-text-primary">{passwordLabel}</p>
+                  </div>
+                  <CaretRight size={12} className="text-text-dim" />
+                </button>
+              </div>
             </div>
           )}
 
+          {/* Privacy + Actions */}
           <div className="space-y-2">
-            <div className="rounded-input bg-bg-tertiary px-3 py-2.5">
+            <div className="rounded-xl px-3 py-3" style={{ background: 'rgba(33,120,168,0.06)' }}>
               <Link
                 href="/privacy"
-                className="block text-sm font-medium text-text-primary transition-colors hover:text-primary"
+                className="text-[13px] font-semibold text-text-primary transition-colors hover:text-primary"
               >
                 Privacidad y datos
               </Link>
-              <p className="mt-1 text-xs text-text-tertiary">
-                SmartInput usa IA para interpretar el texto que escribis y proponer un gasto editable.
+              <p className="mt-0.5 text-[12px] leading-relaxed text-text-secondary">
+                SmartInput usa IA para interpretar el texto que escribís y proponer un gasto editable.
               </p>
             </div>
 
             <button
               onClick={handleLogout}
               disabled={isLoggingOut}
-              className="w-full rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
+              className="w-full rounded-[12px] border border-border-ocean py-3 text-[14px] font-semibold text-text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
             >
-              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesion'}
+              {isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}
             </button>
 
             <DeleteAccountControl />

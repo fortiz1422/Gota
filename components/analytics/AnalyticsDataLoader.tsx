@@ -40,11 +40,44 @@ interface Props {
 
 function AnalyticsSkeleton() {
   return (
-    <div className="px-5 pt-safe" style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <div className="mt-5 h-10 w-32 rounded skeleton" />
-      <div className="h-48 rounded-card skeleton" />
-      <div className="h-32 rounded-card skeleton" />
-      <div className="h-64 rounded-card skeleton" />
+    <div className="bg-bg-primary">
+      <div
+        className="blue-zone px-[22px] pb-10"
+        style={{ paddingTop: 'env(safe-area-inset-top)' }}
+      >
+        <div className="flex items-center justify-between pt-4">
+          <div
+            className="h-8 w-24 rounded-pill"
+            style={{ background: 'rgba(255,255,255,0.20)' }}
+          />
+          <div
+            className="h-8 w-20 rounded-pill"
+            style={{ background: 'rgba(255,255,255,0.20)' }}
+          />
+        </div>
+        <div
+          className="mt-5 h-5 w-48 rounded"
+          style={{ background: 'rgba(255,255,255,0.16)' }}
+        />
+        <div
+          className="mt-3 h-10 w-36 rounded"
+          style={{ background: 'rgba(255,255,255,0.20)' }}
+        />
+      </div>
+      <div
+        className="relative px-5"
+        style={{
+          marginTop: -24,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 20,
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)',
+        }}
+      >
+        <div className="skeleton h-10 rounded-pill" />
+        <div className="skeleton h-32 rounded-card" />
+        <div className="skeleton h-48 rounded-card" />
+      </div>
     </div>
   )
 }
@@ -88,9 +121,16 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
 
   if (data.rawExpenses.length === 0 && data.compromisoExpenses.length === 0) {
     return (
-      <div className="px-5 pt-safe">
-        <h1 className="mt-5 text-lg font-bold text-text-primary">Análisis</h1>
-        <div className="mt-6">
+      <div className="bg-bg-primary">
+        <div
+          className="blue-zone px-[22px] pb-8"
+          style={{ paddingTop: 'env(safe-area-inset-top)' }}
+        >
+          <div className="pt-4">
+            <span className="text-[18px] font-extrabold text-white">Análisis</span>
+          </div>
+        </div>
+        <div className="relative px-5 pt-4" style={{ marginTop: -24 }}>
           <EmptyState
             icon={ChartLineUp}
             title="Sin datos para analizar"

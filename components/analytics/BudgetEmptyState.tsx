@@ -8,7 +8,7 @@ interface Props {
 
 export function BudgetEmptyState({ onCreate, onClone, canClone = false }: Props) {
   return (
-    <section className="mx-5 rounded-card border border-dashed border-border-ocean bg-bg-secondary p-5">
+    <section className="mx-5 card-s5 border border-dashed border-primary/20 p-5">
       <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
         Presupuesto del mes
       </p>
@@ -21,7 +21,7 @@ export function BudgetEmptyState({ onCreate, onClone, canClone = false }: Props)
       <button
         type="button"
         onClick={onCreate}
-        className="mt-5 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white"
+        className="mt-5 w-full rounded-button bg-primary py-3 text-[13px] font-semibold text-white"
       >
         Crear presupuesto
       </button>
@@ -29,7 +29,7 @@ export function BudgetEmptyState({ onCreate, onClone, canClone = false }: Props)
         <button
           type="button"
           onClick={onClone}
-          className="mt-3 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-primary"
+          className="mt-2 w-full rounded-button border border-border-ocean py-3 text-[13px] font-semibold text-primary"
         >
           Clonar presupuesto anterior
         </button>

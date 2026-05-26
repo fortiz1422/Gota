@@ -23,7 +23,7 @@ export default async function AnalyticsPage({
 
   return (
     <div className="min-h-screen bg-bg-primary overflow-x-hidden">
-      <div className="mx-auto max-w-md pt-safe pb-tab-bar">
+      <div className="mx-auto max-w-md">
         <AnalyticsDataLoader
           selectedMonth={selectedMonth}
           initialDrill={initialDrill}
