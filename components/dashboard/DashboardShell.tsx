@@ -2,8 +2,11 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
+import Link from 'next/link'
+import { CaretRight, Wallet } from '@phosphor-icons/react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
 import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
+import { DisponibleRealSheet } from '@/components/dashboard/DisponibleRealSheet'
 import { CommitmentsSummary } from '@/components/dashboard/CommitmentsSummary'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
@@ -16,10 +19,12 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
+import { formatAmount } from '@/lib/format'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
 
@@ -45,25 +50,38 @@ type CotizacionApiData = {
 
 const HERO_BALANCE_MODE_STORAGE_KEY = 'gota.hero_balance_mode'
 
+function formatHomeMonth(ym: string): string {
+  const raw = new Date(ym + '-15').toLocaleDateString('es-AR', {
+    month: 'long',
+    year: 'numeric',
+  })
+  const normalized = raw.replace(' de ', ' ')
+  return normalized.charAt(0).toUpperCase() + normalized.slice(1)
+}
+
 function DashboardSkeleton() {
   return (
     <div className="min-h-screen bg-bg-primary">
-      <div
-        className="mx-auto max-w-md px-4 pt-safe"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 168px)',
-        }}
-      >
-        <div className="flex items-center justify-between pt-5">
-          <div className="h-9 w-9 rounded-full skeleton" />
-          <div className="h-9 w-9 rounded-full skeleton" />
+      <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 220 }}>
+        <div className="mx-auto max-w-md px-5 pt-2">
+          <div className="flex h-12 items-center justify-between">
+            <div className="h-9 w-9 rounded-full" style={{ background: 'rgba(255,255,255,0.20)' }} />
+            <div className="h-5 w-24 rounded-pill" style={{ background: 'rgba(255,255,255,0.20)' }} />
+            <div className="h-9 w-9 rounded-full" style={{ background: 'rgba(255,255,255,0.20)' }} />
+          </div>
+          <div className="px-1 pb-5 pt-4">
+            <div className="h-3 w-16 rounded" style={{ background: 'rgba(255,255,255,0.20)' }} />
+            <div className="mt-3 h-10 w-44 rounded" style={{ background: 'rgba(255,255,255,0.20)' }} />
+            <div className="mt-3 h-3 w-32 rounded" style={{ background: 'rgba(255,255,255,0.15)' }} />
+          </div>
         </div>
-        <div className="h-44 rounded-card skeleton" />
-        <div className="h-16 rounded-card skeleton" />
-        <div className="h-36 rounded-card skeleton" />
+      </BlueHeaderZone>
+      <div className="mx-auto max-w-md px-[22px]" style={{ marginTop: -24 }}>
+        <div className="flex flex-col gap-3">
+          <div className="h-16 rounded-[18px] skeleton" />
+          <div className="h-28 rounded-[18px] skeleton" />
+          <div className="h-40 rounded-[18px] skeleton" />
+        </div>
       </div>
     </div>
   )
@@ -78,6 +96,7 @@ export function DashboardShell({
 }: Props) {
   const queryClient = useQueryClient()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
+  const [disponibleSheetOpen, setDisponibleSheetOpen] = useState(false)
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
   const [cuentasOpen, setCuentasOpen] = useState(false)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
@@ -185,8 +204,6 @@ export function DashboardShell({
     })
   }, [selectedMonth, viewCurrency, queryClient])
 
-  const compromisos = data?.compromisos ?? null
-
   if (isLoading || !data) return <DashboardSkeleton />
 
   const {
@@ -209,15 +226,43 @@ export function DashboardShell({
     capitalInstrumentosMes,
     recurringPending,
     activeRecurring,
+    compromisos,
   } = data
 
   const effectiveHeroBalanceMode = heroBalanceModeOverride ?? (heroBalanceMode as HeroBalanceMode)
+  const valuationRate = cotizacionQuery.data?.rate ?? null
+
+  // Compute display values needed by the DisponibleReal card
+  const displayCurrency: 'ARS' | 'USD' =
+    effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
+      ? 'ARS'
+      : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
+        ? 'USD'
+        : currency
+
+  const heroValue =
+    effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
+      ? heroBreakdown.ARS + heroBreakdown.USD * valuationRate
+      : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
+        ? heroBreakdown.USD + heroBreakdown.ARS / valuationRate
+        : heroBreakdown[currency]
+
+  const availableDisplayValue =
+    effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
+      ? availableBreakdown.ARS + availableBreakdown.USD * valuationRate
+      : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
+        ? availableBreakdown.USD + availableBreakdown.ARS / valuationRate
+        : availableBreakdown[currency]
+
+  const gastosTarjeta = Math.max(0, heroValue - availableDisplayValue)
 
   const hasAnyMovement =
     allUltimos.length > 0 ||
     incomeEntries.length > 0 ||
     transfers.length > 0 ||
     yieldAccumulators.length > 0
+
+  const monthLabel = formatHomeMonth(selectedMonth)
 
   const promptCreateAccount = () => setCuentasOpen(true)
   const promptFirstExpense = () => {
@@ -236,56 +281,39 @@ export function DashboardShell({
 
   return (
     <div className="min-h-screen bg-bg-primary">
-      <div
-        className="mx-auto max-w-md px-4 pt-safe"
-        style={{
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 24,
-          paddingBottom: 'calc(env(safe-area-inset-bottom) + 96px)',
-        }}
-      >
-        <div className="flex items-center justify-between pt-5">
-          <button
-            onClick={() => setCuentaSheetOpen(true)}
-            aria-label="Abrir configuracion de cuenta"
-            className="transition-opacity hover:opacity-70 active:opacity-50"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary">
+      {/* ── BLUE ZONE ── */}
+      <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="mx-auto max-w-md">
+          {/* Header row: avatar | month label | plus */}
+          <div className="flex h-12 items-center justify-between px-5 pt-2">
+            <button
+              onClick={() => setCuentaSheetOpen(true)}
+              aria-label="Abrir configuración de cuenta"
+              className="flex h-9 w-9 items-center justify-center rounded-full header-glass transition-opacity hover:opacity-80 active:opacity-50"
+            >
               <span className="text-sm font-bold text-white">
                 {userEmail.charAt(0).toUpperCase()}
               </span>
-            </div>
-          </button>
-          <HomePlusButton accounts={accounts} currency={currency} cards={cards} month={selectedMonth} />
-        </div>
-
-        <PendingSharedReceiptBanner
-          canOpenComposer={accounts.length > 0}
-          onOpenComposer={promptFirstExpense}
-          onOpenPreview={openSharedReceiptPreview}
-        />
-
-        {accounts.length === 0 ? (
-          <section className="rounded-card border border-border-subtle bg-bg-secondary/70 px-5 py-6">
-            <p className="type-label text-text-secondary">Home</p>
-            <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.03em] text-text-primary">
-              Empezá con tu primera cuenta
-            </h1>
-            <p className="mt-3 text-sm leading-6 text-text-secondary">
-              Configurá una cuenta para que Saldo Vivo tenga una base real y después cargá tu primer movimiento.
-            </p>
-            <button
-              type="button"
-              onClick={promptCreateAccount}
-              className="mt-5 rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:brightness-105"
-            >
-              Crear cuenta
             </button>
-          </section>
-        ) : (
-          <>
+            <span
+              className="text-[14px] font-semibold"
+              style={{ color: 'rgba(255,255,255,0.85)' }}
+            >
+              {monthLabel}
+            </span>
+            <HomePlusButton
+              accounts={accounts}
+              currency={currency}
+              cards={cards}
+              month={selectedMonth}
+              onBlue
+            />
+          </div>
+
+          {/* Saldo Vivo hero — only when accounts exist */}
+          {accounts.length > 0 && (
             <SaldoVivo
+              variant="in-header"
               data={dashboardData?.saldo_vivo ?? null}
               currency={currency}
               heroBalanceMode={effectiveHeroBalanceMode}
@@ -304,9 +332,74 @@ export function DashboardShell({
               selectedMonth={selectedMonth}
               isProjected={isProjected}
               amountsVisible={amountsVisible}
-              onToggleAmounts={() => setAmountsVisible((visible) => !visible)}
+              onToggleAmounts={() => setAmountsVisible((v) => !v)}
+            />
+          )}
+        </div>
+      </BlueHeaderZone>
+
+      {/* ── WHITE ZONE ── */}
+      <div
+        className="relative mx-auto max-w-md px-[22px]"
+        style={{
+          marginTop: accounts.length > 0 ? -24 : 16,
+          paddingBottom: 'calc(env(safe-area-inset-bottom) + 200px)',
+        }}
+      >
+        {accounts.length === 0 ? (
+          <section className="rounded-card border border-border-subtle bg-bg-secondary/70 px-5 py-6">
+            <p className="type-label text-text-secondary">Home</p>
+            <h1 className="mt-3 text-[30px] font-extrabold tracking-[-0.03em] text-text-primary">
+              Empezá con tu primera cuenta
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-text-secondary">
+              Configurá una cuenta para que Saldo Vivo tenga una base real y después cargá tu primer movimiento.
+            </p>
+            <button
+              type="button"
+              onClick={promptCreateAccount}
+              className="mt-5 rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white transition-colors hover:brightness-105"
+            >
+              Crear cuenta
+            </button>
+          </section>
+        ) : (
+          <div className="flex flex-col gap-3">
+            <PendingSharedReceiptBanner
+              canOpenComposer={accounts.length > 0}
+              onOpenComposer={promptFirstExpense}
+              onOpenPreview={openSharedReceiptPreview}
             />
 
+            {/* Disponible real card */}
+            <div className="card-s5">
+              <button
+                type="button"
+                className="flex w-full items-center gap-3 p-4 text-left transition-opacity active:opacity-70"
+                onClick={() => setDisponibleSheetOpen(true)}
+              >
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
+                  <Wallet size={20} weight="regular" className="text-primary" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
+                  <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
+                </div>
+                <span
+                  className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
+                  style={{ letterSpacing: '-0.01em' }}
+                >
+                  {amountsVisible
+                    ? formatAmount(availableDisplayValue, displayCurrency)
+                    : displayCurrency === 'USD'
+                      ? 'USD ****'
+                      : '$ ******'}
+                </span>
+                <CaretRight size={13} weight="bold" className="mt-0.5 shrink-0 text-text-dim" />
+              </button>
+            </div>
+
+            {/* Compromisos */}
             {compromisos && (
               <CommitmentsSummary
                 compromisos={compromisos}
@@ -319,6 +412,7 @@ export function DashboardShell({
               />
             )}
 
+            {/* First movement prompt */}
             {!hasAnyMovement && (
               <section className="rounded-card border border-border-subtle bg-bg-secondary/60 px-4 py-5">
                 <p className="type-label text-text-secondary">Primer movimiento</p>
@@ -337,45 +431,69 @@ export function DashboardShell({
                 </button>
               </section>
             )}
-          </>
-        )}
 
-        {accounts.length > 0 && (
-          <SaldoVivoSheet
-            open={breakdownOpen}
-            onClose={() => setBreakdownOpen(false)}
-            selectedMonth={selectedMonth}
-            currency={viewCurrency}
-            isProjected={isProjected}
-          />
-        )}
+            {isCurrentMonth && recurringPending.length > 0 && (
+              <RecurringIncomeBanner pending={recurringPending} accounts={accounts} />
+            )}
 
-        {isCurrentMonth && recurringPending.length > 0 && (
-          <RecurringIncomeBanner pending={recurringPending} accounts={accounts} />
-        )}
+            {FF_INSTRUMENTS && (
+              <InstrumentosCard instruments={activeInstruments} currency={viewCurrency} />
+            )}
 
-        {FF_INSTRUMENTS && (
-          <InstrumentosCard instruments={activeInstruments} currency={viewCurrency} />
-        )}
+            {activeSubscriptions.length > 0 && (
+              <SubscriptionReviewBanner subscriptions={activeSubscriptions} cards={cards} />
+            )}
 
-        {activeSubscriptions.length > 0 && (
-          <SubscriptionReviewBanner subscriptions={activeSubscriptions} cards={cards} />
-        )}
-
-        {accounts.length > 0 && (
-          <Ultimos5
-            expenses={allUltimos.length > 0 ? allUltimos : (dashboardData?.ultimos_5 ?? null)}
-            incomeEntries={incomeEntries}
-            transfers={transfers}
-            accounts={accounts}
-            cards={cards}
-            month={selectedMonth}
-            yieldAccumulators={yieldAccumulators}
-            isCurrentMonth={isCurrentMonth}
-            recurringIncomes={activeRecurring}
-          />
+            {/* Últimos movimientos */}
+            <div className="mt-2">
+              <div className="mb-3 flex items-baseline justify-between px-1">
+                <h3 className="text-[16px] font-bold tracking-[-0.01em] text-text-primary">
+                  Últimos movimientos
+                </h3>
+                <Link
+                  href="/movimientos"
+                  className="flex items-center gap-0.5 text-[13px] font-semibold text-primary transition-opacity hover:opacity-70"
+                >
+                  Ver todos
+                  <CaretRight size={10} weight="bold" />
+                </Link>
+              </div>
+              <Ultimos5
+                expenses={allUltimos.length > 0 ? allUltimos : (dashboardData?.ultimos_5 ?? null)}
+                incomeEntries={incomeEntries}
+                transfers={transfers}
+                accounts={accounts}
+                cards={cards}
+                month={selectedMonth}
+                yieldAccumulators={yieldAccumulators}
+                isCurrentMonth={isCurrentMonth}
+                recurringIncomes={activeRecurring}
+              />
+            </div>
+          </div>
         )}
       </div>
+
+      {/* ── SHEETS & MODALS ── */}
+      {accounts.length > 0 && (
+        <SaldoVivoSheet
+          open={breakdownOpen}
+          onClose={() => setBreakdownOpen(false)}
+          selectedMonth={selectedMonth}
+          currency={viewCurrency}
+          isProjected={isProjected}
+        />
+      )}
+
+      <DisponibleRealSheet
+        open={disponibleSheetOpen}
+        onClose={() => setDisponibleSheetOpen(false)}
+        saldoVivo={heroValue}
+        gastosTarjeta={gastosTarjeta}
+        currency={displayCurrency}
+        selectedMonth={selectedMonth}
+        isProjected={isProjected}
+      />
 
       <BottomZone
         accounts={accounts}

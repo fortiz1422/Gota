@@ -1,5 +1,6 @@
 'use client'
 
+import { CaretRight } from '@phosphor-icons/react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
 import { formatAmount } from '@/lib/format'
 import type { BudgetItemMetrics } from '@/lib/budgets/types'
@@ -40,7 +41,7 @@ export function BudgetCategoryRow({ item, currency, onOpenMovements }: Props) {
 
   return (
     <div
-      className="flex cursor-pointer items-center gap-3 rounded-xl py-3 transition-colors duration-150 active:bg-black/[0.03]"
+      className="flex cursor-pointer items-start gap-3 px-4 py-3.5 transition-colors duration-150 active:bg-black/[0.03]"
       onClick={() => onOpenMovements(item.category)}
     >
       <CategoryIcon category={item.category} size={20} container />
@@ -54,7 +55,7 @@ export function BudgetCategoryRow({ item, currency, onOpenMovements }: Props) {
             <p className="text-[15px] font-bold" style={{ color: meta.color }}>
               {formatAmount(item.spentAmount, currency)}
             </p>
-            <span style={{ color: '#90A4B0', fontSize: 13 }}>›</span>
+            <CaretRight size={12} className="text-text-dim" />
           </div>
         </div>
 
@@ -72,7 +73,7 @@ export function BudgetCategoryRow({ item, currency, onOpenMovements }: Props) {
 
         <div
           className="relative mt-2 rounded-full"
-          style={{ height: 3, background: '#E6ECF2', overflow: 'visible' }}
+          style={{ height: 4, background: '#E6ECF2', overflow: 'visible' }}
         >
           <div
             className="absolute left-0 top-0 h-full rounded-full transition-[width] duration-300"
@@ -84,7 +85,7 @@ export function BudgetCategoryRow({ item, currency, onOpenMovements }: Props) {
               left: `${expectedLeft * 100}%`,
               top: -4,
               width: 2,
-              height: 11,
+              height: 12,
               background: '#B8C9D4',
               transform: 'translateX(-50%)',
             }}

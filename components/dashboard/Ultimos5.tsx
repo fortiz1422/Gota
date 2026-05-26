@@ -184,17 +184,7 @@ export function Ultimos5({
   }
 
   return (
-    <div className="px-2">
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <p className="type-label text-text-secondary">Últimos movimientos</p>
-        <button
-          onClick={openMovimientos}
-          className="rounded-button border border-primary/20 px-3 py-1.5 text-[12px] font-semibold text-primary transition-colors hover:bg-primary/5"
-        >
-          Ver todas
-        </button>
-      </div>
-
+    <>
       {movements.length === 0 ? (
         <div className="mt-3">
           <EmptyState
@@ -204,7 +194,7 @@ export function Ultimos5({
           />
         </div>
       ) : (
-        <div>
+        <div className="card-s5 px-4 py-0">
           {movements.map((mv, idx) => {
             const isLast = idx === movements.length - 1
             const divider = !isLast ? 'border-b border-[color:var(--color-separator)]' : ''
@@ -449,6 +439,6 @@ export function Ultimos5({
           </div>
         </Modal>
       )}
-    </div>
+    </>
   )
 }

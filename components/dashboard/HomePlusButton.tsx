@@ -17,11 +17,12 @@ interface Props {
   currency: 'ARS' | 'USD'
   cards: Card[]
   month: string
+  onBlue?: boolean
 }
 
 type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas' | 'transfer' | 'pago_tarjeta' | 'instrumento'
 
-export function HomePlusButton({ accounts, currency, cards, month }: Props) {
+export function HomePlusButton({ accounts, currency, cards, month, onBlue = false }: Props) {
   const [sheet, setSheet] = useState<Sheet>(null)
   const activeCards = cards.filter((card) => !card.archived)
 
@@ -30,7 +31,12 @@ export function HomePlusButton({ accounts, currency, cards, month }: Props) {
       <button
         onClick={() => setSheet('action')}
         aria-label="Agregar movimiento"
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-primary transition-colors hover:brightness-105 active:scale-95"
+        className={[
+          'flex h-9 w-9 items-center justify-center rounded-full transition-colors',
+          onBlue
+            ? 'header-glass hover:opacity-80 active:opacity-60'
+            : 'bg-primary hover:brightness-105 active:scale-95',
+        ].join(' ')}
       >
         <Plus weight="bold" size={18} className="text-white" />
       </button>

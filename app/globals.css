@@ -56,6 +56,9 @@
   /* Ocean — base para transparencias */
   --color-ocean: #1B7E9E;
 
+  /* Strategy 5 — gradient end del blue header zone */
+  --color-primary-deep: #1B6A93;
+
   /* Card border (alias explícito) */
   --color-card-border: rgba(255,255,255,0.70);
 
@@ -360,4 +363,33 @@ body {
 /* TabBar pill shadow */
 @utility shadow-tab-bar {
   box-shadow: var(--shadow-tab-bar);
+}
+
+/* ============================================
+   STRATEGY 5 — Blue header zone
+   ============================================ */
+
+/* Blue gradient container with rounded bottom */
+@utility blue-zone {
+  background:
+    radial-gradient(ellipse at 100% 0%, rgba(255,255,255,0.10) 0%, transparent 50%),
+    linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-deep) 100%);
+  border-bottom-left-radius: 28px;
+  border-bottom-right-radius: 28px;
+}
+
+/* Glass elements rendered over blue background (pills, avatar, buttons) */
+@utility header-glass {
+  background: rgba(255,255,255,0.16);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+/* Elevated white card for the white zone in S5 */
+@utility card-s5 {
+  background: #FFFFFF;
+  border-radius: 18px;
+  border: 1px solid rgba(13,24,41,0.04);
+  box-shadow: var(--shadow-md);
 }

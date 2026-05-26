@@ -103,12 +103,12 @@ export function MovimientosGroupedList({
   return (
     <div>
       {grouped.map(([date, items], groupIndex) => (
-        <div key={date}>
-          <div className="py-3">
+        <div key={date} className={groupIndex > 0 ? 'mt-3' : ''}>
+          <div className="pb-2 pt-3">
             <span className="text-[12px] capitalize text-text-dim">{formatDayLabel(date)}</span>
           </div>
 
-          <div>
+          <div className="card-s5 px-4 py-0">
             {items.map((mv, idx) => {
               const isLast = idx === items.length - 1
               const divider = !isLast ? 'border-b border-[color:var(--color-separator)]' : ''

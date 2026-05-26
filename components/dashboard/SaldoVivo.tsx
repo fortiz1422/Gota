@@ -23,6 +23,7 @@ interface Props {
   isProjected?: boolean
   amountsVisible: boolean
   onToggleAmounts: () => void
+  variant?: 'standard' | 'in-header'
 }
 
 function maskAmount(currency: 'ARS' | 'USD') {
@@ -92,10 +93,21 @@ export function SaldoVivo({
   isProjected = false,
   amountsVisible,
   onToggleAmounts,
+  variant = 'standard',
 }: Props) {
   const [sheetOpen, setSheetOpen] = useState(false)
 
   if (!data) {
+    if (variant === 'in-header') {
+      return (
+        <div className="px-[22px] pb-8 pt-3">
+          <span className="type-label" style={{ color: 'rgba(255,255,255,0.72)' }}>
+            Saldo Vivo
+          </span>
+          <p className="mt-2.5 type-hero" style={{ color: '#FFFFFF' }}>$ ------</p>
+        </div>
+      )
+    }
     return (
       <div data-tour="saldo-vivo" className="px-1 py-2">
         <p className="type-label text-text-secondary">Saldo Vivo</p>
@@ -126,6 +138,60 @@ export function SaldoVivo({
     (heroBalanceMode === 'combined_ars' || heroBalanceMode === 'combined_usd') &&
     (!valuationRate || valuationRate <= 0)
   const breakdown = breakdownLine(amountsVisible, heroBreakdown)
+
+  if (variant === 'in-header') {
+    return (
+      <div data-tour="saldo-vivo" className="px-[22px] pb-8 pt-3">
+        <div className="flex items-center justify-between">
+          <span className="type-label" style={{ color: 'rgba(255,255,255,0.72)' }}>
+            Saldo Vivo
+          </span>
+          <button
+            type="button"
+            onClick={onToggleAmounts}
+            aria-label={amountsVisible ? 'Ocultar montos' : 'Mostrar montos'}
+            className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-80"
+            style={{ color: 'rgba(255,255,255,0.72)' }}
+          >
+            {amountsVisible ? (
+              <Eye size={16} weight="regular" />
+            ) : (
+              <EyeSlash size={16} weight="regular" />
+            )}
+          </button>
+        </div>
+        <button
+          type="button"
+          onClick={onBreakdownOpen}
+          disabled={!onBreakdownOpen}
+          className={`mt-2.5 block text-left ${onBreakdownOpen ? 'cursor-pointer active:opacity-80' : 'cursor-default'}`}
+        >
+          <p
+            className="type-hero m-0 tabular-nums"
+            style={{ color: isNegative ? 'rgba(255,160,160,1)' : '#FFFFFF' }}
+          >
+            {amountsVisible
+              ? `${heroValue < 0 ? '−' : ''}${formatAmount(Math.abs(heroValue), displayCurrency)}`
+              : maskAmount(displayCurrency)}
+          </p>
+        </button>
+        <div
+          className="mt-3 flex flex-wrap items-center gap-x-3 type-meta"
+          style={{ color: 'rgba(255,255,255,0.72)' }}
+        >
+          <span>
+            <span className="font-semibold text-white">ARS</span>{' '}
+            {breakdown.ars}
+          </span>
+          <span style={{ opacity: 0.4 }}>|</span>
+          <span>
+            <span className="font-semibold text-white">USD</span>{' '}
+            {breakdown.usd}
+          </span>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div data-tour="saldo-vivo" className="px-1 py-2">

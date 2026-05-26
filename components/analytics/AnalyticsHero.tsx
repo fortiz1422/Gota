@@ -6,6 +6,7 @@ import { formatAmount } from '@/lib/format'
 interface Props {
   hero: AnalyticsHeroData
   currency: 'ARS' | 'USD'
+  variant?: 'standard' | 'in-header'
 }
 
 function splitSubcopy(text: string): { label: string; delta: string | null } {
@@ -17,29 +18,34 @@ function splitSubcopy(text: string): { label: string; delta: string | null } {
   return { label: text, delta: null }
 }
 
-export function AnalyticsHero({ hero, currency }: Props) {
+export function AnalyticsHero({ hero, currency, variant = 'standard' }: Props) {
+  const h = variant === 'in-header'
+
   return (
-    <section className="px-[22px] py-[18px]">
+    <section className={`px-[22px] ${h ? 'pt-[18px] pb-8' : 'py-[18px]'}`}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0 flex-1">
           <p
-            className="text-[22px] font-extrabold leading-[1.08] tracking-[-0.03em] text-text-primary"
+            className={`text-[22px] font-extrabold leading-[1.08] tracking-[-0.03em] ${h ? 'text-white' : 'text-text-primary'}`}
             style={{ textWrap: 'balance' }}
           >
             {hero.headline}
           </p>
-          <p className="mt-4 type-hero tabular-nums text-text-primary">
+          <p className={`mt-4 type-hero tabular-nums ${h ? 'text-white' : 'text-text-primary'}`}>
             {formatAmount(hero.amount, currency)}
           </p>
           {hero.subcopy ? (() => {
             const { label, delta } = splitSubcopy(hero.subcopy)
             return (
-              <p className="mt-3 text-[13px] text-text-secondary">
+              <p
+                className="mt-3 text-[13px]"
+                style={{ color: h ? 'rgba(255,255,255,0.72)' : 'var(--color-text-secondary)' }}
+              >
                 {label}
                 {delta && (
                   <span
                     className="ml-1"
-                    style={{ color: 'var(--color-success)', fontWeight: 700 }}
+                    style={{ color: h ? '#9CE6B5' : 'var(--color-success)', fontWeight: 700 }}
                   >
                     {delta}
                   </span>
@@ -48,7 +54,10 @@ export function AnalyticsHero({ hero, currency }: Props) {
             )
           })() : null}
           {hero.driver ? (
-            <p className="mt-3 text-[13px] text-text-secondary">
+            <p
+              className="mt-3 text-[13px]"
+              style={{ color: h ? 'rgba(255,255,255,0.72)' : 'var(--color-text-secondary)' }}
+            >
               {hero.driver.label}
             </p>
           ) : null}
@@ -66,17 +75,17 @@ export function AnalyticsHero({ hero, currency }: Props) {
           >
             <path
               d="M0,38 L11,24 L22,30 L33,14 L46,20 L57,34 L68,26 L68,46 L0,46 Z"
-              fill="rgba(33,120,168,0.07)"
+              fill={h ? 'rgba(255,255,255,0.12)' : 'rgba(33,120,168,0.07)'}
             />
             <polyline
               points="0,38 11,24 22,30 33,14 46,20 57,34 68,26"
-              stroke="#2178A8"
+              stroke={h ? 'rgba(255,255,255,0.85)' : '#2178A8'}
               strokeWidth="1.5"
               strokeLinecap="round"
               strokeLinejoin="round"
             />
-            <circle cx="68" cy="26" r="7" fill="rgba(33,120,168,0.15)" />
-            <circle cx="68" cy="26" r="3.5" fill="#2178A8" />
+            <circle cx="68" cy="26" r="7" fill={h ? 'rgba(255,255,255,0.25)' : 'rgba(33,120,168,0.15)'} />
+            <circle cx="68" cy="26" r="3.5" fill={h ? '#FFFFFF' : '#2178A8'} />
           </svg>
         </div>
       </div>

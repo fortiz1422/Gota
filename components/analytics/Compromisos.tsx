@@ -187,7 +187,7 @@ export function CompromisosCard({ data, currency, selectedMonth, onClick }: Card
   return (
     <button
       onClick={onClick}
-      className="surface-glass-neutral w-full rounded-card p-4 text-left transition-opacity active:opacity-80"
+      className="card-s5 w-full p-4 text-left transition-opacity active:opacity-80"
     >
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
@@ -332,7 +332,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
     <div className="space-y-4 px-5">
       {/* Summary header — current month with compromisos */}
       {isCurrentMonth && !allGoodCurrent && (
-        <div className="surface-glass-neutral rounded-card p-4">
+        <div className="card-s5 p-4">
           <div className="flex items-center gap-4">
             {pctComprometido !== null && (
               <div className="relative shrink-0">
@@ -384,7 +384,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
 
       {/* All good banner */}
       {allGoodCurrent && (
-        <div className="surface-glass-neutral rounded-card p-4">
+        <div className="card-s5 p-4">
           <div className="flex items-center gap-3">
             <CheckCircle weight="duotone" size={36} className="shrink-0 text-success" />
             <div>
@@ -399,7 +399,7 @@ export function DrillCompromisos({ data, currency, selectedMonth }: DrillProps) 
 
       {/* Historical header */}
       {!isCurrentMonth && tarjetas.length > 0 && (
-        <div className="surface-glass-neutral rounded-card p-4">
+        <div className="card-s5 p-4">
           <p className="type-label text-text-secondary mb-1">
             Resúmenes con vencimiento en {monthLabel(selectedMonth)}
           </p>

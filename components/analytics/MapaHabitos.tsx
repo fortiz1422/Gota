@@ -26,7 +26,7 @@ export function MapaHabitosCard({ habitosMap, currency: _currency, onClick }: Ca
   return (
     <button
       onClick={onClick}
-      className="surface-glass-neutral w-full rounded-card p-4 text-left transition-opacity hover:opacity-90"
+      className="card-s5 w-full p-4 text-left transition-opacity hover:opacity-90"
     >
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -86,7 +86,7 @@ export function DrillMapaHabitos({
 
   return (
     <div className="space-y-4 px-5">
-      <div className="surface-glass-neutral rounded-card p-4">
+      <div className="card-s5 p-4">
         <div className="mb-4 flex items-center justify-between px-1">
           <span className="type-micro uppercase tracking-wider text-text-label">
             Nivel de actividad
@@ -130,7 +130,7 @@ export function DrillMapaHabitos({
       </div>
 
       {selDay ? (
-        <div className="surface-glass-neutral rounded-card px-4 pb-1 pt-4">
+        <div className="card-s5 px-4 pb-1 pt-4">
           <div className="mb-1 flex items-start justify-between">
             <p className="text-[13px] font-semibold text-text-secondary">
               {selDay.day} de {monthNames[month - 1]}
