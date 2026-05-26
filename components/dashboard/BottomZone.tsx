@@ -58,10 +58,12 @@ export function BottomZone({
       }`}
       style={{
         paddingBottom: 'env(safe-area-inset-bottom)',
-        background: isComposerOpen ? 'rgba(248,251,253,0.98)' : 'var(--color-nav-bg)',
-        backdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(16px)',
-        WebkitBackdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(16px)',
-        boxShadow: isComposerOpen ? '0 -8px 24px rgba(13,24,41,0.06)' : 'none',
+        background: isComposerOpen ? 'rgba(248,251,253,0.98)' : 'rgba(255,255,255,0.92)',
+        backdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(20px) saturate(180%)',
+        WebkitBackdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(20px) saturate(180%)',
+        boxShadow: isComposerOpen
+          ? '0 -8px 24px rgba(13,24,41,0.06)'
+          : '0 -1px 0 rgba(255,255,255,0.6) inset, 0 -8px 24px rgba(13,24,41,0.04)',
         transform: keyboardOffset > 0 ? `translateY(-${keyboardOffset}px)` : 'translateY(0)',
         transition: keyboardOffset > 0 ? 'none' : 'transform 0.25s ease',
       }}
