@@ -1,0 +1,272 @@
+/* ============================================
+   GOTA — Colors & Type tokens (Light "Fría")
+   Source: app/globals.css + gota-lightmodedesign.md
+   ============================================ */
+
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap");
+
+:root {
+  color-scheme: light;
+
+  /* ---- Backgrounds ---- */
+  --gota-bg-primary:   #FFFFFF;
+  --gota-bg-secondary: #F8FBFD;
+  --gota-bg-tertiary:  #EEF4F8;
+  --gota-bg-elevated:  #FFFFFF;
+  --gota-bg-base:      #F8FBFD;   /* canvas background for full-screen surfaces */
+  /* Legacy "Fría" v1 (still seen in some surfaces) */
+  --gota-bg-shell:     #DCE3EA;
+  --gota-bg-sheet:     #E6ECF2;
+
+  /* ---- Surfaces / glass ---- */
+  --gota-surface:        rgba(255,255,255,0.38);
+  --gota-surface-soft:   rgba(255,255,255,0.78);
+  --gota-surface-glass:  rgba(190,225,248,0.28);
+  --gota-surface-module: #FFFFFF;
+  --gota-card-border:    rgba(255,255,255,0.70);
+  --gota-border-glass-strong: rgba(255,255,255,0.90);
+
+  /* ---- Text ---- */
+  --gota-text-primary:   #0D1829;
+  --gota-text-secondary: #4A6070;
+  --gota-text-tertiary:  #90A4B0;
+  --gota-text-disabled:  #B8C9D4;
+  --gota-text-dim:       #90A4B0;
+  --gota-text-muted:     #B8C9D4;
+
+  /* ---- Borders / separators ---- */
+  --gota-border-subtle: rgba(33,120,168,0.07);
+  --gota-border-strong: rgba(15,30,60,0.10);
+  --gota-separator:     rgba(33,120,168,0.07);
+
+  /* ---- Brand & accents ---- */
+  --gota-primary:       #2178A8;   /* Ocean blue — single primary action color */
+  --gota-primary-soft:  rgba(33,120,168,0.09);
+  --gota-ocean:         #1B7E9E;   /* slightly deeper teal for data viz */
+  --gota-data:          #1B7E9E;
+  --gota-data-soft:     rgba(27,126,158,0.10);
+
+  /* ---- Semantic ---- */
+  --gota-success:       #1A7A42;   /* "Necesidad" / income / healthy */
+  --gota-success-soft:  rgba(26,122,66,0.10);
+  --gota-warning:       #B84A12;   /* "Deseo" / soft alert */
+  --gota-warning-soft:  rgba(184,74,18,0.10);
+  --gota-danger:        #A61E1E;   /* deficit, destructive */
+  --gota-danger-soft:   rgba(166,30,30,0.09);
+  /* Aliases for spending mental model */
+  --gota-necessity:     var(--gota-success);
+  --gota-want:          var(--gota-warning);
+
+  /* ---- Overlays ---- */
+  --gota-nav-bg:    rgba(255,255,255,0.97);
+  --gota-backdrop:  rgba(0,0,0,0.40);
+
+  /* ---- Radii ---- */
+  --gota-radius-pill:    9999px;
+  --gota-radius-screen:  48px;
+  --gota-radius-card-lg: 22px;
+  --gota-radius-card:    18px;     /* canonical card */
+  --gota-radius-card-sm: 16px;
+  --gota-radius-input:   16px;
+  --gota-radius-button:  14px;
+  --gota-radius-item:    12px;
+  --gota-radius-icon:    10px;     /* category-icon container */
+  --gota-radius-icon-sm: 8px;
+
+  /* ---- Spacing ---- */
+  --gota-space-screen-x: 22px;     /* horizontal padding of a screen */
+  --gota-space-card-pad: 16px;
+  --gota-space-card-gap: 10px;
+  --gota-space-section:  24px;
+  --gota-space-row-y:    13px;     /* list rows */
+  --gota-space-nav-pad:  28px;
+
+  /* ---- Shadows ---- */
+  --gota-shadow-tab-bar: 0 2px 10px rgba(15,30,60,0.05);
+  --gota-shadow-module:  0 1px 6px rgba(0,0,0,0.07);
+  --gota-shadow-sm:      0 1px 3px rgba(13,24,41,0.05);
+  --gota-shadow-md:      0 4px 12px rgba(13,24,41,0.08);
+  --gota-shadow-lg:      0 8px 24px rgba(13,24,41,0.10);
+  --gota-shadow-shell:   0 28px 70px rgba(0,0,0,0.18);
+  --gota-shadow-sheet:   0 -8px 40px rgba(0,0,0,0.14);
+  --gota-shadow-input:   0 4px 20px rgba(15,30,60,0.07);
+
+  /* ---- Type families ---- */
+  --gota-font-sans:    "DM Sans", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+  --gota-font-display: "DM Sans", system-ui, sans-serif;          /* UI uses DM Sans even for hero */
+  --gota-font-script:  "Allura", "DM Serif Display", cursive;     /* logo/wordmark fallback */
+  --gota-font-mono:    "Geist Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* ---- Type scale (semantic) ---- */
+  --gota-type-hero-size:    40px;
+  --gota-type-hero-weight:  800;
+  --gota-type-hero-track:   -0.03em;
+
+  --gota-type-month-size:   22px;
+  --gota-type-month-weight: 800;
+
+  --gota-type-title-size:   22px;
+  --gota-type-title-weight: 800;
+  --gota-type-title-track:  -0.5px;
+
+  --gota-type-amount-size:  22px;
+  --gota-type-amount-weight: 800;
+
+  --gota-type-body-lg-size: 16px;
+  --gota-type-body-lg-weight: 700;
+
+  --gota-type-body-size:    15px;
+  --gota-type-body-weight:  500;
+
+  --gota-type-meta-size:    12px;
+  --gota-type-meta-weight:  400;
+
+  --gota-type-label-size:   11px;
+  --gota-type-label-weight: 700;
+  --gota-type-label-track:  0.09em;
+
+  --gota-type-micro-size:   10px;
+  --gota-type-micro-weight: 700;
+}
+
+/* ============================================
+   Semantic primitives — drop in to use
+   ============================================ */
+
+.gota-body {
+  font-family: var(--gota-font-sans);
+  background: var(--gota-bg-primary);
+  color: var(--gota-text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.gota-h1, .gota-title {
+  font-family: var(--gota-font-display);
+  font-size: var(--gota-type-title-size);
+  font-weight: var(--gota-type-title-weight);
+  letter-spacing: var(--gota-type-title-track);
+  color: var(--gota-text-primary);
+  margin: 0;
+}
+
+.gota-hero {
+  font-family: var(--gota-font-display);
+  font-size: var(--gota-type-hero-size);
+  font-weight: var(--gota-type-hero-weight);
+  letter-spacing: var(--gota-type-hero-track);
+  line-height: 1;
+  color: var(--gota-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.gota-amount {
+  font-size: var(--gota-type-amount-size);
+  font-weight: var(--gota-type-amount-weight);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.gota-body-text {
+  font-size: var(--gota-type-body-size);
+  font-weight: var(--gota-type-body-weight);
+  line-height: 1.4;
+  color: var(--gota-text-primary);
+}
+
+.gota-body-lg {
+  font-size: var(--gota-type-body-lg-size);
+  font-weight: var(--gota-type-body-lg-weight);
+}
+
+.gota-meta {
+  font-size: var(--gota-type-meta-size);
+  font-weight: var(--gota-type-meta-weight);
+  color: var(--gota-text-dim);
+}
+
+.gota-label {
+  font-size: var(--gota-type-label-size);
+  font-weight: var(--gota-type-label-weight);
+  letter-spacing: var(--gota-type-label-track);
+  text-transform: uppercase;
+  color: var(--gota-text-secondary);
+}
+
+.gota-micro {
+  font-size: var(--gota-type-micro-size);
+  font-weight: var(--gota-type-micro-weight);
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* ---- Surfaces ---- */
+.gota-card {
+  background: var(--gota-surface);
+  border: 1px solid var(--gota-card-border);
+  border-radius: var(--gota-radius-card);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+.gota-glass-1 {
+  background: var(--gota-surface-soft);
+  border: 1px solid var(--gota-card-border);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.gota-glass-2 {
+  background: var(--gota-surface-glass);
+  border: 1px solid var(--gota-card-border);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+.gota-glass-3 {
+  background: var(--gota-surface-glass);
+  border: 1px solid var(--gota-card-border);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+
+/* ---- Buttons ---- */
+.gota-btn-primary {
+  background: var(--gota-primary);
+  color: #fff;
+  border: 0;
+  border-radius: var(--gota-radius-button);
+  padding: 15px;
+  font-weight: 700;
+  font-size: 15px;
+  cursor: pointer;
+  transition: filter 150ms ease, transform 150ms ease;
+}
+.gota-btn-primary:hover { filter: brightness(1.05); }
+.gota-btn-primary:active { transform: scale(0.98); }
+
+/* ---- Pill / chip ---- */
+.gota-chip {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border-radius: var(--gota-radius-pill);
+  background: #FFFFFF;
+  border: 1px solid var(--gota-border-strong);
+  color: var(--gota-text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+}
+.gota-chip[aria-pressed="true"], .gota-chip.is-active {
+  background: var(--gota-primary);
+  color: #fff;
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* ---- Animation tokens ---- */
+:root {
+  --gota-ease-standard: cubic-bezier(0.4, 0, 0.2, 1);
+  --gota-dur-fast:   150ms;
+  --gota-dur-base:   200ms;
+  --gota-dur-slow:   300ms;
+  --gota-dur-grow:   550ms;
+}
