@@ -90,7 +90,7 @@ export function StripOperativo({
   ]
 
   return (
-    <div className="surface-module overflow-hidden rounded-[22px] px-2 py-2">
+    <div className="card-s5 overflow-hidden px-2 py-2">
       <div className="flex divide-x divide-[color:var(--color-separator)]">
         {segments.map((segment) => {
           const Icon = segment.icon

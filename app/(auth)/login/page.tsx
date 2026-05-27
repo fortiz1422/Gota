@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Image from 'next/image'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { LoginButton } from './LoginButton'
 
 export default async function LoginPage({
@@ -18,26 +19,28 @@ export default async function LoginPage({
   const { error } = await searchParams
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-bg-primary px-4">
-      <div className="w-full max-w-sm text-center">
+    <div className="min-h-screen bg-bg-primary">
+      <BlueHeaderZone
+        className="flex flex-col items-center justify-end pb-10"
+        style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 220 }}
+      >
         <Image
           src="/gota-wordmark.png"
           alt="Gota"
-          width={240}
-          height={320}
-          className="mb-10 mx-auto"
+          width={160}
+          height={214}
+          className="mb-3 brightness-0 invert"
           priority
         />
-        <p className="mb-10 text-sm text-text-tertiary">
-          gota, tu plata clara
-        </p>
+        <p className="text-sm text-white/60">gota, tu plata clara</p>
+      </BlueHeaderZone>
 
+      <div className="mx-auto max-w-sm px-4" style={{ marginTop: -24 }}>
         {error === 'oauth' && (
-          <p className="mb-4 text-sm text-danger">
+          <p className="mb-4 text-center text-sm text-danger">
             Error al iniciar sesión. Intentá de nuevo.
           </p>
         )}
-
         <LoginButton />
       </div>
     </div>

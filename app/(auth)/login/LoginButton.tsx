@@ -181,12 +181,12 @@ export function LoginButton() {
       <InlineError message={loginError} className="mt-3" />
 
       <div className="my-4 flex items-center gap-3">
-        <div className="h-px flex-1 bg-[rgba(255,255,255,0.70)]" />
+        <div className="h-px flex-1 bg-separator" />
         <span className="text-sm text-text-tertiary">o</span>
-        <div className="h-px flex-1 bg-[rgba(255,255,255,0.70)]" />
+        <div className="h-px flex-1 bg-separator" />
       </div>
 
-      <div className="mb-4 rounded-card border border-[rgba(255,255,255,0.70)] bg-[rgba(255,255,255,0.38)] p-4 backdrop-blur-[16px]">
+      <div className="card-s5 mb-4 p-4">
         <p className="mb-3 text-left text-sm font-semibold text-text-primary">
           Continuar con mail
         </p>
@@ -250,7 +250,7 @@ export function LoginButton() {
       <button
         onClick={handleExplore}
         disabled={exploring}
-        className="w-full rounded-xl border border-[rgba(255,255,255,0.70)] bg-[rgba(255,255,255,0.38)] py-3 text-sm font-medium text-text-secondary backdrop-blur-[16px] transition-all duration-200 hover:bg-[rgba(255,255,255,0.52)] disabled:opacity-50"
+        className="w-full rounded-card border border-separator bg-bg-secondary py-3 text-sm font-medium text-text-secondary transition-colors hover:bg-bg-tertiary disabled:opacity-50"
       >
         {exploring ? 'Entrando...' : 'Explorar sin cuenta'}
       </button>

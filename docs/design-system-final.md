@@ -163,8 +163,56 @@ Fallback sin `backdrop-filter`:
 
 ---
 
+---
+
+## Strategy 5 — Blue Header Zone (vigente desde 2026-05-26)
+
+El layout principal de todas las pantallas adopta el patrón "Blue Header Zone":
+
+### Nuevos tokens
+
+| Token | Valor | Uso |
+|---|---|---|
+| `--color-primary-deep` | `#1B6A93` | Endpoint del gradiente en blue-zone |
+
+### Nuevas utilities (app/globals.css)
+
+| Utility | Descripción |
+|---|---|
+| `blue-zone` | Gradiente `#2178A8 → #1B6A93` + highlight radial + `border-bottom-radius 28px` |
+| `header-glass` | `rgba(255,255,255,0.16)` + `blur(10px)` + `border rgba(255,255,255,0.22)` — para elementos sobre blue-zone |
+| `card-s5` | `#FFFFFF` + `radius 18px` + `border rgba(13,24,41,0.04)` + `shadow-md` — superficie estándar de contenido |
+
+### Componente BlueHeaderZone
+
+`components/ui/BlueHeaderZone.tsx` — wrapper que aplica `blue-zone` más `relative shrink-0`. Recibe `children`, `className` y `style`.
+
+### Patrón de layout
+
+```
+<div className="min-h-screen bg-bg-primary">
+  <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+    {/* Header nav, hero, SaldoVivo — texto en text-white */}
+  </BlueHeaderZone>
+  <div style={{ marginTop: -24 }}>
+    {/* Tarjetas card-s5, listas, contenido */}
+  </div>
+</div>
+```
+
+### Reglas S5
+
+- Textos e iconos sobre `blue-zone` → `text-white` y opacidades en blanco.
+- Pills, botones y avatares en blue-zone → `header-glass`.
+- Tarjetas de contenido en la zona blanca → `card-s5` (reemplaza `surface-glass-neutral` para insights y módulos).
+- `surface-glass` sigue reservado para SmartInput.
+- El overlap de `-24px` es fijo; no alterar sin coordinación visual.
+
+---
+
 ## Referencias
 
 - Propuesta visual base: `docs/gota-design-specv2.md`
 - Plan de upgrade UI: `docs/ui-product-upgrade-plan-2026-04-11.md`
 - Implementacion real: `app/globals.css`
+- Canvas de referencia S5: `gota-revamp-ui/project/src/S5Screens.jsx`
