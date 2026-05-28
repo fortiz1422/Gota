@@ -6,6 +6,7 @@ import type {
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
+  isApplicableCardPayment,
   isCreditAccruedExpense,
   isPerceivedExpense,
 } from '@/lib/movement-classification'
@@ -65,7 +66,7 @@ function buildMonthlySeries(params: {
     const point = monthMap.get(month)
     if (!point) continue
 
-    const perceived = isPerceivedExpense(expense)
+    const perceived = isPerceivedExpense(expense) || isApplicableCardPayment(expense)
     const accrued = isCreditAccruedExpense(expense)
     const day = getMonthDay(expense.date)
 
@@ -215,10 +216,16 @@ export async function GET(request: Request) {
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7) ?? null
   const rawExpenses = ((rawExpensesData ?? []) as Expense[]).filter(
-    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
+    (expense) =>
+      isPerceivedExpense(expense) ||
+      isApplicableCardPayment(expense) ||
+      isCreditAccruedExpense(expense),
   )
   const historicalExpenses = ((historicalExpensesData ?? []) as Expense[]).filter(
-    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
+    (expense) =>
+      isPerceivedExpense(expense) ||
+      isApplicableCardPayment(expense) ||
+      isCreditAccruedExpense(expense),
   )
   const comparisonDay = selectedMonth === currentMonth ? new Date().getDate() : null
   const monthlySeries = buildMonthlySeries({
