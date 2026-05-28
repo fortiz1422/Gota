@@ -23,3 +23,7 @@ export function isCreditAccruedExpense(expense: ExpenseLike): boolean {
 export function isPerceivedExpense(expense: ExpenseLike): boolean {
   return ['CASH', 'DEBIT', 'TRANSFER'].includes(expense.payment_method) && !isCardPayment(expense)
 }
+
+export function isCashflowExpense(expense: ExpenseLike): boolean {
+  return isPerceivedExpense(expense) || isApplicableCardPayment(expense)
+}

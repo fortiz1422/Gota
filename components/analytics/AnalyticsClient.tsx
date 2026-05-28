@@ -39,6 +39,7 @@ const drillTitles: Record<Drill, string> = {
 
 interface Props {
   metrics: Metrics
+  estadoMesMetrics: Metrics
   compromisos: CompromisosData
   rawExpenses: Expense[]
   subscriptions: Subscription[]
@@ -53,6 +54,7 @@ interface Props {
 
 export function AnalyticsClient({
   metrics,
+  estadoMesMetrics,
   compromisos,
   rawExpenses,
   selectedMonth,
@@ -213,6 +215,7 @@ export function AnalyticsClient({
         {insightsOpen ? (
           <AnalysisView
             metrics={metrics}
+            estadoMesMetrics={estadoMesMetrics}
             compromisos={compromisos}
             drill={drill}
             setDrill={handleSetDrill}
