@@ -130,6 +130,7 @@ export function computeMetrics(
   ingresoMes: number | null,
   currency: 'ARS' | 'USD',
   selectedMonth: string, // YYYY-MM
+  estadoMesExpenses?: number, // percibidos + pago de tarjetas (solo para monthStatus)
 ): Metrics {
   const cantidadTransacciones = expenses.length
 
@@ -454,20 +455,26 @@ export function computeMetrics(
     diasDeRunway = dailyRate > 0 ? Math.floor(ingresoMes / dailyRate) : null
   }
 
+  const estadoMesSalida = estadoMesExpenses ?? totalGastado
+  const estadoMesNet =
+    hasIngreso && ingresoMes ? Math.round(ingresoMes - estadoMesSalida) : null
   const monthStatus: MonthStatusData = {
     income: hasIngreso ? ingresoMes : null,
-    expenses: totalGastado,
-    net: ahorroActual,
+    expenses: estadoMesSalida,
+    net: estadoMesNet,
     savingsRate:
-      hasIngreso && ingresoMes && ahorroActual !== null
-        ? Math.round((ahorroActual / ingresoMes) * 100)
+      hasIngreso && ingresoMes && estadoMesNet !== null
+        ? Math.round((estadoMesNet / ingresoMes) * 100)
         : null,
-    spentPctOfIncome: pctGastadoDelIngreso,
+    spentPctOfIncome:
+      hasIngreso && ingresoMes
+        ? Math.round((estadoMesSalida / ingresoMes) * 100)
+        : null,
     status: !hasIngreso
       ? 'no_income'
-      : (ahorroActual ?? 0) > 0
+      : (estadoMesNet ?? 0) > 0
         ? 'positive'
-        : (ahorroActual ?? 0) < 0
+        : (estadoMesNet ?? 0) < 0
           ? 'negative'
           : 'neutral',
   }

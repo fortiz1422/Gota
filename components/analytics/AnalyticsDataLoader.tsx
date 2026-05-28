@@ -7,6 +7,7 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import { isApplicableCardPayment, isPerceivedExpense } from '@/lib/movement-classification'
 import { buildEmptyBudgetSnapshot } from '@/lib/budgets/computeBudgetMetrics'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
@@ -159,7 +160,20 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
   const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
   const isCurrentMonth = today.getFullYear() === ymYear && today.getMonth() + 1 === ymMonth
 
-  const metrics = computeMetrics(rawExpenses, ingresoMes, currency, selectedMonth)
+  const pagoTarjetasMes = compromisoExpenses
+    .filter((e) => isApplicableCardPayment(e) && e.date.startsWith(selectedMonth))
+    .reduce((s, e) => s + e.amount, 0)
+  const percibidosTotal = rawExpenses
+    .filter(isPerceivedExpense)
+    .reduce((s, e) => s + e.amount, 0)
+
+  const metrics = computeMetrics(
+    rawExpenses,
+    ingresoMes,
+    currency,
+    selectedMonth,
+    percibidosTotal + pagoTarjetasMes,
+  )
 
   const compromisos = computeCompromisos(
     compromisoExpenses,

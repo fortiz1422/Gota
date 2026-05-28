@@ -44,3 +44,9 @@ export const requestPasswordReset = (email: string) =>
 
 export const updatePassword = (password: string) =>
   createClient().auth.updateUser({ password })
+
+export const sendOtpEmail = (email: string) =>
+  createClient().auth.signInWithOtp({ email, options: { shouldCreateUser: true } })
+
+export const verifyOtpToken = (email: string, token: string) =>
+  createClient().auth.verifyOtp({ email, token, type: 'email' })
