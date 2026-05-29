@@ -216,16 +216,10 @@ export async function GET(request: Request) {
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7) ?? null
   const rawExpenses = ((rawExpensesData ?? []) as Expense[]).filter(
-    (expense) =>
-      isPerceivedExpense(expense) ||
-      isApplicableCardPayment(expense) ||
-      isCreditAccruedExpense(expense),
+    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
   )
   const historicalExpenses = ((historicalExpensesData ?? []) as Expense[]).filter(
-    (expense) =>
-      isPerceivedExpense(expense) ||
-      isApplicableCardPayment(expense) ||
-      isCreditAccruedExpense(expense),
+    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
   )
   const comparisonDay = selectedMonth === currentMonth ? new Date().getDate() : null
   const monthlySeries = buildMonthlySeries({
