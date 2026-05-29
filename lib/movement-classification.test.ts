@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   isApplicableCardPayment,
   isCardPayment,
+  isCashflowExpense,
   isCreditAccruedExpense,
   isLegacyCardPayment,
   isPerceivedExpense,
@@ -75,6 +76,38 @@ describe('movement classification', () => {
       isCreditAccruedExpense({
         category: 'Pago de Tarjetas',
         payment_method: 'CREDIT',
+      }),
+    ).toBe(false)
+  })
+
+  it('classifies cashflow expenses as perceived plus applicable card payments', () => {
+    expect(
+      isCashflowExpense({
+        category: 'Supermercado',
+        payment_method: 'DEBIT',
+      }),
+    ).toBe(true)
+
+    expect(
+      isCashflowExpense({
+        category: 'Pago de Tarjetas',
+        payment_method: 'TRANSFER',
+        is_legacy_card_payment: false,
+      }),
+    ).toBe(true)
+
+    expect(
+      isCashflowExpense({
+        category: 'Indumentaria',
+        payment_method: 'CREDIT',
+      }),
+    ).toBe(false)
+
+    expect(
+      isCashflowExpense({
+        category: 'Pago de Tarjetas',
+        payment_method: 'TRANSFER',
+        is_legacy_card_payment: true,
       }),
     ).toBe(false)
   })
