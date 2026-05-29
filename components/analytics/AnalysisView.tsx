@@ -11,7 +11,6 @@ type DrillTarget = 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 
 interface Props {
   metrics: Metrics
-  estadoMesMetrics: Metrics
   compromisos: CompromisosData
   drill: DrillTarget | null
   setDrill: (d: DrillTarget | null) => void
@@ -22,7 +21,6 @@ interface Props {
 
 export function AnalysisView({
   metrics,
-  estadoMesMetrics,
   compromisos,
   drill,
   setDrill,
@@ -33,7 +31,7 @@ export function AnalysisView({
   const { currency, fugaSilenciosa, habitosMap } = metrics
 
   if (drill === 'estado_mes') {
-    return <DrillEstadoMes metrics={estadoMesMetrics} />
+    return <DrillEstadoMes metrics={metrics} />
   }
 
   if (drill === 'fuga') {
@@ -65,7 +63,7 @@ export function AnalysisView({
   // Overview: 3 bento cards
   return (
     <div className="px-5 space-y-3">
-      <EstadoMesCard metrics={estadoMesMetrics} onClick={() => setDrill('estado_mes')} />
+      <EstadoMesCard metrics={metrics} onClick={() => setDrill('estado_mes')} />
       <FugaSilenciosaCard
         data={fugaSilenciosa}
         currency={currency}
