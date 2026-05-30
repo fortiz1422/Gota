@@ -201,15 +201,19 @@ export function Ultimos5({
                     : 'Todavía no hay movimientos para mostrar'}
                 </p>
                 <p className="mt-1 text-[12px] leading-5 text-text-secondary">
-                  Cuando registres uno nuevo desde el Smart Input, va a aparecer acá.
+                  {emptyState.variant === 'monthly-empty'
+                    ? 'Cuando cargues el próximo, este bloque se vuelve a poblar automáticamente.'
+                    : 'Cuando registres uno nuevo desde el Smart Input, va a aparecer acá.'}
                 </p>
-                <button
-                  type="button"
-                  onClick={openMovimientos}
-                  className="mt-3 text-[12px] font-semibold text-primary transition-opacity hover:opacity-70"
-                >
-                  Ver historial
-                </button>
+                {emptyState.variant !== 'monthly-empty' && (
+                  <button
+                    type="button"
+                    onClick={openMovimientos}
+                    className="mt-3 text-[12px] font-semibold text-primary transition-opacity hover:opacity-70"
+                  >
+                    Ver historial
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -69,6 +69,14 @@ type ReadDashboardDataParams = {
   viewCurrency: 'ARS' | 'USD'
 }
 
+type LiveExpenseRow = {
+  amount: number
+  currency: 'ARS' | 'USD'
+  account_id: string | null
+  payment_method: string | null
+  category: string | null
+}
+
 export async function readDashboardData({
   supabase,
   userId,
@@ -128,11 +136,9 @@ export async function readDashboardData({
     { data: instrumentsData },
     { data: recurringData },
     { data: liveIncomeData },
-    { data: liveDebitExpenseData },
-    { data: liveCardPaymentData },
+    { data: liveExpenseData },
     { data: liveTransfersData },
     { data: liveYieldData },
-    { data: liveInstrumentsData },
     { data: compromisoExpensesData },
     { data: unpaidCyclesData },
     { data: paidCyclesData },
@@ -199,17 +205,10 @@ export async function readDashboardData({
       .lte('date', todayDate),
     supabase
       .from('expenses')
-      .select('amount, currency, account_id')
+      .select('amount, currency, account_id, payment_method, category')
       .eq('user_id', userId)
       .lte('date', todayDate)
-      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
-      .neq('category', 'Pago de Tarjetas'),
-    supabase
-      .from('expenses')
-      .select('amount, currency, account_id')
-      .eq('user_id', userId)
-      .lte('date', todayDate)
-      .eq('category', 'Pago de Tarjetas'),
+      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     supabase
       .from('transfers')
       .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
@@ -220,11 +219,6 @@ export async function readDashboardData({
       .select('accumulated, account_id')
       .eq('user_id', userId)
       .lte('month', currentMonth),
-    supabase
-      .from('instruments')
-      .select('amount, currency, account_id')
-      .eq('user_id', userId)
-      .eq('status', 'active'),
     supabase
       .from('expenses')
       .select('*')
@@ -267,6 +261,13 @@ export async function readDashboardData({
   const hasUsdExpenses = usdCheckData !== null
   const allUltimos = (allUltimosData ?? []) as Expense[]
   const transfers = (transfersData ?? []) as Transfer[]
+  const liveExpenseRows = (liveExpenseData ?? []) as LiveExpenseRow[]
+  const liveDebitExpenseRows = liveExpenseRows.filter(
+    (row) =>
+      (row.payment_method === 'CASH' || row.payment_method === 'DEBIT' || row.payment_method === 'TRANSFER') &&
+      row.category !== 'Pago de Tarjetas',
+  )
+  const liveCardPaymentRows = liveExpenseRows.filter((row) => row.category === 'Pago de Tarjetas')
   const transferCurrencyAdjustment = sumCrossCurrencyTransferAdjustment(
     (liveTransfersData ?? []) as {
       amount_from: number
@@ -277,6 +278,14 @@ export async function readDashboardData({
     viewCurrency,
   )
   const activeSubscriptions = (subscriptionsData ?? []) as Subscription[]
+  const activeInstruments = (instrumentsData ?? []) as Instrument[]
+  const activeInstrumentBalances = FF_INSTRUMENTS
+    ? activeInstruments.map((instrument) => ({
+        account_id: instrument.account_id,
+        amount: instrument.amount,
+        currency: instrument.currency,
+      }))
+    : []
 
   let autoRolloverAmount: number | null = null
   const manualRolloverSummary: PrevMonthSummary | null = null
@@ -342,11 +351,11 @@ export async function readDashboardData({
       amount: row.amount,
       currency: row.currency,
     })),
-    debitExpenses: (liveDebitExpenseData ?? []).map((row: { amount: number; currency: 'ARS' | 'USD' }) => ({
+    debitExpenses: liveDebitExpenseRows.map((row) => ({
       amount: row.amount,
       currency: row.currency,
     })),
-    cardPayments: (liveCardPaymentData ?? []).map((row: { amount: number; currency: 'ARS' | 'USD' }) => ({
+    cardPayments: liveCardPaymentRows.map((row) => ({
       amount: row.amount,
       currency: row.currency,
     })),
@@ -357,8 +366,8 @@ export async function readDashboardData({
     accounts,
     currency: viewCurrency,
     incomes: (liveIncomeData ?? []) as { account_id: string | null; amount: number }[],
-    debitExpenses: (liveDebitExpenseData ?? []) as { account_id: string | null; amount: number }[],
-    cardPayments: (liveCardPaymentData ?? []) as { account_id: string | null; amount: number }[],
+    debitExpenses: liveDebitExpenseRows,
+    cardPayments: liveCardPaymentRows,
     transfers: (liveTransfersData ?? []) as {
       from_account_id: string
       to_account_id: string
@@ -368,17 +377,11 @@ export async function readDashboardData({
       currency_to: 'ARS' | 'USD'
     }[],
     yields: FF_YIELD ? ((liveYieldData ?? []) as { account_id: string; accumulated: number }[]) : [],
-    activeInstruments: FF_INSTRUMENTS
-      ? ((liveInstrumentsData ?? []) as Pick<Instrument, 'account_id' | 'amount' | 'currency'>[])
-      : [],
+    activeInstruments: activeInstrumentBalances,
   })
 
-  const activeInstruments = (instrumentsData ?? []) as Instrument[]
   const capitalInstrumentosMes = FF_INSTRUMENTS
-    ? sumActiveInstrumentCapital(
-        (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
-        viewCurrency,
-      )
+    ? sumActiveInstrumentCapital(activeInstrumentBalances, viewCurrency)
     : 0
 
   const activeRecurring = (recurringData ?? []) as RecurringIncome[]
@@ -450,14 +453,8 @@ export async function readDashboardData({
   }
   const capitalInstrumentosByCurrency = FF_INSTRUMENTS
     ? {
-        ARS: sumActiveInstrumentCapital(
-          (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
-          'ARS',
-        ),
-        USD: sumActiveInstrumentCapital(
-          (liveInstrumentsData ?? []) as Pick<Instrument, 'amount' | 'currency'>[],
-          'USD',
-        ),
+        ARS: sumActiveInstrumentCapital(activeInstrumentBalances, 'ARS'),
+        USD: sumActiveInstrumentCapital(activeInstrumentBalances, 'USD'),
       }
     : { ARS: 0, USD: 0 }
 

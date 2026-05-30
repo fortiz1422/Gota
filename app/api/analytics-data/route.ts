@@ -33,6 +33,14 @@ function isCompleteMonth(month: string, currentMonth: string): boolean {
   return month < currentMonth
 }
 
+function isExpenseInSelectedMonth(expense: Expense, selectedMonth: string): boolean {
+  return expense.date >= `${selectedMonth}-01` && expense.date < `${addMonths(selectedMonth, 1)}-01`
+}
+
+function isCompromisoExpense(expense: Expense): boolean {
+  return expense.payment_method === 'CREDIT' || expense.category === 'Pago de Tarjetas'
+}
+
 function buildMonthlySeries(params: {
   expenses: Expense[]
   selectedMonth: string
@@ -133,9 +141,7 @@ export async function GET(request: Request) {
   const cards = (cardsData ?? []) as Card[]
 
   const [
-    { data: rawExpensesData },
     { data: historicalExpensesData },
-    { data: compromisoExpensesData },
     { data: incomeEntries },
     { data: oldestExpense },
     { data: subscriptionsData },
@@ -148,25 +154,8 @@ export async function GET(request: Request) {
       .select('*')
       .eq('user_id', user.id)
       .eq('currency', currency)
-      .gte('date', startOfMonth)
-      .lt('date', endOfMonth),
-
-    supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('currency', currency)
       .gte('date', historyStartDate)
       .lt('date', endOfMonth),
-
-    supabase
-      .from('expenses')
-      .select('*')
-      .eq('user_id', user.id)
-      .eq('currency', currency)
-      .gte('date', historyStartDate)
-      .lt('date', endOfMonth)
-      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
 
     supabase
       .from('income_entries')
@@ -215,12 +204,16 @@ export async function GET(request: Request) {
 
   const ingresoMes = (incomeEntries ?? []).reduce((sum, entry) => sum + entry.amount, 0)
   const earliestDataMonth = oldestExpense?.date?.substring(0, 7) ?? null
-  const rawExpenses = ((rawExpensesData ?? []) as Expense[]).filter(
+  const historicalExpensesPool = (historicalExpensesData ?? []) as Expense[]
+  const rawExpenses = historicalExpensesPool.filter(
+    (expense) =>
+      isExpenseInSelectedMonth(expense, selectedMonth) &&
+      (isPerceivedExpense(expense) || isCreditAccruedExpense(expense)),
+  )
+  const historicalExpenses = historicalExpensesPool.filter(
     (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
   )
-  const historicalExpenses = ((historicalExpensesData ?? []) as Expense[]).filter(
-    (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
-  )
+  const compromisoExpenses = historicalExpensesPool.filter(isCompromisoExpense)
   const comparisonDay = selectedMonth === currentMonth ? new Date().getDate() : null
   const monthlySeries = buildMonthlySeries({
     expenses: historicalExpenses,
@@ -245,7 +238,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     rawExpenses,
-    compromisoExpenses: (compromisoExpensesData ?? []) as Expense[],
+    compromisoExpenses,
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],
     cardCycles: allCardCycles,

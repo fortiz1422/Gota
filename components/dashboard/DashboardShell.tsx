@@ -436,7 +436,12 @@ export function DashboardShell({
             )}
 
             {homeEmptyState.showPrimaryActivation && (
-              <HomeActivationState state={homeEmptyState} onPrimaryAction={promptFirstExpense} />
+              <HomeActivationState
+                state={homeEmptyState}
+                onPrimaryAction={promptFirstExpense}
+                historyHref="/movimientos"
+                isAnonymous={isAnonymous}
+              />
             )}
 
             {isCurrentMonth && recurringPending.length > 0 && (

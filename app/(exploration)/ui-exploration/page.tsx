@@ -5,6 +5,7 @@
 import { VariantA } from '@/components/_exploration/VariantA'
 import { VariantB } from '@/components/_exploration/VariantB'
 import { VariantC } from '@/components/_exploration/VariantC'
+import { HomeActivationState } from '@/components/dashboard/HomeActivationState'
 
 export default function UIExplorationPage() {
   return (
@@ -45,6 +46,64 @@ export default function UIExplorationPage() {
           <p style={{ margin: '6px 0 0', fontSize: 13, color: '#90B8D0' }}>
             Variante A: Fintech Calma / Premium · B: Nativa Operativa / Densa · C: Híbrida Sobria
           </p>
+        </div>
+
+        <div
+          style={{
+            background: '#FFFFFF',
+            borderRadius: 20,
+            padding: 20,
+            marginBottom: 32,
+            border: '1px solid rgba(26,43,60,0.08)',
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontSize: 11,
+              fontWeight: 700,
+              letterSpacing: '0.1em',
+              textTransform: 'uppercase',
+              color: '#2178A8',
+            }}
+          >
+            Home empty states — implementación actual
+          </p>
+          <div
+            style={{
+              marginTop: 16,
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+              gap: 16,
+            }}
+          >
+            <HomeActivationState
+              state={{
+                variant: 'first-use',
+                showPrimaryActivation: true,
+                showSecondaryListEmptyState: false,
+                deemphasizeAnonymousBanner: true,
+                primaryTitle: 'Registrá tu primer movimiento',
+                primaryBody: 'Empezá cargando un gasto, ingreso o transferencia para activar tu Home.',
+                primaryActionLabel: 'Registrar movimiento',
+              }}
+              onPrimaryAction={() => {}}
+              isAnonymous
+            />
+            <HomeActivationState
+              state={{
+                variant: 'monthly-empty',
+                showPrimaryActivation: true,
+                showSecondaryListEmptyState: true,
+                deemphasizeAnonymousBanner: false,
+                primaryTitle: 'Todavía no tenés movimientos este mes',
+                primaryBody: 'Sumá un movimiento para ver actividad reciente en tu Home de este mes.',
+                primaryActionLabel: 'Registrar movimiento',
+              }}
+              onPrimaryAction={() => {}}
+              historyHref="/movimientos"
+            />
+          </div>
         </div>
 
         <div
