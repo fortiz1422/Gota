@@ -26,7 +26,12 @@ const MONTHLY_EMPTY_BODY =
   'Sumá un movimiento para ver actividad reciente en tu Home de este mes.'
 
 export function getHomeEmptyState(input: HomeEmptyStateInput): HomeEmptyState {
-  if (input.hasCurrentMonthMovement) {
+  const hasCurrentMonthMovement = input.hasCurrentMonthMovement
+  const hasAnyMovement = input.hasAnyMovement || hasCurrentMonthMovement
+  const hasHistoricalMovement =
+    input.hasHistoricalMovement || hasAnyMovement || hasCurrentMonthMovement
+
+  if (hasCurrentMonthMovement) {
     return {
       variant: 'active',
       showPrimaryActivation: false,
@@ -38,7 +43,7 @@ export function getHomeEmptyState(input: HomeEmptyStateInput): HomeEmptyState {
     }
   }
 
-  if (!input.hasAnyMovement && !input.hasHistoricalMovement) {
+  if (!hasAnyMovement && !hasHistoricalMovement) {
     return {
       variant: 'first-use',
       showPrimaryActivation: true,

@@ -12,7 +12,7 @@ import {
   TrendUp,
 } from '@phosphor-icons/react'
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
-import { EmptyState } from '@/components/ui/EmptyState'
+import type { HomeEmptyState } from '@/lib/home-empty-state'
 import { Modal } from '@/components/ui/Modal'
 import { FF_YIELD } from '@/lib/flags'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
@@ -52,6 +52,7 @@ interface Props {
   yieldAccumulators: YieldAccumulator[]
   isCurrentMonth: boolean
   recurringIncomes?: RecurringIncome[]
+  emptyState: Pick<HomeEmptyState, 'variant' | 'showSecondaryListEmptyState'>
 }
 
 function getMovementSortDate(mv: Movement): number {
@@ -79,6 +80,7 @@ export function Ultimos5({
   yieldAccumulators,
   isCurrentMonth,
   recurringIncomes,
+  emptyState,
 }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -186,13 +188,32 @@ export function Ultimos5({
   return (
     <>
       {movements.length === 0 ? (
-        <div className="mt-3">
-          <EmptyState
-            icon={ClockCounterClockwise}
-            title="Sin movimientos este mes"
-            subtitle="Usá el input de abajo para registrar tu primer gasto"
-          />
-        </div>
+        emptyState.showSecondaryListEmptyState ? (
+          <div className="card-s5 mt-3 px-4 py-4">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-subtle bg-bg-secondary">
+                <ClockCounterClockwise size={18} weight="duotone" className="text-text-dim" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-[14px] font-semibold text-text-primary">
+                  {emptyState.variant === 'monthly-empty'
+                    ? 'Todavía no hay movimientos este mes'
+                    : 'Todavía no hay movimientos para mostrar'}
+                </p>
+                <p className="mt-1 text-[12px] leading-5 text-text-secondary">
+                  Cuando registres uno nuevo desde el Smart Input, va a aparecer acá.
+                </p>
+                <button
+                  type="button"
+                  onClick={openMovimientos}
+                  className="mt-3 text-[12px] font-semibold text-primary transition-opacity hover:opacity-70"
+                >
+                  Ver historial
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null
       ) : (
         <div className="card-s5 px-4 py-0">
           {movements.map((mv, idx) => {

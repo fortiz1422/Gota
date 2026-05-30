@@ -20,6 +20,7 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
+import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
@@ -34,6 +35,7 @@ interface Props {
   selectedMonth: string
   viewCurrency: 'ARS' | 'USD'
   userEmail: string
+  isAnonymous: boolean
   initialData: DashboardApiData
   initialQuote: CotizacionApiData | null
 }
@@ -93,6 +95,7 @@ export function DashboardShell({
   selectedMonth,
   viewCurrency,
   userEmail,
+  isAnonymous,
   initialData,
   initialQuote,
 }: Props) {
@@ -119,6 +122,7 @@ export function DashboardShell({
     return null
   })
   const dashboardLoadedTrackedRef = useRef(false)
+  const { setTone: setAnonymousBannerTone } = useAnonymousBannerTone()
 
   useEffect(() => {
     if (typeof window === 'undefined' || !window.visualViewport) return
@@ -206,7 +210,30 @@ export function DashboardShell({
     })
   }, [selectedMonth, viewCurrency, queryClient])
 
-  if (isLoading || !data) return <DashboardSkeleton />
+  const hasAnyMovement =
+    (data?.allUltimos.length ?? 0) > 0 ||
+    (data?.incomeEntries.length ?? 0) > 0 ||
+    (data?.transfers.length ?? 0) > 0 ||
+    (data?.yieldAccumulators.length ?? 0) > 0
+  const hasCurrentMonthMovement = hasAnyMovement
+  const hasHistoricalMovement = hasAnyMovement || (data?.earliestDataMonth ?? null) !== null
+  const homeEmptyState = data
+    ? getHomeEmptyState({
+        isAnonymous,
+        hasAnyMovement,
+        hasCurrentMonthMovement,
+        hasHistoricalMovement,
+      })
+    : null
+  const anonymousBannerTone = homeEmptyState?.deemphasizeAnonymousBanner ? 'supporting' : 'default'
+
+  useEffect(() => {
+    setAnonymousBannerTone(anonymousBannerTone)
+
+    return () => setAnonymousBannerTone('default')
+  }, [anonymousBannerTone, setAnonymousBannerTone])
+
+  if (isLoading || !data || !homeEmptyState) return <DashboardSkeleton />
 
   const {
     dashboardData,
@@ -218,7 +245,6 @@ export function DashboardShell({
     currency,
     activeSubscriptions,
     allUltimos,
-    earliestDataMonth,
     incomeEntries,
     transfers,
     transferCurrencyAdjustment,
@@ -258,20 +284,6 @@ export function DashboardShell({
         : availableBreakdown[currency]
 
   const gastosTarjeta = Math.max(0, heroValue - availableDisplayValue)
-
-  const hasAnyMovement =
-    allUltimos.length > 0 ||
-    incomeEntries.length > 0 ||
-    transfers.length > 0 ||
-    yieldAccumulators.length > 0
-  const hasCurrentMonthMovement = hasAnyMovement
-  const hasHistoricalMovement = hasAnyMovement || earliestDataMonth !== null
-  const homeEmptyState = getHomeEmptyState({
-    isAnonymous: userEmail.trim().length === 0,
-    hasAnyMovement,
-    hasCurrentMonthMovement,
-    hasHistoricalMovement,
-  })
 
   const monthLabel = formatHomeMonth(selectedMonth)
 
@@ -424,15 +436,7 @@ export function DashboardShell({
             )}
 
             {homeEmptyState.showPrimaryActivation && (
-              <HomeActivationState
-                variant={homeEmptyState.variant}
-                showPrimaryActivation={homeEmptyState.showPrimaryActivation}
-                deemphasizeAnonymousBanner={homeEmptyState.deemphasizeAnonymousBanner}
-                title={homeEmptyState.primaryTitle}
-                body={homeEmptyState.primaryBody}
-                actionLabel={homeEmptyState.primaryActionLabel}
-                onPrimaryAction={promptFirstExpense}
-              />
+              <HomeActivationState state={homeEmptyState} onPrimaryAction={promptFirstExpense} />
             )}
 
             {isCurrentMonth && recurringPending.length > 0 && (
@@ -471,6 +475,7 @@ export function DashboardShell({
                 yieldAccumulators={yieldAccumulators}
                 isCurrentMonth={isCurrentMonth}
                 recurringIncomes={activeRecurring}
+                emptyState={homeEmptyState}
               />
             </div>
           </div>

@@ -4,6 +4,7 @@ import { TabBar } from '@/components/navigation/TabBar'
 import { ReactQueryProvider } from '@/components/providers/ReactQueryProvider'
 import { AnonymousBanner } from '@/components/AnonymousBanner'
 import { OnboardingNudgeBanner } from '@/components/OnboardingNudgeBanner'
+import { AnonymousBannerToneProvider } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { TourProvider } from '@/components/tour/TourProvider'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -25,14 +26,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   return (
     <ReactQueryProvider>
-    <TourProvider onboardingCompleted={onboardingCompleted} tourCompleted={tourCompleted}>
-    <div className="relative min-h-screen bg-bg-primary">
-      <main className="pb-tab-bar">{children}</main>
-        <TabBar />
-        <AnonymousBanner />
-        <OnboardingNudgeBanner />
-    </div>
-    </TourProvider>
+      <TourProvider onboardingCompleted={onboardingCompleted} tourCompleted={tourCompleted}>
+        <AnonymousBannerToneProvider>
+          <div className="relative min-h-screen bg-bg-primary">
+            <main className="pb-tab-bar">{children}</main>
+            <TabBar />
+            <AnonymousBanner initialIsAnonymous={user.is_anonymous === true} />
+            <OnboardingNudgeBanner />
+          </div>
+        </AnonymousBannerToneProvider>
+      </TourProvider>
     </ReactQueryProvider>
   )
 }

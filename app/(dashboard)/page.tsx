@@ -6,7 +6,7 @@ export default async function DashboardPage({
 }: {
   searchParams: Promise<{ month?: string; currency?: string }>
 }) {
-  const { selectedMonth, viewCurrency, userEmail, initialData, initialQuote } =
+  const { selectedMonth, viewCurrency, userEmail, isAnonymous, initialData, initialQuote } =
     await loadDashboardPageData({ searchParams })
 
   return (
@@ -14,6 +14,7 @@ export default async function DashboardPage({
       selectedMonth={selectedMonth}
       viewCurrency={viewCurrency}
       userEmail={userEmail}
+      isAnonymous={isAnonymous}
       initialData={initialData}
       initialQuote={initialQuote}
     />

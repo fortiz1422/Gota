@@ -77,4 +77,23 @@ describe('getHomeEmptyState', () => {
       primaryActionLabel: null,
     })
   })
+
+  it('prioritizes current-month activity even when the incoming flags are contradictory', () => {
+    expect(
+      getHomeEmptyState({
+        isAnonymous: true,
+        hasAnyMovement: false,
+        hasCurrentMonthMovement: true,
+        hasHistoricalMovement: false,
+      }),
+    ).toEqual({
+      variant: 'active',
+      showPrimaryActivation: false,
+      showSecondaryListEmptyState: false,
+      deemphasizeAnonymousBanner: false,
+      primaryTitle: null,
+      primaryBody: null,
+      primaryActionLabel: null,
+    })
+  })
 })

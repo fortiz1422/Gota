@@ -84,6 +84,7 @@ export async function loadDashboardPageData({ searchParams }: LoadDashboardPageD
     selectedMonth,
     viewCurrency,
     userEmail: user.email ?? '',
+    isAnonymous: user.is_anonymous === true,
     initialData,
     initialQuote,
   }
