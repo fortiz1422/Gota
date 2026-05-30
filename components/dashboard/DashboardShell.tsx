@@ -11,6 +11,7 @@ import { CommitmentsSummary } from '@/components/dashboard/CommitmentsSummary'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
+import { HomeActivationState } from '@/components/dashboard/HomeActivationState'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { BottomZone } from '@/components/dashboard/BottomZone'
 import { CardPaymentPrompt } from '@/components/dashboard/CardPaymentPrompt'
@@ -23,6 +24,7 @@ import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
+import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
 import { formatAmount } from '@/lib/format'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
@@ -216,6 +218,7 @@ export function DashboardShell({
     currency,
     activeSubscriptions,
     allUltimos,
+    earliestDataMonth,
     incomeEntries,
     transfers,
     transferCurrencyAdjustment,
@@ -261,6 +264,14 @@ export function DashboardShell({
     incomeEntries.length > 0 ||
     transfers.length > 0 ||
     yieldAccumulators.length > 0
+  const hasCurrentMonthMovement = hasAnyMovement
+  const hasHistoricalMovement = hasAnyMovement || earliestDataMonth !== null
+  const homeEmptyState = getHomeEmptyState({
+    isAnonymous: userEmail.trim().length === 0,
+    hasAnyMovement,
+    hasCurrentMonthMovement,
+    hasHistoricalMovement,
+  })
 
   const monthLabel = formatHomeMonth(selectedMonth)
 
@@ -412,24 +423,16 @@ export function DashboardShell({
               />
             )}
 
-            {/* First movement prompt */}
-            {!hasAnyMovement && (
-              <section className="rounded-card border border-border-subtle bg-bg-secondary/60 px-4 py-5">
-                <p className="type-label text-text-secondary">Primer movimiento</p>
-                <h2 className="mt-2 text-[20px] font-bold tracking-[-0.02em] text-text-primary">
-                  Cargá tu primer gasto
-                </h2>
-                <p className="mt-2 text-sm leading-6 text-text-secondary">
-                  Probá con algo corto y directo. Cuando lo guardes, el Home ya se empieza a llenar con datos reales.
-                </p>
-                <button
-                  type="button"
-                  onClick={promptFirstExpense}
-                  className="mt-4 rounded-button border border-primary/30 bg-white px-4 py-3 text-sm font-semibold text-primary transition-colors hover:bg-primary/8"
-                >
-                  Cargar primer gasto
-                </button>
-              </section>
+            {homeEmptyState.showPrimaryActivation && (
+              <HomeActivationState
+                variant={homeEmptyState.variant}
+                showPrimaryActivation={homeEmptyState.showPrimaryActivation}
+                deemphasizeAnonymousBanner={homeEmptyState.deemphasizeAnonymousBanner}
+                title={homeEmptyState.primaryTitle}
+                body={homeEmptyState.primaryBody}
+                actionLabel={homeEmptyState.primaryActionLabel}
+                onPrimaryAction={promptFirstExpense}
+              />
             )}
 
             {isCurrentMonth && recurringPending.length > 0 && (
