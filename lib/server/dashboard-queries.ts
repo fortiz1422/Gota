@@ -117,6 +117,9 @@ export async function readDashboardData({
   const [
     incomeEntriesResult,
     { data: oldestExpense },
+    { data: oldestIncomeEntry },
+    { data: oldestTransfer },
+    { data: oldestYieldMonth },
     { data: usdCheckData },
     { data: allUltimosData },
     { data: transfersData },
@@ -144,6 +147,9 @@ export async function readDashboardData({
       .order('date', { ascending: false })
       .limit(20),
     supabase.from('expenses').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('income_entries').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('transfers').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
+    supabase.from('yield_accumulator').select('month').eq('user_id', userId).order('month', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('expenses').select('id').eq('user_id', userId).eq('currency', 'USD').limit(1).maybeSingle(),
     supabase
       .from('expenses')
@@ -251,7 +257,13 @@ export async function readDashboardData({
     (account) => account.opening_balance_ars > 0 || account.opening_balance_usd > 0,
   )
   const hasIncome = incomeEntries.length > 0 || hasConfiguredOpeningBalance
-  const earliestDataMonth = oldestExpense?.date?.substring(0, 7) ?? null
+  const earliestDataMonthCandidates = [
+    oldestExpense?.date?.substring(0, 7) ?? null,
+    oldestIncomeEntry?.date?.substring(0, 7) ?? null,
+    oldestTransfer?.date?.substring(0, 7) ?? null,
+    oldestYieldMonth?.month ?? null,
+  ].filter((value): value is string => Boolean(value))
+  const earliestDataMonth = earliestDataMonthCandidates.sort()[0] ?? null
   const hasUsdExpenses = usdCheckData !== null
   const allUltimos = (allUltimosData ?? []) as Expense[]
   const transfers = (transfersData ?? []) as Transfer[]

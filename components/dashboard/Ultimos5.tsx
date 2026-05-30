@@ -180,7 +180,7 @@ export function Ultimos5({
 
   const openMovimientos = () => {
     const params = new URLSearchParams()
-    if (month) params.set('month', month)
+    if (month && emptyState.variant !== 'monthly-empty') params.set('month', month)
     const query = params.toString()
     router.push(query ? `/movimientos?${query}` : '/movimientos')
   }
