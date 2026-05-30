@@ -3,6 +3,7 @@ import type {
   AnalyticsComparisonContext,
   MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
+import { countAvailableComparisonMonths } from '@/lib/analytics/analytics-overview'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
@@ -225,9 +226,7 @@ export async function GET(request: Request) {
   const comparisonContext: AnalyticsComparisonContext = {
     selectedMonth,
     isCurrentMonth: selectedMonth === currentMonth,
-    availableCompletedMonths: monthlySeries.filter(
-      (point) => point.month < selectedMonth && point.isComplete,
-    ).length,
+    availableCompletedMonths: countAvailableComparisonMonths(monthlySeries, selectedMonth),
     comparisonDay,
   }
 

@@ -25,10 +25,8 @@ type HeroBenchmark =
   | 'none'
   | 'previous_month'
   | 'previous_month_same_day'
-  | 'recent_average_closed'
-  | 'recent_average_same_day'
-  | 'average_6m_closed'
-  | 'average_6m_same_day'
+  | 'rolling_average_closed'
+  | 'rolling_average_same_day'
 
 type HeroState =
   | 'no_data'
@@ -119,10 +117,31 @@ function formatSignedPct(value: number | null): string {
   return `${value > 0 ? '+' : ''}${value}%`
 }
 
+function hasHistoricalData(point: MonthlySeriesPoint): boolean {
+  return point.percibidoTotal > 0 || point.percibidoDevengadoTotal > 0
+}
+
+function getComparablePreviousPoints(
+  monthlySeries: MonthlySeriesPoint[],
+  selectedMonth: string,
+): MonthlySeriesPoint[] {
+  return monthlySeries.filter(
+    (point) => point.month < selectedMonth && point.isComplete && hasHistoricalData(point),
+  )
+}
+
+export function countAvailableComparisonMonths(
+  monthlySeries: MonthlySeriesPoint[],
+  selectedMonth: string,
+): number {
+  return getComparablePreviousPoints(monthlySeries, selectedMonth).length
+}
+
 function getBenchmarkLabel(
   benchmark: HeroBenchmark,
   comparisonDay: number | null,
   previousMonthLabel: string | null,
+  averageWindowSize: number | null,
 ): string | null {
   switch (benchmark) {
     case 'none':
@@ -133,14 +152,12 @@ function getBenchmarkLabel(
       return previousMonthLabel && comparisonDay
         ? `${previousMonthLabel.toLowerCase()} al día ${comparisonDay}`
         : previousMonthLabel
-    case 'recent_average_closed':
-      return 'promedio reciente'
-    case 'recent_average_same_day':
-      return 'ritmo reciente a esta altura'
-    case 'average_6m_closed':
-      return 'promedio 6m'
-    case 'average_6m_same_day':
-      return 'promedio 6m a esta altura'
+    case 'rolling_average_closed':
+      return averageWindowSize ? `promedio ${averageWindowSize}m` : 'promedio reciente'
+    case 'rolling_average_same_day':
+      return averageWindowSize
+        ? `promedio ${averageWindowSize}m a esta altura`
+        : 'ritmo reciente a esta altura'
   }
 }
 
@@ -208,7 +225,13 @@ export function resolveAnalyticsHero(params: {
     }
   }
 
-  if (comparisonContext.availableCompletedMonths === 0) {
+  const comparablePreviousPoints = getComparablePreviousPoints(
+    monthlySeries,
+    comparisonContext.selectedMonth,
+  )
+  const availableComparisonMonths = comparablePreviousPoints.length
+
+  if (availableComparisonMonths === 0) {
     return {
       mode,
       amount,
@@ -222,44 +245,28 @@ export function resolveAnalyticsHero(params: {
     }
   }
 
-  const previousPoint = monthlySeries
-    .filter((point) => point.month < comparisonContext.selectedMonth)
-    .slice(-1)[0] ?? null
+  const previousPoint = comparablePreviousPoints.slice(-1)[0] ?? null
   const previousMonthLabel = previousPoint ? formatMonthLong(previousPoint.month) : null
 
   let benchmark: HeroBenchmark = 'none'
   let benchmarkValue: number | null = null
+  let averageWindowSize: number | null = null
 
-  if (comparisonContext.availableCompletedMonths === 1) {
+  if (availableComparisonMonths <= 2) {
     benchmark = comparisonContext.isCurrentMonth ? 'previous_month_same_day' : 'previous_month'
     benchmarkValue = previousPoint
       ? comparisonContext.isCurrentMonth
         ? getSameDayAmountForMode(previousPoint, mode)
         : getAmountForMode(previousPoint, mode)
       : null
-  } else if (comparisonContext.availableCompletedMonths <= 4) {
-    const recentPoints = monthlySeries
-      .filter((point) => point.month < comparisonContext.selectedMonth && point.isComplete)
-      .slice(-4)
-    benchmark = comparisonContext.isCurrentMonth
-      ? 'recent_average_same_day'
-      : 'recent_average_closed'
-    benchmarkValue = average(
-      recentPoints
-        .map((point) =>
-          comparisonContext.isCurrentMonth
-            ? getSameDayAmountForMode(point, mode)
-            : getAmountForMode(point, mode),
-        )
-        .filter((value): value is number => value !== null),
-    )
   } else {
-    const maturePoints = monthlySeries
-      .filter((point) => point.month < comparisonContext.selectedMonth && point.isComplete)
-      .slice(-6)
-    benchmark = comparisonContext.isCurrentMonth ? 'average_6m_same_day' : 'average_6m_closed'
+    averageWindowSize = Math.min(availableComparisonMonths, 6)
+    const rollingPoints = comparablePreviousPoints.slice(-averageWindowSize)
+    benchmark = comparisonContext.isCurrentMonth
+      ? 'rolling_average_same_day'
+      : 'rolling_average_closed'
     benchmarkValue = average(
-      maturePoints
+      rollingPoints
         .map((point) =>
           comparisonContext.isCurrentMonth
             ? getSameDayAmountForMode(point, mode)
@@ -280,6 +287,7 @@ export function resolveAnalyticsHero(params: {
     benchmark,
     comparisonContext.comparisonDay,
     previousMonthLabel,
+    averageWindowSize,
   )
 
   let state: HeroState = 'on_track'
@@ -341,30 +349,38 @@ export function resolveAnalyticsEvolution(params: {
     label: formatMonthShort(point.month),
   }))
 
-  const previousCompletePoints = series.filter(
-    (point) => point.month < comparisonContext.selectedMonth && point.isComplete,
-  )
+  const previousCompletePoints = getComparablePreviousPoints(
+    monthlySeries,
+    comparisonContext.selectedMonth,
+  ).map((point) => ({
+    ...point,
+    value: getAmountForMode(point, mode),
+    label: formatMonthShort(point.month),
+  }))
+  const availableComparisonMonths = previousCompletePoints.length
+  const rollingAverageWindowSize =
+    availableComparisonMonths >= 3 ? Math.min(availableComparisonMonths, 6) : null
 
   let title = 'Últimos 6 meses'
   let subcopy = 'Tu promedio reciente sirve como referencia.'
-  let averageLabel: string | null = 'Promedio 6m'
-  let averageValue = average(previousCompletePoints.slice(-6).map((point) => point.value))
+  let averageLabel: string | null = rollingAverageWindowSize ? `Promedio ${rollingAverageWindowSize}m` : null
+  let averageValue = rollingAverageWindowSize
+    ? average(previousCompletePoints.slice(-rollingAverageWindowSize).map((point) => point.value))
+    : null
 
-  if (comparisonContext.availableCompletedMonths === 0) {
+  if (availableComparisonMonths === 0) {
     title = 'Tu histórico empieza acá'
     subcopy = 'Este mes está armando tu línea base.'
     averageLabel = null
     averageValue = null
-  } else if (comparisonContext.availableCompletedMonths === 1) {
-    title = 'Tus primeros 2 meses'
-    subcopy = 'Ya podés empezar a compararte con tu mes anterior.'
+  } else if (availableComparisonMonths <= 2) {
+    title = 'Tus primeros meses'
+    subcopy = 'Por ahora la referencia principal es tu mes anterior.'
     averageLabel = null
     averageValue = null
-  } else if (comparisonContext.availableCompletedMonths <= 4) {
+  } else {
     title = 'Cómo viene evolucionando'
     subcopy = 'Empiezan a aparecer señales de tendencia.'
-    averageLabel = 'Promedio reciente'
-    averageValue = average(previousCompletePoints.slice(-4).map((point) => point.value))
   }
 
   return {
