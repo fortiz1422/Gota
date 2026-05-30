@@ -40,10 +40,13 @@ export const metadata: Metadata = {
 }
 
 export const viewport: Viewport = {
+  width: 'device-width',
   themeColor: '#F0F4F8',
   viewportFit: 'cover',
+  initialScale: 1,
   minimumScale: 1,
-  maximumScale: 5,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export default function RootLayout({
