@@ -152,9 +152,10 @@ function Sheet({
 }) {
   return (
     <div
-      className={`relative z-10 -mt-7 flex flex-1 flex-col rounded-[28px] rounded-b-none bg-bg-primary ${
+      className={`relative z-10 -mt-7 flex flex-1 flex-col overflow-y-auto overscroll-contain rounded-[28px] rounded-b-none bg-bg-primary ${
         center ? 'items-center justify-center gap-3.5 px-6 py-10 text-center' : ''
       }`}
+      style={{ WebkitOverflowScrolling: 'touch' }}
     >
       {children}
     </div>
@@ -183,8 +184,8 @@ function Wordmark({ size = 52, onDark = true }: { size?: number; onDark?: boolea
 function CTAZone({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="flex flex-col gap-2.5 px-5 pt-5"
-      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 36px)' }}
+      className="sticky bottom-0 mt-6 flex flex-col gap-2.5 border-t border-black/[0.06] bg-white/92 px-5 pt-4 backdrop-blur-xl"
+      style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
     >
       {children}
     </div>
@@ -221,7 +222,7 @@ function SplashScreen({
   }, [])
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="min-h-app flex flex-col">
       <Hero>
         <Wordmark size={52} onDark />
         <p className="mt-2 text-base italic font-normal text-white/70">Tu plata, clara.</p>
@@ -322,7 +323,7 @@ function EmailScreen({
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="min-h-app flex flex-col">
       <Hero compact onBack={onBack}>
         <Wordmark size={26} onDark />
         <p className="mt-1.5 text-[14px] text-white/65">Ingresá tu email para continuar</p>
@@ -372,10 +373,7 @@ function EmailScreen({
 
         <div className="flex-1" />
 
-        <div
-          className="px-5"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 36px)' }}
-        >
+        <CTAZone>
           <button
             onClick={handleSubmit}
             disabled={!valid || loading}
@@ -387,7 +385,7 @@ function EmailScreen({
           >
             {loading ? 'Enviando...' : 'Enviar código'}
           </button>
-        </div>
+        </CTAZone>
       </Sheet>
     </div>
   )
@@ -461,7 +459,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
 
   if (verified) {
     return (
-      <div className="flex min-h-full flex-col">
+      <div className="min-h-app flex flex-col">
         <Hero compact>
           <div className="h-5" />
         </Hero>
@@ -477,7 +475,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
   }
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="min-h-app flex flex-col">
       <Hero compact onBack={onBack}>
         <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-white">
           Ingresá el código
@@ -538,10 +536,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
 
         <div className="flex-1" />
 
-        <div
-          className="px-5"
-          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 36px)' }}
-        >
+        <CTAZone>
           <button
             onClick={() => full && !verifying && handleVerify(code.join(''))}
             disabled={!full || verifying}
@@ -553,7 +548,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
           >
             {verifying ? 'Verificando...' : 'Verificar código'}
           </button>
-        </div>
+        </CTAZone>
       </Sheet>
     </div>
   )
@@ -589,7 +584,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
   ]
 
   return (
-    <div className="flex min-h-full flex-col">
+    <div className="min-h-app flex flex-col">
       <Hero compact onBack={onBack}>
         <Wordmark size={26} onDark />
         <p className="mt-1.5 text-[14px] text-white/65">Modo exploración</p>
@@ -675,7 +670,7 @@ export function LoginButton() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-bg-primary">
+    <div className="min-h-app flex flex-col bg-bg-primary">
       {screen === 'splash' && (
         <SplashScreen
           onGoogle={handleGoogle}

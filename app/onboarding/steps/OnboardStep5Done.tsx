@@ -44,11 +44,11 @@ export function OnboardStep5Done({ accountName, balanceARS, balanceUSD, onNext }
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-bg-primary"
+      className="min-h-app flex flex-col bg-bg-primary"
       style={{ animation: 'onboardIn 0.22s cubic-bezier(.4,0,.2,1)' }}
     >
       {/* Empty nav (no back, no dots) */}
-      <div className="h-12 shrink-0" />
+      <div className="h-12 shrink-0 pt-safe-top" />
 
       {/* Done stage — vertically centered */}
       <div className="flex flex-1 flex-col justify-center px-[26px]">
@@ -114,7 +114,7 @@ export function OnboardStep5Done({ accountName, balanceARS, balanceUSD, onNext }
       </div>
 
       {/* CTA */}
-      <div className="shrink-0 px-6 pb-9 pt-4">
+      <div className="shrink-0 px-6 pb-safe-cta pt-4">
         <button
           onClick={onNext}
           disabled={!isReady}

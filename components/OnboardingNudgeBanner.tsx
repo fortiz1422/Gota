@@ -9,6 +9,7 @@ const DISMISS_KEY = 'onboarding_nudge_dismissed'
 
 export function OnboardingNudgeBanner() {
   const [show, setShow] = useState(false)
+  const [isComposerOpen, setIsComposerOpen] = useState(false)
   const router = useRouter()
   const supabase = useMemo(() => createClient(), [])
 
@@ -32,7 +33,17 @@ export function OnboardingNudgeBanner() {
     check()
   }, [supabase])
 
-  if (!show) return null
+  useEffect(() => {
+    const syncComposerState = () => {
+      setIsComposerOpen(document.documentElement.dataset.bottomComposer === 'open')
+    }
+
+    syncComposerState()
+    window.addEventListener('gota:bottom-composer', syncComposerState)
+    return () => window.removeEventListener('gota:bottom-composer', syncComposerState)
+  }, [])
+
+  if (!show || isComposerOpen) return null
 
   const handleDismiss = () => {
     localStorage.setItem(DISMISS_KEY, '1')

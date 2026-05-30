@@ -85,7 +85,8 @@ function TabBarInner({ integrated = false }: { integrated?: boolean }) {
     <nav
       className="fixed bottom-0 left-0 right-0 z-50"
       style={{
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingTop: '4px',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
         background: 'rgba(255,255,255,0.92)',
         backdropFilter: 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: 'blur(20px) saturate(180%)',
@@ -108,11 +109,12 @@ export function TabBar({ integrated = false }: { integrated?: boolean }) {
           <div
             className="fixed bottom-0 left-0 right-0"
             style={{
+              paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
               background: 'rgba(255,255,255,0.92)',
               borderTop: '1px solid rgba(33,120,168,0.08)',
             }}
           >
-            <div className="mx-auto h-14 max-w-md" />
+            <div className="mx-auto h-[76px] max-w-md" />
           </div>
         )
       }

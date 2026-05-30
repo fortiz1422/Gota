@@ -24,6 +24,22 @@ export function BottomZone({
   const scrollYRef = useRef(0)
 
   useEffect(() => {
+    const root = document.documentElement
+
+    if (isComposerOpen) {
+      root.dataset.bottomComposer = 'open'
+      window.dispatchEvent(new CustomEvent('gota:bottom-composer', { detail: { open: true } }))
+      return () => {
+        delete root.dataset.bottomComposer
+        window.dispatchEvent(new CustomEvent('gota:bottom-composer', { detail: { open: false } }))
+      }
+    }
+
+    delete root.dataset.bottomComposer
+    window.dispatchEvent(new CustomEvent('gota:bottom-composer', { detail: { open: false } }))
+  }, [isComposerOpen])
+
+  useEffect(() => {
     if (!isComposerOpen) return
 
     scrollYRef.current = window.scrollY
@@ -57,7 +73,7 @@ export function BottomZone({
         isComposerOpen ? 'border-transparent' : 'border-t border-[color:var(--color-separator)]'
       }`}
       style={{
-        paddingBottom: 'env(safe-area-inset-bottom)',
+        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
         background: isComposerOpen ? 'rgba(255,255,255,0.97)' : 'rgba(255,255,255,0.92)',
         backdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(20px) saturate(180%)',
         WebkitBackdropFilter: isComposerOpen ? 'blur(8px)' : 'blur(20px) saturate(180%)',
@@ -68,7 +84,10 @@ export function BottomZone({
         transition: keyboardOffset > 0 ? 'none' : 'transform 0.25s ease',
       }}
     >
-      <div data-tour="smart-input" className={`mx-auto flex w-full max-w-md flex-col px-4 ${isComposerOpen ? 'pb-1 pt-2' : 'pt-3'}`}>
+      <div
+        data-tour="smart-input"
+        className={`mx-auto flex w-full max-w-md flex-col px-4 ${isComposerOpen ? 'pb-1 pt-2' : 'pb-1 pt-3'}`}
+      >
         <SmartInput
           cards={cards}
           accounts={accounts}

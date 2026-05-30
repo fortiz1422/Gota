@@ -9,11 +9,11 @@ interface Props {
 export function OnboardStep1Welcome({ onNext }: Props) {
   return (
     <div
-      className="flex min-h-screen flex-col bg-bg-primary"
+      className="min-h-app flex flex-col bg-bg-primary"
       style={{ animation: 'onboardIn 0.22s cubic-bezier(.4,0,.2,1)' }}
     >
       {/* Hero */}
-      <div className="flex flex-1 flex-col px-[26px]">
+      <div className="flex flex-1 flex-col px-[26px] pt-safe-top">
         <p
           className="mb-1 mt-auto text-[64px] font-extrabold leading-none text-text-primary"
           style={{ letterSpacing: '-0.045em' }}
@@ -67,7 +67,7 @@ export function OnboardStep1Welcome({ onNext }: Props) {
       </div>
 
       {/* CTA */}
-      <div className="shrink-0 px-6 pb-9 pt-4">
+      <div className="shrink-0 px-6 pb-safe-cta pt-4">
         <button
           onClick={onNext}
           className="w-full rounded-full py-[17px] text-[15px] font-bold tracking-[0.01em] text-white transition-all active:scale-[0.97] hover:opacity-90"

@@ -50,6 +50,7 @@ export function SmartInput({
   const [parseError, setParseError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedData | null>(null)
+  const composerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<number | null>(null)
   const statusTimeoutRef = useRef<number | null>(null)
@@ -81,6 +82,12 @@ export function SmartInput({
       window.clearTimeout(blurTimeoutRef.current)
       blurTimeoutRef.current = null
     }
+  }
+
+  const closeBottomComposer = () => {
+    clearPendingBlur()
+    inputRef.current?.blur()
+    onFocusChange?.(false)
   }
 
   useEffect(() => {
@@ -135,6 +142,7 @@ export function SmartInput({
           payment_method: data.payment_method,
           variant,
         })
+        if (isBottomZone) closeBottomComposer()
         setParsed(data)
       } else {
         trackEvent('smartinput_parse_failed', {
@@ -169,7 +177,11 @@ export function SmartInput({
       setStatusMessage(null)
       statusTimeoutRef.current = null
     }, 1200)
-    inputRef.current?.focus()
+    if (isBottomZone) {
+      closeBottomComposer()
+    } else {
+      inputRef.current?.focus()
+    }
     if (onAfterSave) {
       onAfterSave()
     } else {
@@ -205,6 +217,7 @@ export function SmartInput({
   return (
     <>
       <div
+        ref={composerRef}
         className={`surface-glass flex items-center gap-2.5 transition-colors duration-200 ${
           isBottomZone ? 'rounded-[14px] px-3 py-[9px]' : 'rounded-card px-4 py-3'
         } ${hasInput ? 'border-primary/35' : ''}`}
@@ -225,8 +238,12 @@ export function SmartInput({
             clearPendingBlur()
             onFocusChange?.(true)
           }}
-          onBlur={() => {
+          onBlur={(e) => {
             clearPendingBlur()
+            const nextTarget = e.relatedTarget as Node | null
+            if (nextTarget && composerRef.current?.contains(nextTarget)) {
+              return
+            }
             blurTimeoutRef.current = window.setTimeout(() => {
               onFocusChange?.(false)
               blurTimeoutRef.current = null

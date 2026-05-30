@@ -65,7 +65,7 @@ function formatHomeMonth(ym: string): string {
 
 function DashboardSkeleton() {
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-app bg-bg-primary">
       <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)', minHeight: 220 }}>
         <div className="mx-auto max-w-md px-5 pt-2">
           <div className="flex h-12 items-center justify-between">
@@ -303,7 +303,7 @@ export function DashboardShell({
   }
 
   return (
-    <div className="min-h-screen bg-bg-primary">
+    <div className="min-h-app bg-bg-primary">
       {/* ── BLUE ZONE ── */}
       <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto max-w-md">

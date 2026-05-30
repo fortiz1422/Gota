@@ -63,7 +63,7 @@ export function OnboardStep4Saldo({
 
   return (
     <div
-      className="flex min-h-screen flex-col bg-bg-primary"
+      className="min-h-app flex flex-col bg-bg-primary"
       style={{ animation: 'onboardIn 0.22s cubic-bezier(.4,0,.2,1)' }}
     >
       {/* Nav */}
@@ -143,7 +143,7 @@ export function OnboardStep4Saldo({
       )}
 
       {/* CTA */}
-      <div className="shrink-0 px-6 pb-9 pt-4">
+      <div className="shrink-0 px-6 pb-safe-cta pt-4">
         <button
           onClick={save}
           disabled={isSaving}
@@ -165,7 +165,7 @@ export function OnboardStep4Saldo({
 
 function OnboardNav({ onBack, dotIndex }: { onBack: () => void; dotIndex: number }) {
   return (
-    <div className="relative flex h-12 shrink-0 items-center px-5">
+    <div className="relative flex h-12 shrink-0 items-center px-5 pt-safe-top">
       <button
         onClick={onBack}
         className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-secondary transition-colors hover:bg-primary/8"

@@ -92,6 +92,7 @@
   --shadow-sm: 0 1px 3px rgba(13,24,41,0.05);
   --shadow-md: 0 4px 12px rgba(13,24,41,0.08);
   --shadow-lg: 0 8px 24px rgba(13,24,41,0.10);
+  --tab-bar-height: 78px;
 }
 
 html {
@@ -125,13 +126,27 @@ body {
 }
 
 /* Safe area padding (Dynamic Island / notch support) */
+.min-h-app {
+  min-height: 100vh;
+  min-height: 100svh;
+  min-height: 100dvh;
+}
+
+.pt-safe-top {
+  padding-top: env(safe-area-inset-top);
+}
+
 .pt-safe {
   padding-top: calc(env(safe-area-inset-top) + 1.5rem);
 }
 
 /* Espacio para tab bar fijo en el fondo */
 .pb-tab-bar {
-  padding-bottom: calc(env(safe-area-inset-bottom) + 4rem);
+  padding-bottom: calc(env(safe-area-inset-bottom) + var(--tab-bar-height));
+}
+
+.pb-safe-cta {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 1.25rem);
 }
 
 /* Focus ring */

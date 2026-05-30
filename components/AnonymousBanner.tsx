@@ -42,6 +42,7 @@ function getToneContent(tone: AnonymousBannerTone): BannerToneContent {
 export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerProps) {
   const [isAnon, setIsAnon] = useState(initialIsAnonymous)
   const [sheetOpen, setSheetOpen] = useState(false)
+  const [isComposerOpen, setIsComposerOpen] = useState(false)
   const seenTrackedRef = useRef(false)
   const supabase = useMemo(() => createClient(), [])
   const { tone } = useAnonymousBannerTone()
@@ -80,7 +81,17 @@ export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerP
     return () => subscription.unsubscribe()
   }, [supabase])
 
-  if (!isAnon) return null
+  useEffect(() => {
+    const syncComposerState = () => {
+      setIsComposerOpen(document.documentElement.dataset.bottomComposer === 'open')
+    }
+
+    syncComposerState()
+    window.addEventListener('gota:bottom-composer', syncComposerState)
+    return () => window.removeEventListener('gota:bottom-composer', syncComposerState)
+  }, [])
+
+  if (!isAnon || isComposerOpen) return null
 
   return (
     <>

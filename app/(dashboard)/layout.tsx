@@ -28,7 +28,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
     <ReactQueryProvider>
       <TourProvider onboardingCompleted={onboardingCompleted} tourCompleted={tourCompleted}>
         <AnonymousBannerToneProvider>
-          <div className="relative min-h-screen bg-bg-primary" style={{ minHeight: '100dvh' }}>
+          <div className="relative min-h-app bg-bg-primary">
             <main className="pb-tab-bar">{children}</main>
             <TabBar />
             <AnonymousBanner initialIsAnonymous={user.is_anonymous === true} />

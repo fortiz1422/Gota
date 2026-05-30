@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { TOUR_STEPS } from './tour-steps'
 import { useTour } from '@/hooks/useTour'
 
@@ -14,8 +14,23 @@ interface Rect {
 export function TourOverlay() {
   const { currentStep, totalSteps, next, skip } = useTour()
   const [targetRect, setTargetRect] = useState<Rect | null>(null)
+  const [isBottomComposerOpen, setIsBottomComposerOpen] = useState(false)
   const observerRef = useRef<ResizeObserver | null>(null)
   const step = TOUR_STEPS[currentStep]
+  const shouldSuppressForComposer = useMemo(
+    () => step?.target === 'smart-input' && isBottomComposerOpen,
+    [isBottomComposerOpen, step],
+  )
+
+  useEffect(() => {
+    const syncComposerState = () => {
+      setIsBottomComposerOpen(document.documentElement.dataset.bottomComposer === 'open')
+    }
+
+    syncComposerState()
+    window.addEventListener('gota:bottom-composer', syncComposerState as EventListener)
+    return () => window.removeEventListener('gota:bottom-composer', syncComposerState as EventListener)
+  }, [])
 
   const updateRect = useCallback(() => {
     if (!step) return
@@ -34,7 +49,7 @@ export function TourOverlay() {
   }, [step])
 
   useEffect(() => {
-    if (!step) return
+    if (!step || shouldSuppressForComposer) return
 
     const el = document.querySelector(`[data-tour="${step.target}"]`)
     if (el) {
@@ -43,9 +58,14 @@ export function TourOverlay() {
       const timer = setTimeout(updateRect, 350)
       return () => clearTimeout(timer)
     }
-  }, [step, updateRect])
+  }, [shouldSuppressForComposer, step, updateRect])
 
   useEffect(() => {
+    if (shouldSuppressForComposer) {
+      observerRef.current?.disconnect()
+      return
+    }
+
     const frameId = window.requestAnimationFrame(() => {
       updateRect()
     })
@@ -68,9 +88,10 @@ export function TourOverlay() {
       window.removeEventListener('resize', handleResize)
       observerRef.current?.disconnect()
     }
-  }, [step, updateRect])
+  }, [shouldSuppressForComposer, step, updateRect])
 
   if (!step) return null
+  if (shouldSuppressForComposer) return null
 
   const padding = 6
   const clipRect = targetRect
