@@ -1,3 +1,5 @@
+'use client'
+
 // THROWAWAY — artefacto de exploración visual. No modifica lógica de negocio.
 // Acceder en desarrollo: /ui-exploration
 // Eliminar antes de merge a main.
