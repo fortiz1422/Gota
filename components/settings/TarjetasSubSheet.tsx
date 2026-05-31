@@ -125,7 +125,15 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
         {loading ? (
           <p className="py-2 text-sm text-text-tertiary">Cargando...</p>
         ) : cards.length === 0 ? (
-          <p className="py-2 text-sm text-text-tertiary">Sin tarjetas configuradas.</p>
+          <div className="flex flex-col items-center gap-2 py-6 text-center">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-bg-tertiary">
+              <CreditCard weight="duotone" size={20} className="text-text-tertiary" />
+            </div>
+            <p className="text-[13px] font-medium text-text-secondary">Sin tarjetas</p>
+            <p className="text-[12px] text-text-tertiary">
+              Usá el botón de abajo para agregar tu primera tarjeta.
+            </p>
+          </div>
         ) : (
           <div>
             {cards.map((card, i) => (

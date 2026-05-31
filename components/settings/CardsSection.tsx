@@ -1,10 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, CaretDown, CreditCard } from '@phosphor-icons/react'
+import { Check, CaretDown, CreditCard, Plus, X } from '@phosphor-icons/react'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { Modal } from '@/components/ui/Modal'
 import { addMonths } from '@/lib/dates'
 import type { Account, Card } from '@/types/database'
 
@@ -20,14 +20,13 @@ function closingInfo(closingDay: number, month: string): { diff: number; label: 
   return { diff, label: `Cerró hace ${Math.abs(diff)}d` }
 }
 
-// DateField: date picker restringido al mes indicado. Guarda solo el día (number).
 function DateField({
   day,
   forMonth,
   onSave,
 }: {
   day: number | null
-  forMonth: string // YYYY-MM
+  forMonth: string
   onSave: (day: number | null) => Promise<void>
 }) {
   const [saving, setSaving] = useState(false)
@@ -94,6 +93,119 @@ function AccountSelect({
   )
 }
 
+function CardEmptyState({ onAdd }: { onAdd: () => void }) {
+  return (
+    <section className="rounded-card border border-dashed border-primary/20 bg-bg-secondary p-5">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
+        Tarjetas de crédito
+      </p>
+      <h3 className="mt-2 text-[20px] font-bold text-text-primary">
+        Tus cierres y pagos, en orden
+      </h3>
+      <p className="mt-2 text-[14px] leading-6 text-text-tertiary">
+        Registrá tus tarjetas para saber cuándo cierra cada ciclo, cuándo vence el pago y qué tenés pendiente.
+      </p>
+      <ul className="mt-4 space-y-1.5">
+        {[
+          'Seguí el ciclo de cierre de cada tarjeta',
+          'Visualizá montos pendientes de pago',
+          'Vinculá con la cuenta bancaria asociada',
+        ].map((bullet) => (
+          <li key={bullet} className="flex items-center gap-2 text-[13px] text-text-tertiary">
+            <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-primary/40" />
+            {bullet}
+          </li>
+        ))}
+      </ul>
+      <button
+        type="button"
+        onClick={onAdd}
+        className="mt-5 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white"
+      >
+        Agregar primera tarjeta
+      </button>
+    </section>
+  )
+}
+
+function AddCardModal({
+  open,
+  onClose,
+  onAdd,
+}: {
+  open: boolean
+  onClose: () => void
+  onAdd: (name: string) => Promise<void>
+}) {
+  const [name, setName] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) {
+      setName('')
+      setError(false)
+      setTimeout(() => inputRef.current?.focus(), 150)
+    }
+  }, [open])
+
+  const handleSubmit = async () => {
+    const trimmed = name.trim()
+    if (!trimmed) return
+    setSaving(true)
+    setError(false)
+    try {
+      await onAdd(trimmed)
+      onClose()
+    } catch {
+      setError(true)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose}>
+      <div className="space-y-4">
+        <div className="flex items-start justify-between">
+          <div>
+            <h2 className="text-base font-bold text-text-primary">Nueva tarjeta</h2>
+            <p className="mt-0.5 text-[12px] text-text-tertiary">
+              Podés configurar cierre y vencimiento después.
+            </p>
+          </div>
+          <button onClick={onClose} className="mt-0.5 text-text-tertiary hover:text-text-secondary">
+            <X size={20} />
+          </button>
+        </div>
+
+        <input
+          ref={inputRef}
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && void handleSubmit()}
+          placeholder="Ej: Visa Galicia, Amex Gold…"
+          className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
+        />
+
+        {error && (
+          <p className="text-xs text-danger">Error al agregar tarjeta. Intentá de nuevo.</p>
+        )}
+
+        <button
+          onClick={() => void handleSubmit()}
+          disabled={!name.trim() || saving}
+          className="w-full rounded-button bg-primary py-3 text-[13px] font-semibold text-white disabled:opacity-50"
+        >
+          {saving ? 'Agregando…' : 'Agregar tarjeta'}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
 export function CardsSection({
   cards: initialCards,
   month,
@@ -106,29 +218,19 @@ export function CardsSection({
   const router = useRouter()
   const [cards, setCards] = useState<Card[]>(initialCards)
   const [expandedId, setExpandedId] = useState<string | null>(null)
-  const [newName, setNewName] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
+  const [deleting, setDeleting] = useState(false)
 
-  const addCard = async () => {
-    const name = newName.trim()
-    if (!name) return
-    setIsSaving(true)
-    try {
-      const res = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-      if (!res.ok) throw new Error()
-      const newCard: Card = await res.json()
-      setCards([...cards, newCard])
-      setNewName('')
-      router.refresh()
-    } catch {
-      alert('Error al agregar tarjeta.')
-    } finally {
-      setIsSaving(false)
-    }
+  const handleAddCard = async (name: string) => {
+    const res = await fetch('/api/cards', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name }),
+    })
+    if (!res.ok) throw new Error()
+    const newCard: Card = await res.json()
+    setCards((prev) => [...prev, newCard])
+    router.refresh()
   }
 
   const updateCard = async (id: string, patch: Partial<Pick<Card, 'closing_day' | 'due_day' | 'account_id'>>) => {
@@ -149,7 +251,7 @@ export function CardsSection({
   const deleteCard = async (id: string) => {
     const card = cards.find((c) => c.id === id)
     if (!confirm(`¿Eliminar "${card?.name}"?`)) return
-    setIsSaving(true)
+    setDeleting(true)
     try {
       const res = await fetch(`/api/cards/${id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
@@ -159,7 +261,7 @@ export function CardsSection({
     } catch {
       alert('Error al eliminar tarjeta.')
     } finally {
-      setIsSaving(false)
+      setDeleting(false)
     }
   }
 
@@ -167,114 +269,127 @@ export function CardsSection({
   const summary = activeCount === 0 ? 'Sin tarjetas' : `${activeCount} tarjeta${activeCount !== 1 ? 's' : ''}`
 
   return (
-    <CollapsibleSection
-      icon={<CreditCard weight="duotone" size={18} className="text-text-primary icon-duotone" />}
-      title="Tarjetas"
-      summary={summary}
-    >
-      {cards.length === 0 && (
-        <EmptyState
-          icon={CreditCard}
-          title="Sin tarjetas"
-          subtitle="Agregá una tarjeta para trackear cuotas y vencimientos"
-        />
-      )}
+    <>
+      <CollapsibleSection
+        icon={<CreditCard weight="duotone" size={18} className="text-text-primary icon-duotone" />}
+        title="Tarjetas"
+        summary={summary}
+      >
+        {cards.length === 0 ? (
+          <CardEmptyState onAdd={() => setAddOpen(true)} />
+        ) : (
+          <>
+            <div className="-mx-4 -mt-3">
+              {cards.map((card) => {
+                const info = card.closing_day ? closingInfo(card.closing_day, month) : null
+                const isExpanded = expandedId === card.id
+                const accountName = accounts.find((a) => a.id === card.account_id)?.name
 
-      {cards.map((card) => {
-        const info = card.closing_day ? closingInfo(card.closing_day, month) : null
-        const isExpanded = expandedId === card.id
+                return (
+                  <div key={card.id} className="border-b border-border-subtle last:border-0">
+                    <button
+                      onClick={() => setExpandedId(isExpanded ? null : card.id)}
+                      className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                    >
+                      <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary/8">
+                        <CreditCard weight="duotone" size={14} className="text-text-label" />
+                      </div>
 
-        return (
-          <div key={card.id} className="border-b border-border-subtle">
-            {/* Header — always visible */}
-            <div className="flex items-center justify-between py-2.5">
-              <button
-                onClick={() => setExpandedId(isExpanded ? null : card.id)}
-                className="flex min-w-0 flex-1 items-center gap-2 text-left"
-              >
-                <CaretDown
-                  size={12}
-                  weight="bold"
-                  className={`shrink-0 text-text-tertiary transition-transform ${isExpanded ? 'rotate-180' : ''}`}
-                />
-                <span className="truncate text-sm text-text-primary">{card.name}</span>
-                {info !== null && (
-                  <span
-                    className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
-                      info.diff === 0
-                        ? 'bg-warning/10 text-warning'
-                        : info.diff > 0 && info.diff <= 5
-                          ? 'bg-warning/10 text-warning'
-                          : info.diff < 0
-                            ? 'bg-bg-tertiary text-text-disabled'
-                            : 'bg-bg-tertiary text-text-tertiary'
-                    }`}
-                  >
-                    {info.label}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => deleteCard(card.id)}
-                disabled={isSaving}
-                className="ml-3 shrink-0 text-[10px] text-text-tertiary hover:text-danger disabled:opacity-50"
-              >
-                Eliminar
-              </button>
+                      <div className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-medium text-text-primary">
+                          {card.name}
+                        </span>
+                        <span className="text-[11px] text-text-tertiary">
+                          {accountName ? `${accountName} · ` : ''}
+                          {info ? info.label : 'Sin ciclo configurado'}
+                        </span>
+                      </div>
+
+                      {info !== null && (
+                        <span
+                          className={`inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                            info.diff === 0 || (info.diff > 0 && info.diff <= 5)
+                              ? 'bg-warning/10 text-warning'
+                              : info.diff < 0
+                                ? 'bg-bg-tertiary text-text-disabled'
+                                : 'bg-bg-tertiary text-text-tertiary'
+                          }`}
+                        >
+                          {info.label}
+                        </span>
+                      )}
+
+                      <CaretDown
+                        size={12}
+                        weight="bold"
+                        className={`shrink-0 text-text-tertiary transition-transform ${
+                          isExpanded ? 'rotate-180' : ''
+                        }`}
+                      />
+                    </button>
+
+                    {isExpanded && (
+                      <div className="mx-4 mb-3 space-y-2 rounded-input bg-bg-elevated p-3">
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-text-secondary">Cierre</span>
+                          <DateField
+                            day={card.closing_day}
+                            forMonth={month}
+                            onSave={(day) => updateCard(card.id, { closing_day: day })}
+                          />
+                        </div>
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-xs text-text-secondary">Vencimiento</span>
+                          <DateField
+                            day={card.due_day}
+                            forMonth={addMonths(month, 1)}
+                            onSave={(day) => updateCard(card.id, { due_day: day ?? 10 })}
+                          />
+                        </div>
+                        {accounts.length > 0 && (
+                          <div className="flex items-center justify-between gap-3">
+                            <span className="shrink-0 text-xs text-text-secondary">Cuenta</span>
+                            <AccountSelect
+                              value={card.account_id}
+                              accounts={accounts}
+                              onChange={(accountId) => updateCard(card.id, { account_id: accountId })}
+                            />
+                          </div>
+                        )}
+                        <div className="border-t border-border-subtle pt-2">
+                          <button
+                            onClick={() => deleteCard(card.id)}
+                            disabled={deleting}
+                            className="text-[11px] text-text-tertiary transition-colors hover:text-danger disabled:opacity-50"
+                          >
+                            Eliminar tarjeta
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
             </div>
 
-            {/* Expanded panel */}
-            {isExpanded && (
-              <div className="mb-3 space-y-2 rounded-input bg-bg-elevated p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-text-secondary">Cierre</span>
-                  <DateField
-                    day={card.closing_day}
-                    forMonth={month}
-                    onSave={(day) => updateCard(card.id, { closing_day: day })}
-                  />
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-xs text-text-secondary">Vencimiento</span>
-                  <DateField
-                    day={card.due_day}
-                    forMonth={addMonths(month, 1)}
-                    onSave={(day) => updateCard(card.id, { due_day: day ?? 10 })}
-                  />
-                </div>
-                {accounts.length > 0 && (
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="shrink-0 text-xs text-text-secondary">Cuenta</span>
-                    <AccountSelect
-                      value={card.account_id}
-                      accounts={accounts}
-                      onChange={(accountId) => updateCard(card.id, { account_id: accountId })}
-                    />
-                  </div>
-                )}
+            <button
+              onClick={() => setAddOpen(true)}
+              className="mt-2 flex w-full items-center gap-2 rounded-input border border-dashed border-border-strong/40 px-3 py-2.5 transition-colors hover:bg-primary/5 active:opacity-70"
+            >
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary/8">
+                <Plus size={12} className="text-primary" />
               </div>
-            )}
-          </div>
-        )
-      })}
+              <span className="text-[13px] font-medium text-text-secondary">Agregar tarjeta</span>
+            </button>
+          </>
+        )}
+      </CollapsibleSection>
 
-      <div className="mt-2 flex gap-2">
-        <input
-          type="text"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && addCard()}
-          placeholder="Nueva tarjeta"
-          className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
-        />
-        <button
-          onClick={addCard}
-          disabled={!newName.trim() || isSaving}
-          className="rounded-button bg-primary px-3 py-2 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          +
-        </button>
-      </div>
-    </CollapsibleSection>
+      <AddCardModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onAdd={handleAddCard}
+      />
+    </>
   )
 }
