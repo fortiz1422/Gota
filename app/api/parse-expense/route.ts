@@ -4,9 +4,10 @@ import { createClient } from '@/lib/supabase/server'
 import { buildExpenseContentParts } from '@/lib/gemini/expense-content'
 import { geminiModel } from '@/lib/gemini/client'
 import { buildReceiptInlineData } from '@/lib/gemini/receipt-inline-data'
-import { ParsedExpenseSchema } from '@/lib/validation/schemas'
-import { checkRateLimit } from '@/lib/rate-limit'
+import { buildVoiceInlineData } from '@/lib/gemini/voice-inline-data'
 import { captureRouteError } from '@/lib/observability/sentry'
+import { checkRateLimit } from '@/lib/rate-limit'
+import { ParsedExpenseSchema } from '@/lib/validation/schemas'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -20,8 +21,8 @@ export async function POST(request: Request) {
 
   if (!checkRateLimit(user.id)) {
     return NextResponse.json(
-      { error: 'Demasiadas solicitudes. Esperá un momento.' },
-      { status: 429, headers: { 'Retry-After': '60' } }
+      { error: 'Demasiadas solicitudes. Espera un momento.' },
+      { status: 429, headers: { 'Retry-After': '60' } },
     )
   }
 
@@ -31,21 +32,29 @@ export async function POST(request: Request) {
 
     let input = ''
     let receiptInlineData: Awaited<ReturnType<typeof buildReceiptInlineData>> | null = null
+    let voiceInlineData: Awaited<ReturnType<typeof buildVoiceInlineData>> | null = null
 
     if (isMultipart) {
       const formData = await request.formData()
       input = String(formData.get('input') ?? '').trim()
+
       const receipt = formData.get('receipt')
+      const voice = formData.get('voice')
+
       if (receipt instanceof File && receipt.size > 0) {
         receiptInlineData = await buildReceiptInlineData(receipt)
+      }
+
+      if (voice instanceof File && voice.size > 0) {
+        voiceInlineData = await buildVoiceInlineData(voice)
       }
     } else {
       const body = await request.json()
       input = String(body.input ?? '').trim()
     }
 
-    if (!input && !receiptInlineData) {
-      return NextResponse.json({ is_valid: false, reason: 'Input vacío' })
+    if (!input && !receiptInlineData && !voiceInlineData) {
+      return NextResponse.json({ is_valid: false, reason: 'Input vacio' })
     }
 
     const result = await geminiModel.generateContent({
@@ -56,6 +65,8 @@ export async function POST(request: Request) {
             input,
             hasReceiptImage: Boolean(receiptInlineData),
             receiptInlineData,
+            hasVoiceAudio: Boolean(voiceInlineData),
+            voiceInlineData,
           }),
         },
       ],
@@ -65,7 +76,6 @@ export async function POST(request: Request) {
     })
 
     const raw = result.response.text()
-    // Strip markdown code fences if Gemini wraps the JSON
     const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
     const parsed = JSON.parse(text)
     const validated = ParsedExpenseSchema.parse(parsed)
@@ -77,15 +87,17 @@ export async function POST(request: Request) {
       operation: 'parse_expense',
     })
     console.error('Parse expense error:', error)
+
     if (error instanceof ZodError) {
       return NextResponse.json({
         is_valid: false,
-        reason: 'No pude interpretar ese gasto. Revisá que tenga descripción y monto.',
+        reason: 'No pude interpretar ese gasto. Revisa que tenga descripcion y monto.',
       })
     }
+
     return NextResponse.json({
       is_valid: false,
-      reason: 'Error al procesar. Revisá tu conexión e intentá de nuevo.',
+      reason: 'Error al procesar. Revisa tu conexion e intenta de nuevo.',
     })
   }
 }
