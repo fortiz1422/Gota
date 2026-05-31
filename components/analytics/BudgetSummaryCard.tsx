@@ -9,6 +9,17 @@ interface Props {
 }
 
 export function BudgetSummaryCard({ summary, currency }: Props) {
+  const usedPct = summary.totalBudgeted > 0
+    ? Math.min(summary.totalSpent / summary.totalBudgeted, 1)
+    : 0
+  const isOver = summary.totalSpent > summary.totalBudgeted
+  const isNear = !isOver && usedPct >= 0.85
+  const barColor = isOver
+    ? 'var(--color-danger)'
+    : isNear
+      ? 'var(--color-warning)'
+      : 'var(--color-primary)'
+
   return (
     <section className="mx-5 card-s5 p-4">
       <div className="flex items-start justify-between gap-3">
@@ -16,7 +27,7 @@ export function BudgetSummaryCard({ summary, currency }: Props) {
           <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
             Disponible este mes
           </p>
-          <h3 className="mt-1 text-[22px] font-bold text-text-primary">
+          <h3 className={`mt-1 text-[22px] font-bold ${isOver ? 'text-danger' : 'text-text-primary'}`}>
             {formatAmount(summary.totalRemaining, currency)}
           </h3>
           <p className="mt-1 text-[12px] text-text-tertiary">
@@ -31,7 +42,15 @@ export function BudgetSummaryCard({ summary, currency }: Props) {
         </div>
       </div>
 
-      <div className="mt-4 flex gap-2">
+      {/* Overall progress bar */}
+      <div className="mt-4 overflow-hidden rounded-full" style={{ height: 6, background: '#E6ECF2' }}>
+        <div
+          className="h-full rounded-full transition-[width] duration-300"
+          style={{ width: `${usedPct * 100}%`, background: barColor }}
+        />
+      </div>
+
+      <div className="mt-3 flex gap-2">
         <div
           className="flex flex-1 items-center justify-center rounded-pill py-1.5 text-center"
           style={{ background: 'rgba(196,78,62,0.12)', color: 'var(--color-danger)' }}

@@ -23,6 +23,17 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
   const [isCloning, setIsCloning] = useState(false)
 
   const planExists = budget.plan !== null
+  const headerLabel = useMemo(() => {
+    const { overBudgetCount, nearLimitCount } = budget.summary
+    if (overBudgetCount > 0) {
+      return `${overBudgetCount} ${overBudgetCount === 1 ? 'categoría pasó' : 'categorías pasaron'} el límite.`
+    }
+    if (nearLimitCount > 0) {
+      return `${nearLimitCount} ${nearLimitCount === 1 ? 'categoría' : 'categorías'} al límite.`
+    }
+    return 'Dentro del plan este mes.'
+  }, [budget.summary])
+
   const creatableCategories = useMemo(
     () => categories.filter((category) => category !== 'Pago de Tarjetas'),
     [categories],
@@ -157,7 +168,15 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
       {planExists ? (
         <>
           <div className="mx-5 mb-3 flex items-center justify-between">
-            <p className="text-[12px] text-text-tertiary">Lectura operativa del mes.</p>
+            <p className={`text-[12px] font-medium ${
+              budget.summary.overBudgetCount > 0
+                ? 'text-danger'
+                : budget.summary.nearLimitCount > 0
+                  ? 'text-warning'
+                  : 'text-success'
+            }`}>
+              {headerLabel}
+            </p>
             <button
               type="button"
               onClick={() => setEditorOpen(true)}
