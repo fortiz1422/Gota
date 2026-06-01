@@ -128,14 +128,14 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
           <div className="pt-4">
-            <span className="text-[18px] font-extrabold text-white">Análisis</span>
+            <span className="text-[18px] font-extrabold text-white">AnÃ¡lisis</span>
           </div>
         </div>
         <div className="relative px-5 pt-4" style={{ marginTop: -24 }}>
           <EmptyState
             icon={ChartLineUp}
             title="Sin datos para analizar"
-            subtitle="Cuando registres gastos acá vas a ver patrones y tendencias"
+            subtitle="Cuando registres gastos acÃ¡ vas a ver patrones y tendencias"
           />
         </div>
       </div>
@@ -190,7 +190,6 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
   return (
     <AnalyticsClient
       metrics={metrics}
-      estadoMesMetrics={metrics}
       compromisos={compromisos}
       rawExpenses={rawExpenses}
       subscriptions={subscriptions}
