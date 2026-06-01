@@ -10,6 +10,7 @@ import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
 import { AnalyticsModeToggle } from './AnalyticsModeToggle'
+import { BudgetControlHero } from './BudgetControlHero'
 import { BudgetsSection } from './BudgetsSection'
 import { GoalsSection } from './GoalsSection'
 import { CategoriaRow } from './CategoriaRow'
@@ -27,6 +28,7 @@ import {
   type MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
 import type { Card, Expense, Subscription } from '@/types/database'
+import { CATEGORIES } from '@/lib/validation/schemas'
 
 type Drill = 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 
@@ -154,26 +156,46 @@ export function AnalyticsClient({
     <div className="bg-bg-primary">
       {/* ── Blue zone ── */}
       {isSecondaryView ? (
-        <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-          <div className="flex items-center justify-between px-[22px] pt-4 pb-8">
-            <button
-              onClick={closeSecondaryView}
-              className="header-glass flex items-center gap-1.5 rounded-pill px-3 py-1.5 transition-opacity hover:opacity-80 active:opacity-60"
-            >
-              <CaretLeft weight="bold" size={14} style={{ color: 'rgba(255,255,255,0.85)' }} />
-              <span className="text-[14px] font-semibold text-white">Análisis</span>
-            </button>
-            <h2 className="text-[16px] font-bold text-white">
-              {insightsOpen
-                ? drill !== null
-                  ? drillTitles[drill]
-                  : 'Insights'
-                : controlOpen
-                  ? 'Presupuesto'
+        controlOpen ? (
+          <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="flex items-center justify-between px-[22px] pt-4">
+              <button
+                onClick={closeSecondaryView}
+                className="header-glass flex items-center gap-1.5 rounded-pill px-3 py-1.5 transition-opacity hover:opacity-80 active:opacity-60"
+              >
+                <CaretLeft weight="bold" size={14} style={{ color: 'rgba(255,255,255,0.85)' }} />
+                <span className="text-[14px] font-semibold text-white">Análisis</span>
+              </button>
+              <h2 className="text-[16px] font-bold text-white">Control</h2>
+              <div className="h-9 w-9 shrink-0" />
+            </div>
+            <BudgetControlHero
+              summary={budget.summary}
+              currency={currency}
+              totalCategories={budget.items.length}
+              planExists={budget.plan !== null}
+            />
+          </BlueHeaderZone>
+        ) : (
+          <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+            <div className="flex items-center justify-between px-[22px] pt-4 pb-8">
+              <button
+                onClick={closeSecondaryView}
+                className="header-glass flex items-center gap-1.5 rounded-pill px-3 py-1.5 transition-opacity hover:opacity-80 active:opacity-60"
+              >
+                <CaretLeft weight="bold" size={14} style={{ color: 'rgba(255,255,255,0.85)' }} />
+                <span className="text-[14px] font-semibold text-white">Análisis</span>
+              </button>
+              <h2 className="text-[16px] font-bold text-white">
+                {insightsOpen
+                  ? drill !== null
+                    ? drillTitles[drill]
+                    : 'Insights'
                   : 'Metas'}
-            </h2>
-          </div>
-        </BlueHeaderZone>
+              </h2>
+            </div>
+          </BlueHeaderZone>
+        )
       ) : (
         <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
           <div className="flex items-center justify-between px-[22px] pt-4">
@@ -225,7 +247,7 @@ export function AnalyticsClient({
             budget={budget}
             currency={currency}
             selectedMonth={selectedMonth}
-            categories={metrics.categorias.map((item) => item.category)}
+            categories={[...CATEGORIES]}
           />
         ) : metasOpen ? (
           <GoalsSection selectedMonth={selectedMonth} />
@@ -323,7 +345,6 @@ export function AnalyticsClient({
         )}
       </div>
 
-      {/* Modal de exploración */}
       <ExploreModal
         open={exploreOpen}
         alertCount={alertCount}

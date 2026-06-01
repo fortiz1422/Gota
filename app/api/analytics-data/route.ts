@@ -4,7 +4,7 @@ import type {
   MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
 import { countAvailableComparisonMonths } from '@/lib/analytics/analytics-overview'
-import { addMonths, getCurrentMonth } from '@/lib/dates'
+import { addMonths, getCurrentDayOfMonth, getCurrentMonth } from '@/lib/dates'
 import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
   isApplicableCardPayment,
@@ -215,7 +215,7 @@ export async function GET(request: Request) {
     (expense) => isPerceivedExpense(expense) || isCreditAccruedExpense(expense),
   )
   const compromisoExpenses = historicalExpensesPool.filter(isCompromisoExpense)
-  const comparisonDay = selectedMonth === currentMonth ? new Date().getDate() : null
+  const comparisonDay = selectedMonth === currentMonth ? getCurrentDayOfMonth() : null
   const monthlySeries = buildMonthlySeries({
     expenses: historicalExpenses,
     selectedMonth,

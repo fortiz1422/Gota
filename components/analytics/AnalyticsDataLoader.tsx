@@ -7,6 +7,7 @@ import { AnalyticsClient } from './AnalyticsClient'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import { getCurrentMonth } from '@/lib/dates'
 import { isApplicableCardPayment, isPerceivedExpense } from '@/lib/movement-classification'
 import { buildEmptyBudgetSnapshot } from '@/lib/budgets/computeBudgetMetrics'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
@@ -156,9 +157,7 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     comparisonContext,
   } = data
 
-  const today = new Date()
-  const [ymYear, ymMonth] = selectedMonth.split('-').map(Number)
-  const isCurrentMonth = today.getFullYear() === ymYear && today.getMonth() + 1 === ymMonth
+  const isCurrentMonth = selectedMonth === getCurrentMonth()
 
   const pagoTarjetasMes = compromisoExpenses
     .filter((e) => isApplicableCardPayment(e) && e.date.startsWith(selectedMonth))
