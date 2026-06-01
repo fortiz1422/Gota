@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Microphone } from '@phosphor-icons/react'
-import { ParsePreview } from './ParsePreview'
 import { InlineError } from '@/components/ui/InlineError'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
+import { ParsePreview } from './ParsePreview'
 
 interface ParsedData {
   amount: number
@@ -30,6 +30,8 @@ interface SmartInputProps {
   focusSignal?: number
 }
 
+type InputMethod = 'text' | 'voice'
+
 function inputLengthBucket(length: number): 'short' | 'medium' | 'long' {
   if (length <= 24) return 'short'
   if (length <= 80) return 'medium'
@@ -50,32 +52,10 @@ export function SmartInput({
   const [parseError, setParseError] = useState<string | null>(null)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
   const [parsed, setParsed] = useState<ParsedData | null>(null)
-  const composerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const blurTimeoutRef = useRef<number | null>(null)
   const statusTimeoutRef = useRef<number | null>(null)
   const lastVoiceErrorRef = useRef<string | null>(null)
-
-  const {
-    clearError: clearVoiceError,
-    error: voiceError,
-    isListening,
-    isSupported: isVoiceSupported,
-    start: startVoiceInput,
-    state: voiceState,
-    stop: stopVoiceInput,
-  } = useVoiceInput({
-    lang: 'es-AR',
-    onTranscript: (transcript) => {
-      setInput(transcript)
-      setParseError(null)
-      inputRef.current?.focus()
-      trackEvent('smartinput_voice_succeeded', {
-        transcript_length: inputLengthBucket(transcript.length),
-        variant,
-      })
-    },
-  })
 
   const clearPendingBlur = () => {
     if (blurTimeoutRef.current !== null) {
@@ -84,11 +64,104 @@ export function SmartInput({
     }
   }
 
-  const closeBottomComposer = () => {
-    clearPendingBlur()
-    inputRef.current?.blur()
-    onFocusChange?.(false)
+  const handleParseResult = (data: ParsedData, inputMethod: InputMethod) => {
+    trackEvent('smartinput_parse_succeeded', {
+      currency: data.currency,
+      has_card: Boolean(data.card_id),
+      has_installments: Boolean(data.installments && data.installments > 1),
+      input_method: inputMethod,
+      payment_method: data.payment_method,
+      variant,
+    })
+    setParsed(data)
   }
+
+  const parseExpense = async ({
+    inputMethod,
+    textInput,
+    voiceFile,
+  }: {
+    inputMethod: InputMethod
+    textInput?: string
+    voiceFile?: File
+  }) => {
+    const trimmed = textInput?.trim() ?? ''
+
+    setIsParsing(true)
+    setParseError(null)
+    trackEvent('smartinput_parse_started', {
+      input_length: trimmed ? inputLengthBucket(trimmed.length) : 'short',
+      input_method: inputMethod,
+      variant,
+    })
+
+    try {
+      const requestInit: RequestInit =
+        inputMethod === 'voice' && voiceFile
+          ? (() => {
+              const formData = new FormData()
+              if (trimmed) formData.set('input', trimmed)
+              formData.set('voice', voiceFile)
+              return {
+                method: 'POST',
+                body: formData,
+              }
+            })()
+          : {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ input: trimmed }),
+            }
+
+      const res = await fetch('/api/parse-expense', requestInit)
+      const data = await res.json()
+
+      if (data.is_valid) {
+        if (inputMethod === 'voice') {
+          trackEvent('smartinput_voice_succeeded', { variant })
+        }
+        handleParseResult(data, inputMethod)
+        return
+      }
+
+      trackEvent('smartinput_parse_failed', {
+        failure_type: 'invalid_input',
+        input_method: inputMethod,
+        variant,
+      })
+      setParseError(data.reason ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".')
+    } catch {
+      trackEvent('smartinput_parse_failed', {
+        failure_type: 'network_or_server',
+        input_method: inputMethod,
+        variant,
+      })
+      setParseError('No pudimos entenderlo. Proba con algo como "cafe 2500".')
+    } finally {
+      setIsParsing(false)
+      setStatusMessage(null)
+    }
+  }
+
+  const {
+    clearError: clearVoiceError,
+    error: voiceError,
+    isListening,
+    isProcessing: isVoiceProcessing,
+    isSupported: isVoiceSupported,
+    start: startVoiceInput,
+    state: voiceState,
+    stop: stopVoiceInput,
+  } = useVoiceInput({
+    onAudioCaptured: async (audioFile) => {
+      trackEvent('smartinput_voice_record_succeeded', { variant })
+      await parseExpense({
+        inputMethod: 'voice',
+        textInput: input,
+        voiceFile: audioFile,
+      })
+    },
+  })
 
   useEffect(() => {
     if (focusSignal <= 0) return
@@ -109,60 +182,23 @@ export function SmartInput({
     if (!voiceError || lastVoiceErrorRef.current === voiceError) return
     lastVoiceErrorRef.current = voiceError
     trackEvent('smartinput_voice_failed', {
-      failure_type: voiceState === 'unsupported' ? 'unsupported' : 'recognition_error',
+      failure_type: voiceState === 'unsupported' ? 'unsupported' : 'recording_error',
+      variant,
+    })
+    trackEvent('smartinput_voice_record_failed', {
+      failure_type: voiceState === 'unsupported' ? 'unsupported' : 'recording_error',
       variant,
     })
   }, [variant, voiceError, voiceState])
 
   const handleSubmit = async () => {
     const trimmed = input.trim()
-    if (!trimmed || isParsing || isListening) return
+    if (!trimmed || isParsing || isListening || isVoiceProcessing) return
 
-    setIsParsing(true)
-    setParseError(null)
-    trackEvent('smartinput_parse_started', {
-      input_length: inputLengthBucket(trimmed.length),
-      variant,
+    await parseExpense({
+      inputMethod: 'text',
+      textInput: trimmed,
     })
-
-    try {
-      const res = await fetch('/api/parse-expense', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ input: trimmed }),
-      })
-
-      const data = await res.json()
-
-      if (data.is_valid) {
-        trackEvent('smartinput_parse_succeeded', {
-          currency: data.currency,
-          has_card: Boolean(data.card_id),
-          has_installments: Boolean(data.installments && data.installments > 1),
-          payment_method: data.payment_method,
-          variant,
-        })
-        if (isBottomZone) closeBottomComposer()
-        setParsed(data)
-      } else {
-        trackEvent('smartinput_parse_failed', {
-          failure_type: 'invalid_input',
-          variant,
-        })
-        setParseError(
-          data.reason ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".',
-        )
-      }
-    } catch {
-      trackEvent('smartinput_parse_failed', {
-        failure_type: 'network_or_server',
-        variant,
-      })
-      setParseError('No pudimos entenderlo. Proba con algo como "cafe 2500".')
-    } finally {
-      setIsParsing(false)
-      setStatusMessage(null)
-    }
   }
 
   const handleSave = () => {
@@ -177,11 +213,7 @@ export function SmartInput({
       setStatusMessage(null)
       statusTimeoutRef.current = null
     }, 1200)
-    if (isBottomZone) {
-      closeBottomComposer()
-    } else {
-      inputRef.current?.focus()
-    }
+    inputRef.current?.focus()
     if (onAfterSave) {
       onAfterSave()
     } else {
@@ -194,30 +226,35 @@ export function SmartInput({
     inputRef.current?.focus()
   }
 
-  const handleVoiceToggle = () => {
+  const handleVoiceToggle = async () => {
     clearPendingBlur()
     if (isListening) {
-      stopVoiceInput()
+      await stopVoiceInput()
       return
     }
 
     clearVoiceError()
-    const started = startVoiceInput()
+    const started = await startVoiceInput()
     if (started) {
       lastVoiceErrorRef.current = null
       trackEvent('smartinput_voice_started', { variant })
+      trackEvent('smartinput_voice_record_started', { variant })
     }
   }
 
   const hasInput = Boolean(input.trim())
   const isBottomZone = variant === 'bottom-zone'
+  const isBusy = isParsing || isVoiceProcessing
   const activeError = parseError ?? voiceError
-  const helperMessage = isListening ? 'Escuchando... toca de nuevo para cortar.' : statusMessage
+  const helperMessage = isListening
+    ? 'Grabando... toca de nuevo para cortar.'
+    : isVoiceProcessing
+      ? 'Procesando audio...'
+      : statusMessage
 
   return (
     <>
       <div
-        ref={composerRef}
         className={`surface-glass flex items-center gap-2.5 transition-colors duration-200 ${
           isBottomZone ? 'rounded-[14px] px-3 py-[9px]' : 'rounded-card px-4 py-3'
         } ${hasInput ? 'border-primary/35' : ''}`}
@@ -238,37 +275,33 @@ export function SmartInput({
             clearPendingBlur()
             onFocusChange?.(true)
           }}
-          onBlur={(e) => {
+          onBlur={() => {
             clearPendingBlur()
-            const nextTarget = e.relatedTarget as Node | null
-            if (nextTarget && composerRef.current?.contains(nextTarget)) {
-              return
-            }
             blurTimeoutRef.current = window.setTimeout(() => {
               onFocusChange?.(false)
               blurTimeoutRef.current = null
             }, 120)
           }}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') handleSubmit()
+            if (e.key === 'Enter') void handleSubmit()
           }}
           placeholder="cafe 2500"
-          disabled={isParsing}
+          disabled={isBusy}
           className={`type-body flex-1 border-none bg-transparent text-text-primary caret-primary outline-none placeholder:text-text-dim transition-opacity duration-200 ${
-            isParsing ? 'opacity-50' : 'opacity-100'
+            isBusy ? 'opacity-50' : 'opacity-100'
           }`}
         />
         {isVoiceSupported && (
           <button
             type="button"
             onPointerDown={clearPendingBlur}
-            onClick={handleVoiceToggle}
-            disabled={isParsing}
-            aria-label={isListening ? 'Detener dictado' : 'Dictar gasto'}
+            onClick={() => void handleVoiceToggle()}
+            disabled={isBusy}
+            aria-label={isListening ? 'Detener grabacion' : 'Grabar gasto'}
             className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full border transition-all duration-200 ${
               isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
             } ${
-              isListening
+              isListening || isVoiceProcessing
                 ? 'border-primary bg-primary/12 text-primary'
                 : 'border-[color:var(--color-border-ocean)] bg-white/55 text-text-secondary'
             }`}
@@ -279,14 +312,14 @@ export function SmartInput({
         <button
           type="button"
           onPointerDown={clearPendingBlur}
-          onClick={handleSubmit}
-          disabled={!hasInput || isParsing || isListening}
+          onClick={() => void handleSubmit()}
+          disabled={!hasInput || isBusy || isListening}
           aria-label="Agregar gasto"
           className={`flex shrink-0 cursor-pointer items-center justify-center rounded-full transition-all duration-200 ${
             isBottomZone ? 'h-8 w-8' : 'h-9 w-9'
           } ${hasInput ? 'bg-primary' : 'bg-[color:var(--color-border-subtle)]'}`}
         >
-          {isParsing ? (
+          {isBusy ? (
             <span className="spinner" style={{ width: 16, height: 16 }} />
           ) : (
             <ArrowRight
@@ -300,9 +333,7 @@ export function SmartInput({
         </button>
       </div>
       {helperMessage && !activeError && (
-        <div
-          className="mt-2 rounded-card bg-primary/8 px-3 py-2 text-xs font-medium text-primary"
-        >
+        <div className="mt-2 rounded-card bg-primary/8 px-3 py-2 text-xs font-medium text-primary">
           {helperMessage}
         </div>
       )}
