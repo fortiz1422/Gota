@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { YieldAccumulatorUpdate } from '@/types/database'
 
 export async function PATCH(
   request: Request,
@@ -15,7 +16,7 @@ export async function PATCH(
   const body = await request.json()
   const { accumulated, is_manual_override } = body
 
-  const update: Record<string, unknown> = {}
+  const update: YieldAccumulatorUpdate = {}
   if (accumulated !== undefined) update.accumulated = Number(accumulated)
   if (is_manual_override !== undefined) update.is_manual_override = Boolean(is_manual_override)
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import type { GoalContributionRow } from '@/lib/goals/types'
+import type { GoalContributionUpdate } from '@/types/database'
 
 const patchContributionSchema = z.object({
   amount: z.number().positive().optional(),
@@ -106,7 +107,7 @@ export async function PATCH(
     }
 
     const { amount, note, contributedAt } = parsed.data
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    const updates: GoalContributionUpdate = { updated_at: new Date().toISOString() }
     if (amount !== undefined) updates.amount = amount
     if (note !== undefined) updates.note = note
     if (contributedAt !== undefined) updates.contributed_at = contributedAt

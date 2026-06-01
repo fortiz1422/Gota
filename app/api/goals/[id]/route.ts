@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getGoalById } from '@/lib/server/goal-queries'
+import type { GoalUpdate } from '@/types/database'
 
 const patchSchema = z.object({
   name: z.string().min(1).max(100).optional(),
@@ -55,7 +56,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
 
     const { name, emoji, colorToken, targetAmount, targetDate, plannedMonthlyContribution, linkedAccountId, notes, status } = parsed.data
 
-    const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
+    const updates: GoalUpdate = { updated_at: new Date().toISOString() }
     if (name !== undefined) updates.name = name
     if (emoji !== undefined) updates.emoji = emoji
     if (colorToken !== undefined) updates.color_token = colorToken

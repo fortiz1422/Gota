@@ -4,11 +4,41 @@ const fs = require('fs')
 const path = require('path')
 
 const SOURCE = path.join(__dirname, '..', 'gota-newlogo.png')
+const BRAND_KIT_SOURCE = path.join(__dirname, '..', 'public', 'brand', 'gota-logo-kit.png')
+const FAVICON_SOURCE = path.join(__dirname, '..', 'public', 'brand', 'gota-favicon-source.png')
 const PUBLIC_DIR = path.join(__dirname, '..', 'public')
 
 const BG = '#F0F4F8'
 const PADDING_RATIO = 0.06
 const RADIUS_RATIO = 0.225
+const BRAND_TILE_CROP = {
+  left: 506,
+  top: 796,
+  width: 252,
+  height: 252,
+}
+
+function getFaviconMasterSource() {
+  return fs.existsSync(FAVICON_SOURCE) ? FAVICON_SOURCE : SOURCE
+}
+
+async function ensureBrandFaviconSource() {
+  const brandDir = path.dirname(FAVICON_SOURCE)
+  fs.mkdirSync(brandDir, { recursive: true })
+
+  if (!fs.existsSync(BRAND_KIT_SOURCE)) {
+    console.log('! public/brand/gota-logo-kit.png not found, falling back to gota-newlogo.png')
+    return false
+  }
+
+  await sharp(BRAND_KIT_SOURCE)
+    .extract(BRAND_TILE_CROP)
+    .png()
+    .toFile(FAVICON_SOURCE)
+
+  console.log('✓ public/brand/gota-favicon-source.png')
+  return true
+}
 
 /** Remove near-white background → transparent */
 async function removeWhiteBg(inputPath) {
@@ -36,23 +66,39 @@ async function generateIconWithBg(size, outFile) {
   const padding = Math.round(size * PADDING_RATIO)
   const logoSize = size - padding * 2
 
-  const logoBuffer = await removeWhiteBg(SOURCE)
-  const resizedLogo = await sharp(logoBuffer)
-    .resize(logoSize, logoSize, {
-      fit: 'contain',
-      background: { r: 0, g: 0, b: 0, alpha: 0 },
-    })
-    .png()
-    .toBuffer()
+  const faviconMasterSource = getFaviconMasterSource()
+  const useBrandTile = faviconMasterSource === FAVICON_SOURCE
 
-  const bgSvg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
-    <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="${BG}"/>
-  </svg>`
+  const resizedLogo = useBrandTile
+    ? await sharp(faviconMasterSource)
+        .resize(size, size, {
+          fit: 'cover',
+          position: 'centre',
+        })
+        .png()
+        .toBuffer()
+    : await sharp(await removeWhiteBg(SOURCE))
+        .resize(logoSize, logoSize, {
+          fit: 'contain',
+          background: { r: 0, g: 0, b: 0, alpha: 0 },
+        })
+        .png()
+        .toBuffer()
 
-  await sharp(Buffer.from(bgSvg))
-    .composite([{ input: resizedLogo, left: padding, top: padding }])
-    .png()
-    .toFile(path.join(PUBLIC_DIR, outFile))
+  if (useBrandTile) {
+    await sharp(resizedLogo)
+      .png()
+      .toFile(path.join(PUBLIC_DIR, outFile))
+  } else {
+    const bgSvg = `<svg width="${size}" height="${size}" xmlns="http://www.w3.org/2000/svg">
+      <rect width="${size}" height="${size}" rx="${radius}" ry="${radius}" fill="${BG}"/>
+    </svg>`
+
+    await sharp(Buffer.from(bgSvg))
+      .composite([{ input: resizedLogo, left: padding, top: padding }])
+      .png()
+      .toFile(path.join(PUBLIC_DIR, outFile))
+  }
 
   console.log(`✓ ${outFile}`)
 }
@@ -106,6 +152,8 @@ function generateIco(pngPath, icoPath) {
 
 async function main() {
   console.log('Generating PWA icons from gota-newlogo.png...\n')
+
+  await ensureBrandFaviconSource()
 
   await generateIconWithBg(192, 'icon-192.png')
   await generateIconWithBg(512, 'icon-512.png')

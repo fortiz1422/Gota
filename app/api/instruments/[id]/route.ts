@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { InstrumentUpdate } from '@/types/database'
 import { z, ZodError } from 'zod'
 
 const CloseSchema = z.object({
@@ -59,7 +60,7 @@ export async function PATCH(request: Request, { params }: Params) {
 
     // ── EDIT ────────────────────────────────────────────────────────────────
     if (validated.action === 'edit') {
-      const updates: Record<string, unknown> = {}
+      const updates: InstrumentUpdate = {}
       if ('label' in validated) updates.label = validated.label
       if ('rate' in validated) updates.rate = validated.rate
       if ('due_date' in validated) updates.due_date = validated.due_date

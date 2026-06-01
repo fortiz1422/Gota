@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
+import type { AccountUpdate } from '@/types/database'
 
 export async function PATCH(
   request: Request,
@@ -15,7 +16,7 @@ export async function PATCH(
   const body = await request.json()
   const { name, opening_balance_ars, opening_balance_usd, is_primary, archived, daily_yield_enabled, daily_yield_rate } = body
 
-  const update: Record<string, unknown> = {}
+  const update: AccountUpdate = {}
   if (name !== undefined) update.name = name.trim()
   if (opening_balance_ars !== undefined) update.opening_balance_ars = Number(opening_balance_ars) || 0
   if (opening_balance_usd !== undefined) update.opening_balance_usd = Number(opening_balance_usd) || 0

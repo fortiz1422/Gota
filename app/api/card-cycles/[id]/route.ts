@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { CardCycleUpdate } from '@/types/database'
 
 export async function PATCH(
   request: Request,
@@ -16,7 +17,7 @@ export async function PATCH(
   const body = await request.json()
   const { period_month, closing_date, due_date, status, amount_paid, paid_at, amount_draft } = body
 
-  const update: Record<string, unknown> = {}
+  const update: CardCycleUpdate = {}
   if (period_month !== undefined) update.period_month = `${period_month}-01`
   if (closing_date !== undefined) update.closing_date = closing_date
   if (due_date !== undefined) update.due_date = due_date
