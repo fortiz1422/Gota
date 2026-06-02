@@ -670,23 +670,30 @@ export function LoginButton() {
   }
 
   return (
-    <div className="min-h-app flex flex-col bg-bg-primary">
-      {screen === 'splash' && (
-        <SplashScreen
-          onGoogle={handleGoogle}
-          onEmail={() => setScreen('email')}
-          onExplore={() => setScreen('explore')}
-        />
-      )}
-      {screen === 'email' && (
-        <EmailScreen onBack={() => setScreen('splash')} onContinue={handleEmailContinue} />
-      )}
-      {screen === 'otp' && (
-        <OTPScreen email={otpEmail} onBack={() => setScreen('email')} />
-      )}
-      {screen === 'explore' && (
-        <ExploreScreen onBack={() => setScreen('splash')} />
-      )}
+    <div className="relative min-h-app flex flex-col bg-bg-primary">
+      <div
+        aria-hidden="true"
+        className="blue-zone pointer-events-none absolute inset-x-0 top-0"
+        style={{ height: 'calc(env(safe-area-inset-top) + 16rem)' }}
+      />
+      <div className="relative z-10 flex min-h-app flex-col">
+        {screen === 'splash' && (
+          <SplashScreen
+            onGoogle={handleGoogle}
+            onEmail={() => setScreen('email')}
+            onExplore={() => setScreen('explore')}
+          />
+        )}
+        {screen === 'email' && (
+          <EmailScreen onBack={() => setScreen('splash')} onContinue={handleEmailContinue} />
+        )}
+        {screen === 'otp' && (
+          <OTPScreen email={otpEmail} onBack={() => setScreen('email')} />
+        )}
+        {screen === 'explore' && (
+          <ExploreScreen onBack={() => setScreen('splash')} />
+        )}
+      </div>
     </div>
   )
 }
