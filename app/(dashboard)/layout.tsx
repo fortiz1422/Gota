@@ -31,11 +31,18 @@ export default async function DashboardLayout({ children }: { children: React.Re
       <TourProvider onboardingCompleted={onboardingCompleted} tourCompleted={tourCompleted}>
         <AnonymousBannerToneProvider>
           <div className="relative min-h-app bg-bg-primary">
-            <main className="pb-tab-bar">{children}</main>
-            <TabBar />
-            {FF_GOTA_ASSISTANT && <GotaAssistant />}
-            <AnonymousBanner initialIsAnonymous={user.is_anonymous === true} />
-            <OnboardingNudgeBanner />
+            <div
+              aria-hidden="true"
+              className="blue-zone pointer-events-none absolute inset-x-0 top-0"
+              style={{ height: 'calc(env(safe-area-inset-top) + 14rem)' }}
+            />
+            <div className="relative z-10">
+              <main className="pb-tab-bar">{children}</main>
+              <TabBar />
+              {FF_GOTA_ASSISTANT && <GotaAssistant />}
+              <AnonymousBanner initialIsAnonymous={user.is_anonymous === true} />
+              <OnboardingNudgeBanner />
+            </div>
           </div>
         </AnonymousBannerToneProvider>
       </TourProvider>
