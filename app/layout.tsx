@@ -30,7 +30,7 @@ export const metadata: Metadata = {
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
-    statusBarStyle: 'default',
+    statusBarStyle: 'black-translucent',
     title: 'Gota',
   },
   icons: {
@@ -44,7 +44,7 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   width: 'device-width',
-  themeColor: '#F0F4F8',
+  themeColor: '#2178A8',
   viewportFit: 'cover',
   initialScale: 1,
   minimumScale: 1,
