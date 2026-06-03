@@ -13,6 +13,8 @@ interface Props {
   heroBalanceMode: HeroBalanceMode
   heroBreakdown: Record<'ARS' | 'USD', number>
   availableBreakdown: Record<'ARS' | 'USD', number>
+  goalCommitmentsBreakdown: Record<'ARS' | 'USD', number>
+  freeBreakdown: Record<'ARS' | 'USD', number>
   valuationRate?: number | null
   valuationDate?: string | null
   gastosTarjeta?: number
@@ -87,6 +89,8 @@ export function SaldoVivo({
   heroBalanceMode,
   heroBreakdown,
   availableBreakdown,
+  goalCommitmentsBreakdown,
+  freeBreakdown,
   valuationRate = null,
   onBreakdownOpen,
   selectedMonth = '',
@@ -134,6 +138,8 @@ export function SaldoVivo({
     transition: 'opacity 180ms ease, transform 180ms ease',
   }
   const availableDebt = Math.max(0, heroValue - availableValue)
+  const goalCommitmentValue = goalCommitmentsBreakdown[displayCurrency]
+  const freeValue = freeBreakdown[displayCurrency]
   const showValuationFallback =
     (heroBalanceMode === 'combined_ars' || heroBalanceMode === 'combined_usd') &&
     (!valuationRate || valuationRate <= 0)
@@ -259,6 +265,12 @@ export function SaldoVivo({
             <p className="mt-1 type-meta text-text-dim">
               Ya descuenta deuda y consumos en tarjeta.
             </p>
+            <p className="mt-1 text-[12px] font-medium text-text-secondary">
+              Libre hoy:{' '}
+              <span className="tabular-nums text-text-primary">
+                {amountsVisible ? formatAmount(freeValue, displayCurrency) : maskAmount(displayCurrency)}
+              </span>
+            </p>
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -274,6 +286,8 @@ export function SaldoVivo({
         onClose={() => setSheetOpen(false)}
         saldoVivo={heroValue}
         gastosTarjeta={availableDebt}
+        comprometidoMetas={goalCommitmentValue}
+        disponibleLibre={freeValue}
         currency={displayCurrency}
         selectedMonth={selectedMonth}
         isProjected={isProjected}

@@ -3,15 +3,34 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import type { GoalContributionRow } from '@/lib/goals/types'
 import type { GoalContributionUpdate } from '@/types/database'
+import { recomputeGoalStatus } from '@/lib/server/recompute-goal-status'
 
-const patchContributionSchema = z.object({
-  amount: z.number().positive().optional(),
-  note: z.string().max(300).nullable().optional(),
-  contributedAt: z
-    .string()
-    .regex(/^\d{4}-\d{2}-\d{2}$/)
-    .optional(),
-})
+const patchContributionSchema = z
+  .object({
+    amount: z.number().positive().optional(),
+    note: z.string().max(300).nullable().optional(),
+    contributedAt: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+    sourceAccountId: z.string().uuid().nullable().optional(),
+    availabilityEffect: z.enum(['none', 'committed_only', 'moved_out']).optional(),
+    destinationKind: z.enum(['same_account', 'tracked_account', 'external_pot', 'virtual_pot']).nullable().optional(),
+  })
+  .superRefine((value, ctx) => {
+    if (value.availabilityEffect === 'committed_only' && value.sourceAccountId === null) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['sourceAccountId'],
+        message: 'Elegí la cuenta donde queda comprometida esa plata.',
+      })
+    }
+
+    if (value.availabilityEffect === 'moved_out') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['availabilityEffect'],
+        message: 'La salida real a cajita queda diferida para una fase posterior.',
+      })
+    }
+  })
 
 export async function DELETE(
   _request: Request,
@@ -26,7 +45,6 @@ export async function DELETE(
   const { id: goalId, contributionId } = await params
 
   try {
-    // Fetch contribution to verify ownership and source_type
     const { data: contributionData, error: fetchError } = await supabase
       .from('goal_contributions')
       .select('id, source_type')
@@ -58,6 +76,8 @@ export async function DELETE(
 
     if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 })
 
+    await recomputeGoalStatus(supabase, user.id, goalId)
+
     return new NextResponse(null, { status: 204 })
   } catch (error) {
     console.error('Contribution DELETE error:', error)
@@ -83,7 +103,6 @@ export async function PATCH(
       return NextResponse.json({ error: 'Datos inválidos', details: parsed.error.flatten() }, { status: 400 })
     }
 
-    // Fetch contribution to verify ownership and source_type
     const { data: contributionData, error: fetchError } = await supabase
       .from('goal_contributions')
       .select('id, source_type')
@@ -106,11 +125,29 @@ export async function PATCH(
       )
     }
 
-    const { amount, note, contributedAt } = parsed.data
+    const { amount, note, contributedAt, sourceAccountId, availabilityEffect, destinationKind } = parsed.data
+
+    if (sourceAccountId) {
+      const { data: accountData } = await supabase
+        .from('accounts')
+        .select('id')
+        .eq('id', sourceAccountId)
+        .eq('user_id', user.id)
+        .eq('archived', false)
+        .maybeSingle()
+
+      if (!accountData) {
+        return NextResponse.json({ error: 'Cuenta origen no encontrada' }, { status: 404 })
+      }
+    }
+
     const updates: GoalContributionUpdate = { updated_at: new Date().toISOString() }
     if (amount !== undefined) updates.amount = amount
     if (note !== undefined) updates.note = note
     if (contributedAt !== undefined) updates.contributed_at = contributedAt
+    if (sourceAccountId !== undefined) updates.source_account_id = sourceAccountId
+    if (availabilityEffect !== undefined) updates.availability_effect = availabilityEffect
+    if (destinationKind !== undefined) updates.destination_kind = destinationKind
 
     const { error: updateError } = await supabase
       .from('goal_contributions')
@@ -120,6 +157,8 @@ export async function PATCH(
       .eq('goal_id', goalId)
 
     if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 })
+
+    await recomputeGoalStatus(supabase, user.id, goalId)
 
     return NextResponse.json({ ok: true })
   } catch (error) {

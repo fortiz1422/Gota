@@ -22,6 +22,7 @@ const PACE_COPY: Record<string, string> = {
   behind: 'Atrasada',
   completed: 'Objetivo cumplido',
   no_date: 'Sin fecha objetivo',
+  paused: 'Pausada',
 }
 
 const PACE_COLOR: Record<string, string> = {
@@ -29,6 +30,7 @@ const PACE_COLOR: Record<string, string> = {
   behind: 'var(--color-warning)',
   completed: 'var(--color-success)',
   no_date: 'var(--color-text-tertiary)',
+  paused: 'var(--color-text-secondary)',
 }
 
 function formatTargetDate(dateStr: string): string {
@@ -49,7 +51,7 @@ export function GoalRow({ goal, onContribute, onDetail }: Props) {
       : `Superaste tu meta por ${formatAmount(goal.currentAmount - goal.targetAmount, goal.currency)}`
 
   return (
-    <div className="mx-5 mb-3 card-s5 px-4 py-4">
+    <div className="mb-3 card-s5 px-4 py-4">
       {/* Header */}
       <div className="mb-3 flex items-start justify-between gap-2">
         <div className="flex min-w-0 items-center gap-2">
@@ -82,8 +84,10 @@ export function GoalRow({ goal, onContribute, onDetail }: Props) {
             <p className="text-[11px] text-text-tertiary">
               Para {formatTargetDate(goal.targetDate)}
             </p>
-          ) : null}
-          {goal.requiredMonthlyContribution && goal.paceStatus !== 'completed' ? (
+          ) : (
+            <p className="text-[11px] text-text-tertiary">Sin fecha objetivo</p>
+          )}
+          {goal.requiredMonthlyContribution && goal.paceStatus !== 'completed' && goal.paceStatus !== 'paused' ? (
             <p className="text-[12px] text-text-secondary">
               {`Necesitás ${formatAmount(goal.requiredMonthlyContribution, goal.currency)}/mes`}
             </p>
@@ -92,6 +96,11 @@ export function GoalRow({ goal, onContribute, onDetail }: Props) {
               {paceCopy}
             </p>
           )}
+          {goal.committedAmount > 0 ? (
+            <p className="text-[11px] text-primary">
+              {`Comprometido: ${formatAmount(goal.committedAmount, goal.currency)}`}
+            </p>
+          ) : null}
         </div>
 
         {/* CTAs */}

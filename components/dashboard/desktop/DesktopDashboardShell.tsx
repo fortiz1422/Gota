@@ -865,15 +865,14 @@ export function DesktopDashboardShell({
 
             {/* ======== METAS + INSTRUMENTOS ======== */}
             <section className="mb-[88px] grid grid-cols-2 gap-7">
-              {/* Metas — UI only, no backend yet */}
-              <Panel title="Metas" tag="próximamente" tagColor="muted">
+              <Panel title="Metas" tag="disponible en Análisis" tagColor="primary">
                 <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-bg-secondary text-text-dim">
+                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
                     <Target size={22} />
                   </div>
                   <p className="text-[15px] font-medium text-text-primary">Metas financieras</p>
                   <p className="mt-2 max-w-xs text-[13px] leading-6 text-text-secondary">
-                    Podrás crear metas de ahorro como fondo de emergencia, vacaciones o cualquier objetivo personal, y seguir tu progreso mes a mes.
+                    Ya podés crear metas, registrar aportes y marcar plata comprometida desde Análisis. Esta superficie de desktop todavía muestra un resumen editorial.
                   </p>
                 </div>
               </Panel>

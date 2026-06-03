@@ -108,7 +108,7 @@ export function computeGoalMetrics(
 
   const paceStatus =
     goal.status === 'paused'
-      ? 'no_date'
+      ? 'paused'
       : computePaceStatus({
           currentAmount,
           targetAmount: goal.target_amount,

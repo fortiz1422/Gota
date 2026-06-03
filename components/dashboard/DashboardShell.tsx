@@ -240,6 +240,8 @@ export function DashboardShell({
     heroBalanceMode,
     heroBreakdown,
     availableBreakdown,
+    goalCommitmentsBreakdown,
+    freeBreakdown,
     accounts,
     cards,
     currency,
@@ -284,6 +286,18 @@ export function DashboardShell({
         : availableBreakdown[currency]
 
   const gastosTarjeta = Math.max(0, heroValue - availableDisplayValue)
+  const committedGoalsDisplayValue =
+    effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
+      ? goalCommitmentsBreakdown.ARS + goalCommitmentsBreakdown.USD * valuationRate
+      : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
+        ? goalCommitmentsBreakdown.USD + goalCommitmentsBreakdown.ARS / valuationRate
+        : goalCommitmentsBreakdown[currency]
+  const freeDisplayValue =
+    effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
+      ? freeBreakdown.ARS + freeBreakdown.USD * valuationRate
+      : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
+        ? freeBreakdown.USD + freeBreakdown.ARS / valuationRate
+        : freeBreakdown[currency]
 
   const monthLabel = formatHomeMonth(selectedMonth)
 
@@ -342,6 +356,8 @@ export function DashboardShell({
               heroBalanceMode={effectiveHeroBalanceMode}
               heroBreakdown={heroBreakdown}
               availableBreakdown={availableBreakdown}
+              goalCommitmentsBreakdown={goalCommitmentsBreakdown}
+              freeBreakdown={freeBreakdown}
               valuationRate={cotizacionQuery.data?.rate ?? null}
               valuationDate={cotizacionQuery.data?.effectiveDate ?? null}
               gastosTarjeta={dashboardData?.gastos_tarjeta ?? 0}
@@ -407,6 +423,16 @@ export function DashboardShell({
                 <div className="min-w-0 flex-1">
                   <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
                   <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
+                  <p className="mt-1 text-[11px] font-medium text-text-secondary">
+                    Libre hoy:{' '}
+                    <span className="tabular-nums text-text-primary">
+                      {amountsVisible
+                        ? formatAmount(freeDisplayValue, displayCurrency)
+                        : displayCurrency === 'USD'
+                          ? 'USD ****'
+                          : '$ ******'}
+                    </span>
+                  </p>
                 </div>
                 <span
                   className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
@@ -503,6 +529,8 @@ export function DashboardShell({
         onClose={() => setDisponibleSheetOpen(false)}
         saldoVivo={heroValue}
         gastosTarjeta={gastosTarjeta}
+        comprometidoMetas={committedGoalsDisplayValue}
+        disponibleLibre={freeDisplayValue}
         currency={displayCurrency}
         selectedMonth={selectedMonth}
         isProjected={isProjected}

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { GoalContributionSheet } from './GoalContributionSheet'
+import { GoalCreateSheet } from './GoalCreateSheet'
+import { GoalDetailSheet } from './GoalDetailSheet'
 import { GoalEmptyState } from './GoalEmptyState'
 import { GoalRow } from './GoalRow'
-import { GoalCreateSheet } from './GoalCreateSheet'
-import { GoalContributionSheet } from './GoalContributionSheet'
-import { GoalDetailSheet } from './GoalDetailSheet'
+import { GoalsFocusList } from './GoalsFocusList'
 import type { GoalWithMetrics } from '@/lib/goals/types'
 
 interface Props {
@@ -15,23 +16,36 @@ interface Props {
 
 function GoalsSkeleton() {
   return (
-    <div className="px-5 space-y-3">
-      <div className="h-32 rounded-card skeleton" />
-      <div className="h-32 rounded-card skeleton" />
+    <div className="mx-auto max-w-md px-[22px]">
+      <div className="card-s5 space-y-3 px-4 py-4">
+        <div className="h-6 w-32 rounded skeleton" />
+        <div className="h-20 rounded-card skeleton" />
+        <div className="h-20 rounded-card skeleton" />
+      </div>
     </div>
   )
 }
 
 function SectionDivider({ label }: { label: string }) {
   return (
-    <div className="mx-5 my-4 flex items-center gap-3">
+    <div className="mx-4 my-4 flex items-center gap-3">
       <div className="h-px flex-1 bg-separator" />
-      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-tertiary">
-        {label}
-      </span>
+      <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-text-tertiary">{label}</span>
       <div className="h-px flex-1 bg-separator" />
     </div>
   )
+}
+
+function buildSectionCopy(goals: GoalWithMetrics[]) {
+  if (goals.some((goal) => goal.paceStatus === 'behind')) {
+    return 'Empezá por las metas que perdieron ritmo y dejá el resto ordenado abajo.'
+  }
+
+  if (goals.some((goal) => goal.committedAmount > 0)) {
+    return 'Hay aportes ya comprometidos. Esto te deja ver progreso y caja sin mezclar conceptos.'
+  }
+
+  return 'Metas te da dirección sin tocar la semántica de tu caja real.'
 }
 
 export function GoalsSection({ selectedMonth }: Props) {
@@ -53,7 +67,10 @@ export function GoalsSection({ selectedMonth }: Props) {
   })
 
   async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ['goals'] })
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ['goals'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    ])
   }
 
   async function handleStatusChange(
@@ -82,57 +99,70 @@ export function GoalsSection({ selectedMonth }: Props) {
     setDetailOpen(true)
   }
 
+  const goals = useMemo(() => data?.goals ?? [], [data?.goals])
+  const activeGoals = useMemo(() => goals.filter((goal) => goal.status === 'active'), [goals])
+  const pausedGoals = useMemo(() => goals.filter((goal) => goal.status === 'paused'), [goals])
+  const completedGoals = useMemo(() => goals.filter((goal) => goal.status === 'completed'), [goals])
+
   if (isLoading) return <GoalsSkeleton />
 
-  const goals = data?.goals ?? []
-  const activas = goals.filter((g) => g.status === 'active')
-  const pausadas = goals.filter((g) => g.status === 'paused')
-  const completadas = goals.filter((g) => g.status === 'completed')
-
-  const hasAny = goals.length > 0
-  const firstGroupHasItems = activas.length > 0
-  const showPausadasDivider = pausadas.length > 0
-  const showCompletadasDivider = completadas.length > 0
+  if (goals.length === 0) {
+    return (
+      <div className="mx-auto max-w-md px-[22px] pb-4">
+        <GoalEmptyState onCreate={() => setCreateOpen(true)} />
+        <GoalCreateSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={refresh} />
+      </div>
+    )
+  }
 
   return (
-    <div className="pb-4">
-      <div className="mx-5 mb-3 flex items-center justify-between">
-        <p className="text-[12px] text-text-tertiary">
-          {activas.length > 0
-            ? `${activas.length} meta${activas.length !== 1 ? 's' : ''} activa${activas.length !== 1 ? 's' : ''}`
-            : 'Sin metas activas'}
-        </p>
-        {hasAny && (
+    <div className="mx-auto max-w-md px-[22px] pb-4">
+      <section className="card-s5 overflow-hidden">
+        <div className="flex items-start justify-between gap-3 px-4 pt-4">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">Metas</p>
+            <p className="mt-1 text-[13px] leading-5 text-text-secondary">{buildSectionCopy(goals)}</p>
+          </div>
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="rounded-full border border-border-ocean px-3 py-1.5 text-[12px] font-semibold text-primary"
+            className="shrink-0 rounded-pill border border-primary/20 bg-primary/10 px-3 py-1.5 text-[12px] font-semibold text-primary transition-opacity hover:opacity-80 active:opacity-60"
           >
             Nueva meta
           </button>
-        )}
-      </div>
+        </div>
 
-      {!hasAny ? (
-        <GoalEmptyState onCreate={() => setCreateOpen(true)} />
-      ) : (
-        <>
-          {activas.map((goal) => (
-            <GoalRow
-              key={goal.id}
-              goal={goal}
-              onContribute={() => openContribute(goal)}
-              onDetail={() => openDetail(goal)}
-            />
-          ))}
+        <div className="mt-4 border-t border-separator" />
 
-          {showPausadasDivider && (
-            <>
-              {firstGroupHasItems && <SectionDivider label="Pausadas" />}
-              {!firstGroupHasItems && (
-                <SectionDivider label="Pausadas" />
-              )}
-              {pausadas.map((goal) => (
+        <GoalsFocusList goals={goals} onOpenGoal={openDetail} />
+
+        <div className="border-t border-separator px-4 py-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-text-secondary">
+              Metas activas
+            </p>
+            <span className="text-[12px] text-text-tertiary">
+              {activeGoals.length} activa{activeGoals.length === 1 ? '' : 's'}
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {activeGoals.map((goal) => (
+              <GoalRow
+                key={goal.id}
+                goal={goal}
+                onContribute={() => openContribute(goal)}
+                onDetail={() => openDetail(goal)}
+              />
+            ))}
+          </div>
+        </div>
+
+        {pausedGoals.length > 0 ? (
+          <>
+            <SectionDivider label="Pausadas" />
+            <div className="px-4 pb-4 space-y-3">
+              {pausedGoals.map((goal) => (
                 <GoalRow
                   key={goal.id}
                   goal={goal}
@@ -140,13 +170,15 @@ export function GoalsSection({ selectedMonth }: Props) {
                   onDetail={() => openDetail(goal)}
                 />
               ))}
-            </>
-          )}
+            </div>
+          </>
+        ) : null}
 
-          {showCompletadasDivider && (
-            <>
-              <SectionDivider label="Completadas" />
-              {completadas.map((goal) => (
+        {completedGoals.length > 0 ? (
+          <>
+            <SectionDivider label="Completadas" />
+            <div className="px-4 pb-4 space-y-3">
+              {completedGoals.map((goal) => (
                 <GoalRow
                   key={goal.id}
                   goal={goal}
@@ -154,16 +186,12 @@ export function GoalsSection({ selectedMonth }: Props) {
                   onDetail={() => openDetail(goal)}
                 />
               ))}
-            </>
-          )}
-        </>
-      )}
+            </div>
+          </>
+        ) : null}
+      </section>
 
-      <GoalCreateSheet
-        open={createOpen}
-        onClose={() => setCreateOpen(false)}
-        onCreated={refresh}
-      />
+      <GoalCreateSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={refresh} />
 
       <GoalContributionSheet
         open={contributeOpen}

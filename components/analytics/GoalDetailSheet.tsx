@@ -5,11 +5,12 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { GoalProgressBar } from './GoalProgressBar'
+import { GoalContributionEditSheet } from './GoalContributionEditSheet'
 import { GoalContributionHistory } from './GoalContributionHistory'
 import { GoalEditSheet } from './GoalEditSheet'
 import { LinkTransferToGoalSheet } from './LinkTransferToGoalSheet'
 import { formatAmount, formatDate } from '@/lib/format'
-import type { GoalWithMetrics, GoalDetail } from '@/lib/goals/types'
+import type { GoalContribution, GoalDetail, GoalWithMetrics } from '@/lib/goals/types'
 
 interface Props {
   open: boolean
@@ -19,11 +20,28 @@ interface Props {
   onStatusChange: (goalId: string, status: 'active' | 'paused' | 'completed' | 'archived') => Promise<void>
 }
 
+const paceLabels: Record<string, string> = {
+  on_track: 'En ritmo',
+  behind: 'Atrasada',
+  completed: 'Objetivo cumplido',
+  no_date: 'Sin fecha objetivo',
+  paused: 'Pausada',
+}
+
+const paceColors: Record<string, string> = {
+  on_track: 'var(--color-success)',
+  behind: 'var(--color-warning)',
+  completed: 'var(--color-success)',
+  no_date: 'var(--color-text-tertiary)',
+  paused: 'var(--color-text-secondary)',
+}
+
 export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusChange }: Props) {
   const queryClient = useQueryClient()
   const [isUpdating, setIsUpdating] = useState(false)
   const [editOpen, setEditOpen] = useState(false)
   const [linkTransferOpen, setLinkTransferOpen] = useState(false)
+  const [editingContribution, setEditingContribution] = useState<GoalContribution | null>(null)
 
   const { data: detail, isLoading: isDetailLoading } = useQuery<GoalDetail>({
     queryKey: ['goal-detail', goal?.id],
@@ -51,34 +69,20 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
     await Promise.all([
       queryClient.invalidateQueries({ queryKey: ['goal-detail', goal?.id] }),
       queryClient.invalidateQueries({ queryKey: ['goals'] }),
+      queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
     ])
   }
 
   if (!open || !goal) return null
 
-  const paceLabels: Record<string, string> = {
-    on_track: 'En ritmo',
-    behind: 'Atrasada',
-    completed: 'Objetivo cumplido',
-    no_date: '—',
-  }
-
-  const paceColors: Record<string, string> = {
-    on_track: 'var(--color-success)',
-    behind: 'var(--color-warning)',
-    completed: 'var(--color-success)',
-    no_date: 'var(--color-text-tertiary)',
-  }
-
-  // Use detail data if loaded, fall back to props for display
   const displayGoal = detail ?? goal
+  const isPaused = displayGoal.status === 'paused'
 
   return (
     <>
       <Modal open={open} onClose={onClose}>
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
-        {/* Header */}
         <div className="mb-4 flex items-start justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {displayGoal.emoji ? <span className="text-[22px]">{displayGoal.emoji}</span> : null}
@@ -101,16 +105,13 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           </div>
         </div>
 
-        {/* Progress */}
         <GoalProgressBar pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
 
         <div className="mt-3 flex items-baseline justify-between">
           <p className="text-[20px] font-bold text-text-primary">
             {formatAmount(displayGoal.currentAmount, displayGoal.currency)}
           </p>
-          <p className="text-[13px] text-text-tertiary">
-            de {formatAmount(displayGoal.targetAmount, displayGoal.currency)}
-          </p>
+          <p className="text-[13px] text-text-tertiary">de {formatAmount(displayGoal.targetAmount, displayGoal.currency)}</p>
         </div>
 
         {displayGoal.remainingAmount > 0 ? (
@@ -123,20 +124,31 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           </p>
         )}
 
-        {/* Meta info */}
         <div className="mt-4 space-y-2 rounded-card bg-bg-tertiary p-4">
+          <div className="flex items-center justify-between text-[13px]">
+            <span className="text-text-tertiary">Estado de avance</span>
+            <span className="font-medium" style={{ color: paceColors[displayGoal.paceStatus] }}>
+              {paceLabels[displayGoal.paceStatus]}
+            </span>
+          </div>
+
           {displayGoal.targetDate ? (
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-text-tertiary">Fecha objetivo</span>
               <span className="font-medium text-text-primary">{formatDate(displayGoal.targetDate)}</span>
             </div>
-          ) : null}
+          ) : (
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-text-tertiary">Fecha objetivo</span>
+              <span className="font-medium text-text-secondary">Sin fecha</span>
+            </div>
+          )}
 
           {displayGoal.requiredMonthlyContribution ? (
             <div className="flex items-center justify-between text-[13px]">
               <span className="text-text-tertiary">Necesitás por mes</span>
               <span className="font-medium text-text-primary">
-                {formatAmount(displayGoal.requiredMonthlyContribution, displayGoal.currency)}
+                {isPaused ? 'Pausada por ahora' : formatAmount(displayGoal.requiredMonthlyContribution, displayGoal.currency)}
               </span>
             </div>
           ) : null}
@@ -150,12 +162,14 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
             </div>
           ) : null}
 
-          <div className="flex items-center justify-between text-[13px]">
-            <span className="text-text-tertiary">Ritmo</span>
-            <span className="font-medium" style={{ color: paceColors[displayGoal.paceStatus] }}>
-              {paceLabels[displayGoal.paceStatus]}
-            </span>
-          </div>
+          {displayGoal.committedAmount > 0 ? (
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-text-tertiary">Comprometido en metas</span>
+              <span className="font-medium text-primary">
+                {formatAmount(displayGoal.committedAmount, displayGoal.currency)}
+              </span>
+            </div>
+          ) : null}
 
           <div className="flex items-center justify-between text-[13px]">
             <span className="text-text-tertiary">Moneda</span>
@@ -170,7 +184,6 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           ) : null}
         </div>
 
-        {/* CTAs */}
         <div className="mt-4 space-y-2">
           {displayGoal.status !== 'completed' && displayGoal.status !== 'archived' ? (
             <div className="flex gap-2">
@@ -236,7 +249,6 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           </div>
         </div>
 
-        {/* Contribution history */}
         <div className="mt-5">
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
             Historial de aportes
@@ -252,6 +264,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
               goalCurrency={displayGoal.currency}
               goalId={displayGoal.id}
               onDeleted={invalidateAll}
+              onEdit={(contribution) => setEditingContribution(contribution)}
             />
           )}
         </div>
@@ -261,6 +274,17 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
         open={editOpen}
         goal={displayGoal}
         onClose={() => setEditOpen(false)}
+        onSaved={async () => {
+          await invalidateAll()
+        }}
+      />
+
+      <GoalContributionEditSheet
+        open={editingContribution !== null}
+        goalId={displayGoal.id}
+        goalCurrency={displayGoal.currency}
+        contribution={editingContribution}
+        onClose={() => setEditingContribution(null)}
         onSaved={async () => {
           await invalidateAll()
         }}

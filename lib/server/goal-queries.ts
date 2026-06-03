@@ -1,4 +1,5 @@
 import type { createClient } from '@/lib/supabase/server'
+import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
 import { computeGoalMetrics } from '@/lib/goals/computeGoalMetrics'
 import type {
   GoalRow,
@@ -39,6 +40,9 @@ function rowToContribution(row: GoalContributionRow): GoalContribution {
     currency: row.currency,
     contributedAt: row.contributed_at,
     sourceType: row.source_type,
+    sourceAccountId: row.source_account_id,
+    availabilityEffect: row.availability_effect,
+    destinationKind: row.destination_kind,
     note: row.note,
     relatedTransferId: row.related_transfer_id,
     relatedIncomeEntryId: row.related_income_entry_id,
@@ -51,6 +55,10 @@ function hydrateGoalWithMetrics(
   contributions: GoalContributionRow[],
   today: Date,
 ): GoalWithMetrics {
+  const lastContributionAt = contributions
+    .map((contribution) => contribution.contributed_at)
+    .sort((a, b) => b.localeCompare(a))[0] ?? null
+  const committedAmount = computeCommittedAmount(contributions, goal.currency)
   const metrics = computeGoalMetrics(
     {
       target_amount: goal.targetAmount,
@@ -63,7 +71,7 @@ function hydrateGoalWithMetrics(
     contributions,
     today,
   )
-  return { ...goal, ...metrics }
+  return { ...goal, ...metrics, lastContributionAt, committedAmount }
 }
 
 export async function getGoals(

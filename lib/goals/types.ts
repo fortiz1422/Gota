@@ -5,8 +5,14 @@ import type { Currency } from '@/types/database'
 // ============================================
 
 export type GoalStatus = 'active' | 'paused' | 'completed' | 'archived'
-export type GoalPaceStatus = 'on_track' | 'behind' | 'no_date' | 'completed'
+export type GoalPaceStatus = 'on_track' | 'behind' | 'no_date' | 'completed' | 'paused'
 export type ContributionSourceType = 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+export type GoalAvailabilityEffect = 'none' | 'committed_only' | 'moved_out'
+export type GoalContributionDestinationKind =
+  | 'same_account'
+  | 'tracked_account'
+  | 'external_pot'
+  | 'virtual_pot'
 
 export type GoalRow = {
   id: string
@@ -36,6 +42,9 @@ export type GoalContributionRow = {
   currency: Currency
   contributed_at: string
   source_type: ContributionSourceType
+  source_account_id: string | null
+  availability_effect: GoalAvailabilityEffect
+  destination_kind: GoalContributionDestinationKind | null
   note: string | null
   related_transfer_id: string | null
   related_income_entry_id: string | null
@@ -56,6 +65,11 @@ export type GoalMetrics = {
   paceStatus: GoalPaceStatus
 }
 
+export type GoalDerivedContext = {
+  lastContributionAt: string | null
+  committedAmount: number
+}
+
 export type GoalContribution = {
   id: string
   goalId: string
@@ -63,6 +77,9 @@ export type GoalContribution = {
   currency: Currency
   contributedAt: string
   sourceType: ContributionSourceType
+  sourceAccountId: string | null
+  availabilityEffect: GoalAvailabilityEffect
+  destinationKind: GoalContributionDestinationKind | null
   note: string | null
   relatedTransferId: string | null
   relatedIncomeEntryId: string | null
@@ -87,7 +104,7 @@ export type Goal = {
   pausedAt: string | null
 }
 
-export type GoalWithMetrics = Goal & GoalMetrics
+export type GoalWithMetrics = Goal & GoalMetrics & GoalDerivedContext
 
 export type GoalDetail = GoalWithMetrics & {
   contributions: GoalContribution[]
@@ -127,6 +144,9 @@ export type CreateContributionBody = {
   currency: Currency
   contributedAt: string
   sourceType: ContributionSourceType
+  sourceAccountId?: string | null
+  availabilityEffect?: GoalAvailabilityEffect
+  destinationKind?: GoalContributionDestinationKind | null
   note?: string | null
   relatedTransferId?: string | null
 }

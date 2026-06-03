@@ -1,6 +1,6 @@
 interface Props {
   pct: number
-  paceStatus: 'on_track' | 'behind' | 'no_date' | 'completed'
+  paceStatus: 'on_track' | 'behind' | 'no_date' | 'completed' | 'paused'
 }
 
 const TRACK_COLORS: Record<Props['paceStatus'], string> = {
@@ -8,6 +8,7 @@ const TRACK_COLORS: Record<Props['paceStatus'], string> = {
   completed: 'var(--color-success)',
   behind: 'var(--color-warning)',
   no_date: 'var(--color-primary)',
+  paused: 'var(--color-text-secondary)',
 }
 
 export function GoalProgressBar({ pct, paceStatus }: Props) {

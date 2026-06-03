@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { recomputeGoalStatus } from '@/lib/server/recompute-goal-status'
 
 type TransferUpdateBody = {
   from_account_id: string
@@ -77,9 +78,21 @@ export async function DELETE(
 
   const { id } = await params
 
-  // Cleanup transfer-linked goal contributions BEFORE deleting the transfer
-  // (schema has ON DELETE SET NULL on related_transfer_id, so we must delete them first
-  //  to prevent phantom goal progress)
+  const { data: linkedContributions, error: linkedContributionsError } = await supabase
+    .from('goal_contributions')
+    .select('goal_id')
+    .eq('related_transfer_id', id)
+    .eq('source_type', 'transfer_linked')
+    .eq('user_id', user.id)
+
+  if (linkedContributionsError) {
+    return NextResponse.json({ error: linkedContributionsError.message }, { status: 500 })
+  }
+
+  const affectedGoalIds = Array.from(
+    new Set((linkedContributions ?? []).map((contribution) => contribution.goal_id)),
+  )
+
   const { error: contribError } = await supabase
     .from('goal_contributions')
     .delete()
@@ -88,6 +101,10 @@ export async function DELETE(
     .eq('user_id', user.id)
 
   if (contribError) return NextResponse.json({ error: contribError.message }, { status: 500 })
+
+  for (const goalId of affectedGoalIds) {
+    await recomputeGoalStatus(supabase, user.id, goalId)
+  }
 
   const { error } = await supabase
     .from('transfers')

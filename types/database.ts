@@ -385,6 +385,9 @@ export type Database = {
           currency: 'ARS' | 'USD'
           contributed_at: string
           source_type: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          source_account_id: string | null
+          availability_effect: 'none' | 'committed_only' | 'moved_out'
+          destination_kind: 'same_account' | 'tracked_account' | 'external_pot' | 'virtual_pot' | null
           note: string | null
           related_transfer_id: string | null
           related_income_entry_id: string | null
@@ -399,6 +402,9 @@ export type Database = {
           currency: 'ARS' | 'USD'
           contributed_at: string
           source_type?: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          source_account_id?: string | null
+          availability_effect?: 'none' | 'committed_only' | 'moved_out'
+          destination_kind?: 'same_account' | 'tracked_account' | 'external_pot' | 'virtual_pot' | null
           note?: string | null
           related_transfer_id?: string | null
           related_income_entry_id?: string | null
@@ -409,6 +415,9 @@ export type Database = {
           amount?: number
           contributed_at?: string
           source_type?: 'manual' | 'transfer_linked' | 'income_linked' | 'adjustment'
+          source_account_id?: string | null
+          availability_effect?: 'none' | 'committed_only' | 'moved_out'
+          destination_kind?: 'same_account' | 'tracked_account' | 'external_pot' | 'virtual_pot' | null
           note?: string | null
           related_transfer_id?: string | null
           related_income_entry_id?: string | null

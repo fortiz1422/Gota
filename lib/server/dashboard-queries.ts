@@ -11,6 +11,7 @@ import {
   type LiveBreakdownRow,
 } from '@/lib/live-balance'
 import { computeCompromisos, type CompromisosData } from '@/lib/analytics/computeCompromisos'
+import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
 import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
@@ -36,6 +37,8 @@ export type DashboardApiData = {
   heroBalanceMode: HeroBalanceMode
   heroBreakdown: Record<'ARS' | 'USD', number>
   availableBreakdown: Record<'ARS' | 'USD', number>
+  goalCommitmentsBreakdown: Record<'ARS' | 'USD', number>
+  freeBreakdown: Record<'ARS' | 'USD', number>
   accounts: Account[]
   cards: Card[]
   currency: 'ARS' | 'USD'
@@ -140,6 +143,8 @@ export async function readDashboardData({
     { data: liveTransfersData },
     { data: liveYieldData },
     { data: compromisoExpensesData },
+    { data: activeGoalsData },
+    { data: goalCommitmentsData },
     { data: unpaidCyclesData },
     { data: paidCyclesData },
     { data: cycleAmountsData, error: cycleAmountsError },
@@ -226,6 +231,12 @@ export async function readDashboardData({
       .gte('date', historyStartDate)
       .lt('date', nextMonthDate)
       .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
+    supabase.from('goals').select('id').eq('user_id', userId).neq('status', 'archived'),
+    supabase
+      .from('goal_contributions')
+      .select('goal_id, amount, currency, availability_effect')
+      .eq('user_id', userId)
+      .eq('availability_effect', 'committed_only'),
     supabase
       .from('card_cycles')
       .select('*')
@@ -477,9 +488,27 @@ export async function readDashboardData({
       capitalInstrumentosByCurrency.USD,
   }
 
+  const activeGoalIds = new Set(((activeGoalsData ?? []) as { id: string }[]).map((goal) => goal.id))
+  const activeGoalCommitments = ((goalCommitmentsData ?? []) as {
+    goal_id: string
+    amount: number
+    currency: 'ARS' | 'USD'
+    availability_effect: 'none' | 'committed_only' | 'moved_out'
+  }[]).filter((contribution) => activeGoalIds.has(contribution.goal_id))
+
+  const goalCommitmentsBreakdown = {
+    ARS: computeCommittedAmount(activeGoalCommitments, 'ARS'),
+    USD: computeCommittedAmount(activeGoalCommitments, 'USD'),
+  }
+
   const availableBreakdown = {
     ARS: heroBreakdown.ARS - liveGastosTarjetaByCurrency.ARS,
     USD: heroBreakdown.USD - liveGastosTarjetaByCurrency.USD,
+  }
+
+  const freeBreakdown = {
+    ARS: availableBreakdown.ARS - goalCommitmentsBreakdown.ARS,
+    USD: availableBreakdown.USD - goalCommitmentsBreakdown.USD,
   }
 
   let dashboardData: DashboardData | null = rawData
@@ -505,6 +534,8 @@ export async function readDashboardData({
     heroBalanceMode,
     heroBreakdown,
     availableBreakdown,
+    goalCommitmentsBreakdown,
+    freeBreakdown,
     accounts,
     cards,
     currency,

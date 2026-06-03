@@ -72,6 +72,12 @@ CREATE TABLE IF NOT EXISTS goal_contributions (
   source_type VARCHAR(20) NOT NULL DEFAULT 'manual'
     CHECK (source_type IN ('manual', 'transfer_linked', 'income_linked', 'adjustment')),
 
+  source_account_id UUID NULL REFERENCES accounts(id) ON DELETE SET NULL,
+  availability_effect VARCHAR(20) NOT NULL DEFAULT 'none'
+    CHECK (availability_effect IN ('none', 'committed_only', 'moved_out')),
+  destination_kind VARCHAR(20) NULL
+    CHECK (destination_kind IN ('same_account', 'tracked_account', 'external_pot', 'virtual_pot')),
+
   note TEXT NULL CHECK (note IS NULL OR length(note) <= 300),
 
   related_transfer_id UUID NULL REFERENCES transfers(id) ON DELETE SET NULL,
@@ -90,6 +96,10 @@ CREATE INDEX IF NOT EXISTS idx_goal_contributions_user
 CREATE INDEX IF NOT EXISTS idx_goal_contributions_transfer
   ON goal_contributions(related_transfer_id)
   WHERE related_transfer_id IS NOT NULL;
+
+CREATE UNIQUE INDEX IF NOT EXISTS uniq_goal_contributions_transfer_linked_once
+  ON goal_contributions(user_id, related_transfer_id)
+  WHERE source_type = 'transfer_linked' AND related_transfer_id IS NOT NULL;
 
 DROP TRIGGER IF EXISTS goal_contributions_updated_at ON goal_contributions;
 CREATE TRIGGER goal_contributions_updated_at
