@@ -102,6 +102,7 @@ export function DashboardShell({
   const queryClient = useQueryClient()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [disponibleSheetOpen, setDisponibleSheetOpen] = useState(false)
+  const [disponibleSheetMode, setDisponibleSheetMode] = useState<'real' | 'libre'>('real')
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
   const [cuentasOpen, setCuentasOpen] = useState(false)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
@@ -298,6 +299,12 @@ export function DashboardShell({
       : effectiveHeroBalanceMode === 'combined_usd' && valuationRate && valuationRate > 0
         ? freeBreakdown.USD + freeBreakdown.ARS / valuationRate
         : freeBreakdown[currency]
+  const hasCommittedGoals = committedGoalsDisplayValue > 0
+
+  function openDisponibleSheet(mode: 'real' | 'libre') {
+    setDisponibleSheetMode(mode)
+    setDisponibleSheetOpen(true)
+  }
 
   const monthLabel = formatHomeMonth(selectedMonth)
 
@@ -411,41 +418,51 @@ export function DashboardShell({
             />
 
             {/* Disponible real card */}
-            <div className="card-s5">
-              <button
-                type="button"
-                className="flex w-full items-center gap-3 p-4 text-left transition-opacity active:opacity-70"
-                onClick={() => setDisponibleSheetOpen(true)}
-              >
+            <div className="card-s5 p-4">
+              <div className="flex items-start gap-3">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-primary/10">
                   <Wallet size={20} weight="regular" className="text-primary" />
                 </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
-                  <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
-                  <p className="mt-1 text-[11px] font-medium text-text-secondary">
-                    Libre hoy:{' '}
-                    <span className="tabular-nums text-text-primary">
-                      {amountsVisible
-                        ? formatAmount(freeDisplayValue, displayCurrency)
-                        : displayCurrency === 'USD'
-                          ? 'USD ****'
-                          : '$ ******'}
-                    </span>
-                  </p>
-                </div>
-                <span
-                  className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
-                  style={{ letterSpacing: '-0.01em' }}
+                <button
+                  type="button"
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity active:opacity-70"
+                  onClick={() => openDisponibleSheet('real')}
                 >
-                  {amountsVisible
-                    ? formatAmount(availableDisplayValue, displayCurrency)
-                    : displayCurrency === 'USD'
-                      ? 'USD ****'
-                      : '$ ******'}
-                </span>
-                <CaretRight size={13} weight="bold" className="mt-0.5 shrink-0 text-text-dim" />
-              </button>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
+                    <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
+                  </div>
+                  <span
+                    className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
+                    style={{ letterSpacing: '-0.01em' }}
+                  >
+                    {amountsVisible
+                      ? formatAmount(availableDisplayValue, displayCurrency)
+                      : displayCurrency === 'USD'
+                        ? 'USD ****'
+                        : '$ ******'}
+                  </span>
+                  <CaretRight size={13} weight="bold" className="mt-0.5 shrink-0 text-text-dim" />
+                </button>
+              </div>
+              {hasCommittedGoals ? (
+                <button
+                  type="button"
+                  onClick={() => openDisponibleSheet('libre')}
+                  className="mt-3 inline-flex items-center gap-1 rounded-pill bg-primary/10 px-2.5 py-1 text-[11px] font-medium text-primary transition-opacity hover:opacity-80"
+                >
+                  <span>
+                    Tenés{' '}
+                    {amountsVisible
+                      ? formatAmount(committedGoalsDisplayValue, displayCurrency)
+                      : displayCurrency === 'USD'
+                        ? 'USD ****'
+                        : '$ ******'}{' '}
+                    comprometidos en metas
+                  </span>
+                  <span className="font-semibold">Ver libre</span>
+                </button>
+              ) : null}
             </div>
 
             {/* Compromisos */}
@@ -525,8 +542,10 @@ export function DashboardShell({
       )}
 
       <DisponibleRealSheet
+        key={`${disponibleSheetMode}-${disponibleSheetOpen ? 'open' : 'closed'}`}
         open={disponibleSheetOpen}
         onClose={() => setDisponibleSheetOpen(false)}
+        initialMode={disponibleSheetMode}
         saldoVivo={heroValue}
         gastosTarjeta={gastosTarjeta}
         comprometidoMetas={committedGoalsDisplayValue}
