@@ -42,6 +42,8 @@ export async function GET(request: Request) {
   const activeMonedas = monedas.length >= 2 ? [] : monedas
   const quincenaParam = parseInt(searchParams.get('quincena') ?? '0', 10)
   const quincena = quincenaParam === 1 || quincenaParam === 2 ? (quincenaParam as 1 | 2) : null
+  const fechaInicio = searchParams.get('fechaInicio') ?? null
+  const fechaFin    = searchParams.get('fechaFin')    ?? null
 
   const supabase = await createClient()
   const {
@@ -53,8 +55,16 @@ export async function GET(request: Request) {
   const startOfMonth = selectedMonth + '-01'
   const endOfMonth = addMonths(selectedMonth, 1) + '-01'
 
-  const effectiveStart = quincena === 2 ? selectedMonth + '-16' : startOfMonth
-  const effectiveEnd = quincena === 1 ? selectedMonth + '-16' : endOfMonth
+  let effectiveStart = quincena === 2 ? selectedMonth + '-16' : startOfMonth
+  let effectiveEnd   = quincena === 1 ? selectedMonth + '-16' : endOfMonth
+
+  if (fechaInicio) effectiveStart = fechaInicio
+  if (fechaFin) {
+    // fechaFin es inclusivo; la query usa lt(), así que sumamos 1 día
+    const d = new Date(fechaFin + 'T12:00:00')
+    d.setDate(d.getDate() + 1)
+    effectiveEnd = d.toISOString().slice(0, 10)
+  }
 
   const wantsExpenses = tipos.length === 0 || tipos.some((t) => t === 'gasto' || t === 'suscripcion')
   const wantsIncome = tipos.length === 0 || tipos.includes('ingreso')

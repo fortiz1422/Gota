@@ -73,7 +73,11 @@ function matchesSet<T extends string>(current: T[], target: T[]): boolean {
   return current.length === target.length && target.every((item) => current.includes(item))
 }
 
-function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]): string {
+function fmtDate(d: string): string {
+  return d.slice(8) + '/' + d.slice(5, 7)
+}
+
+function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[], selectedMonth: string): string {
   const parts: string[] = []
   f.tipos.filter((t) => t !== 'suscripcion').forEach((t) => parts.push(TIPO_LABELS[t] ?? t))
   if (isPercibidosOrigen(f.origenes)) {
@@ -104,6 +108,17 @@ function buildFilterSummary(f: ActiveFilters, accounts: Account[], cards: Card[]
     f.monedas.forEach((m) => parts.push(m))
   }
   if (f.quincena) parts.push(f.quincena === 1 ? '1ra quincena' : '2da quincena')
+
+  if (f.fechaInicio || f.fechaFin) {
+    const [, month] = selectedMonth.split('-').map(Number)
+    const lastDay = new Date(Number(selectedMonth.split('-')[0]), month, 0).getDate()
+    const defaultStart = `${selectedMonth}-01`
+    const defaultEnd = `${selectedMonth}-${String(lastDay).padStart(2, '0')}`
+    const start = f.fechaInicio ?? defaultStart
+    const end = f.fechaFin ?? defaultEnd
+    parts.push(`${fmtDate(start)} → ${fmtDate(end)}`)
+  }
+
   return parts.join(' · ')
 }
 
@@ -170,6 +185,8 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           params.set('categorias', filters.categorias.join(','))
         if (filters.monedas.length > 0) params.set('monedas', filters.monedas.join(','))
         if (filters.quincena) params.set('quincena', String(filters.quincena))
+        if (filters.fechaInicio) params.set('fechaInicio', filters.fechaInicio)
+        if (filters.fechaFin) params.set('fechaFin', filters.fechaFin)
 
         const res = await fetch(`/api/movimientos?${params}`)
         if (!res.ok) throw new Error('fetch failed')
@@ -217,8 +234,14 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     router.refresh()
   }, [fetchMovements, selectedMonth, activeFilters, router])
 
-  const handlePrevMonth = () => setSelectedMonth((m) => addMonths(m, -1))
-  const handleNextMonth = () => setSelectedMonth((m) => addMonths(m, 1))
+  const handlePrevMonth = () => {
+    setSelectedMonth((m) => addMonths(m, -1))
+    setActiveFilters((prev) => ({ ...prev, fechaInicio: null, fechaFin: null }))
+  }
+  const handleNextMonth = () => {
+    setSelectedMonth((m) => addMonths(m, 1))
+    setActiveFilters((prev) => ({ ...prev, fechaInicio: null, fechaFin: null }))
+  }
 
   const handleOrigenClick = (origen: OrigenFilter) => {
     setActiveFilters((prev) => {
@@ -236,9 +259,11 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
   const handleQuickFilter = (quick: QuickFilterKey) => {
     setActiveFilters((prev) => {
       const preservedBase = {
-        cuentas: prev.cuentas,
-        monedas: prev.monedas,
-        quincena: prev.quincena,
+        cuentas:     prev.cuentas,
+        monedas:     prev.monedas,
+        quincena:    prev.quincena,
+        fechaInicio: prev.fechaInicio,
+        fechaFin:    prev.fechaFin,
       }
 
       switch (quick) {
@@ -293,7 +318,8 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     activeFilters.cuentas.length +
     activeFilters.categorias.length +
     activeFilters.monedas.length +
-    (activeFilters.quincena ? 1 : 0)
+    (activeFilters.quincena ? 1 : 0) +
+    (activeFilters.fechaInicio || activeFilters.fechaFin ? 1 : 0)
 
   const quickChipClass = (active: boolean) =>
     [
@@ -410,7 +436,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
               className="glass-1 flex min-w-0 max-w-[70%] items-center gap-1.5 rounded-pill py-1.5 pl-3 pr-2.5 transition-opacity active:opacity-60"
             >
               <span className="truncate text-[12px] font-medium text-primary">
-                {buildFilterSummary(activeFilters, accounts, cards)}
+                {buildFilterSummary(activeFilters, accounts, cards, selectedMonth)}
               </span>
               <X size={11} weight="bold" className="shrink-0 text-primary/60" />
             </button>
@@ -459,6 +485,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         accounts={accounts}
         cards={cards}
         categories={categories}
+        selectedMonth={selectedMonth}
       />
     </div>
   )

@@ -12,17 +12,20 @@ export type OrigenFilter  = 'percibido' | 'tarjeta' | 'pago_tarjeta'
 export type MonedaFilter  = 'ARS' | 'USD'
 
 export interface ActiveFilters {
-  tipos:      TipoFilter[]
-  origenes:   OrigenFilter[]
-  cuentas:    string[]
-  tarjetas:   string[]
-  categorias: string[]
-  monedas:    MonedaFilter[]
-  quincena:   1 | 2 | null
+  tipos:       TipoFilter[]
+  origenes:    OrigenFilter[]
+  cuentas:     string[]
+  tarjetas:    string[]
+  categorias:  string[]
+  monedas:     MonedaFilter[]
+  quincena:    1 | 2 | null
+  fechaInicio: string | null  // YYYY-MM-DD
+  fechaFin:    string | null  // YYYY-MM-DD
 }
 
 export const EMPTY_FILTERS: ActiveFilters = {
   tipos: [], origenes: [], cuentas: [], tarjetas: [], categorias: [], monedas: [], quincena: null,
+  fechaInicio: null, fechaFin: null,
 }
 
 export function countFilters(f: ActiveFilters): number {
@@ -33,7 +36,8 @@ export function countFilters(f: ActiveFilters): number {
     f.tarjetas.length +
     f.categorias.length +
     f.monedas.length +
-    (f.quincena ? 1 : 0)
+    (f.quincena ? 1 : 0) +
+    (f.fechaInicio || f.fechaFin ? 1 : 0)
   )
 }
 
@@ -83,16 +87,28 @@ function isTarjetaMode(origenes: OrigenFilter[]): boolean {
   return origenes.length === 1 && origenes[0] === 'tarjeta'
 }
 
+// ─── Date helpers ─────────────────────────────────────────────────────────────
+
+function monthBounds(ym: string): { start: string; end: string } {
+  const [year, month] = ym.split('-').map(Number)
+  const lastDay = new Date(year, month, 0).getDate()
+  return {
+    start: `${ym}-01`,
+    end: `${ym}-${String(lastDay).padStart(2, '0')}`,
+  }
+}
+
 // ─── Props ────────────────────────────────────────────────────────────────────
 
 interface Props {
-  open:       boolean
-  onClose:    () => void
-  onApply:    (f: ActiveFilters) => void
-  initial:    ActiveFilters
-  accounts:   Account[]
-  cards:      Card[]
-  categories: string[]
+  open:          boolean
+  onClose:       () => void
+  onApply:       (f: ActiveFilters) => void
+  initial:       ActiveFilters
+  accounts:      Account[]
+  cards:         Card[]
+  categories:    string[]
+  selectedMonth: string
 }
 
 // ─── Collapsible section header ───────────────────────────────────────────────
@@ -119,7 +135,7 @@ function SectionHeader({
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, categories }: Props) {
+export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, categories, selectedMonth }: Props) {
   const [f, setF]                       = useState<ActiveFilters>(initial)
   const [cuentasOpen, setCuentasOpen]   = useState(false)
   const [tarjetasOpen, setTarjetasOpen] = useState(false)
@@ -136,6 +152,7 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open])
 
+  const bounds       = monthBounds(selectedMonth)
   const showOrigen   = origenVisible(f.tipos)
   const tarjetaMode  = isTarjetaMode(f.origenes)
   const total        = countFilters(f)
@@ -317,6 +334,42 @@ export function FiltroSheet({ open, onClose, onApply, initial, accounts, cards, 
                 {label}
               </button>
             ))}
+          </div>
+        </div>
+
+        {/* 6. Período */}
+        <div>
+          <p className="type-label text-text-tertiary mb-3">Período</p>
+          <div className="flex items-end gap-2">
+            <div className="flex flex-1 flex-col gap-1.5">
+              <p className="text-[11px] text-text-disabled">Desde</p>
+              <input
+                type="date"
+                value={f.fechaInicio ?? bounds.start}
+                min={bounds.start}
+                max={f.fechaFin ?? bounds.end}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setF((prev) => ({ ...prev, fechaInicio: val === bounds.start ? null : val }))
+                }}
+                className="w-full rounded-xl border border-bg-secondary bg-white/60 px-3 py-2 text-[13px] text-text-primary outline-none focus:border-primary/40"
+              />
+            </div>
+            <span className="mb-2.5 text-[13px] text-text-disabled">→</span>
+            <div className="flex flex-1 flex-col gap-1.5">
+              <p className="text-[11px] text-text-disabled">Hasta</p>
+              <input
+                type="date"
+                value={f.fechaFin ?? bounds.end}
+                min={f.fechaInicio ?? bounds.start}
+                max={bounds.end}
+                onChange={(e) => {
+                  const val = e.target.value
+                  setF((prev) => ({ ...prev, fechaFin: val === bounds.end ? null : val }))
+                }}
+                className="w-full rounded-xl border border-bg-secondary bg-white/60 px-3 py-2 text-[13px] text-text-primary outline-none focus:border-primary/40"
+              />
+            </div>
           </div>
         </div>
 
