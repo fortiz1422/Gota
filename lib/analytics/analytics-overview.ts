@@ -61,9 +61,13 @@ export type AnalyticsHeroData = {
   deltaPct: number | null
 }
 
+export type AnalyticsComparisonScope = 'same_day' | 'full_month' | 'none'
+
 export type AnalyticsEvolutionData = {
   title: string
   subcopy: string | null
+  comparisonScope: AnalyticsComparisonScope
+  comparisonDay: number | null
   averageValue: number | null
   averageLabel: string | null
   series: Array<MonthlySeriesPoint & { value: number }>
@@ -343,23 +347,39 @@ export function resolveAnalyticsEvolution(params: {
   comparisonContext: AnalyticsComparisonContext
 }): AnalyticsEvolutionData {
   const { mode, monthlySeries, comparisonContext } = params
+  const comparablePreviousPoints = getComparablePreviousPoints(
+    monthlySeries,
+    comparisonContext.selectedMonth,
+  )
+  const availableComparisonMonths = comparablePreviousPoints.length
+  const rollingAverageWindowSize =
+    availableComparisonMonths >= 3 ? Math.min(availableComparisonMonths, 6) : null
+  const comparisonScope: AnalyticsComparisonScope =
+    availableComparisonMonths === 0
+      ? 'none'
+      : rollingAverageWindowSize && comparisonContext.isCurrentMonth
+        ? 'same_day'
+        : 'full_month'
+
+  const getEvolutionAmount = (point: MonthlySeriesPoint): number => {
+    if (comparisonScope === 'same_day') {
+      return getSameDayAmountForMode(point, mode) ?? 0
+    }
+
+    return getAmountForMode(point, mode)
+  }
+
   const series = monthlySeries.map((point) => ({
     ...point,
-    value: getAmountForMode(point, mode),
+    value: getEvolutionAmount(point),
     label: formatMonthShort(point.month),
   }))
 
-  const previousCompletePoints = getComparablePreviousPoints(
-    monthlySeries,
-    comparisonContext.selectedMonth,
-  ).map((point) => ({
+  const previousCompletePoints = comparablePreviousPoints.map((point) => ({
     ...point,
-    value: getAmountForMode(point, mode),
+    value: getEvolutionAmount(point),
     label: formatMonthShort(point.month),
   }))
-  const availableComparisonMonths = previousCompletePoints.length
-  const rollingAverageWindowSize =
-    availableComparisonMonths >= 3 ? Math.min(availableComparisonMonths, 6) : null
 
   let title = 'Últimos 6 meses'
   let subcopy = 'Tu promedio reciente sirve como referencia.'
@@ -380,12 +400,17 @@ export function resolveAnalyticsEvolution(params: {
     averageValue = null
   } else {
     title = 'Cómo viene evolucionando'
-    subcopy = 'Empiezan a aparecer señales de tendencia.'
+    if (comparisonScope === 'same_day' && comparisonContext.comparisonDay) {
+      subcopy = 'Comparado al mismo momento de tus últimos meses.'
+      averageLabel = `Promedio ${rollingAverageWindowSize}m al día ${comparisonContext.comparisonDay}`
+    }
   }
 
   return {
     title,
     subcopy,
+    comparisonScope,
+    comparisonDay: comparisonScope === 'same_day' ? comparisonContext.comparisonDay : null,
     averageValue,
     averageLabel,
     series,

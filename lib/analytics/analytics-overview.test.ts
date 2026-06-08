@@ -80,12 +80,39 @@ describe('analytics historical comparison rules', () => {
     expect(hero.subcopy).toContain('vs abril al día 30')
   })
 
-  it('uses the average of the last 3 real months from the fourth month onward', () => {
+  it('uses same-day averages in evolution for the current month once there are 3 comparable months', () => {
     const series = [
-      point({ month: '2026-01', percibidoTotal: 100, percibidoDevengadoTotal: 100 }),
-      point({ month: '2026-02', percibidoTotal: 150, percibidoDevengadoTotal: 150 }),
-      point({ month: '2026-03', percibidoTotal: 200, percibidoDevengadoTotal: 200 }),
-      point({ month: '2026-04', percibidoTotal: 210, percibidoDevengadoTotal: 210, isCurrent: true, isComplete: false }),
+      point({ month: '2026-01', percibidoTotal: 100, percibidoDevengadoTotal: 100, sameDayPercibidoTotal: 20 }),
+      point({ month: '2026-02', percibidoTotal: 200, percibidoDevengadoTotal: 200, sameDayPercibidoTotal: 40 }),
+      point({ month: '2026-03', percibidoTotal: 300, percibidoDevengadoTotal: 300, sameDayPercibidoTotal: 60 }),
+      point({ month: '2026-04', percibidoTotal: 500, percibidoDevengadoTotal: 500, sameDayPercibidoTotal: 80, isCurrent: true, isComplete: false }),
+    ]
+
+    const evolution = resolveAnalyticsEvolution({
+      mode: 'percibido',
+      monthlySeries: series,
+      comparisonContext: {
+        selectedMonth: '2026-04',
+        isCurrentMonth: true,
+        availableCompletedMonths: 99,
+        comparisonDay: 7,
+      },
+    })
+
+    expect(evolution.comparisonScope).toBe('same_day')
+    expect(evolution.comparisonDay).toBe(7)
+    expect(evolution.averageLabel).toBe('Promedio 3m al día 7')
+    expect(evolution.averageValue).toBeCloseTo(40)
+    expect(evolution.subcopy).toBe('Comparado al mismo momento de tus últimos meses.')
+    expect(evolution.series.map((point) => point.value)).toEqual([20, 40, 60, 80])
+  })
+
+  it('uses the average of the last 3 full months for closed months', () => {
+    const series = [
+      point({ month: '2026-01', percibidoTotal: 100, percibidoDevengadoTotal: 100, sameDayPercibidoTotal: 20 }),
+      point({ month: '2026-02', percibidoTotal: 150, percibidoDevengadoTotal: 150, sameDayPercibidoTotal: 30 }),
+      point({ month: '2026-03', percibidoTotal: 200, percibidoDevengadoTotal: 200, sameDayPercibidoTotal: 40 }),
+      point({ month: '2026-04', percibidoTotal: 210, percibidoDevengadoTotal: 210, sameDayPercibidoTotal: 50, isCurrent: true, isComplete: false }),
     ]
 
     const evolution = resolveAnalyticsEvolution({
@@ -99,7 +126,11 @@ describe('analytics historical comparison rules', () => {
       },
     })
 
+    expect(evolution.comparisonScope).toBe('full_month')
+    expect(evolution.comparisonDay).toBeNull()
     expect(evolution.averageLabel).toBe('Promedio 3m')
     expect(evolution.averageValue).toBeCloseTo(150)
+    expect(evolution.subcopy).toBe('Tu promedio reciente sirve como referencia.')
+    expect(evolution.series.map((point) => point.value)).toEqual([100, 150, 200, 210])
   })
 })
