@@ -107,6 +107,32 @@ describe('analytics historical comparison rules', () => {
     expect(evolution.series.map((point) => point.value)).toEqual([20, 40, 60, 80])
   })
 
+  it('trims leading placeholder months but keeps the first real month even if its same-day value is zero', () => {
+    const series = [
+      point({ month: '2026-01', percibidoTotal: 0, percibidoDevengadoTotal: 0, sameDayPercibidoTotal: 0 }),
+      point({ month: '2026-02', percibidoTotal: 0, percibidoDevengadoTotal: 0, sameDayPercibidoTotal: 0 }),
+      point({ month: '2026-03', percibidoTotal: 100, percibidoDevengadoTotal: 100, sameDayPercibidoTotal: 0 }),
+      point({ month: '2026-04', percibidoTotal: 200, percibidoDevengadoTotal: 200, sameDayPercibidoTotal: 40 }),
+      point({ month: '2026-05', percibidoTotal: 300, percibidoDevengadoTotal: 300, sameDayPercibidoTotal: 80 }),
+      point({ month: '2026-06', percibidoTotal: 450, percibidoDevengadoTotal: 450, sameDayPercibidoTotal: 120, isCurrent: true, isComplete: false }),
+    ]
+
+    const evolution = resolveAnalyticsEvolution({
+      mode: 'percibido',
+      monthlySeries: series,
+      comparisonContext: {
+        selectedMonth: '2026-06',
+        isCurrentMonth: true,
+        availableCompletedMonths: 99,
+        comparisonDay: 7,
+      },
+    })
+
+    expect(evolution.comparisonScope).toBe('same_day')
+    expect(evolution.series.map((point) => point.month)).toEqual(['2026-03', '2026-04', '2026-05', '2026-06'])
+    expect(evolution.series.map((point) => point.value)).toEqual([0, 40, 80, 120])
+  })
+
   it('uses the average of the last 3 full months for closed months', () => {
     const series = [
       point({ month: '2026-01', percibidoTotal: 100, percibidoDevengadoTotal: 100, sameDayPercibidoTotal: 20 }),

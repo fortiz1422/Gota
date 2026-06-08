@@ -374,6 +374,8 @@ export function resolveAnalyticsEvolution(params: {
     value: getEvolutionAmount(point),
     label: formatMonthShort(point.month),
   }))
+  const firstRealDataIdx = series.findIndex((point) => hasHistoricalData(point))
+  const visibleSeries = firstRealDataIdx > 0 ? series.slice(firstRealDataIdx) : series
 
   const previousCompletePoints = comparablePreviousPoints.map((point) => ({
     ...point,
@@ -413,7 +415,7 @@ export function resolveAnalyticsEvolution(params: {
     comparisonDay: comparisonScope === 'same_day' ? comparisonContext.comparisonDay : null,
     averageValue,
     averageLabel,
-    series,
+    series: visibleSeries,
   }
 }
 
