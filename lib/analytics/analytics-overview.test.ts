@@ -107,6 +107,33 @@ describe('analytics historical comparison rules', () => {
     expect(evolution.series.map((point) => point.value)).toEqual([20, 40, 60, 80])
   })
 
+  it('uses the current month same-day amount in hero when comparing against same-day averages', () => {
+    const series = [
+      point({ month: '2026-01', percibidoTotal: 100, percibidoDevengadoTotal: 100, sameDayPercibidoTotal: 100 }),
+      point({ month: '2026-02', percibidoTotal: 150, percibidoDevengadoTotal: 150, sameDayPercibidoTotal: 150 }),
+      point({ month: '2026-03', percibidoTotal: 200, percibidoDevengadoTotal: 200, sameDayPercibidoTotal: 200 }),
+      point({ month: '2026-04', percibidoTotal: 240, percibidoDevengadoTotal: 240, sameDayPercibidoTotal: 144, isCurrent: true, isComplete: false }),
+    ]
+
+    const hero = resolveAnalyticsHero({
+      mode: 'percibido',
+      monthlySeries: series,
+      comparisonContext: {
+        selectedMonth: '2026-04',
+        isCurrentMonth: true,
+        availableCompletedMonths: 99,
+        comparisonDay: 8,
+      },
+      metrics: baseMetrics,
+      compromisos: baseCompromisos,
+    })
+
+    expect(hero.benchmarkLabel).toBe('promedio 3m a esta altura')
+    expect(hero.deltaPct).toBe(-4)
+    expect(hero.headline).toBe('Abril en línea con tu promedio')
+    expect(hero.subcopy).toContain('vs promedio 3m a esta altura -4%')
+  })
+
   it('trims leading placeholder months but keeps the first real month even if its same-day value is zero', () => {
     const series = [
       point({ month: '2026-01', percibidoTotal: 0, percibidoDevengadoTotal: 0, sameDayPercibidoTotal: 0 }),

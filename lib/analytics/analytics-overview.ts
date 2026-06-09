@@ -213,7 +213,17 @@ export function resolveAnalyticsHero(params: {
   const { mode, monthlySeries, comparisonContext, metrics, compromisos } = params
   const selectedPoint =
     monthlySeries.find((point) => point.month === comparisonContext.selectedMonth) ?? null
-  const amount = selectedPoint ? getAmountForMode(selectedPoint, mode) : 0
+  const comparablePreviousPoints = getComparablePreviousPoints(
+    monthlySeries,
+    comparisonContext.selectedMonth,
+  )
+  const availableComparisonMonths = comparablePreviousPoints.length
+  const useSameDayAmount = comparisonContext.isCurrentMonth && availableComparisonMonths >= 3
+  const amount = selectedPoint
+    ? useSameDayAmount
+      ? (getSameDayAmountForMode(selectedPoint, mode) ?? 0)
+      : getAmountForMode(selectedPoint, mode)
+    : 0
 
   if (!selectedPoint || amount === 0) {
     return {
@@ -228,12 +238,6 @@ export function resolveAnalyticsHero(params: {
       deltaPct: null,
     }
   }
-
-  const comparablePreviousPoints = getComparablePreviousPoints(
-    monthlySeries,
-    comparisonContext.selectedMonth,
-  )
-  const availableComparisonMonths = comparablePreviousPoints.length
 
   if (availableComparisonMonths === 0) {
     return {
