@@ -7,7 +7,7 @@ import { signInAnonymously, signInWithGoogle, sendOtpEmail, verifyOtpToken } fro
 
 function IconChevronLeft() {
   return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
       <path
         d="M15 19L8 12L15 5"
         stroke="rgba(255,255,255,0.9)"
@@ -90,77 +90,33 @@ function IconCheck() {
   )
 }
 
-function IconInfo() {
+function IconEye({ className = '' }: { className?: string }) {
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M12 8V8.5M12 11V16" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+        stroke="currentColor"
+        strokeWidth="1.5"
+      />
+      <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5" />
     </svg>
   )
 }
 
-// ── Layout primitives ──────────────────────────────────────────────────────────
-
-function Hero({
-  compact = false,
-  onBack,
-  children,
-}: {
-  compact?: boolean
-  onBack?: () => void
-  children: React.ReactNode
-}) {
+function IconEyeSlash({ className = '' }: { className?: string }) {
   return (
-    <div
-      className="blue-zone relative overflow-hidden px-6"
-      style={{
-        paddingTop: `calc(env(safe-area-inset-top) + ${compact ? 20 : 28}px)`,
-        paddingBottom: compact ? 52 : 48,
-      }}
-    >
-      {/* dot grid overlay */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          backgroundImage: 'radial-gradient(rgba(255,255,255,0.055) 1px, transparent 1px)',
-          backgroundSize: '24px 24px',
-        }}
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
+      <path
+        d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24M1 1l22 22"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
       />
-      <div className="relative z-10">
-        {onBack && (
-          <button
-            onClick={onBack}
-            className="mb-[18px] flex items-center gap-1 rounded-full bg-white/[0.14] px-3.5 py-[7px]"
-          >
-            <IconChevronLeft />
-            <span className="text-[13px] text-white/90">Volver</span>
-          </button>
-        )}
-        {children}
-      </div>
-    </div>
+    </svg>
   )
 }
 
-function Sheet({
-  children,
-  center = false,
-}: {
-  children: React.ReactNode
-  center?: boolean
-}) {
-  return (
-    <div
-      className={`relative z-10 -mt-7 flex flex-1 flex-col overflow-y-auto overscroll-contain rounded-[28px] rounded-b-none bg-bg-primary ${
-        center ? 'items-center justify-center gap-3.5 px-6 py-10 text-center' : ''
-      }`}
-      style={{ WebkitOverflowScrolling: 'touch' }}
-    >
-      {children}
-    </div>
-  )
-}
+// ── Wordmark ──────────────────────────────────────────────────────────────────
 
 function Wordmark({ size = 52, onDark = true }: { size?: number; onDark?: boolean }) {
   return (
@@ -181,10 +137,66 @@ function Wordmark({ size = 52, onDark = true }: { size?: number; onDark?: boolea
   )
 }
 
+// ── CompactHero — for OTP / Explore screens ───────────────────────────────────
+
+function CompactHero({
+  onBack,
+  children,
+}: {
+  onBack?: () => void
+  children: React.ReactNode
+}) {
+  return (
+    <div
+      className="blue-zone relative overflow-hidden px-6"
+      style={{
+        paddingTop: `calc(env(safe-area-inset-top) + 20px)`,
+        paddingBottom: 52,
+      }}
+    >
+      <div className="relative z-10">
+        {onBack && (
+          <button
+            onClick={onBack}
+            className="mb-[18px] flex items-center gap-1.5 rounded-full border border-white/20 bg-white/[0.14] px-3.5 py-[7px]"
+          >
+            <IconChevronLeft />
+            <span className="text-[13px] text-white/90">Volver</span>
+          </button>
+        )}
+        {children}
+      </div>
+    </div>
+  )
+}
+
+// ── Sheet — white zone for secondary screens ──────────────────────────────────
+
+function Sheet({
+  children,
+  center = false,
+}: {
+  children: React.ReactNode
+  center?: boolean
+}) {
+  return (
+    <div
+      className={`relative z-10 flex flex-1 flex-col overflow-y-auto overscroll-contain rounded-[28px] rounded-b-none bg-bg-primary ${
+        center ? 'items-center justify-center gap-3.5 px-6 py-10 text-center' : ''
+      }`}
+      style={{ marginTop: -24, WebkitOverflowScrolling: 'touch' }}
+    >
+      {children}
+    </div>
+  )
+}
+
+// ── CTAZone — sticky bottom CTA block ─────────────────────────────────────────
+
 function CTAZone({ children }: { children: React.ReactNode }) {
   return (
     <div
-      className="sticky bottom-0 mt-6 flex flex-col gap-2.5 border-t border-black/[0.06] bg-white/92 px-5 pt-4 backdrop-blur-xl"
+      className="sticky bottom-0 flex flex-col gap-2.5 border-t border-black/[0.06] bg-white/92 px-5 pt-4 backdrop-blur-xl"
       style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
     >
       {children}
@@ -192,206 +204,241 @@ function CTAZone({ children }: { children: React.ReactNode }) {
   )
 }
 
-// ── Screen 1 — Splash ──────────────────────────────────────────────────────────
+// ── Screen 1 — Entry (Option B: "La entrada ES el producto") ──────────────────
 
-function SplashScreen({
-  onGoogle,
-  onEmail,
+function EntryScreen({
+  onEmailContinue,
   onExplore,
 }: {
-  onGoogle: () => void
-  onEmail: () => void
+  onEmailContinue: (email: string) => void
   onExplore: () => void
 }) {
-  const [bal, setBal] = useState(0)
-  const TARGET = 14788.47
+  const [masked, setMasked] = useState(false)
+  const [googleLoading, setGoogleLoading] = useState(false)
+  const [googleError, setGoogleError] = useState<string | null>(null)
+  const [emailOpen, setEmailOpen] = useState(false)
+  const [emailValue, setEmailValue] = useState('')
+  const [emailSending, setEmailSending] = useState(false)
+  const [emailError, setEmailError] = useState<string | null>(null)
+  const emailRef = useRef<HTMLInputElement>(null)
+
+  const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailValue)
 
   useEffect(() => {
-    let v = 0
-    const step = TARGET / 70
-    const id = setInterval(() => {
-      v += step
-      if (v >= TARGET) {
-        setBal(TARGET)
-        clearInterval(id)
-      } else {
-        setBal(v)
-      }
-    }, 18)
-    return () => clearInterval(id)
-  }, [])
+    if (emailOpen) {
+      emailRef.current?.focus()
+    }
+  }, [emailOpen])
 
-  return (
-    <div className="min-h-app flex flex-col">
-      <Hero>
-        <Wordmark size={52} onDark />
-        <p className="mt-2 text-base italic font-normal text-white/70">Tu plata, clara.</p>
-      </Hero>
-
-      <Sheet>
-        {/* Saldo Vivo preview */}
-        <div className="px-5 pt-7">
-          <div className="rounded-[20px] bg-white p-[18px] shadow-[0_2px_16px_rgba(13,24,41,0.07)]">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.9px] text-primary">
-              Saldo Vivo
-            </p>
-            <p className="text-[30px] font-extrabold leading-none tracking-[-0.03em] text-text-primary">
-              USD{' '}
-              {bal.toLocaleString('es-AR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-            <div className="mt-1.5 flex items-center gap-2.5">
-              <span className="text-[13px] font-medium text-primary">ARS 10.633.632</span>
-              <span className="text-[11px] text-text-dim">|</span>
-              <span className="text-[13px] font-medium text-primary">USD 7.300,00</span>
-            </div>
-            <div className="mt-3.5 flex items-center gap-3 border-t border-black/[0.06] pt-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/[0.08] text-primary">
-                <IconCard />
-              </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-semibold text-text-primary">Disponible real</p>
-                <p className="mt-0.5 text-[12px] text-text-secondary">
-                  Ya descuenta deuda en tarjeta
-                </p>
-              </div>
-              <p className="text-sm font-bold text-text-primary">USD 12.606,08</p>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex-1" />
-
-        <CTAZone>
-          <button
-            onClick={onGoogle}
-            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-text-primary py-[15px] text-[15px] font-semibold text-white"
-          >
-            <IconGoogle /> Continuar con Google
-          </button>
-          <button
-            onClick={onEmail}
-            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-black/10 bg-white py-[15px] text-[15px] font-semibold text-text-primary shadow-sm"
-          >
-            <IconMail className="text-text-secondary" /> Continuar con email
-          </button>
-          <div className="my-0.5 h-px bg-black/[0.08]" />
-          <button
-            onClick={onExplore}
-            className="flex w-full items-center justify-center gap-2 py-[13px] text-sm font-medium text-text-dim"
-          >
-            <IconGhost /> Explorar sin cuenta
-          </button>
-          <p className="text-center text-[11px] leading-relaxed text-text-dim">
-            Al continuar aceptás los{' '}
-            <span className="text-primary">Términos de uso</span> y la{' '}
-            <span className="text-primary">Política de privacidad</span>
-          </p>
-        </CTAZone>
-      </Sheet>
-    </div>
-  )
-}
-
-// ── Screen 2 — Email ───────────────────────────────────────────────────────────
-
-function EmailScreen({
-  onBack,
-  onContinue,
-}: {
-  onBack: () => void
-  onContinue: (email: string) => void
-}) {
-  const [email, setEmail] = useState('')
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const valid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-
-  const handleSubmit = async () => {
-    if (!valid || loading) return
-    setLoading(true)
-    setError(null)
-    const { error } = await sendOtpEmail(email.trim())
-    setLoading(false)
+  const handleGoogle = async () => {
+    setGoogleLoading(true)
+    setGoogleError(null)
+    const { data, error } = await signInWithGoogle()
+    setGoogleLoading(false)
     if (error) {
-      setError(error.message)
+      setGoogleError(error.message)
       return
     }
-    onContinue(email.trim())
+    if (data?.url) window.location.href = data.url
+  }
+
+  const handleEmailSend = async () => {
+    if (!emailValid || emailSending) return
+    setEmailSending(true)
+    setEmailError(null)
+    const { error } = await sendOtpEmail(emailValue.trim())
+    setEmailSending(false)
+    if (error) {
+      setEmailError(error.message)
+      return
+    }
+    onEmailContinue(emailValue.trim())
   }
 
   return (
     <div className="min-h-app flex flex-col">
-      <Hero compact onBack={onBack}>
-        <Wordmark size={26} onDark />
-        <p className="mt-1.5 text-[14px] text-white/65">Ingresá tu email para continuar</p>
-      </Hero>
-
-      <Sheet>
-        <div className="flex flex-col gap-3 px-5 pt-7">
-          <div className="rounded-[20px] bg-white p-[18px] shadow-[0_2px_16px_rgba(13,24,41,0.07)]">
-            <label className="mb-1.5 block text-[12px] font-semibold text-text-secondary">
-              Email
-            </label>
-            <div className="relative">
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-secondary">
-                <IconMail />
-              </span>
-              <input
-                type="email"
-                placeholder="tu@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-                autoFocus
-                className="w-full rounded-[12px] border bg-bg-secondary py-[13px] pl-[42px] pr-3.5 text-[15px] text-text-primary outline-none transition-[border-color]"
-                style={{ borderColor: valid ? 'rgba(33,120,168,0.35)' : 'transparent' }}
-              />
-            </div>
-            <p className="mt-1.5 text-[12px] leading-snug text-text-dim">
-              Te enviamos un código de 6 dígitos. Puede estar en spam.
-            </p>
+      {/* Hero — Blue zone con Saldo Vivo */}
+      <div
+        className="blue-zone px-[22px]"
+        style={{
+          paddingTop: `calc(env(safe-area-inset-top) + 20px)`,
+          paddingBottom: 58,
+        }}
+      >
+        {/* Fila: Wordmark + Ejemplo chip */}
+        <div className="mb-7 flex items-center justify-between">
+          <Wordmark size={26} onDark />
+          <div className="header-glass flex items-center gap-1.5 rounded-full px-3 py-[6px]">
+            <div className="h-[5px] w-[5px] rounded-full bg-white/55" />
+            <span className="text-[11px] font-semibold text-white/80">Así se ve · Ejemplo</span>
           </div>
-
-          <div
-            className="flex items-start gap-2 rounded-[12px] px-3 py-2.5"
-            style={{ background: 'rgba(33,120,168,0.05)' }}
-          >
-            <span className="mt-px shrink-0 text-text-dim">
-              <IconInfo />
-            </span>
-            <p className="text-[12px] leading-snug text-text-secondary">
-              Si es tu primera vez, te creamos una cuenta automáticamente. Si ya tenés una,
-              ingresás directo.
-            </p>
-          </div>
-
-          {error && <p className="text-[13px] text-danger">{error}</p>}
         </div>
+
+        {/* Label */}
+        <p
+          className="mb-[10px] text-[10px] font-bold uppercase tracking-[0.8px] text-white/55"
+        >
+          SALDO VIVO
+        </p>
+
+        {/* Balance + eye toggle */}
+        <div className="flex items-center justify-between">
+          <p
+            className="font-extrabold leading-none tracking-[-0.03em] text-white"
+            style={{ fontSize: 40 }}
+          >
+            {masked ? '$ ··.···.···' : '$ 10.633.632'}
+          </p>
+          <button
+            onClick={() => setMasked((m) => !m)}
+            className="header-glass ml-3 shrink-0 rounded-full p-2"
+            aria-label={masked ? 'Mostrar saldo' : 'Ocultar saldo'}
+          >
+            {masked
+              ? <IconEye className="text-white/80" />
+              : <IconEyeSlash className="text-white/80" />
+            }
+          </button>
+        </div>
+
+        {/* Breakdown */}
+        <p className="mt-[6px] text-[13px] font-medium text-white/60">
+          {masked ? '·· · ··' : 'ARS 10.633.632 · USD 7.300'}
+        </p>
+      </div>
+
+      {/* Zona blanca */}
+      <div className="flex flex-1 flex-col bg-bg-primary" style={{ marginTop: -24 }}>
+        {/* Disponible real — card-s5 (overlapping) */}
+        <div className="card-s5 mx-[22px] flex items-center gap-3 p-[18px]">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/[0.08] text-primary">
+            <IconCard />
+          </div>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-semibold text-text-primary">Disponible real</p>
+            <p className="mt-0.5 text-[12px] leading-snug text-text-secondary">
+              Ya descuenta deuda en tarjeta
+            </p>
+          </div>
+          <p className="shrink-0 text-[14px] font-bold text-text-primary">
+            {masked ? '···' : '$ 8.240.100'}
+          </p>
+        </div>
+
+        {/* Framing */}
+        <p className="px-[22px] pt-4 text-[13px] leading-snug text-text-tertiary">
+          Tu plata, clara en un vistazo.
+        </p>
 
         <div className="flex-1" />
 
-        <CTAZone>
+        {/* Access block — sticky bottom */}
+        <div
+          className="sticky bottom-0 border-t border-black/[0.06] bg-white/92 px-5 pt-4 backdrop-blur-xl"
+          style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 20px)' }}
+        >
+          {/* Google — CTA primario */}
           <button
-            onClick={handleSubmit}
-            disabled={!valid || loading}
-            className={`w-full rounded-[14px] py-[16px] text-[15px] font-semibold transition-all ${
-              valid
-                ? 'bg-text-primary text-white'
-                : 'cursor-default bg-bg-secondary text-text-dim'
-            }`}
+            onClick={handleGoogle}
+            disabled={googleLoading}
+            className="mb-[10px] flex w-full items-center justify-center gap-2.5 rounded-[12px] bg-primary py-[15px] text-[15px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
           >
-            {loading ? 'Enviando...' : 'Enviar código'}
+            <IconGoogle />
+            {googleLoading ? 'Redirigiendo...' : 'Continuar con Google'}
           </button>
-        </CTAZone>
-      </Sheet>
+
+          {/* Email — cerrado */}
+          {!emailOpen && (
+            <button
+              onClick={() => setEmailOpen(true)}
+              className="mb-[10px] flex w-full items-center justify-center gap-2.5 rounded-[12px] border border-black/10 bg-white py-[15px] text-[15px] font-semibold text-text-primary shadow-sm transition-all active:scale-[0.98]"
+            >
+              <IconMail className="text-text-secondary" />
+              Continuar con email
+            </button>
+          )}
+
+          {/* Email — expandido inline */}
+          {emailOpen && (
+            <div
+              className="mb-[10px] rounded-[12px] border bg-bg-secondary px-4 pb-[14px] pt-[14px]"
+              style={{ borderColor: emailError ? 'rgba(166,30,30,0.35)' : 'rgba(33,120,168,0.25)' }}
+            >
+              <label className="mb-[10px] block text-[10px] font-bold uppercase tracking-[0.08em] text-text-tertiary">
+                Email
+              </label>
+              <input
+                ref={emailRef}
+                type="email"
+                placeholder="tu@email.com"
+                value={emailValue}
+                onChange={(e) => {
+                  setEmailValue(e.target.value)
+                  setEmailError(null)
+                }}
+                onKeyDown={(e) => e.key === 'Enter' && handleEmailSend()}
+                className="mb-[10px] w-full bg-transparent text-[16px] font-medium text-text-primary outline-none placeholder:text-text-disabled"
+              />
+              {emailError && (
+                <p className="mb-[10px] text-[12px] text-danger">{emailError}</p>
+              )}
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    setEmailOpen(false)
+                    setEmailValue('')
+                    setEmailError(null)
+                  }}
+                  className="px-3 py-[10px] text-[13px] font-medium text-text-tertiary"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleEmailSend}
+                  disabled={!emailValid || emailSending}
+                  className="flex-1 rounded-[10px] bg-primary py-[10px] text-[13px] font-semibold text-white transition-all disabled:opacity-30"
+                >
+                  {emailSending ? 'Enviando...' : 'Enviar código'}
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Separador */}
+          <div className="my-[6px] h-px bg-black/[0.07]" />
+
+          {/* Explorar — acción terciaria */}
+          <button
+            onClick={onExplore}
+            className="flex w-full flex-col items-center py-[10px] transition-opacity active:opacity-60"
+          >
+            <span className="flex items-center gap-1.5 text-[14px] font-medium text-text-secondary">
+              <IconGhost />
+              Explorar sin cuenta
+            </span>
+            <span className="mt-[3px] text-[11px] text-text-dim">
+              Los datos quedan en este dispositivo
+            </span>
+          </button>
+
+          {/* Error Google */}
+          {googleError && (
+            <p className="mt-1 text-center text-[12px] text-danger">{googleError}</p>
+          )}
+
+          {/* Legal */}
+          <p className="mt-2 text-center text-[11px] leading-relaxed text-text-dim">
+            Al continuar aceptás los{' '}
+            <span className="font-medium text-primary">Términos de uso</span> y la{' '}
+            <span className="font-medium text-primary">Política de privacidad</span>
+          </p>
+        </div>
+      </div>
     </div>
   )
 }
 
-// ── Screen 3 — OTP ─────────────────────────────────────────────────────────────
+// ── Screen 2 — OTP ─────────────────────────────────────────────────────────────
 
 function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
   const [code, setCode] = useState(['', '', '', '', '', ''])
@@ -460,9 +507,9 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
   if (verified) {
     return (
       <div className="min-h-app flex flex-col">
-        <Hero compact>
+        <CompactHero>
           <div className="h-5" />
-        </Hero>
+        </CompactHero>
         <Sheet center>
           <IconCheck />
           <h2 className="text-[24px] font-extrabold tracking-[-0.02em] text-text-primary">
@@ -476,12 +523,12 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
 
   return (
     <div className="min-h-app flex flex-col">
-      <Hero compact onBack={onBack}>
+      <CompactHero onBack={onBack}>
         <h2 className="text-[20px] font-extrabold tracking-[-0.02em] text-white">
           Ingresá el código
         </h2>
         <p className="mt-1 text-[13px] text-white/65">{masked}</p>
-      </Hero>
+      </CompactHero>
 
       <Sheet>
         <div className="px-5 pt-7">
@@ -540,9 +587,9 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
           <button
             onClick={() => full && !verifying && handleVerify(code.join(''))}
             disabled={!full || verifying}
-            className={`w-full rounded-[14px] py-[16px] text-[15px] font-semibold transition-all ${
+            className={`w-full rounded-[12px] py-[16px] text-[15px] font-semibold transition-all ${
               full
-                ? 'bg-text-primary text-white'
+                ? 'bg-primary text-white active:scale-[0.98]'
                 : 'cursor-default bg-bg-secondary text-text-dim'
             }`}
           >
@@ -554,7 +601,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
   )
 }
 
-// ── Screen 4 — Explore ─────────────────────────────────────────────────────────
+// ── Screen 3 — Explore ─────────────────────────────────────────────────────────
 
 function ExploreScreen({ onBack }: { onBack: () => void }) {
   const [loading, setLoading] = useState(false)
@@ -585,15 +632,15 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
 
   return (
     <div className="min-h-app flex flex-col">
-      <Hero compact onBack={onBack}>
+      <CompactHero onBack={onBack}>
         <Wordmark size={26} onDark />
         <p className="mt-1.5 text-[14px] text-white/65">Modo exploración</p>
-      </Hero>
+      </CompactHero>
 
       <Sheet>
         <div className="px-5 pt-7">
           <div className="rounded-[20px] bg-white p-[18px] shadow-[0_2px_16px_rgba(13,24,41,0.07)]">
-            <p className="mb-3 text-[12px] font-bold uppercase tracking-[0.7px] text-primary">
+            <p className="mb-3 text-[11px] font-bold uppercase tracking-[0.7px] text-primary">
               Podés explorar
             </p>
             {canDo.map((item, i) => (
@@ -607,7 +654,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
                 <span className="text-[14px] text-text-primary">{item}</span>
               </div>
             ))}
-            <p className="mb-3 mt-4 text-[12px] font-bold uppercase tracking-[0.7px] text-text-dim">
+            <p className="mb-3 mt-4 text-[11px] font-bold uppercase tracking-[0.7px] text-text-dim">
               Sin cuenta no podés
             </p>
             {cantDo.map((item, i) => (
@@ -634,7 +681,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
           <button
             onClick={handleEnter}
             disabled={loading}
-            className="flex w-full items-center justify-center rounded-[14px] bg-text-primary py-[15px] text-[15px] font-semibold text-white disabled:opacity-50"
+            className="flex w-full items-center justify-center rounded-[12px] bg-primary py-[15px] text-[15px] font-semibold text-white transition-all active:scale-[0.98] disabled:opacity-60"
           >
             {loading ? 'Entrando...' : 'Entrar sin cuenta'}
           </button>
@@ -652,40 +699,28 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
 
 // ── Root ───────────────────────────────────────────────────────────────────────
 
-type Screen = 'splash' | 'email' | 'otp' | 'explore'
+type Screen = 'entry' | 'otp' | 'explore'
 
 export function LoginButton() {
-  const [screen, setScreen] = useState<Screen>('splash')
+  const [screen, setScreen] = useState<Screen>('entry')
   const [otpEmail, setOtpEmail] = useState('')
-
-  const handleGoogle = async () => {
-    const { data, error } = await signInWithGoogle()
-    if (error) return
-    if (data?.url) window.location.href = data.url
-  }
-
-  const handleEmailContinue = (email: string) => {
-    setOtpEmail(email)
-    setScreen('otp')
-  }
 
   return (
     <div className="min-h-app flex flex-col bg-bg-primary">
-      {screen === 'splash' && (
-        <SplashScreen
-          onGoogle={handleGoogle}
-          onEmail={() => setScreen('email')}
+      {screen === 'entry' && (
+        <EntryScreen
+          onEmailContinue={(email) => {
+            setOtpEmail(email)
+            setScreen('otp')
+          }}
           onExplore={() => setScreen('explore')}
         />
       )}
-      {screen === 'email' && (
-        <EmailScreen onBack={() => setScreen('splash')} onContinue={handleEmailContinue} />
-      )}
       {screen === 'otp' && (
-        <OTPScreen email={otpEmail} onBack={() => setScreen('email')} />
+        <OTPScreen email={otpEmail} onBack={() => setScreen('entry')} />
       )}
       {screen === 'explore' && (
-        <ExploreScreen onBack={() => setScreen('splash')} />
+        <ExploreScreen onBack={() => setScreen('entry')} />
       )}
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CaretLeft } from '@phosphor-icons/react'
+import { StepHeader } from '../components/StepHeader'
 import { trackEvent } from '@/lib/product-analytics/client'
 
 type AccountType = 'bank' | 'digital' | 'cash'
@@ -63,7 +63,7 @@ export function OnboardStep3Cuenta({ onBack, onNext }: Props) {
       trackEvent('first_account_created', { account_type: type })
       onNext(account.id, name.trim(), type)
     } catch {
-      setError('Error al crear la cuenta. Intenta de nuevo.')
+      setError('Error al crear la cuenta. Tus datos quedan guardados acá.')
     } finally {
       setIsSaving(false)
     }
@@ -74,22 +74,25 @@ export function OnboardStep3Cuenta({ onBack, onNext }: Props) {
       className="min-h-app flex flex-col bg-bg-primary"
       style={{ animation: 'onboardIn 0.22s cubic-bezier(.4,0,.2,1)' }}
     >
-      {/* Nav */}
-      <OnboardNav onBack={onBack} dotIndex={1} />
+      {/* Header azul con progreso */}
+      <StepHeader step={2} onBack={onBack} />
 
-      {/* Head */}
+      {/* Pregunta */}
       <div className="px-[26px] pb-[22px] pt-5">
-        <p className="mb-2 text-[28px] font-extrabold leading-[1.1] text-text-primary" style={{ letterSpacing: '-0.02em' }}>
+        <p
+          className="mb-2 font-extrabold leading-[1.1] text-text-primary"
+          style={{ fontSize: 28, letterSpacing: '-0.02em' }}
+        >
           ¿Cuál es tu<br />cuenta principal?
         </p>
         <p className="text-[14px] font-normal leading-relaxed text-text-tertiary">
-          Podés agregar más después.
+          Es el punto de partida de tu Saldo Vivo. Podés agregar más después.
         </p>
       </div>
 
-      {/* Content */}
+      {/* Contenido */}
       <div className="flex flex-1 flex-col px-6">
-        {/* Big input */}
+        {/* Input grande */}
         <div className="mb-5">
           <p className="mb-[10px] text-[11px] font-bold uppercase tracking-[0.09em] text-text-tertiary">
             Nombre
@@ -152,7 +155,9 @@ export function OnboardStep3Cuenta({ onBack, onNext }: Props) {
 
       {/* Error */}
       {error && (
-        <p className="mx-6 mb-2 text-[13px] text-danger">{error}</p>
+        <div className="mx-6 mb-2 rounded-[12px] bg-danger-soft px-4 py-3">
+          <p className="text-[13px] font-medium text-danger">{error}</p>
+        </div>
       )}
 
       {/* CTA */}
@@ -160,36 +165,10 @@ export function OnboardStep3Cuenta({ onBack, onNext }: Props) {
         <button
           onClick={handleContinue}
           disabled={!canContinue || isSaving}
-          className="w-full rounded-full py-[17px] text-[15px] font-bold tracking-[0.01em] text-white transition-all active:scale-[0.97] hover:opacity-90 disabled:opacity-25 disabled:cursor-not-allowed disabled:active:scale-100"
-          style={{ background: 'var(--color-text-primary)' }}
+          className="w-full rounded-full bg-primary py-[17px] text-[15px] font-bold tracking-[0.01em] text-white transition-all active:scale-[0.97] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-25 disabled:active:scale-100"
         >
-          {isSaving ? 'Creando...' : 'Continuar'}
+          {isSaving ? 'Creando...' : canContinue ? 'Continuar' : 'Elegí una cuenta'}
         </button>
-      </div>
-    </div>
-  )
-}
-
-function OnboardNav({ onBack, dotIndex }: { onBack: () => void; dotIndex: number }) {
-  return (
-    <div className="relative flex h-12 shrink-0 items-center px-5 pt-safe-top">
-      <button
-        onClick={onBack}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-secondary transition-colors hover:bg-primary/8"
-      >
-        <CaretLeft size={18} weight="bold" className="text-text-secondary" />
-      </button>
-      <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-[5px]">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-1 rounded-full transition-all duration-300"
-            style={{
-              width: i === dotIndex ? 20 : 4,
-              background: i === dotIndex ? 'var(--color-primary)' : 'var(--color-text-disabled)',
-            }}
-          />
-        ))}
       </div>
     </div>
   )

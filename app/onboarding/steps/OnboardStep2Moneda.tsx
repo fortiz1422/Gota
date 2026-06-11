@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CaretLeft } from '@phosphor-icons/react'
+import { StepHeader } from '../components/StepHeader'
 
 type CurrencyChoice = 'ARS' | 'USD' | 'BOTH'
 type VizChoice = 'ARS' | 'USD'
@@ -52,7 +52,7 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
         body: JSON.stringify({ default_currency: defaultCurrency, hero_balance_mode: heroMode }),
       })
     } catch {
-      // best effort — persisted in Done step too
+      // best effort
     }
 
     setIsSaving(false)
@@ -69,12 +69,15 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
       className="min-h-app flex flex-col bg-bg-primary"
       style={{ animation: 'onboardIn 0.22s cubic-bezier(.4,0,.2,1)' }}
     >
-      {/* Nav */}
-      <OnboardNav onBack={onBack} dotIndex={0} />
+      {/* Header azul con progreso */}
+      <StepHeader step={1} onBack={onBack} />
 
-      {/* Head */}
+      {/* Pregunta */}
       <div className="px-[26px] pb-[22px] pt-5">
-        <p className="mb-2 text-[28px] font-extrabold leading-[1.1] text-text-primary" style={{ letterSpacing: '-0.02em' }}>
+        <p
+          className="mb-2 font-extrabold leading-[1.1] text-text-primary"
+          style={{ fontSize: 28, letterSpacing: '-0.02em' }}
+        >
           ¿En qué monedas<br />operás?
         </p>
         <p className="text-[14px] font-normal leading-relaxed text-text-tertiary">
@@ -82,7 +85,7 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
         </p>
       </div>
 
-      {/* Currency options */}
+      {/* Opciones de moneda */}
       <div className="flex flex-col gap-2 px-6">
         {CURRENCY_OPTS.map((opt) => {
           const sel = currency === opt.value
@@ -95,16 +98,15 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
                   ? 'border-primary bg-bg-primary shadow-[0_0_0_3px_rgba(33,120,168,0.08)]'
                   : 'border-border-subtle bg-bg-secondary hover:border-primary/30 hover:bg-bg-primary'
               }`}
-              style={{ borderWidth: sel ? 1.5 : 1.5 }}
+              style={{ borderWidth: 1.5 }}
             >
               <span className="shrink-0 text-[26px] leading-none">{opt.flag}</span>
-              <div className="flex-1 min-w-0">
+              <div className="min-w-0 flex-1">
                 <p className={`mb-[2px] text-[15px] font-bold transition-colors ${sel ? 'text-primary' : 'text-text-primary'}`}>
                   {opt.title}
                 </p>
                 <p className="text-[12px] leading-snug text-text-tertiary">{opt.sub}</p>
               </div>
-              {/* Radio */}
               <div
                 className={`flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full border-2 transition-all ${
                   sel ? 'border-primary bg-primary' : 'border-text-disabled'
@@ -120,9 +122,9 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
         })}
       </div>
 
-      {/* Inline expansion: viz cuando BOTH */}
+      {/* Panel de visualización — solo si BOTH */}
       <div
-        className="mx-6 mt-4 overflow-hidden rounded-[20px] border border-border-subtle bg-bg-secondary transition-all duration-[350ms] ease-[cubic-bezier(.4,0,.2,1)]"
+        className="mx-6 overflow-hidden rounded-[20px] border border-border-subtle bg-bg-secondary transition-all duration-[350ms] ease-[cubic-bezier(.4,0,.2,1)]"
         style={{
           maxHeight: isBoth ? 300 : 0,
           opacity: isBoth ? 1 : 0,
@@ -149,7 +151,7 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
                   style={{ borderWidth: 1.5 }}
                 >
                   <span className="shrink-0 text-[18px]">{opt.icon}</span>
-                  <div className="flex-1 min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className={`mb-[2px] text-[14px] font-bold ${sel ? 'text-primary' : 'text-text-primary'}`}>
                       {opt.title}
                     </p>
@@ -172,7 +174,7 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
         </div>
       </div>
 
-      {/* Oficial note */}
+      {/* Nota tipo de cambio oficial */}
       <div
         className="mx-6 mt-[14px] flex items-center gap-2 rounded-xl bg-primary/8 px-[14px] py-[10px] transition-opacity duration-300"
         style={{ opacity: isBoth ? 1 : 0, pointerEvents: isBoth ? 'auto' : 'none' }}
@@ -190,37 +192,10 @@ export function OnboardStep2Moneda({ onBack, onNext }: Props) {
         <button
           onClick={handleContinue}
           disabled={!canContinue || isSaving}
-          className="w-full rounded-full py-[17px] text-[15px] font-bold tracking-[0.01em] text-white transition-all active:scale-[0.97] hover:opacity-90 disabled:opacity-25 disabled:cursor-not-allowed disabled:active:scale-100"
-          style={{ background: 'var(--color-text-primary)' }}
+          className="w-full rounded-full bg-primary py-[17px] text-[15px] font-bold tracking-[0.01em] text-white transition-all active:scale-[0.97] hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-25 disabled:active:scale-100"
         >
           {isSaving ? 'Guardando...' : 'Continuar'}
         </button>
-      </div>
-    </div>
-  )
-}
-
-// Shared nav component (internal)
-function OnboardNav({ onBack, dotIndex }: { onBack: () => void; dotIndex: number }) {
-  return (
-    <div className="relative flex h-12 shrink-0 items-center px-5 pt-safe-top">
-      <button
-        onClick={onBack}
-        className="flex h-9 w-9 items-center justify-center rounded-full bg-bg-secondary transition-colors hover:bg-primary/8"
-      >
-        <CaretLeft size={18} weight="bold" className="text-text-secondary" />
-      </button>
-      <div className="absolute left-1/2 flex -translate-x-1/2 items-center gap-[5px]">
-        {[0, 1, 2].map((i) => (
-          <div
-            key={i}
-            className="h-1 rounded-full transition-all duration-300"
-            style={{
-              width: i === dotIndex ? 20 : 4,
-              background: i === dotIndex ? 'var(--color-primary)' : 'var(--color-text-disabled)',
-            }}
-          />
-        ))}
       </div>
     </div>
   )

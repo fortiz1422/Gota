@@ -6,6 +6,7 @@ import { OnboardStep1Welcome } from './steps/OnboardStep1Welcome'
 import { OnboardStep2Moneda } from './steps/OnboardStep2Moneda'
 import { OnboardStep3Cuenta } from './steps/OnboardStep3Cuenta'
 import { OnboardStep4Saldo } from './steps/OnboardStep4Saldo'
+import { OnboardStep5Armando } from './steps/OnboardStep5Armando'
 import { OnboardStep5Done } from './steps/OnboardStep5Done'
 import { trackEvent } from '@/lib/product-analytics/client'
 
@@ -48,12 +49,12 @@ export function OnboardingFlow({ initialCurrency }: Props) {
     trackEvent('onboarding_started', { initial_currency: initialCurrency })
   }, [initialCurrency])
 
-  // Step 0 — Welcome
+  // Step 0 — Bienvenida (S1)
   if (step === 0) {
     return <OnboardStep1Welcome onNext={() => setStep(1)} />
   }
 
-  // Step 1 — Moneda
+  // Step 1 — Moneda (S2)
   if (step === 1) {
     return (
       <OnboardStep2Moneda
@@ -66,7 +67,7 @@ export function OnboardingFlow({ initialCurrency }: Props) {
     )
   }
 
-  // Step 2 — Cuenta
+  // Step 2 — Cuenta (S3)
   if (step === 2) {
     return (
       <OnboardStep3Cuenta
@@ -79,7 +80,7 @@ export function OnboardingFlow({ initialCurrency }: Props) {
     )
   }
 
-  // Step 3 — Saldo inicial
+  // Step 3 — Saldo inicial (S4)
   if (step === 3) {
     return (
       <OnboardStep4Saldo
@@ -96,10 +97,26 @@ export function OnboardingFlow({ initialCurrency }: Props) {
     )
   }
 
-  // Step 4 — Done
+  // Step 4 — Armando (S5 — persiste onboarding_completed y auto-avanza)
+  if (step === 4) {
+    return (
+      <OnboardStep5Armando
+        accountName={data.accountName}
+        preferredCurrency={data.preferredCurrency}
+        heroBalanceMode={data.heroBalanceMode}
+        balanceARS={data.balanceARS}
+        balanceUSD={data.balanceUSD}
+        onNext={() => setStep(5)}
+      />
+    )
+  }
+
+  // Step 5 — Listo (S6 — hero real, CTA → Home)
   return (
     <OnboardStep5Done
       accountName={data.accountName}
+      preferredCurrency={data.preferredCurrency}
+      heroBalanceMode={data.heroBalanceMode}
       balanceARS={data.balanceARS}
       balanceUSD={data.balanceUSD}
       onNext={() => router.push('/')}
