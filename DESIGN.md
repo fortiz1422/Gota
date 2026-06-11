@@ -1,4 +1,4 @@
-# Gota Design - Resumen descriptivo, no fuente de verdad
+# DNU PARA UI VIGENTE - Gota Design - Resumen descriptivo, no fuente de verdad
 
 > Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
 

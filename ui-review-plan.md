@@ -1,4 +1,4 @@
-# HISTORICO - NO VIGENTE - Gota UI Review Fix Plan
+# DNU PARA UI VIGENTE - HISTORICO - Gota UI Review Fix Plan
 
 > Plan de marzo con referencias visuales anteriores. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
 

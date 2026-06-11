@@ -1,4 +1,6 @@
-# Gota — Mobile UI Exploration
+# DNU PARA UI VIGENTE - HISTORICO - Gota Mobile UI Exploration
+
+> Exploracion previa al cierre de Strategy 5 / Blue Header Zone. No usar como fuente visual vigente.
 **Fecha:** 2026-05-25  
 **Etapa:** Exploración + Refinement (input para Claude Design)  
 **Alcance:** Home + TabBar — solo capa visual, sin tocar lógica

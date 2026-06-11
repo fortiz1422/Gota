@@ -1,4 +1,6 @@
-# Analysis UI — Documento de iteración
+# DNU PARA UI VIGENTE - Analysis UI - Documento de iteracion
+
+> Documento conceptual previo. No usar como fuente visual vigente; validar cualquier idea contra `docs/design-system-final.md`, `app/globals.css` y `components/analytics/AnalyticsClient.tsx`.
 
 ## Objetivo
 Definir la arquitectura visual de la pantalla de Analysis sin mezclar en una sola jerarquía:

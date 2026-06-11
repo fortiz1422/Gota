@@ -1,4 +1,4 @@
-# HISTORICO - NO VIGENTE - Still Depth Design Philosophy
+# DNU PARA UI VIGENTE - HISTORICO - Still Depth Design Philosophy
 
 > Filosofia visual del sistema oscuro anterior. No usar como fuente visual vigente.
 

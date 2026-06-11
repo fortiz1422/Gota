@@ -1,4 +1,4 @@
-# HISTORICO - PLAN TRANSICIONAL - UI Product Upgrade Plan
+# DNU PARA UI VIGENTE - HISTORICO - PLAN TRANSICIONAL - UI Product Upgrade Plan
 
 > Plan de upgrade previo. Fuente visual vigente: `docs/design-system-final.md` v4.0 + `app/globals.css`.
 

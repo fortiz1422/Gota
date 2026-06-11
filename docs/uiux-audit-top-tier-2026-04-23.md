@@ -1,3 +1,7 @@
+# DNU PARA UI VIGENTE - HISTORICO - Auditoria UI/UX profunda y plan top-tier
+
+> Auditoria previa al cierre de Strategy 5 / Blue Header Zone. No usar como fuente visual vigente.
+
 # Gota — Auditoría UI/UX profunda y plan top-tier
 
 **Fecha:** 2026-04-23  

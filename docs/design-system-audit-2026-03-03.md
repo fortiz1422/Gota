@@ -1,4 +1,4 @@
-# HISTORICO - NO VIGENTE - Informe stack de diseno Gota
+# DNU PARA UI VIGENTE - HISTORICO - Informe stack de diseno Gota
 
 > Auditoria del sistema anterior. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
 

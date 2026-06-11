@@ -1,4 +1,4 @@
-# HISTORICO - NO VIGENTE - Plan de Migracion a Light Mode
+# DNU PARA UI VIGENTE - HISTORICO - Plan de Migracion a Light Mode
 
 > Superado por `docs/design-system-final.md` v4.0 y `app/globals.css`.
 

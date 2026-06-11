@@ -1,4 +1,4 @@
-# HISTORICO - NO VIGENTE - Gota Design System
+# DNU PARA UI VIGENTE - HISTORICO - Gota Design System
 
 > No usar como fuente visual vigente. Fuente actual: `docs/design-system-final.md` + `app/globals.css`.
 

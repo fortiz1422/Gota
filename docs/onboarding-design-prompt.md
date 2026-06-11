@@ -1,4 +1,6 @@
-# Prompt de Diseño — Onboarding Gota (5 pantallas)
+# DNU PARA UI VIGENTE - Prompt de Diseno - Onboarding Gota
+
+> Puede servir como contexto de producto/copy, pero no como fuente visual vigente. Para UI actual usar `docs/design-system-final.md`, `app/globals.css` y el codigo real.
 
 ## Sobre el producto
 

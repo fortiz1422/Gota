@@ -1,7 +1,29 @@
 # Gota - Design System
 
 **Version:** 4.0 - Light Mode "Fria vNext"  
-**Status:** Produccion - fuente de verdad visual vigente
+**Status:** SOURCE OF TRUTH visual vigente
+
+---
+
+## Uso obligatorio
+
+Este documento es la fuente de verdad visual para Gota junto con `app/globals.css`.
+
+Orden de autoridad para decisiones visuales:
+1. Codigo real en `app/` y `components/`
+2. Tokens/utilities en `app/globals.css`
+3. Este documento
+4. Docs de producto/copy, solo si no contradicen el sistema visual
+
+No usar docs historicos de diseno para definir UI nueva. Si un documento esta marcado como DNU, puede servir como contexto historico, pero no como input visual vigente.
+
+Referencias reales para el patron actual:
+- `components/ui/BlueHeaderZone.tsx`
+- `components/dashboard/DashboardShell.tsx`
+- `components/movimientos/MovimientosClient.tsx`
+- `components/analytics/AnalyticsClient.tsx`
+- `components/dashboard/SaldoVivo.tsx`
+- `components/dashboard/DashboardHeader.tsx`
 
 ---
 
@@ -212,7 +234,15 @@ El layout principal de todas las pantallas adopta el patrón "Blue Header Zone":
 
 ## Referencias
 
-- Propuesta visual base: `docs/gota-design-specv2.md`
-- Plan de upgrade UI: `docs/ui-product-upgrade-plan-2026-04-11.md`
 - Implementacion real: `app/globals.css`
-- Canvas de referencia S5: `gota-revamp-ui/project/src/S5Screens.jsx`
+- Wrapper actual: `components/ui/BlueHeaderZone.tsx`
+- Home actual: `components/dashboard/DashboardShell.tsx`
+- Movimientos actual: `components/movimientos/MovimientosClient.tsx`
+- Analytics actual: `components/analytics/AnalyticsClient.tsx`
+- Auditoria de docs: `docs/design-docs-audit-2026-06-11.md`
+
+Material historico, no fuente vigente:
+- `docs/gota-design-specv2.md`
+- `docs/ui-product-upgrade-plan-2026-04-11.md`
+- `docs/mobile-ui-exploration-2026-05.md`
+- `gota-revamp-ui/project/src/S5Screens.jsx`

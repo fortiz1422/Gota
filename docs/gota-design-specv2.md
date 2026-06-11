@@ -1,4 +1,4 @@
-# HISTORICO - REFERENCIA BASE - Gota Design System v2.0
+# DNU PARA UI VIGENTE - HISTORICO - REFERENCIA BASE - Gota Design System v2.0
 
 > Base previa del sistema light. Fuente visual vigente: `docs/design-system-final.md` + `app/globals.css`.
 
