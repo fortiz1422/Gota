@@ -265,13 +265,9 @@ function EntryScreen({
           paddingBottom: 58,
         }}
       >
-        {/* Fila: Wordmark + Ejemplo chip */}
-        <div className="mb-7 flex items-center justify-between">
-          <Wordmark size={26} onDark />
-          <div className="header-glass flex items-center gap-1.5 rounded-full px-3 py-[6px]">
-            <div className="h-[5px] w-[5px] rounded-full bg-white/55" />
-            <span className="text-[11px] font-semibold text-white/80">Así se ve · Ejemplo</span>
-          </div>
+        {/* Wordmark */}
+        <div className="mb-7">
+          <Wordmark size={32} onDark />
         </div>
 
         {/* Label */}
@@ -329,6 +325,26 @@ function EntryScreen({
         <p className="px-[22px] pt-4 text-[13px] leading-snug text-text-tertiary">
           Tu plata, clara en un vistazo.
         </p>
+
+        {/* Qué hace Gota — 3 filas honestas */}
+        <div className="mx-[22px] mt-4 overflow-hidden rounded-[18px] border border-black/[0.04] bg-bg-secondary">
+          {[
+            { title: 'Saldo en tiempo real', sub: 'Suma todo lo que tenés en tus cuentas' },
+            { title: 'SmartInput IA', sub: 'Registrá gastos en lenguaje natural' },
+            { title: 'Bimoneda', sub: 'Pesos y dólares sin saltar de app' },
+          ].map(({ title, sub }, i) => (
+            <div
+              key={i}
+              className={`flex items-center gap-3 px-[18px] py-[14px] ${i < 2 ? 'border-b border-black/[0.04]' : ''}`}
+            >
+              <div className="h-[6px] w-[6px] shrink-0 rounded-full bg-primary/50" />
+              <div className="min-w-0 flex-1">
+                <p className="text-[13px] font-semibold text-text-primary">{title}</p>
+                <p className="mt-[2px] text-[11px] text-text-tertiary">{sub}</p>
+              </div>
+            </div>
+          ))}
+        </div>
 
         <div className="flex-1" />
 
