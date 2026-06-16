@@ -189,6 +189,7 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
   return (
     <AnalyticsClient
       metrics={metrics}
+      estadoMesMetrics={metrics}
       compromisos={compromisos}
       rawExpenses={rawExpenses}
       subscriptions={subscriptions}
