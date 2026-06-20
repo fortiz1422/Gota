@@ -8,6 +8,7 @@ import { DesktopDashboardShell } from '@/components/dashboard/desktop/DesktopDas
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
+import type { BudgetSnapshot } from '@/lib/budgets/types'
 
 type CotizacionApiData = {
   compra: number
@@ -47,6 +48,16 @@ export function WebDashboardRoute({
     staleTime: 60_000,
   })
 
+  const budgetQuery = useQuery<BudgetSnapshot>({
+    queryKey: ['budgets', selectedMonth, viewCurrency],
+    queryFn: async () => {
+      const res = await fetch(`/api/budgets/current?month=${selectedMonth}&currency=${viewCurrency}`)
+      if (!res.ok) throw new Error('budgets fetch failed')
+      return res.json()
+    },
+    staleTime: 60_000,
+  })
+
   const compromisos = useMemo(() => {
     if (!analyticsQuery.data) return null
     return computeCompromisos(
@@ -69,6 +80,7 @@ export function WebDashboardRoute({
       userEmail={userEmail}
       data={initialData}
       analyticsData={analyticsQuery.data}
+      budget={budgetQuery.data ?? null}
       compromisos={compromisos}
       heroBreakdown={initialData.heroBreakdown}
       availableBreakdown={initialData.availableBreakdown}

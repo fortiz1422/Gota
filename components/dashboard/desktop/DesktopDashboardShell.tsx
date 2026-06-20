@@ -1,20 +1,48 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
+  ArrowCircleUp,
   ArrowRight,
+  ArrowsLeftRight,
   ArrowUpRight,
   Bell,
+  CaretRight,
+  Eye,
+  EyeSlash,
   MagnifyingGlass,
   Sparkle,
   Target,
+  Wallet,
 } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
+import type { BudgetItemMetrics, BudgetSnapshot, BudgetStatus } from '@/lib/budgets/types'
 import type { Instrument, Subscription } from '@/types/database'
+import {
+  BLUE,
+  BlueSubHeader,
+  CARD_STYLE,
+  CatSquare,
+  currencySymbol,
+  fmtMoney,
+  LABEL_STYLE,
+  maskAmount,
+  monthName,
+  Panel,
+} from './desktop-ui'
+import {
+  AnalisisView,
+  CompromisosView,
+  CuentasView,
+  FugaView,
+  InstrumentosView,
+  MovimientosView,
+  TarjetasView,
+} from './desktop-views'
 import {
   buildAttentionSignals,
   buildDesktopHeroStats,
@@ -40,6 +68,7 @@ type Props = {
   userEmail: string
   data: DashboardApiData
   analyticsData?: AnalyticsApiData
+  budget?: BudgetSnapshot | null
   compromisos: CompromisosData | null
   heroBreakdown: Record<'ARS' | 'USD', number>
   availableBreakdown: Record<'ARS' | 'USD', number>
@@ -48,13 +77,20 @@ type Props = {
   onOpenSettings: () => void
 }
 
-function maskAmount(currency: 'ARS' | 'USD') {
-  return currency === 'USD' ? 'USD ****' : '$ ******'
-}
+type NavId = 'panel' | 'movimientos' | 'cuentas' | 'tarjetas' | 'instrumentos' | 'analisis'
+
+const NAV_ITEMS: Array<{ id: NavId; label: string }> = [
+  { id: 'panel', label: 'Panel' },
+  { id: 'movimientos', label: 'Movimientos' },
+  { id: 'cuentas', label: 'Cuentas' },
+  { id: 'tarjetas', label: 'Tarjetas' },
+  { id: 'instrumentos', label: 'Instrumentos' },
+  { id: 'analisis', label: 'Análisis' },
+]
 
 function greetingByHour(): string {
   const h = new Date().getHours()
-  if (h < 12) return 'Buen día'
+  if (h < 12) return 'Buenos días'
   if (h < 19) return 'Buenas tardes'
   return 'Buenas noches'
 }
@@ -63,18 +99,6 @@ function firstNameFromEmail(email: string): string {
   const local = email.split('@')[0]
   const part = local.split('.')[0].split('_')[0]
   return part.charAt(0).toUpperCase() + part.slice(1)
-}
-
-function todayLabel(): string {
-  const d = new Date()
-  const weekday = d.toLocaleDateString('es-AR', { weekday: 'short' })
-  const dd = String(d.getDate()).padStart(2, '0')
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const yy = String(d.getFullYear()).slice(2)
-  const hh = String(d.getHours()).padStart(2, '0')
-  const min = String(d.getMinutes()).padStart(2, '0')
-  const w = weekday.charAt(0).toUpperCase() + weekday.slice(1).replace('.', '')
-  return `${w} ${dd} · ${mm} · ${yy} — ${hh}:${min}`
 }
 
 /** Builds SVG polyline points for a sparkline in a viewBox */
@@ -86,7 +110,7 @@ function buildSparklinePath(values: number[], w = 380, h = 180): string {
   return values
     .map((v, i) => {
       const x = (i / (values.length - 1)) * w
-      const y = h - ((v - min) / range) * (h * 0.85) - h * 0.05
+      const y = h - ((v - min) / range) * (h * 0.82) - h * 0.06
       return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
     })
     .join(' ')
@@ -113,44 +137,32 @@ function instrumentDueDateLabel(instrument: Instrument): string {
   return 'disponible'
 }
 
-function horizonDotColor(kind: 'card' | 'due' | 'income' | 'instrument'): string {
-  if (kind === 'card') return 'bg-danger'
-  if (kind === 'due') return 'bg-primary'
-  if (kind === 'income') return 'bg-success'
-  return 'bg-warning'
+function horizonDotHex(kind: 'card' | 'due' | 'income' | 'instrument'): string {
+  if (kind === 'card') return '#A61E1E'
+  if (kind === 'due') return BLUE
+  if (kind === 'income') return '#1A7A42'
+  return '#B84A12'
 }
 
-function horizonAmountColor(kind: 'card' | 'due' | 'income' | 'instrument', estimated?: boolean): string {
-  if (estimated) return 'text-text-dim'
-  if (kind === 'income') return 'text-success'
-  if (kind === 'instrument') return 'text-primary'
-  return 'text-text-primary'
+function horizonAmountHex(kind: 'card' | 'due' | 'income' | 'instrument', estimated?: boolean): string {
+  if (estimated) return '#90A4B0'
+  if (kind === 'income') return '#1A7A42'
+  if (kind === 'instrument') return BLUE
+  return '#0D1829'
 }
 
 function horizonAmountPrefix(kind: 'card' | 'due' | 'income' | 'instrument'): string {
   if (kind === 'income') return '+'
-  if (kind === 'due') return '−'
+  if (kind === 'card' || kind === 'due') return '−'
   return ''
 }
 
-/** Panel card used in 2-col and module sections */
-function Panel({ title, tag, tagColor = 'primary', children }: {
-  title: string
-  tag?: string
-  tagColor?: 'primary' | 'muted' | 'warn'
-  children: React.ReactNode
-}) {
-  const tagClass =
-    tagColor === 'warn' ? 'text-warning' : tagColor === 'muted' ? 'text-text-dim' : 'text-primary'
-  return (
-    <div className="rounded-[14px] border border-border-subtle bg-white p-7">
-      <div className="mb-6 flex items-center justify-between font-mono text-[11px] font-medium uppercase tracking-[0.12em] text-text-dim">
-        <span>{title}</span>
-        {tag && <span className={`normal-case tracking-[0.01em] ${tagClass}`}>{tag}</span>}
-      </div>
-      {children}
-    </div>
-  )
+// ─── Budget status meta ──────────────────────────────────────
+const BUDGET_STATUS: Record<BudgetStatus, { label: string; color: string; amountColor: string; bg: string; bar: string }> = {
+  on_track: { label: 'En línea', color: '#4A6070', amountColor: '#0D1829', bg: 'rgba(74,96,112,0.09)', bar: BLUE },
+  near_limit: { label: 'Al límite', color: '#B84A12', amountColor: '#B84A12', bg: 'rgba(184,74,18,0.09)', bar: '#B84A12' },
+  over_budget: { label: 'Pasado', color: '#A61E1E', amountColor: '#A61E1E', bg: 'rgba(166,30,30,0.09)', bar: '#A61E1E' },
+  ahead_of_pace: { label: 'Con aire', color: BLUE, amountColor: '#0D1829', bg: 'rgba(33,120,168,0.09)', bar: BLUE },
 }
 
 export function DesktopDashboardShell({
@@ -159,12 +171,27 @@ export function DesktopDashboardShell({
   userEmail,
   data,
   analyticsData,
+  budget,
   compromisos,
   heroBreakdown,
   availableBreakdown,
   quote,
   amountsVisible,
+  onOpenSettings,
 }: Props) {
+  const [hidden, setHidden] = useState(!amountsVisible)
+  const [smartValue, setSmartValue] = useState('')
+  const [activeNav, setActiveNav] = useState<NavId>('panel')
+  const [drill, setDrill] = useState<'fuga' | 'compromisos' | null>(null)
+
+  const handleNav = (id: NavId) => {
+    setActiveNav(id)
+    setDrill(null)
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+  }
+
+  const money = (n: number, currency: 'ARS' | 'USD' = viewCurrency) => fmtMoney(n, currency, hidden)
+
   const stats = useMemo(
     () =>
       buildDesktopHeroStats({
@@ -224,7 +251,7 @@ export function DesktopDashboardShell({
     [data.accounts, data.allUltimos, data.incomeEntries, data.transfers],
   )
 
-  // KPI: gastos del mes (percibidos) — use monthlySeries for the full month total
+  // KPI: gastos del mes (percibidos)
   const gastosMes = useMemo(() => {
     const current = analyticsData?.monthlySeries?.find((m) => m.isCurrent)
     if (current != null) return current.percibidoTotal
@@ -239,7 +266,6 @@ export function DesktopDashboardShell({
     [analyticsData?.rawExpenses, data.allUltimos.length, viewCurrency],
   )
 
-  // KPI: ingresos del mes
   const ingresosMes = useMemo(
     () =>
       analyticsData?.ingresoMes ??
@@ -251,7 +277,6 @@ export function DesktopDashboardShell({
   const sparklinePath = useMemo(() => {
     const series = analyticsData?.monthlySeries.slice(-6) ?? []
     if (series.length < 2) return ''
-    // Invert so lower spending shows as higher on chart
     const values = series.map((m) => -m.percibidoTotal)
     return buildSparklinePath(values)
   }, [analyticsData?.monthlySeries])
@@ -261,7 +286,7 @@ export function DesktopDashboardShell({
     return series.map((m) => m.label.slice(0, 3).toUpperCase())
   }, [analyticsData?.monthlySeries])
 
-  // Ciclo: find first active tarjeta
+  // Ciclo: first active tarjeta
   const cicloTarjeta = useMemo(() => {
     if (!compromisos?.tarjetas.length) return null
     return (
@@ -277,9 +302,8 @@ export function DesktopDashboardShell({
   )
 
   const cicloProgress = useMemo(() => {
-    if (!cicloTarjeta?.daysUntilClosing == null) return 0
     const days = cicloTarjeta?.daysUntilClosing ?? 15
-    return Math.max(0.05, Math.min(0.98, (30 - days) / 30))
+    return Math.max(0.05, Math.min(0.97, (30 - days) / 30))
   }, [cicloTarjeta])
 
   // Flujo: monthly cashflow bars (last 6 months expenses)
@@ -301,376 +325,533 @@ export function DesktopDashboardShell({
   const avatarInitial = firstName.charAt(0).toUpperCase()
   const flujoResult = ingresosMes - gastosMes
 
+  const viewProps = {
+    data,
+    analyticsData,
+    compromisos,
+    viewCurrency,
+    hidden,
+    selectedMonth,
+    ingresosMes,
+    gastosMes,
+  }
+
+  const [saldoInt, saldoDec] = stats.saldoVivo.toFixed(2).split('.')
+
+  const hasSmartText = smartValue.trim().length > 0
+
+  const budgetCcy = budget?.plan?.baseCurrency ?? viewCurrency
+  const planExists = Boolean(budget?.plan && budget.items.length > 0)
+
   return (
-    <div className="min-h-screen" style={{ background: '#FAFAF8', fontFamily: 'var(--font-sans)' }}>
+    <div style={{ minHeight: '100vh', background: '#F8FBFD', fontFamily: 'var(--font-sans)' }}>
 
-      {/* ======== TOPBAR ======== */}
+      {/* ======== TOPBAR (blue) ======== */}
       <header
-        className="sticky top-0 z-10 flex items-center justify-between border-b border-border-subtle px-12"
-        style={{ height: 64, background: '#FAFAF8' }}
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 50,
+          background: BLUE,
+          borderBottom: '1px solid rgba(255,255,255,0.12)',
+          height: 60,
+        }}
       >
-        <div className="flex items-center">
-          <Link href="/web" className="text-[22px] font-bold tracking-[-0.045em] text-text-primary">
-            gota<span className="text-primary">.</span>
+        <div
+          style={{ maxWidth: 1280, margin: '0 auto', height: '100%', padding: '0 48px', display: 'flex', alignItems: 'center' }}
+        >
+          <Link
+            href="/web"
+            style={{
+              textDecoration: 'none',
+              fontSize: 20,
+              fontWeight: 800,
+              letterSpacing: '-0.045em',
+              color: '#FFFFFF',
+              flexShrink: 0,
+              marginRight: 48,
+            }}
+          >
+            gota<span style={{ color: 'rgba(255,255,255,0.55)' }}>.</span>
           </Link>
-          <nav className="ml-12 flex">
-            <Link
-              href="/web"
-              className="relative px-3.5 py-2 text-[12px] font-medium text-text-primary after:absolute after:bottom-[-1px] after:left-3.5 after:right-3.5 after:h-px after:bg-text-primary"
-            >
-              Panel
-            </Link>
-            <Link
-              href="/web"
-              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
-            >
-              Movimientos
-            </Link>
-            <Link
-              href="/web/settings"
-              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
-            >
-              Cuentas
-            </Link>
-            <Link
-              href="/web/settings"
-              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
-            >
-              Tarjetas
-            </Link>
-            <Link
-              href="/web/settings"
-              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
-            >
-              Instrumentos
-            </Link>
-            <Link
-              href="/analytics"
-              className="px-3.5 py-2 text-[12px] font-medium text-text-secondary transition-colors hover:text-text-primary"
-            >
-              Análisis
-            </Link>
-          </nav>
-        </div>
 
-        <div className="flex items-center gap-[18px]">
-          {quote && (
-            <span className="font-mono text-[11px] text-text-secondary">
-              ARS · USD{' '}
-              <span className="text-primary">{quote.rate.toLocaleString('es-AR')}</span>
-            </span>
-          )}
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
-            aria-label="Buscar"
-          >
-            <MagnifyingGlass size={18} />
-          </button>
-          <button
-            type="button"
-            className="flex h-8 w-8 items-center justify-center text-text-secondary transition-colors hover:text-text-primary"
-            aria-label="Notificaciones"
-          >
-            <Bell size={18} />
-          </button>
-          <div className="flex h-8 w-8 items-center justify-center rounded-full bg-text-primary text-[12px] font-semibold text-white">
-            {avatarInitial}
+          <nav style={{ display: 'flex', flex: 1 }}>
+            {NAV_ITEMS.map((item) => {
+              const isActive = item.id === activeNav
+              return (
+                <button
+                  key={item.id}
+                  type="button"
+                  onClick={() => handleNav(item.id)}
+                  style={{
+                    background: 'transparent',
+                    border: 0,
+                    display: 'flex',
+                    alignItems: 'center',
+                    borderBottom: isActive ? '2px solid rgba(255,255,255,0.85)' : '2px solid transparent',
+                    padding: '0 14px',
+                    height: 60,
+                    fontFamily: 'inherit',
+                    fontSize: 13,
+                    fontWeight: isActive ? 600 : 500,
+                    color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.65)',
+                    cursor: 'pointer',
+                    transition: 'color 150ms, border-color 150ms',
+                  }}
+                >
+                  {item.label}
+                </button>
+              )
+            })}
+          </nav>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+            {/* SmartInput — glass on blue */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 6px 6px 16px',
+                background: 'rgba(255,255,255,0.15)',
+                border: hasSmartText ? '1px solid rgba(255,255,255,0.50)' : '1px solid rgba(255,255,255,0.22)',
+                borderRadius: 9999,
+                width: 260,
+                backdropFilter: 'blur(8px)',
+                WebkitBackdropFilter: 'blur(8px)',
+                transition: 'border-color 150ms',
+              }}
+            >
+              <input
+                value={smartValue}
+                onChange={(e) => setSmartValue(e.target.value)}
+                placeholder="café 2500 hoy…"
+                aria-label="Carga rápida con IA"
+                style={{ flex: 1, border: 0, outline: 'none', background: 'transparent', fontSize: 13, color: '#FFFFFF', fontFamily: 'inherit' }}
+              />
+              {!hasSmartText && (
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 3,
+                    padding: '3px 7px',
+                    borderRadius: 9999,
+                    background: 'rgba(255,255,255,0.18)',
+                    color: 'rgba(255,255,255,0.90)',
+                    fontSize: 11,
+                    fontWeight: 600,
+                    flexShrink: 0,
+                  }}
+                >
+                  <Sparkle weight="bold" size={10} />
+                  IA
+                </div>
+              )}
+              <button
+                type="button"
+                aria-label="Enviar"
+                style={{
+                  width: 28,
+                  height: 28,
+                  borderRadius: 9999,
+                  flexShrink: 0,
+                  background: hasSmartText ? '#FFFFFF' : 'rgba(255,255,255,0.18)',
+                  border: 0,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                <ArrowRight weight="bold" size={12} color={hasSmartText ? BLUE : 'rgba(255,255,255,0.65)'} />
+              </button>
+            </div>
+
+            {quote && (
+              <span style={{ fontSize: 12, color: 'rgba(255,255,255,0.65)', whiteSpace: 'nowrap' }}>
+                ARS · USD <span style={{ color: '#FFFFFF', fontWeight: 700 }}>{quote.rate.toLocaleString('es-AR')}</span>
+              </span>
+            )}
+
+            <button
+              type="button"
+              onClick={() => setHidden((h) => !h)}
+              title={hidden ? 'Mostrar montos' : 'Ocultar montos'}
+              style={{ background: 'transparent', border: 0, cursor: 'pointer', padding: 6, display: 'flex' }}
+            >
+              {hidden ? (
+                <EyeSlash size={16} color="rgba(255,255,255,0.70)" />
+              ) : (
+                <Eye size={16} color="rgba(255,255,255,0.70)" />
+              )}
+            </button>
+            <button
+              type="button"
+              aria-label="Buscar"
+              style={{ background: 'transparent', border: 0, cursor: 'pointer', padding: 6, display: 'flex' }}
+            >
+              <MagnifyingGlass size={16} color="rgba(255,255,255,0.70)" />
+            </button>
+            <button
+              type="button"
+              aria-label="Notificaciones"
+              style={{ background: 'transparent', border: 0, cursor: 'pointer', padding: 6, display: 'flex' }}
+            >
+              <Bell size={16} color="rgba(255,255,255,0.70)" />
+            </button>
+            <button
+              type="button"
+              onClick={onOpenSettings}
+              title="Configuración"
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 9999,
+                flexShrink: 0,
+                padding: 0,
+                cursor: 'pointer',
+                background: 'rgba(255,255,255,0.22)',
+                border: '1px solid rgba(255,255,255,0.28)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#FFFFFF',
+                fontSize: 12,
+                fontWeight: 700,
+              }}
+            >
+              {avatarInitial}
+            </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1280px] px-12 pb-24 pt-14">
-
-        {/* ======== EMPTY STATE ======== */}
-        {!hasAccounts && (
-          <section className="rounded-[14px] border border-border-subtle bg-white px-10 py-12">
-            <p className="font-mono text-[11px] font-medium uppercase tracking-[0.14em] text-primary">Panel</p>
-            <h1 className="mt-5 max-w-2xl text-[42px] font-medium leading-[1.05] tracking-[-0.045em] text-text-primary">
+      {!hasAccounts ? (
+        <main style={{ maxWidth: 1280, margin: '0 auto', padding: '56px 48px 96px' }}>
+          <section style={{ ...CARD_STYLE, padding: '48px 40px' }}>
+            <p style={{ ...LABEL_STYLE, color: BLUE, marginBottom: 18 }}>Panel</p>
+            <h1 style={{ margin: 0, maxWidth: 640, fontSize: 38, fontWeight: 800, lineHeight: 1.08, letterSpacing: '-0.04em', color: '#0D1829' }}>
               Empezá con tu primera cuenta para ver tu lectura financiera real.
             </h1>
-            <p className="mt-4 max-w-xl text-[15px] leading-7 text-text-secondary">
+            <p style={{ marginTop: 16, maxWidth: 520, fontSize: 15, lineHeight: 1.7, color: '#4A6070' }}>
               Apenas tengas cuentas y movimientos, este panel muestra saldo vivo, disponible real y tensiones del mes.
             </p>
             <Link
               href="/web/settings"
-              className="mt-8 inline-flex items-center gap-2 rounded-[10px] bg-primary px-5 py-2.5 text-[13px] font-semibold text-white"
+              style={{
+                marginTop: 28,
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 8,
+                borderRadius: 12,
+                background: BLUE,
+                padding: '12px 22px',
+                fontSize: 13,
+                fontWeight: 700,
+                color: '#FFFFFF',
+                textDecoration: 'none',
+              }}
             >
               Agregar cuenta <ArrowRight size={14} />
             </Link>
           </section>
-        )}
-
-        {hasAccounts && (
-          <>
-
-            {/* ======== HERO ======== */}
-            <section
-              className="mb-[72px] grid items-end gap-16 pb-14"
+        </main>
+      ) : activeNav === 'panel' ? (
+        <>
+          {/* ======== HERO (blue zone) ======== */}
+          <div
+            style={{
+              background: 'linear-gradient(180deg, #2178A8 0%, #155E88 100%)',
+              borderBottomLeftRadius: 32,
+              borderBottomRightRadius: 32,
+              padding: '44px 0 56px',
+              marginBottom: 56,
+            }}
+          >
+            <div
               style={{
-                gridTemplateColumns: '1.5fr 1fr',
-                borderBottom: '1px solid var(--color-border-subtle)',
-                minHeight: '38vh',
+                maxWidth: 1280,
+                margin: '0 auto',
+                padding: '0 48px',
+                display: 'grid',
+                gridTemplateColumns: '1.45fr 1fr',
+                gap: 56,
+                alignItems: 'end',
               }}
             >
               {/* LEFT */}
               <div>
-                <p
-                  className="mb-9 font-mono text-[11px] tracking-[0.02em] text-text-dim"
-                  style={{ letterSpacing: '0.02em' }}
-                >
-                  <span className="mr-1 text-text-dim">—</span>
-                  {todayLabel()}
-                </p>
-                <p className="mb-3 text-[22px] font-normal tracking-[-0.02em] text-text-secondary">
-                  {greetingByHour()}, <strong className="font-medium text-text-primary">{firstName}</strong>.{' '}
-                  <em className="font-normal not-italic text-text-dim">Esto es lo tuyo, hoy.</em>
+                <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.70)', marginBottom: 28, marginTop: 0, fontWeight: 400 }}>
+                  {greetingByHour()}, <strong style={{ fontWeight: 700, color: '#FFFFFF' }}>{firstName}</strong>.{' '}
+                  <span style={{ color: 'rgba(255,255,255,0.55)' }}>Esto es lo tuyo, hoy.</span>
                 </p>
 
-                <p
-                  className="font-mono text-[10px] font-medium uppercase tracking-[0.16em] text-text-dim"
-                  style={{ marginBottom: 18, marginTop: 28 }}
-                >
-                  Saldo vivo
-                  <span
-                    className="ml-3 inline-block align-middle"
-                    style={{ width: 24, height: 1, background: 'var(--color-text-dim)', display: 'inline-block', verticalAlign: 'middle' }}
-                  />
-                </p>
+                <div style={{ ...LABEL_STYLE, color: 'rgba(255,255,255,0.65)', marginBottom: 14 }}>Saldo Vivo</div>
 
-                <h1
-                  className="flex items-start gap-1.5 font-medium text-text-primary"
+                <div
                   style={{
-                    fontSize: 108,
-                    lineHeight: 0.9,
+                    fontSize: 84,
+                    fontWeight: 800,
                     letterSpacing: '-0.055em',
-                    marginBottom: 24,
+                    lineHeight: 0.92,
+                    color: '#FFFFFF',
                     fontVariantNumeric: 'tabular-nums',
+                    marginBottom: 18,
                   }}
                 >
-                  <span
-                    className="font-mono font-normal text-text-dim"
-                    style={{ fontSize: 18, marginTop: 14, letterSpacing: '-0.01em' }}
-                  >
-                    {viewCurrency === 'USD' ? 'US$' : '$'}
-                  </span>
-                  {amountsVisible
-                    ? stats.saldoVivo.toLocaleString('es-AR', { maximumFractionDigits: 0 })
-                    : '••••••'}
-                </h1>
-
-                <div className="flex items-baseline gap-4 text-[13px] text-text-secondary">
-                  {flujoResult > 0 && ingresosMes > 0 && (
+                  {hidden ? (
+                    '$ ••••••'
+                  ) : (
                     <>
-                      <span className="inline-flex items-center gap-0.5 font-medium text-success">
-                        <ArrowUpRight size={13} weight="fill" />
-                        {amountsVisible
-                          ? `+${((flujoResult / ingresosMes) * 100).toFixed(1)}%`
-                          : '+•••'}
+                      <span style={{ fontSize: 20, fontWeight: 500, color: 'rgba(255,255,255,0.55)', verticalAlign: '0.55em', marginRight: 4 }}>
+                        {currencySymbol(viewCurrency)}
                       </span>
-                      <span className="font-mono text-[12px] text-text-dim">
-                        resultado del mes ·{' '}
-                        <strong className="font-medium text-text-secondary">
-                          {amountsVisible ? formatAmount(flujoResult, viewCurrency) : '••••••'}
-                        </strong>
-                      </span>
+                      {Number(saldoInt).toLocaleString('es-AR')}
+                      <span style={{ fontSize: 56, color: 'rgba(255,255,255,0.40)', fontWeight: 500 }}>,{saldoDec}</span>
                     </>
                   )}
-                  {!(flujoResult > 0 && ingresosMes > 0) && (
-                    <span className="font-mono text-[12px] text-text-dim">
-                      Disponible real ·{' '}
-                      <strong className="font-medium text-text-secondary">
-                        {amountsVisible ? formatAmount(availableBreakdown[viewCurrency], viewCurrency) : '••••••'}
-                      </strong>
-                    </span>
-                  )}
                 </div>
+
+                {/* ARS / USD */}
+                <div style={{ display: 'flex', gap: 16, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 28 }}>
+                  <span>
+                    <span style={{ color: '#FFFFFF', fontWeight: 700 }}>ARS</span>{'  '}
+                    {hidden ? '······' : Math.round(heroBreakdown.ARS).toLocaleString('es-AR')}
+                  </span>
+                  <span style={{ color: 'rgba(255,255,255,0.25)' }}>|</span>
+                  <span>
+                    <span style={{ color: '#FFFFFF', fontWeight: 700 }}>USD</span>{'  '}
+                    {hidden ? '····' : heroBreakdown.USD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+                  </span>
+                </div>
+
+                {/* Disponible real — glass surface */}
+                <div
+                  style={{
+                    background: 'rgba(255,255,255,0.14)',
+                    border: '1px solid rgba(255,255,255,0.22)',
+                    backdropFilter: 'blur(12px)',
+                    WebkitBackdropFilter: 'blur(12px)',
+                    borderRadius: 16,
+                    padding: '16px 20px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 14,
+                  }}
+                >
+                  <div
+                    style={{
+                      width: 40,
+                      height: 40,
+                      borderRadius: 9999,
+                      flexShrink: 0,
+                      background: 'rgba(255,255,255,0.18)',
+                      border: '1px solid rgba(255,255,255,0.28)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                    }}
+                  >
+                    <Wallet size={18} color="rgba(255,255,255,0.90)" />
+                  </div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, color: 'rgba(255,255,255,0.80)', fontWeight: 500 }}>Disponible real</div>
+                    <div style={{ fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
+                      Libre hoy:{' '}
+                      <span style={{ fontWeight: 700, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{money(stats.reservas)}</span>
+                    </div>
+                  </div>
+                  <div style={{ fontSize: 18, fontWeight: 800, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.015em' }}>
+                    {money(availableBreakdown[viewCurrency])}
+                  </div>
+                  <CaretRight weight="bold" size={12} color="rgba(255,255,255,0.45)" />
+                </div>
+
+                {/* Flujo */}
+                {flujoResult > 0 && ingresosMes > 0 && (
+                  <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
+                    <span
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: 3,
+                        padding: '3px 8px',
+                        borderRadius: 9999,
+                        background: 'rgba(255,255,255,0.18)',
+                        color: '#FFFFFF',
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      <ArrowUpRight weight="bold" size={11} />
+                      {hidden ? '+•••%' : `+${((flujoResult / ingresosMes) * 100).toFixed(1)}%`}
+                    </span>
+                    <span style={{ color: 'rgba(255,255,255,0.65)' }}>
+                      resultado del mes ·{' '}
+                      <strong style={{ color: '#FFFFFF', fontVariantNumeric: 'tabular-nums' }}>{money(flujoResult)}</strong>
+                    </span>
+                  </div>
+                )}
               </div>
 
-              {/* RIGHT: sparkline chart */}
-              <div className="pb-1.5">
-                <div
-                  className="mb-3.5 flex items-baseline justify-between font-mono text-[10px] uppercase tracking-[0.16em] text-text-dim"
-                >
-                  <span>Últimos meses · gastos</span>
+              {/* RIGHT: Sparkline on blue */}
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 14 }}>
+                  <div style={{ ...LABEL_STYLE, color: 'rgba(255,255,255,0.55)' }}>Gastos · últimos 6 meses</div>
                   {analyticsData?.monthlySeries.length ? (
-                    <span className="inline-flex items-center gap-0.5 font-sans normal-case tracking-normal">
-                      <span
-                        className="text-[17px] font-medium text-text-primary"
-                        style={{ letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums' }}
-                      >
-                        {analyticsData.monthlySeries.length} meses
-                      </span>
+                    <span style={{ fontSize: 13, fontWeight: 600, color: '#FFFFFF' }}>
+                      {analyticsData.monthlySeries.length} meses
                     </span>
                   ) : null}
                 </div>
-
                 <svg width="100%" height="200" viewBox="0 0 380 200" preserveAspectRatio="none">
                   <defs>
-                    <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="0%" stopColor="#2178A8" stopOpacity="0.14" />
-                      <stop offset="100%" stopColor="#2178A8" stopOpacity="0" />
+                    <linearGradient id="bGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor="rgba(255,255,255,0.22)" />
+                      <stop offset="100%" stopColor="rgba(255,255,255,0)" />
                     </linearGradient>
                   </defs>
-                  {/* grid lines */}
-                  <g stroke="rgba(13,24,41,0.04)" strokeWidth="1">
-                    <line x1="0" y1="40" x2="380" y2="40" />
+                  <g stroke="rgba(255,255,255,0.08)" strokeWidth="1">
+                    <line x1="0" y1="45" x2="380" y2="45" />
                     <line x1="0" y1="100" x2="380" y2="100" />
-                    <line x1="0" y1="160" x2="380" y2="160" />
+                    <line x1="0" y1="155" x2="380" y2="155" />
                   </g>
                   {sparklinePath ? (
                     <>
-                      <path d={`${sparklinePath} L 380,200 L 0,200 Z`} fill="url(#heroGrad)" />
-                      <path
-                        d={sparklinePath}
-                        fill="none"
-                        stroke="#2178A8"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d={`${sparklinePath} L 380,200 L 0,200 Z`} fill="url(#bGrad)" />
+                      <path d={sparklinePath} fill="none" stroke="rgba(255,255,255,0.80)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </>
                   ) : (
-                    /* Decorative fallback */
                     <>
-                      <path
-                        d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34 L 380,200 L 0,200 Z"
-                        fill="url(#heroGrad)"
-                      />
-                      <path
-                        d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34"
-                        fill="none"
-                        stroke="#2178A8"
-                        strokeWidth="1.5"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34 L 380,200 L 0,200 Z" fill="url(#bGrad)" />
+                      <path d="M 0,160 L 63,148 L 126,154 L 189,110 L 252,82 L 315,50 L 380,34" fill="none" stroke="rgba(255,255,255,0.80)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </>
                   )}
-                  {/* month labels */}
+                  <circle cx="380" cy="34" r="7" fill="rgba(255,255,255,0.20)" />
+                  <circle cx="380" cy="34" r="3.5" fill="#FFFFFF" />
                   {sparklineMonths.length >= 2 && (
-                    <g
-                      fontFamily="var(--font-dm-mono), ui-monospace"
-                      fontSize="10"
-                      fill="var(--color-text-dim)"
-                    >
+                    <g fontFamily="var(--font-sans)" fontSize="10" fill="rgba(255,255,255,0.45)">
                       {sparklineMonths.map((label, i) => (
-                        <text
-                          key={label}
-                          x={(i / (sparklineMonths.length - 1)) * 360}
-                          y="196"
-                        >
+                        <text key={label} x={(i / (sparklineMonths.length - 1)) * 360} y="196">
                           {label}
                         </text>
                       ))}
                     </g>
                   )}
-                  {/* current endpoint dot */}
-                  <circle cx="380" cy="34" r="7" fill="#2178A8" fillOpacity="0.18" />
-                  <circle cx="380" cy="34" r="3.5" fill="#2178A8" />
                 </svg>
               </div>
-            </section>
+            </div>
+          </div>
+
+          <main style={{ maxWidth: 1280, margin: '0 auto', padding: '0 48px 96px' }}>
 
             {/* ======== KPIs ======== */}
-            <section className="mb-[88px] grid grid-cols-4">
+            <section style={{ marginBottom: 72, display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)' }}>
               {[
                 {
                   label: 'Disponible real',
-                  value: amountsVisible ? formatAmount(availableBreakdown[viewCurrency], viewCurrency) : maskAmount(viewCurrency),
+                  value: money(availableBreakdown[viewCurrency]),
                   sub: `en ${data.accounts.length} cuenta${data.accounts.length !== 1 ? 's' : ''}`,
                   subColor: '',
                 },
                 {
-                  label: `Ingresos · ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`,
-                  value: amountsVisible ? formatAmount(ingresosMes, viewCurrency) : maskAmount(viewCurrency),
+                  label: `Ingresos · ${monthName(selectedMonth)}`,
+                  value: money(ingresosMes),
                   sub: ingresosMes > 0 ? 'registrados este mes' : 'sin ingresos registrados',
-                  subColor: ingresosMes > 0 ? 'text-success' : '',
+                  subColor: ingresosMes > 0 ? '#1A7A42' : '',
                 },
                 {
-                  label: `Gastos · ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`,
-                  value: amountsVisible ? formatAmount(gastosMes, viewCurrency) : maskAmount(viewCurrency),
+                  label: `Gastos · ${monthName(selectedMonth)}`,
+                  value: money(gastosMes),
                   sub: `${gastosMesCount} movimiento${gastosMesCount !== 1 ? 's' : ''} percibidos`,
                   subColor: '',
                 },
                 {
                   label: 'Compromisos',
-                  value: amountsVisible
-                    ? formatAmount((compromisos?.totalAPagar ?? 0) + (compromisos?.totalEnCurso ?? 0), viewCurrency)
-                    : maskAmount(viewCurrency),
+                  value: money((compromisos?.totalAPagar ?? 0) + (compromisos?.totalEnCurso ?? 0)),
                   sub: `${data.activeSubscriptions.length} suscripciones · ${compromisos?.tarjetas.length ?? 0} tarjetas`,
                   subColor: '',
                 },
               ].map((kpi, i) => (
                 <div
                   key={kpi.label}
-                  className={`${i !== 0 ? 'border-l border-border-subtle pl-7' : ''} ${i !== 3 ? 'pr-7' : ''}`}
+                  style={{
+                    paddingLeft: i > 0 ? 28 : 0,
+                    paddingRight: i < 3 ? 28 : 0,
+                    borderLeft: i > 0 ? '1px solid rgba(33,120,168,0.08)' : 'none',
+                  }}
                 >
-                  <p className="mb-[18px] font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-text-dim">
-                    {kpi.label}
-                  </p>
-                  <p
-                    className="mb-2.5 font-medium text-text-primary"
-                    style={{ fontSize: 30, lineHeight: 1, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}
+                  <div style={{ ...LABEL_STYLE, marginBottom: 14 }}>{kpi.label}</div>
+                  <div
+                    style={{
+                      fontSize: 28,
+                      fontWeight: 800,
+                      letterSpacing: '-0.035em',
+                      fontVariantNumeric: 'tabular-nums',
+                      color: '#0D1829',
+                      marginBottom: 8,
+                      lineHeight: 1,
+                    }}
                   >
                     {kpi.value}
-                  </p>
-                  <p className={`text-[12px] leading-snug text-text-dim ${kpi.subColor}`}>{kpi.sub}</p>
+                  </div>
+                  <div style={{ fontSize: 12, color: kpi.subColor || '#90A4B0' }}>{kpi.sub}</div>
                 </div>
               ))}
             </section>
 
             {/* ======== CUENTAS ======== */}
-            <section className="mb-[88px]">
-              <div className="mb-8 flex items-baseline justify-between">
-                <h2
-                  className="font-medium text-text-primary"
-                  style={{ fontSize: 24, letterSpacing: '-0.04em' }}
-                >
-                  Cuentas{' '}
-                  <em className="font-normal not-italic text-text-dim">— las tuyas</em>
-                </h2>
+            <section style={{ marginBottom: 72 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24 }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.025em', color: '#0D1829' }}>Cuentas</h2>
                 <Link
                   href="/web/settings"
-                  className="inline-flex items-center gap-1.5 border-b border-border-subtle pb-1 font-mono text-[11px] text-text-secondary transition-colors hover:border-primary hover:text-primary"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: BLUE,
+                    textDecoration: 'none',
+                    borderBottom: '1px solid rgba(33,120,168,0.25)',
+                    paddingBottom: 1,
+                  }}
                 >
-                  Gestionar <ArrowRight size={13} />
+                  Gestionar <ArrowRight size={12} />
                 </Link>
               </div>
-              <div
-                className="grid gap-x-8"
-                style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', rowGap: 36 }}
-              >
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
                 {data.accounts.map((account) => {
                   const balance = data.accountBalances.find((b) => b.id === account.id)
                   return (
                     <div
                       key={account.id}
-                      className="cursor-pointer py-[22px] transition-opacity hover:opacity-65"
                       style={{
-                        borderTop: account.is_primary
-                          ? '2px solid var(--color-text-primary)'
-                          : '1px solid var(--color-text-primary)',
+                        background: '#FFFFFF',
+                        border: '1px solid rgba(33,120,168,0.08)',
+                        borderRadius: 16,
+                        borderTop: account.is_primary ? `3px solid ${BLUE}` : '2px solid rgba(33,120,168,0.20)',
+                        padding: '20px 20px 18px',
+                        boxShadow: '0 1px 4px rgba(13,24,41,0.04)',
                       }}
                     >
-                      <div className="mb-7 flex items-center justify-between gap-2">
-                        <span className="font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
-                          {accountTypeLabel(account.type)}{account.is_primary ? ' · principal' : ''}
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                        <span style={{ ...LABEL_STYLE, fontSize: 10 }}>
+                          {accountTypeLabel(account.type)}
+                          {account.is_primary ? ' · principal' : ''}
                         </span>
-                        <span className="h-1.5 w-1.5 rounded-full bg-success" />
+                        <div style={{ width: 8, height: 8, borderRadius: 9999, background: '#1A7A42' }} />
                       </div>
-                      <p className="mb-3 text-[14px] font-normal leading-snug tracking-[-0.015em] text-text-secondary">
-                        {account.name}
-                      </p>
+                      <div style={{ fontSize: 14, color: '#4A6070', fontWeight: 500, marginBottom: 10 }}>{account.name}</div>
                       {balance != null ? (
-                        <p
-                          className="font-medium text-text-primary"
-                          style={{ fontSize: 20, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          {amountsVisible ? formatAmount(balance.saldo, viewCurrency) : maskAmount(viewCurrency)}
-                        </p>
+                        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.035em', color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>
+                          {money(balance.saldo)}
+                        </div>
                       ) : (
-                        <p className="font-mono text-[11px] text-text-dim">cuenta registrada</p>
+                        <div style={{ fontSize: 12, color: '#90A4B0' }}>cuenta registrada</div>
                       )}
                     </div>
                   )
@@ -679,8 +860,7 @@ export function DesktopDashboardShell({
             </section>
 
             {/* ======== CICLO + FLUJO ======== */}
-            <section className="mb-[88px] grid grid-cols-2 gap-7">
-              {/* Ciclo */}
+            <section style={{ marginBottom: 72, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
               <Panel
                 title={cicloCard ? `Ciclo · ${cicloTarjeta?.name ?? 'Tarjeta'}` : 'Ciclo tarjeta'}
                 tag={
@@ -688,167 +868,80 @@ export function DesktopDashboardShell({
                     ? `cierra en ${cicloTarjeta.daysUntilClosing} días`
                     : cicloTarjeta?.cycleStatus ?? 'sin tarjeta'
                 }
-                tagColor={
-                  (cicloTarjeta?.daysUntilClosing ?? 99) <= 3 ? 'warn' : 'primary'
-                }
+                tagTone={(cicloTarjeta?.daysUntilClosing ?? 99) <= 5 ? 'warn' : 'primary'}
               >
                 {cicloTarjeta ? (
                   <>
-                    <p
-                      className="mb-2 font-medium text-text-primary"
-                      style={{ fontSize: 48, lineHeight: 1, letterSpacing: '-0.05em', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      <span
-                        className="mr-1 font-mono font-normal text-text-dim"
-                        style={{ fontSize: 16, verticalAlign: '0.3em' }}
-                      >
-                        $
+                    <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1, marginBottom: 6 }}>
+                      <span style={{ fontSize: 15, color: '#90A4B0', fontWeight: 500, alignSelf: 'flex-start', marginTop: 8 }}>$</span>
+                      <span style={{ fontSize: 48, fontWeight: 800, letterSpacing: '-0.05em', color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>
+                        {hidden ? '••••••' : cicloTarjeta.currentSpend.toLocaleString('es-AR', { maximumFractionDigits: 0 })}
                       </span>
-                      {amountsVisible
-                        ? cicloTarjeta.currentSpend.toLocaleString('es-AR', { maximumFractionDigits: 0 })
-                        : '••••••'}
-                    </p>
-                    <p className="mb-8 text-[13px] text-text-secondary">
-                      {cicloTarjeta.currentSpend === 0
-                        ? 'nuevo ciclo · sin consumos aún'
-                        : 'consumido del período'}
-                      {cicloCard?.closing_day && cicloTarjeta.currentSpend > 0
-                        ? ` · cierre ${cicloCard.closing_day} de ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`
-                        : ''}
-                    </p>
-                    {/* progress bar */}
-                    <div
-                      className="relative mb-4 h-1 overflow-visible rounded-sm"
-                      style={{ background: 'var(--color-bg-tertiary)' }}
-                    >
-                      <div
-                        className="h-full rounded-sm bg-text-primary"
-                        style={{ width: `${Math.round(cicloProgress * 100)}%` }}
-                      />
-                      <div
-                        className="absolute top-[-4px] h-3 w-px bg-primary"
-                        style={{ left: `${Math.round(cicloProgress * 100)}%` }}
-                      >
-                        <span
-                          className="absolute left-1/2 top-4 -translate-x-1/2 font-mono text-[10px] text-primary"
-                          style={{ whiteSpace: 'nowrap' }}
-                        >
+                    </div>
+                    <div style={{ fontSize: 13, color: '#4A6070', marginBottom: 22 }}>
+                      {cicloTarjeta.currentSpend === 0 ? 'nuevo ciclo · sin consumos aún' : 'consumido del período'}
+                    </div>
+
+                    <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'rgba(33,120,168,0.09)', marginBottom: 8, overflow: 'visible' }}>
+                      <div style={{ height: '100%', width: `${Math.round(cicloProgress * 100)}%`, background: '#0D1829', borderRadius: 3 }} />
+                      <div style={{ position: 'absolute', left: `${Math.round(cicloProgress * 100)}%`, top: -4, width: 1, height: 14, background: BLUE }}>
+                        <span style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', top: 15, fontSize: 10, fontWeight: 600, color: BLUE, whiteSpace: 'nowrap' }}>
                           hoy
                         </span>
                       </div>
                     </div>
-                    <div
-                      className="mt-9 flex justify-between font-mono text-[10px] uppercase tracking-[0.08em] text-text-dim"
-                    >
-                      <span>
-                        Ciclo anterior{' '}
-                        <strong
-                          className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
-                          style={{ fontSize: 14, letterSpacing: '-0.02em' }}
-                        >
-                          {amountsVisible
-                            ? formatAmount(cicloTarjeta.debtTotal, viewCurrency)
-                            : maskAmount(viewCurrency)}
-                        </strong>
-                      </span>
-                      {cicloTarjeta.dueDate && (
-                        <span>
-                          Vence{' '}
-                          <strong
-                            className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
-                            style={{ fontSize: 14 }}
-                          >
-                            {new Date(`${cicloTarjeta.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', {
-                              day: 'numeric',
-                              month: 'short',
-                            })}
-                          </strong>
-                        </span>
-                      )}
-                      <span>
-                        Tarjetas activas{' '}
-                        <strong
-                          className="block mt-1 font-sans font-medium normal-case tracking-[-0.02em] text-text-primary"
-                          style={{ fontSize: 14 }}
-                        >
-                          {compromisos?.tarjetas.length ?? 0}
-                        </strong>
-                      </span>
+
+                    <div style={{ marginTop: 30, display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
+                      {[
+                        { label: 'Ciclo anterior', value: money(cicloTarjeta.debtTotal) },
+                        {
+                          label: 'Vence',
+                          value: cicloTarjeta.dueDate
+                            ? new Date(`${cicloTarjeta.dueDate}T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+                            : '—',
+                        },
+                        { label: 'Tarjetas activas', value: `${compromisos?.tarjetas.length ?? 0}` },
+                      ].map((s, i) => (
+                        <div key={s.label} style={{ paddingLeft: i > 0 ? 16 : 0, borderLeft: i > 0 ? '1px solid rgba(33,120,168,0.08)' : 'none' }}>
+                          <div style={{ ...LABEL_STYLE, fontSize: 10, marginBottom: 6 }}>{s.label}</div>
+                          <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1829', letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                        </div>
+                      ))}
                     </div>
                   </>
                 ) : (
-                  <p className="py-4 text-[14px] text-text-secondary">
-                    Sin tarjetas activas para mostrar ciclo.
-                  </p>
+                  <p style={{ padding: '8px 0', fontSize: 14, color: '#4A6070' }}>Sin tarjetas activas para mostrar ciclo.</p>
                 )}
               </Panel>
 
-              {/* Flujo */}
-              <Panel
-                title={`Flujo de ${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { month: 'long' })}`}
-                tag={`${new Date(`${selectedMonth}-15T12:00:00-03:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'long' })} corridos`}
-                tagColor="muted"
-              >
-                <div className="mb-7 grid grid-cols-3 gap-3.5 border-b border-border-subtle pb-6">
-                  <div>
-                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
-                      Ingresos
-                    </p>
-                    <p
-                      className="font-medium text-success"
-                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {amountsVisible ? formatAmount(ingresosMes, viewCurrency) : maskAmount(viewCurrency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
-                      Gastos percibidos
-                    </p>
-                    <p
-                      className="font-medium text-warning"
-                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {amountsVisible ? formatAmount(gastosMes, viewCurrency) : maskAmount(viewCurrency)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="mb-2.5 font-mono text-[10px] font-medium uppercase tracking-[0.12em] text-text-dim">
-                      Resultado
-                    </p>
-                    <p
-                      className={`font-medium ${flujoResult >= 0 ? 'text-primary' : 'text-danger'}`}
-                      style={{ fontSize: 22, letterSpacing: '-0.035em', fontVariantNumeric: 'tabular-nums' }}
-                    >
-                      {amountsVisible
-                        ? `${flujoResult >= 0 ? '+' : ''}${formatAmount(flujoResult, viewCurrency)}`
-                        : maskAmount(viewCurrency)}
-                    </p>
-                  </div>
+              <Panel title={`Flujo de ${monthName(selectedMonth)}`} tag={`${new Date().getDate()} días corridos`} tagTone="muted">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', paddingBottom: 20, marginBottom: 20, borderBottom: '1px solid rgba(33,120,168,0.08)' }}>
+                  {[
+                    { label: 'Ingresos', value: money(ingresosMes), color: '#1A7A42' },
+                    { label: 'Gastos percibidos', value: money(gastosMes), color: '#B84A12' },
+                    {
+                      label: 'Resultado',
+                      value: hidden ? maskAmount(viewCurrency) : `${flujoResult >= 0 ? '+' : ''}${formatAmount(flujoResult, viewCurrency)}`,
+                      color: flujoResult >= 0 ? BLUE : '#A61E1E',
+                    },
+                  ].map((s, i) => (
+                    <div key={s.label} style={{ paddingLeft: i > 0 ? 16 : 0, borderLeft: i > 0 ? '1px solid rgba(33,120,168,0.08)' : 'none' }}>
+                      <div style={{ ...LABEL_STYLE, fontSize: 10, marginBottom: 8 }}>{s.label}</div>
+                      <div style={{ fontSize: 18, fontWeight: 800, color: hidden ? '#90A4B0' : s.color, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums' }}>
+                        {s.value}
+                      </div>
+                    </div>
+                  ))}
                 </div>
-                {/* expense bar chart */}
+
                 {cashflowBars.length >= 2 ? (
-                  <svg width="100%" height="120" viewBox="0 0 460 120" preserveAspectRatio="none">
+                  <svg width="100%" height="110" viewBox="0 0 460 110" preserveAspectRatio="none">
                     {cashflowBars.map((bar, i) => {
-                      const x = 20 + i * 72
+                      const x = 14 + i * 72
                       return (
                         <g key={bar.label}>
-                          <rect
-                            x={x}
-                            y={100 - bar.height}
-                            width={36}
-                            height={bar.height}
-                            fill={bar.isCurrent ? 'var(--color-primary)' : 'var(--color-bg-tertiary)'}
-                            rx="2"
-                          />
-                          <text
-                            x={x + 18}
-                            y="115"
-                            fontFamily="var(--font-dm-mono), ui-monospace"
-                            fontSize="9"
-                            fill="var(--color-text-dim)"
-                            textAnchor="middle"
-                          >
+                          <rect x={x} y={96 - bar.height} width={38} height={bar.height} fill={bar.isCurrent ? BLUE : 'rgba(33,120,168,0.10)'} rx="3" />
+                          <text x={x + 19} y="110" fontFamily="var(--font-sans)" fontSize="9" fill="#90A4B0" textAnchor="middle" fontWeight="600">
                             {bar.label}
                           </text>
                         </g>
@@ -856,69 +949,40 @@ export function DesktopDashboardShell({
                     })}
                   </svg>
                 ) : (
-                  <p className="py-3 text-[13px] text-text-dim">
-                    Acumulá más meses para ver la tendencia.
-                  </p>
+                  <p style={{ padding: '12px 0', fontSize: 13, color: '#90A4B0' }}>Acumulá más meses para ver la tendencia.</p>
                 )}
               </Panel>
             </section>
 
             {/* ======== METAS + INSTRUMENTOS ======== */}
-            <section className="mb-[88px] grid grid-cols-2 gap-7">
-              <Panel title="Metas" tag="disponible en Análisis" tagColor="primary">
-                <div className="flex flex-col items-center justify-center py-8 text-center">
-                  <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Target size={22} />
+            <section style={{ marginBottom: 72, display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+              <Panel title="Metas" tag="disponible en Análisis" tagTone="primary">
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '28px 0', textAlign: 'center' }}>
+                  <div style={{ width: 48, height: 48, borderRadius: 9999, background: 'rgba(33,120,168,0.09)', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 14 }}>
+                    <Target size={22} color={BLUE} />
                   </div>
-                  <p className="text-[15px] font-medium text-text-primary">Metas financieras</p>
-                  <p className="mt-2 max-w-xs text-[13px] leading-6 text-text-secondary">
-                    Ya podés crear metas, registrar aportes y marcar plata comprometida desde Análisis. Esta superficie de desktop todavía muestra un resumen editorial.
-                  </p>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1829', marginBottom: 8 }}>Metas financieras</div>
+                  <div style={{ fontSize: 13, color: '#4A6070', lineHeight: 1.6, maxWidth: 280 }}>
+                    Creá metas, registrá aportes y marcá plata comprometida desde Análisis.
+                  </div>
                 </div>
               </Panel>
 
-              {/* Instrumentos */}
-              <Panel
-                title="Instrumentos"
-                tag={instruments.length > 0 ? `${instruments.length} activos` : undefined}
-              >
+              <Panel title="Instrumentos" tag={instruments.length > 0 ? `${instruments.length} activos` : undefined}>
                 {instruments.length === 0 ? (
-                  <p className="py-4 text-[14px] text-text-secondary">No hay instrumentos activos.</p>
+                  <p style={{ padding: '8px 0', fontSize: 14, color: '#4A6070' }}>No hay instrumentos activos.</p>
                 ) : (
-                  <div
-                    className="overflow-hidden rounded-[10px]"
-                    style={{
-                      display: 'grid',
-                      gridTemplateColumns: '1fr 1fr',
-                      gap: 1,
-                      background: 'var(--color-border-subtle)',
-                    }}
-                  >
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, borderRadius: 12, overflow: 'hidden', background: 'rgba(33,120,168,0.07)' }}>
                     {instruments.map((instrument) => (
-                      <div key={instrument.id} className="bg-white p-5">
-                        <p className="mb-3.5 font-mono text-[9px] font-medium uppercase tracking-[0.14em] text-text-dim">
+                      <div key={instrument.id} style={{ background: '#FFFFFF', padding: '18px 18px 16px' }}>
+                        <div style={{ ...LABEL_STYLE, fontSize: 10, marginBottom: 10 }}>
                           {instrument.type === 'plazo_fijo' ? 'Plazo fijo' : 'FCI'} · {instrument.currency}
-                        </p>
-                        <p className="mb-1.5 text-[13px] font-normal leading-snug tracking-[-0.015em] text-text-secondary">
-                          {instrumentLabel(instrument)}
-                        </p>
-                        <p
-                          className="mb-3.5 font-medium text-text-primary"
-                          style={{ fontSize: 22, letterSpacing: '-0.04em', fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          <span
-                            className="mr-0.5 font-mono font-normal text-text-dim"
-                            style={{ fontSize: 11, verticalAlign: '0.2em' }}
-                          >
-                            {instrument.currency === 'USD' ? 'US$' : '$'}
-                          </span>
-                          {amountsVisible
-                            ? instrument.amount.toLocaleString('es-AR', { maximumFractionDigits: 0 })
-                            : '••••••'}
-                        </p>
-                        <div className="flex justify-between font-mono text-[10px] text-text-dim" style={{ letterSpacing: '0.02em' }}>
-                          <span>{instrumentDueDateLabel(instrument)}</span>
                         </div>
+                        <div style={{ fontSize: 13, color: '#4A6070', marginBottom: 10, lineHeight: 1.3 }}>{instrumentLabel(instrument)}</div>
+                        <div style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.035em', color: '#0D1829', fontVariantNumeric: 'tabular-nums', marginBottom: 8 }}>
+                          {money(instrument.amount, instrument.currency)}
+                        </div>
+                        <div style={{ fontSize: 11, color: '#90A4B0' }}>{instrumentDueDateLabel(instrument)}</div>
                       </div>
                     ))}
                   </div>
@@ -926,304 +990,404 @@ export function DesktopDashboardShell({
               </Panel>
             </section>
 
-            {/* ======== INSIGHTS ======== */}
-            <section
-              className="relative mb-[88px] py-12"
-              style={{
-                borderTop: '1px solid var(--color-text-primary)',
-                borderBottom: '1px solid var(--color-border-subtle)',
-              }}
-            >
-              {/* blue accent line */}
-              <div
-                className="absolute left-0 top-[-1px] h-0.5 w-14 bg-primary"
-              />
-
-              <div className="mb-9 flex items-baseline gap-4">
-                <div>
-                  <span className="inline-flex items-center gap-1 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-primary">
-                    <Sparkle size={13} weight="duotone" />
-                    Esta semana, según gota
-                  </span>
-                  <h2
-                    className="mt-2 font-medium text-text-primary"
-                    style={{ fontSize: 26, letterSpacing: '-0.04em' }}
-                  >
-                    {attention.length > 0
-                      ? 'Señales para mirar.'
-                      : 'Todo en orden.'}
-                  </h2>
-                </div>
-                <span className="ml-auto font-mono text-[11px] tracking-[0.04em] text-text-dim">
-                  {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
-                </span>
+            {/* ======== PRESUPUESTO ======== */}
+            <section style={{ marginBottom: 72 }}>
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 24 }}>
+                <h2 style={{ margin: 0, fontSize: 22, fontWeight: 800, letterSpacing: '-0.025em', color: '#0D1829' }}>Presupuesto</h2>
+                <Link
+                  href="/analytics"
+                  style={{
+                    background: 'rgba(33,120,168,0.07)',
+                    border: '1px solid rgba(33,120,168,0.20)',
+                    borderRadius: 9999,
+                    padding: '6px 14px',
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: BLUE,
+                    textDecoration: 'none',
+                  }}
+                >
+                  {planExists ? 'Editar plan' : 'Armar plan'}
+                </Link>
               </div>
 
-              {attention.length === 0 ? (
-                <div className="grid grid-cols-3 gap-7">
-                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
-                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">01 · estado</span>
-                    Sin señales tácticas urgentes. La lectura del mes está estable con los datos actuales.
-                  </div>
-                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
-                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">02 · hábito</span>
-                    Seguí registrando para que el análisis mejore con el tiempo y sea más preciso.
-                  </div>
-                  <div className="border-l border-border-subtle pl-7 font-medium leading-[1.5] tracking-[-0.015em] text-text-primary" style={{ fontSize: 15 }}>
-                    <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">03 · horizonte</span>
-                    Revisá la sección de Horizonte para ver los eventos financieros que se vienen.
-                  </div>
-                </div>
+              {planExists && budget ? (
+                <BudgetBlock budget={budget} currency={budgetCcy} />
               ) : (
-                <div className="grid gap-7" style={{ gridTemplateColumns: `repeat(${Math.min(attention.length, 3)}, 1fr)` }}>
-                  {attention.slice(0, 3).map((signal, i) => (
-                    <div
-                      key={signal.id}
-                      className={`${i > 0 ? 'border-l border-border-subtle pl-7' : ''} font-medium leading-[1.5] tracking-[-0.015em] text-text-primary`}
-                      style={{ fontSize: 15 }}
-                    >
-                      <span className="mb-3.5 block font-mono text-[10px] font-medium uppercase tracking-[0.14em] text-primary">
-                        {String(i + 1).padStart(2, '0')} · {signal.tone === 'high' ? 'urgente' : signal.tone === 'medium' ? 'atención' : 'nota'}
-                      </span>
-                      {signal.title}.{' '}
-                      <span className="font-normal text-text-secondary">{signal.detail}</span>
-                      <span className="mt-3.5 block border-b border-primary pb-0.5 font-mono text-[11px] font-medium text-primary" style={{ display: 'inline-block' }}>
-                        {signal.dateLabel}
-                      </span>
-                    </div>
-                  ))}
+                <div style={{ ...CARD_STYLE, padding: '32px 28px', textAlign: 'center' }}>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: '#0D1829', marginBottom: 8 }}>Todavía no armaste un presupuesto</div>
+                  <div style={{ fontSize: 13, color: '#4A6070', lineHeight: 1.6, maxWidth: 420, margin: '0 auto' }}>
+                    Armá un marco simple por categoría para seguir el mes con más claridad. Se gestiona desde Análisis.
+                  </div>
                 </div>
               )}
             </section>
 
-            {/* ======== 3-COL BOTTOM ======== */}
-            <section className="mb-[88px] grid grid-cols-3 gap-9">
+            {/* ======== INSIGHTS ======== */}
+            <section style={{ position: 'relative', marginBottom: 72, paddingTop: 36, paddingBottom: 36, borderTop: '1.5px solid #0D1829', borderBottom: '1px solid rgba(33,120,168,0.08)' }}>
+              <div style={{ position: 'absolute', left: 0, top: -1.5, width: 52, height: 2, background: BLUE }} />
 
+              <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 28 }}>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                    <span style={{ ...LABEL_STYLE, color: BLUE }}>Esta semana, según gota</span>
+                    <Sparkle weight="duotone" size={12} color={BLUE} />
+                  </div>
+                  <h2 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: '-0.03em', color: '#0D1829' }}>
+                    {attention.length > 0 ? 'Señales para mirar.' : 'Todo en orden.'}
+                  </h2>
+                </div>
+                <span style={{ fontSize: 12, color: '#90A4B0' }}>
+                  {new Date().toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                </span>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 28 }}>
+                {(attention.length > 0
+                  ? attention.slice(0, 3)
+                  : [
+                      { id: 'd1', tone: 'low' as const, title: 'Sin señales urgentes', detail: 'La lectura del mes está estable con los datos actuales.', dateLabel: 'estado' },
+                      { id: 'd2', tone: 'low' as const, title: 'Seguí registrando', detail: 'Con más movimientos el análisis mejora con el tiempo.', dateLabel: 'hábito' },
+                      { id: 'd3', tone: 'low' as const, title: 'Revisá el Horizonte', detail: 'Los eventos financieros próximos están al final de esta página.', dateLabel: 'horizonte' },
+                    ]
+                ).map((signal, i) => (
+                  <div key={signal.id} style={{ paddingLeft: i > 0 ? 28 : 0, borderLeft: i > 0 ? '1px solid rgba(33,120,168,0.10)' : 'none' }}>
+                    <div style={{ ...LABEL_STYLE, color: BLUE, marginBottom: 12 }}>
+                      {String(i + 1).padStart(2, '0')} · {signal.tone === 'high' ? 'urgente' : signal.tone === 'medium' ? 'atención' : 'nota'}
+                    </div>
+                    <p style={{ fontSize: 15, fontWeight: 700, color: '#0D1829', lineHeight: 1.5, margin: '0 0 6px' }}>{signal.title}.</p>
+                    <p style={{ fontSize: 14, color: '#4A6070', lineHeight: 1.55, margin: '0 0 16px' }}>{signal.detail}</p>
+                    <span style={{ display: 'inline-block', fontSize: 12, fontWeight: 600, color: BLUE, borderBottom: '1px solid rgba(33,120,168,0.30)', paddingBottom: 1 }}>
+                      {signal.dateLabel}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* ======== 3-COL BOTTOM ======== */}
+            <section style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 40 }}>
               {/* Últimos movimientos */}
-              <div
-                className="pt-6"
-                style={{ borderTop: '1px solid var(--color-text-primary)' }}
-              >
-                <div
-                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
-                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
-                >
-                  <span>
-                    Últimos movimientos
-                  </span>
-                  <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
-                    {recentActivity.length} ítems
-                  </span>
+              <div style={{ paddingTop: 20, borderTop: '1.5px solid #0D1829' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.025em', color: '#0D1829' }}>Últimos movimientos</h3>
+                  <span style={{ fontSize: 12, color: '#90A4B0' }}>{recentActivity.length} ítems</span>
                 </div>
                 <div>
-                  {recentActivity.map((item) => (
-                    <div
-                      key={item.id}
-                      className="flex cursor-pointer items-center gap-3.5 border-t border-border-subtle py-4 transition-opacity hover:opacity-65 first:border-t-0 first:pt-1"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-baseline justify-between gap-2">
-                          <span
-                            className="overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
-                            style={{ fontSize: 14 }}
-                          >
-                            {item.title}
-                          </span>
-                          <span
-                            className={`whitespace-nowrap font-medium tracking-[-0.025em] ${item.tone === 'positive' ? 'text-success' : 'text-text-primary'}`}
-                            style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}
-                          >
-                            {item.amountLabel}
-                          </span>
+                  {recentActivity.map((item, i) => {
+                    const isIncome = item.tone === 'positive'
+                    const isTransfer = item.subtitle.includes('→')
+                    return (
+                      <div
+                        key={item.id}
+                        style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i > 0 ? '1px solid rgba(33,120,168,0.07)' : 'none' }}
+                      >
+                        {isIncome ? (
+                          <div style={{ width: 32, height: 32, borderRadius: 9999, flexShrink: 0, background: 'rgba(26,122,66,0.10)', border: '1px solid rgba(26,122,66,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ArrowCircleUp weight="duotone" size={17} color="#1A7A42" />
+                          </div>
+                        ) : isTransfer ? (
+                          <div style={{ width: 32, height: 32, borderRadius: 9999, flexShrink: 0, background: 'rgba(27,126,158,0.10)', border: '1px solid rgba(27,126,158,0.18)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <ArrowsLeftRight weight="duotone" size={17} color="#1B7E9E" />
+                          </div>
+                        ) : (
+                          <CatSquare category={item.subtitle} size={32} iconSize={16} />
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1829', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                          <div style={{ fontSize: 11, color: '#90A4B0', marginTop: 1 }}>{item.subtitle}</div>
                         </div>
-                        <div className="mt-1 flex justify-between font-mono text-[11px] tracking-[0.02em] text-text-dim">
-                          <span>{item.subtitle}</span>
-                          <span>{item.dateLabel}</span>
+                        <div style={{ fontSize: 14, fontWeight: 700, flexShrink: 0, color: isIncome ? '#1A7A42' : '#0D1829', fontVariantNumeric: 'tabular-nums' }}>
+                          {hidden ? '••••' : item.amountLabel}
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
                 <Link
                   href="/analytics"
-                  className="mt-5 inline-flex items-center gap-1.5 border-b border-border-subtle pb-1 font-mono text-[11px] text-text-secondary transition-colors hover:border-primary hover:text-primary"
+                  style={{ marginTop: 16, display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: 12, fontWeight: 600, color: BLUE, textDecoration: 'none', borderBottom: '1px solid rgba(33,120,168,0.25)', paddingBottom: 1 }}
                 >
                   Ver análisis completo <ArrowRight size={12} />
                 </Link>
               </div>
 
               {/* Suscripciones */}
-              <div
-                className="pt-6"
-                style={{ borderTop: '1px solid var(--color-text-primary)' }}
-              >
-                <div
-                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
-                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
-                >
-                  <span>Suscripciones</span>
+              <div style={{ paddingTop: 20, borderTop: '1.5px solid #0D1829' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.025em', color: '#0D1829' }}>Suscripciones</h3>
                   {subscriptions.length > 0 && (
-                    <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
-                      {amountsVisible
-                        ? formatAmount(
-                            subscriptions
-                              .filter((s) => s.currency === viewCurrency)
-                              .reduce((sum, s) => sum + s.amount, 0),
+                    <span style={{ fontSize: 12, color: '#90A4B0' }}>
+                      {hidden
+                        ? '•••'
+                        : formatAmount(
+                            subscriptions.filter((s) => s.currency === viewCurrency).reduce((sum, s) => sum + s.amount, 0),
                             viewCurrency,
-                          )
-                        : '•••'}{' '}
+                          )}{' '}
                       / mes
                     </span>
                   )}
                 </div>
-
                 {subscriptions.length === 0 ? (
-                  <p className="pt-1 text-[14px] text-text-secondary">Sin suscripciones activas.</p>
+                  <p style={{ fontSize: 14, color: '#4A6070' }}>Sin suscripciones activas.</p>
                 ) : (
-                  <>
-                    {subscriptions.map((sub: Subscription) => (
-                      <div
-                        key={sub.id}
-                        className="flex items-center justify-between border-t border-border-subtle py-4 first:border-t-0 first:pt-1"
-                      >
-                        <div className="flex min-w-0 items-center gap-3">
-                          <div
-                            className="flex h-[34px] w-[34px] flex-shrink-0 items-center justify-center rounded-[9px] text-[15px]"
-                            style={{ background: 'var(--color-bg-tertiary)', color: 'var(--color-text-primary)' }}
-                          >
-                            <span className="font-medium" style={{ fontSize: 12 }}>
-                              {sub.description.charAt(0).toUpperCase()}
-                            </span>
-                          </div>
-                          <div className="min-w-0">
-                            <p
-                              className="overflow-hidden text-ellipsis whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
-                              style={{ fontSize: 14 }}
-                            >
-                              {sub.description}
-                            </p>
-                            <p className="mt-0.5 font-mono text-[11px] uppercase tracking-[0.02em] text-text-dim">
-                              Renueva el {sub.day_of_month}
-                            </p>
-                          </div>
-                        </div>
-                        <span
-                          className="ml-2.5 whitespace-nowrap font-medium tracking-[-0.02em] text-text-primary"
-                          style={{ fontSize: 14, fontVariantNumeric: 'tabular-nums' }}
-                        >
-                          {amountsVisible ? formatAmount(sub.amount, sub.currency) : maskAmount(sub.currency)}
-                        </span>
+                  subscriptions.map((sub: Subscription, i) => (
+                    <div key={sub.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 0', borderTop: i > 0 ? '1px solid rgba(33,120,168,0.07)' : 'none' }}>
+                      <div style={{ width: 34, height: 34, borderRadius: 10, flexShrink: 0, background: 'rgba(33,120,168,0.07)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, fontWeight: 700, color: BLUE }}>
+                        {sub.description.charAt(0).toUpperCase()}
                       </div>
-                    ))}
-                  </>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1829', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sub.description}</div>
+                        <div style={{ fontSize: 11, color: '#90A4B0', marginTop: 1 }}>Renueva el {sub.day_of_month}</div>
+                      </div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: '#0D1829', fontVariantNumeric: 'tabular-nums', flexShrink: 0 }}>{money(sub.amount, sub.currency)}</div>
+                    </div>
+                  ))
                 )}
               </div>
 
               {/* Lo que viene */}
-              <div
-                className="pt-6"
-                style={{ borderTop: '1px solid var(--color-text-primary)' }}
-              >
-                <div
-                  className="mb-6 flex items-baseline justify-between font-medium text-text-primary"
-                  style={{ fontSize: 22, letterSpacing: '-0.035em' }}
-                >
-                  <span>Lo que viene</span>
-                  <span className="font-mono text-[11px] tracking-[0.04em] text-text-dim">
-                    {horizon.length} eventos · 90 días
-                  </span>
+              <div style={{ paddingTop: 20, borderTop: '1.5px solid #0D1829' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 20 }}>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, letterSpacing: '-0.025em', color: '#0D1829' }}>Lo que viene</h3>
+                  <span style={{ fontSize: 12, color: '#90A4B0' }}>{horizon.length} eventos · 90 días</span>
                 </div>
-
                 {groupedHorizon.length === 0 ? (
-                  <p className="pt-1 text-[14px] text-text-secondary">Sin eventos próximos en 90 días.</p>
+                  <p style={{ fontSize: 14, color: '#4A6070' }}>Sin eventos próximos en 90 días.</p>
                 ) : (
-                  <>
-                    {groupedHorizon.map(({ month, label, events }) => (
-                      <div key={month}>
-                        <p className="mb-2.5 mt-6 font-mono text-[11px] font-medium uppercase tracking-[0.16em] text-text-dim first:mt-0">
-                          En {label}
-                        </p>
-                        {events.map((event) => {
-                          const d = new Date(`${event.date}T12:00:00-03:00`)
-                          return (
-                            <div
-                              key={event.id}
-                              className="grid items-start gap-3.5 py-3"
-                              style={{ gridTemplateColumns: '42px 1fr auto' }}
-                            >
-                              <div className="font-mono text-[11px] uppercase tracking-[0.04em] text-text-dim" style={{ paddingTop: 4, fontVariantNumeric: 'tabular-nums' }}>
-                                <span
-                                  className="mb-0.5 block font-sans font-medium text-text-primary"
-                                  style={{ fontSize: 20, letterSpacing: '-0.04em', lineHeight: 1 }}
-                                >
-                                  {d.getDate()}
-                                </span>
+                  groupedHorizon.map(({ month, label, events }) => (
+                    <div key={month}>
+                      <div style={{ ...LABEL_STYLE, marginBottom: 10, marginTop: 18 }}>En {label}</div>
+                      {events.map((event) => {
+                        const d = new Date(`${event.date}T12:00:00-03:00`)
+                        return (
+                          <div key={event.id} style={{ display: 'grid', gridTemplateColumns: '42px 1fr auto', gap: 14, alignItems: 'start', padding: '10px 0', borderTop: '1px solid rgba(33,120,168,0.07)' }}>
+                            <div style={{ paddingTop: 2 }}>
+                              <div style={{ fontSize: 20, fontWeight: 800, letterSpacing: '-0.04em', color: '#0D1829', lineHeight: 1 }}>{d.getDate()}</div>
+                              <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: '0.06em', textTransform: 'uppercase', color: '#90A4B0', marginTop: 1 }}>
                                 {d.toLocaleDateString('es-AR', { month: 'short' }).toUpperCase().replace('.', '')}
                               </div>
-
-                              <div
-                                className="relative border-l border-border-subtle pl-4"
-                                style={{ paddingTop: 2 }}
-                              >
-                                <span
-                                  className={`absolute -left-[4px] top-[7px] h-[7px] w-[7px] rounded-full border-[1.5px] ${horizonDotColor(event.kind)}`}
-                                  style={{ borderColor: '#FAFAF8' }}
-                                />
-                                <p
-                                  className="font-medium leading-snug tracking-[-0.02em] text-text-primary"
-                                  style={{ fontSize: 14 }}
-                                >
-                                  {event.title}
-                                </p>
-                                <span
-                                  className={`font-mono text-[11px] tracking-[0.02em] ${
-                                    event.kind === 'due' ? 'text-primary' : event.kind === 'income' ? 'text-success' : 'text-text-dim'
-                                  }`}
-                                >
-                                  {event.subtitle}
-                                </span>
-                              </div>
-
-                              <div style={{ paddingTop: 2 }}>
-                                {event.amount !== undefined && event.amount > 0 && (
-                                  <p
-                                    className={`whitespace-nowrap font-medium tracking-[-0.025em] ${horizonAmountColor(event.kind, event.estimated)}`}
-                                    style={{ fontSize: 13, fontVariantNumeric: 'tabular-nums' }}
-                                  >
-                                    {horizonAmountPrefix(event.kind)}
-                                    {amountsVisible
-                                      ? formatAmount(event.amount, event.currency ?? viewCurrency)
-                                      : '••••'}
-                                  </p>
-                                )}
-                              </div>
                             </div>
-                          )
-                        })}
-                      </div>
-                    ))}
-                  </>
+                            <div style={{ position: 'relative', borderLeft: '1px solid rgba(33,120,168,0.12)', paddingLeft: 14, paddingTop: 2 }}>
+                              <div style={{ position: 'absolute', left: -4, top: 7, width: 7, height: 7, borderRadius: 9999, background: horizonDotHex(event.kind), border: '2px solid #F8FBFD' }} />
+                              <div style={{ fontSize: 14, fontWeight: 600, color: '#0D1829', lineHeight: 1.3 }}>{event.title}</div>
+                              <div style={{ fontSize: 11, color: event.kind === 'income' ? '#1A7A42' : '#90A4B0', marginTop: 2 }}>{event.subtitle}</div>
+                            </div>
+                            <div style={{ paddingTop: 2, textAlign: 'right' }}>
+                              {event.amount !== undefined && event.amount > 0 && (
+                                <div style={{ fontSize: 13, fontWeight: 700, color: horizonAmountHex(event.kind, event.estimated), fontVariantNumeric: 'tabular-nums', whiteSpace: 'nowrap' }}>
+                                  {horizonAmountPrefix(event.kind)}
+                                  {hidden ? '••••' : formatAmount(event.amount, event.currency ?? viewCurrency)}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  ))
                 )}
               </div>
             </section>
 
+            {/* ======== COLOPHON ======== */}
+            <div style={{ marginTop: 72, paddingTop: 40, textAlign: 'center', borderTop: '1px solid rgba(33,120,168,0.08)' }}>
+              <div style={{ fontSize: 18, fontWeight: 800, color: BLUE, letterSpacing: '-0.045em', marginBottom: 8 }}>gota.</div>
+              <div style={{ fontSize: 12, color: '#90A4B0', letterSpacing: '0.04em' }}>Tu dinero, con menos ruido.</div>
+            </div>
+          </main>
+        </>
+      ) : (
+        <>
+          <BlueSubHeader
+            title={
+              activeNav === 'movimientos'
+                ? 'Movimientos'
+                : activeNav === 'cuentas'
+                  ? 'Cuentas'
+                  : activeNav === 'tarjetas'
+                    ? 'Tarjetas'
+                    : activeNav === 'instrumentos'
+                      ? 'Instrumentos'
+                      : drill === 'compromisos'
+                        ? 'Análisis · Compromisos'
+                        : drill === 'fuga'
+                          ? 'Análisis · Fuga silenciosa'
+                          : 'Análisis'
+            }
+            meta={`${monthName(selectedMonth)} ${selectedMonth.slice(0, 4)}`}
+          />
+          <main style={{ maxWidth: 1280, margin: '0 auto', padding: '0 48px 96px' }}>
+            {activeNav === 'movimientos' && <MovimientosView {...viewProps} />}
+            {activeNav === 'cuentas' && <CuentasView {...viewProps} />}
+            {activeNav === 'tarjetas' && <TarjetasView {...viewProps} />}
+            {activeNav === 'instrumentos' && <InstrumentosView {...viewProps} />}
+            {activeNav === 'analisis' &&
+              (drill === 'fuga' ? (
+                <FugaView {...viewProps} onBack={() => setDrill(null)} />
+              ) : drill === 'compromisos' ? (
+                <CompromisosView {...viewProps} onBack={() => setDrill(null)} />
+              ) : (
+                <AnalisisView
+                  {...viewProps}
+                  onDrill={(id) => {
+                    setDrill(id)
+                    if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
+                  }}
+                />
+              ))}
+          </main>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ─── Presupuesto block (real BudgetSnapshot) ─────────────────
+function budgetBalanceCopy(item: BudgetItemMetrics, currency: 'ARS' | 'USD'): string {
+  if (item.remainingAmount < 0) return `Superaste por ${formatAmount(Math.abs(item.remainingAmount), currency)}`
+  if (item.status === 'ahead_of_pace') return `Venís con ${formatAmount(item.remainingAmount, currency)} de margen`
+  return `Te quedan ${formatAmount(item.remainingAmount, currency)}`
+}
+
+function BudgetCategoryRow({ item, currency }: { item: BudgetItemMetrics; currency: 'ARS' | 'USD' }) {
+  const meta = BUDGET_STATUS[item.status] ?? BUDGET_STATUS.on_track
+  const usedW = Math.min(Math.max(item.usedPct, 0), 1)
+  const expW = Math.min(Math.max(item.expectedPct, 0), 1)
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14, padding: '16px 20px', borderBottom: '1px solid rgba(33,120,168,0.07)' }}>
+      <CatSquare category={item.category} size={36} iconSize={18} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, marginBottom: 6 }}>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: 14, fontWeight: 600, color: '#0D1829', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.category}</span>
+              <span style={{ padding: '2px 7px', borderRadius: 9999, fontSize: 10, fontWeight: 700, color: meta.color, background: meta.bg, flexShrink: 0 }}>{meta.label}</span>
+            </div>
+            <div style={{ fontSize: 12, color: '#4A6070', marginTop: 2 }}>
+              {budgetBalanceCopy(item, currency)} · plan {formatAmount(item.amount, currency)}
+            </div>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 800, color: meta.amountColor, fontVariantNumeric: 'tabular-nums' }}>{formatAmount(item.spentAmount, currency)}</div>
+            <div style={{ fontSize: 11, color: '#90A4B0', marginTop: 1 }}>gastados</div>
+          </div>
+        </div>
+        <div style={{ position: 'relative', height: 6, borderRadius: 3, background: 'rgba(33,120,168,0.09)', overflow: 'visible', marginTop: 8 }}>
+          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${usedW * 100}%`, background: meta.bar, borderRadius: 3 }} />
+          <div style={{ position: 'absolute', left: `${expW * 100}%`, top: -3, width: 2, height: 12, background: '#B8C9D4', transform: 'translateX(-50%)', borderRadius: 1 }} />
+        </div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#90A4B0', marginTop: 5 }}>
+          <span>Usaste {Math.round(item.usedPct * 100)}%</span>
+          <span>Ritmo esperado {Math.round(item.expectedPct * 100)}%</span>
+        </div>
+      </div>
+      <CaretRight weight="bold" size={11} color="#B8C9D4" style={{ marginTop: 4, flexShrink: 0 }} />
+    </div>
+  )
+}
+
+function BudgetBlock({ budget, currency }: { budget: BudgetSnapshot; currency: 'ARS' | 'USD' }) {
+  const { summary, items } = budget
+  const spentPct = summary.totalBudgeted > 0 ? summary.totalSpent / summary.totalBudgeted : 0
+  const tone = summary.overBudgetCount > 0 ? '#A61E1E' : summary.nearLimitCount > 0 ? '#B84A12' : BLUE
+  const focusCats = items.filter((c) => c.status === 'over_budget' || c.status === 'near_limit')
+  const restCats = items.filter((c) => c.status !== 'over_budget' && c.status !== 'near_limit')
+
+  return (
+    <>
+      <div style={{ ...CARD_STYLE, padding: '24px 28px 22px', marginBottom: 20 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr auto', gap: 24, alignItems: 'start' }}>
+          <div>
+            <div style={{ ...LABEL_STYLE, marginBottom: 10 }}>Disponible del plan</div>
+            <div style={{ fontSize: 40, fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1, color: summary.totalRemaining < 0 ? '#A61E1E' : '#0D1829', fontVariantNumeric: 'tabular-nums', marginBottom: 10 }}>
+              {formatAmount(summary.totalRemaining, currency)}
+            </div>
+            <p style={{ fontSize: 13, color: '#4A6070', lineHeight: 1.5, margin: 0 }}>
+              {summary.totalRemaining >= 0
+                ? `Todavía te quedan ${formatAmount(summary.totalRemaining, currency)} para repartir sin salirte del plan.`
+                : `Ya superaste el plan total por ${formatAmount(Math.abs(summary.totalRemaining), currency)}.`}
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, minWidth: 220 }}>
+            <div style={{ background: '#F4F7FA', borderRadius: 12, padding: '14px 18px', display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12 }}>
+              {[
+                { label: 'Plan', value: formatAmount(summary.totalBudgeted, currency) },
+                { label: 'Gastado', value: formatAmount(summary.totalSpent, currency) },
+                { label: 'Categorías', value: `${items.length}` },
+              ].map((s) => (
+                <div key={s.label}>
+                  <div style={{ fontSize: 10, fontWeight: 600, color: '#90A4B0', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 4 }}>{s.label}</div>
+                  <div style={{ fontSize: 16, fontWeight: 800, color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {[
+                { count: summary.overBudgetCount, label: 'pasadas', bg: 'rgba(166,30,30,0.09)', color: '#A61E1E' },
+                { count: summary.nearLimitCount, label: 'al límite', bg: 'rgba(184,74,18,0.09)', color: '#B84A12' },
+                { count: summary.aheadOfPaceCount, label: 'con aire', bg: 'rgba(33,120,168,0.09)', color: BLUE },
+              ].map((chip) => (
+                <span
+                  key={chip.label}
+                  style={{ padding: '4px 12px', borderRadius: 9999, fontSize: 12, fontWeight: 700, background: chip.count > 0 ? chip.bg : 'rgba(33,120,168,0.05)', color: chip.count > 0 ? chip.color : '#B8C9D4' }}
+                >
+                  {chip.count} {chip.label}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        <div style={{ marginTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12, color: '#4A6070', marginBottom: 8 }}>
+            <span style={{ fontWeight: 500 }}>Consumo del plan</span>
+            <span style={{ fontWeight: 700, color: '#0D1829' }}>{Math.round(spentPct * 100)}% usado</span>
+          </div>
+          <div style={{ height: 8, borderRadius: 4, background: 'rgba(33,120,168,0.09)', overflow: 'hidden' }}>
+            <div style={{ width: `${Math.min(spentPct, 1) * 100}%`, height: '100%', background: tone, borderRadius: 4 }} />
+          </div>
+        </div>
+      </div>
+
+      <div style={{ ...CARD_STYLE, overflow: 'hidden' }}>
+        {focusCats.length > 0 && (
+          <>
+            <div style={{ padding: '12px 20px 8px', background: 'rgba(33,120,168,0.03)', borderBottom: '1px solid rgba(33,120,168,0.07)' }}>
+              <span style={{ ...LABEL_STYLE, color: '#B84A12' }}>Para mirar primero</span>
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              {focusCats.map((item, i) => (
+                <div key={item.id} style={{ borderRight: i % 2 === 0 ? '1px solid rgba(33,120,168,0.07)' : 'none' }}>
+                  <BudgetCategoryRow item={item} currency={currency} />
+                </div>
+              ))}
+            </div>
           </>
         )}
 
-        {/* ======== COLOPHON ======== */}
-        <div
-          className="mt-[88px] border-t border-border-subtle pt-14 text-center font-mono text-[11px] tracking-[0.04em] text-text-dim"
-        >
-          <span
-            className="mb-2.5 block font-sans font-bold tracking-[-0.045em] text-primary"
-            style={{ fontSize: 18 }}
-          >
-            gota.
-          </span>
-          Tu dinero, con menos ruido.
-        </div>
-
-      </main>
-    </div>
+        {restCats.length > 0 && (
+          <>
+            {focusCats.length > 0 && (
+              <div style={{ padding: '12px 20px 8px', background: 'rgba(33,120,168,0.02)', borderBottom: '1px solid rgba(33,120,168,0.07)', borderTop: '1px solid rgba(33,120,168,0.07)' }}>
+                <span style={LABEL_STYLE}>El resto del plan</span>
+              </div>
+            )}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr' }}>
+              {restCats.map((item, i) => (
+                <div
+                  key={item.id}
+                  style={{ borderRight: i % 2 === 0 ? '1px solid rgba(33,120,168,0.07)' : 'none', borderBottom: i < restCats.length - 2 ? '1px solid rgba(33,120,168,0.07)' : 'none' }}
+                >
+                  <BudgetCategoryRow item={item} currency={currency} />
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+    </>
   )
 }
