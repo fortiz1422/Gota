@@ -2,27 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
+import { formatArDecimal, parseArDecimalInput, parseCanonicalDecimal } from '@/lib/ar-input'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { Account, Card, Currency } from '@/types/database'
 import type { CycleGroup } from './CardDetailClient'
-
-/** "1234.56" → "1.234,56" */
-function toAR(raw: string): string {
-  if (!raw) return ''
-  const [int, dec] = raw.split('.')
-  const intFmt = (int ?? '').replace(/\B(?=(\d{3})+(?!\d))/g, '.')
-  return dec !== undefined ? `${intFmt},${dec}` : intFmt
-}
-
-/** "1.234,56" → "1234.56" */
-function fromAR(display: string): string {
-  const clean = display.replace(/[^\d,]/g, '').replace(',', '.')
-  const parts = clean.split('.')
-  if (parts.length > 2) return parts[0] + '.' + parts.slice(1).join('')
-  return clean
-}
 
 function periodMonthLabel(periodMonth: string): string {
   const label = new Date(`${periodMonth.substring(0, 7)}-15`).toLocaleDateString('es-AR', {
@@ -128,7 +113,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
     }
   }, [usdPayMode, usdBlock])
 
-  const exchangeRateNum = parseFloat(fromAR(exchangeRateStr)) || 0
+  const exchangeRateNum = parseCanonicalDecimal(exchangeRateStr)
   const usdInArs = usdBlock && usdPayMode === 'ARS' ? usdAmount * exchangeRateNum : 0
 
   // from_currency: ARS if paying anything with ARS, else USD
@@ -433,9 +418,9 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
+                    value={formatArDecimal(String(usdAmount === 0 ? '' : usdAmount))}
                     onChange={(e) => {
-                      const raw = fromAR(e.target.value)
+                      const raw = parseArDecimalInput(e.target.value)
                       setUsdAmount(raw === '' ? 0 : parseFloat(raw))
                     }}
                     className="min-w-0 flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
@@ -460,8 +445,8 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                         type="text"
                         inputMode="decimal"
                         placeholder="0,00"
-                        value={toAR(exchangeRateStr)}
-                        onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
+                        value={formatArDecimal(exchangeRateStr)}
+                        onChange={(e) => setExchangeRateStr(parseArDecimalInput(e.target.value))}
                         className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
                       />
                     </div>
@@ -516,9 +501,9 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                   <input
                     type="text"
                     inputMode="decimal"
-                    value={toAR(String(usdAmount === 0 ? '' : usdAmount))}
+                    value={formatArDecimal(String(usdAmount === 0 ? '' : usdAmount))}
                     onChange={(e) => {
-                      const raw = fromAR(e.target.value)
+                      const raw = parseArDecimalInput(e.target.value)
                       setUsdAmount(raw === '' ? 0 : parseFloat(raw))
                     }}
                     className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
@@ -535,8 +520,8 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                           type="text"
                           inputMode="decimal"
                           placeholder="0,00"
-                          value={toAR(exchangeRateStr)}
-                          onChange={(e) => setExchangeRateStr(fromAR(e.target.value))}
+                          value={formatArDecimal(exchangeRateStr)}
+                          onChange={(e) => setExchangeRateStr(parseArDecimalInput(e.target.value))}
                           className="w-28 border-0 bg-transparent text-right text-sm font-bold tabular-nums text-text-primary focus:outline-none"
                         />
                       </div>
