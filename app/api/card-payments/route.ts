@@ -14,6 +14,7 @@ import {
 } from '@/lib/card-cycle-payments'
 import { getCurrentAccountBalance, hasSufficientFunds } from '@/lib/current-account-balance'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
+import { buildPaymentExpensePlans } from '@/lib/card-payment-expense-plans'
 import { formatAmount } from '@/lib/format'
 import { createClient } from '@/lib/supabase/server'
 import type { Card, CardCycle, CardCycleAmountInsert } from '@/types/database'
@@ -154,17 +155,8 @@ function getRequestedAmountForLeg(params: {
   )
 }
 
-function getCreatedExpenseIds(expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>>): string[] {
-  return Object.values(expenseIdByLegCurrency).filter((value): value is string => !!value)
-}
-
-function getAllocationExpenseCurrency(params: {
-  itemCurrency: 'ARS' | 'USD'
-  expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>>
-  fallbackCurrency: 'ARS' | 'USD'
-}): 'ARS' | 'USD' {
-  const { itemCurrency, expenseIdByLegCurrency, fallbackCurrency } = params
-  return expenseIdByLegCurrency[itemCurrency] ? itemCurrency : fallbackCurrency
+function getCreatedExpenseIds(expenseIdMap: Record<number, string>): string[] {
+  return Object.values(expenseIdMap).filter((value): value is string => !!value)
 }
 
 function addOneDay(dateStr: string): string {
@@ -573,29 +565,34 @@ export async function POST(request: Request) {
     }
   }
 
-  // ── Create one payment expense per leg ────────────────────────────────────
-  const expenseIdByLegCurrency: Partial<Record<'ARS' | 'USD', string>> = {}
+  // ── Create one payment expense per planned item ───────────────────────────
+  const expensePlans = buildPaymentExpensePlans({
+    plannedItems: allPlannedItems,
+    fromCurrency: from_currency,
+    accountId: account_id,
+    accountIdUsd: account_id_usd,
+    exchangeRate: exchange_rate,
+  })
+  const expensePlanByItemIndex = new Map(expensePlans.map((plan) => [plan.plannedItemIndex, plan]))
+  const expenseIdByPlannedItemIndex: Record<number, string> = {}
 
-  for (const leg of legs) {
-    const legTotal = getRequestedAmountForLeg({
-      leg,
-      plannedItems: allPlannedItems,
-      exchangeRate: exchange_rate,
-    })
-
-    if (legTotal <= 0) continue
+  for (const plan of expensePlans) {
+    const description =
+      expensePlans.length > 1
+        ? `${unifiedBody.description ?? `Pago ${card.name}`} · ${allPlannedItems[plan.plannedItemIndex]?.item.currency}`
+        : (unifiedBody.description ?? `Pago ${card.name}`)
 
     const { data: paymentExpense, error: paymentExpenseError } = await supabase
       .from('expenses')
       .insert({
         user_id: user.id,
-        amount: legTotal,
-        currency: leg.legCurrency,
+        amount: plan.amount,
+        currency: plan.expenseCurrency,
         category: 'Pago de Tarjetas',
-        description: unifiedBody.description ?? `Pago ${card.name}`,
+        description,
         payment_method: paymentMethod,
         card_id: card.id,
-        account_id: leg.accountId,
+        account_id: plan.accountId,
         date: rawDate,
         is_want: null,
         is_legacy_card_payment: false,
@@ -604,7 +601,7 @@ export async function POST(request: Request) {
       .single()
 
     if (paymentExpenseError || !paymentExpense) {
-      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByPlannedItemIndex)
       if (createdExpenseIds.length > 0) {
         await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
       }
@@ -614,7 +611,7 @@ export async function POST(request: Request) {
       )
     }
 
-    expenseIdByLegCurrency[leg.legCurrency] = paymentExpense.id
+    expenseIdByPlannedItemIndex[plan.plannedItemIndex] = paymentExpense.id
   }
 
   // ── Create adjustment expenses (per payment item, if applicable) ──────────
@@ -646,7 +643,7 @@ export async function POST(request: Request) {
       .single()
 
     if (adjustmentError || !adjustmentExpense) {
-      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByPlannedItemIndex)
       if (createdExpenseIds.length > 0) {
         await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
       }
@@ -663,15 +660,10 @@ export async function POST(request: Request) {
   }
 
   // ── Insert allocations ────────────────────────────────────────────────────
-  const allocationRows = allPlannedItems.flatMap(({ plans, item }) => {
-    const expenseId = expenseIdByLegCurrency[item.currency] ?? expenseIdByLegCurrency[from_currency]
-    if (!expenseId) return []
-
-    const expenseCurrency = getAllocationExpenseCurrency({
-      itemCurrency: item.currency,
-      expenseIdByLegCurrency,
-      fallbackCurrency: from_currency,
-    })
+  const allocationRows = allPlannedItems.flatMap(({ plans, item }, plannedItemIndex) => {
+    const expenseId = expenseIdByPlannedItemIndex[plannedItemIndex]
+    const expensePlan = expensePlanByItemIndex.get(plannedItemIndex)
+    if (!expenseId || !expensePlan) return []
 
     return plans.map((plan) => ({
       user_id: user.id,
@@ -680,7 +672,7 @@ export async function POST(request: Request) {
       amount_applied: plan.appliedAmount,
       currency: item.currency,
       exchange_rate:
-        item.currency !== expenseCurrency && item.currency === 'USD' && expenseCurrency === 'ARS'
+        item.currency !== expensePlan.expenseCurrency && item.currency === 'USD' && expensePlan.expenseCurrency === 'ARS'
           ? (exchange_rate ?? null)
           : null,
     }))
@@ -691,7 +683,7 @@ export async function POST(request: Request) {
 
   if (allocationsError) {
     if (!isMissingCardPaymentAllocationsTableError(allocationsError.message)) {
-      const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+      const createdExpenseIds = getCreatedExpenseIds(expenseIdByPlannedItemIndex)
       if (createdExpenseIds.length > 0) {
         await supabase.from('expenses').delete().eq('user_id', user.id).in('id', createdExpenseIds)
       }
@@ -746,7 +738,7 @@ export async function POST(request: Request) {
             )
         }
 
-        const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+        const createdExpenseIds = getCreatedExpenseIds(expenseIdByPlannedItemIndex)
 
         if (allocationsCreated && createdExpenseIds.length > 0) {
           await supabase
@@ -771,7 +763,7 @@ export async function POST(request: Request) {
   }
 
   const allPlans = allPlannedItems.flatMap((x) => x.plans)
-  const createdExpenseIds = getCreatedExpenseIds(expenseIdByLegCurrency)
+  const createdExpenseIds = getCreatedExpenseIds(expenseIdByPlannedItemIndex)
 
   return NextResponse.json({
     ok: true,
