@@ -15,3 +15,8 @@ export function parseArDecimalInput(display: string): string {
 export function parseCanonicalDecimal(raw: string): number {
   return parseFloat(raw) || 0
 }
+
+export function toCanonicalDecimalString(value: number): string {
+  const rounded = Math.round((value + Number.EPSILON) * 100) / 100
+  return rounded.toFixed(2).replace(/\.00$/, '').replace(/(\.\d)0$/, '$1')
+}

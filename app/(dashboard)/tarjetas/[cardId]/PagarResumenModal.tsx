@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
-import { formatArDecimal, parseArDecimalInput, parseCanonicalDecimal } from '@/lib/ar-input'
+import { formatArDecimal, parseArDecimalInput, parseCanonicalDecimal, toCanonicalDecimalString } from '@/lib/ar-input'
 import { paymentMethodFromAccountType } from '@/lib/cardPaymentPrompt'
 import { formatAmount, todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
@@ -15,11 +15,6 @@ function periodMonthLabel(periodMonth: string): string {
     year: 'numeric',
   })
   return label.charAt(0).toUpperCase() + label.slice(1)
-}
-
-function formatMoneyInput(n: number): string {
-  if (n === 0) return ''
-  return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
 type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
@@ -59,7 +54,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
   const defaultAccountId = card.account_id ?? (accounts[0]?.id ?? '')
   const bothCurrencies = !!(arsBlock && usdBlock)
 
-  const [arsAmount, setArsAmount] = useState(Math.round(arsRemaining))
+  const [arsAmount, setArsAmount] = useState(arsRemaining)
   const [usdAmount, setUsdAmount] = useState(usdRemaining)
   const [usdPayMode, setUsdPayMode] = useState<'USD' | 'ARS'>('ARS')
   const [exchangeRateStr, setExchangeRateStr] = useState('')
@@ -82,7 +77,7 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
 
   // Reset state when cycleGroup changes
   useEffect(() => {
-    setArsAmount(Math.round(arsRemaining))
+    setArsAmount(arsRemaining)
     setUsdAmount(usdRemaining)
     setUsdPayMode('ARS')
     setExchangeRateStr('')
@@ -379,11 +374,11 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
                   <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    value={formatMoneyInput(arsAmount)}
+                    inputMode="decimal"
+                    value={formatArDecimal(toCanonicalDecimalString(arsAmount))}
                     onChange={(e) => {
-                      const stripped = e.target.value.replace(/\D/g, '')
-                      setArsAmount(stripped === '' ? 0 : parseInt(stripped, 10))
+                      const raw = parseArDecimalInput(e.target.value)
+                      setArsAmount(raw === '' ? 0 : parseCanonicalDecimal(raw))
                     }}
                     className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
                     placeholder="0"
@@ -466,11 +461,11 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
               <span className="shrink-0 text-base font-bold text-text-secondary">$</span>
               <input
                 type="text"
-                inputMode="numeric"
-                value={formatMoneyInput(arsAmount)}
+                inputMode="decimal"
+                value={formatArDecimal(toCanonicalDecimalString(arsAmount))}
                 onChange={(e) => {
-                  const stripped = e.target.value.replace(/\D/g, '')
-                  setArsAmount(stripped === '' ? 0 : parseInt(stripped, 10))
+                  const raw = parseArDecimalInput(e.target.value)
+                  setArsAmount(raw === '' ? 0 : parseCanonicalDecimal(raw))
                 }}
                 className="flex-1 border-0 bg-transparent text-right text-[20px] font-bold tabular-nums text-text-primary focus:outline-none"
                 placeholder="0"
