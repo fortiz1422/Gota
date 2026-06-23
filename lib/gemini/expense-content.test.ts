@@ -10,6 +10,7 @@ describe('createExpensePrompt', () => {
     expect(prompt).toContain('Imagen adjunta: no')
     expect(prompt).toContain('Audio adjunto: no')
     expect(prompt).toContain('Si hay imagen')
+    expect(prompt).toContain('Si el input termina con un numero standalone')
   })
 
   it('activa instrucciones de vision cuando hay captura adjunta', () => {

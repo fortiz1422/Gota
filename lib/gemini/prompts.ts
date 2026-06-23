@@ -32,6 +32,7 @@ MONTO - formato y slang argentino:
 - Slang: "2 lucas"=2000, "1 luca"=1000, "1 kilo"=1000, "1 palo"=1000000, "medio palo"=500000
 - Sufijos: "3k"=3000, "2.5k"=2500, "15 mil"=15000, "4 M"=4000000
 - "4 lucas y media" = 4500
+- Si el input termina con un numero standalone (ej: "Farmacia 4995"), ese numero es el monto y NO debe quedar repetido en description
 
 MONEDA:
 - ARS por default y si dice "$" o "pesos"

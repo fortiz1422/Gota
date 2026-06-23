@@ -5,6 +5,7 @@ import { buildExpenseContentParts } from '@/lib/gemini/expense-content'
 import { geminiModel } from '@/lib/gemini/client'
 import { buildReceiptInlineData } from '@/lib/gemini/receipt-inline-data'
 import { buildVoiceInlineData } from '@/lib/gemini/voice-inline-data'
+import { applyTextInputAmountFallback } from '@/lib/expense-parse-fallback'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
@@ -78,7 +79,8 @@ export async function POST(request: Request) {
     const raw = result.response.text()
     const text = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
     const parsed = JSON.parse(text)
-    const validated = ParsedExpenseSchema.parse(parsed)
+    const rescued = input ? applyTextInputAmountFallback(input, parsed) : parsed
+    const validated = ParsedExpenseSchema.parse(rescued)
 
     return NextResponse.json(validated)
   } catch (error) {
