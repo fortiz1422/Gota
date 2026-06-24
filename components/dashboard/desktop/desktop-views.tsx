@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   ArrowRight,
@@ -21,6 +21,7 @@ import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { Expense } from '@/types/database'
 import { Badge, BLUE, CARD_STYLE, CatSquare, fmtMoney, LABEL_STYLE, monthName } from './desktop-ui'
+import { ApiMovement, fetchAllMovimientosForMonth } from './movimientos-data'
 
 export type DesktopViewProps = {
   data: DashboardApiData
@@ -75,11 +76,31 @@ type Mov = {
   date: string
 }
 
-export function MovimientosView({ data, viewCurrency, hidden }: DesktopViewProps) {
+export function MovimientosView({ data, viewCurrency, hidden, selectedMonth }: DesktopViewProps) {
   const [filter, setFilter] = useState<'Todos' | 'Gastos' | 'Ingresos' | 'Transfers'>('Todos')
+  const [monthMovements, setMonthMovements] = useState<{
+    month: string
+    movements: ApiMovement[]
+  } | null>(null)
   const accountName = useMemo(() => new Map(data.accounts.map((a) => [a.id, a.name])), [data.accounts])
 
-  const movements = useMemo<Mov[]>(() => {
+  useEffect(() => {
+    let cancelled = false
+
+    void fetchAllMovimientosForMonth(selectedMonth)
+      .then((movements) => {
+        if (!cancelled) setMonthMovements({ month: selectedMonth, movements })
+      })
+      .catch(() => {
+        if (!cancelled) setMonthMovements(null)
+      })
+
+    return () => {
+      cancelled = true
+    }
+  }, [selectedMonth])
+
+  const fallbackMovements = useMemo<Mov[]>(() => {
     const list: Mov[] = []
     for (const e of data.allUltimos) {
       if (e.currency !== viewCurrency) continue
@@ -123,6 +144,72 @@ export function MovimientosView({ data, viewCurrency, hidden }: DesktopViewProps
     }
     return list.sort((a, b) => b.date.localeCompare(a.date))
   }, [data.allUltimos, data.incomeEntries, data.transfers, accountName, viewCurrency])
+
+  const movements = useMemo<Mov[]>(() => {
+    const loadedMovements = monthMovements?.month === selectedMonth ? monthMovements.movements : null
+    if (!loadedMovements) return fallbackMovements
+
+    const list: Mov[] = []
+    for (const movement of loadedMovements) {
+      if (movement.kind === 'expense') {
+        const expense = movement.data
+        if (expense.currency !== viewCurrency) continue
+        const accountLabel =
+          expense.payment_method === 'CREDIT'
+            ? 'Tarjeta'
+            : expense.account_id
+              ? accountName.get(expense.account_id) ?? 'Cuenta'
+              : 'Efectivo'
+
+        list.push({
+          id: `e-${expense.id}`,
+          type: 'expense',
+          category: expense.category,
+          title: expense.description,
+          subtitle: [expense.category, accountLabel].filter(Boolean).join(' · '),
+          amount: expense.amount,
+          currency: expense.currency,
+          date: expense.date,
+        })
+        continue
+      }
+
+      if (movement.kind === 'income') {
+        const income = movement.data
+        if (income.currency !== viewCurrency) continue
+        list.push({
+          id: `i-${income.id}`,
+          type: 'income',
+          category: '',
+          title: income.description || 'Ingreso',
+          subtitle: ['Ingresos', income.account_id ? accountName.get(income.account_id) ?? '' : '']
+            .filter(Boolean)
+            .join(' · '),
+          amount: income.amount,
+          currency: income.currency,
+          date: income.date,
+        })
+        continue
+      }
+
+      if (movement.kind === 'transfer') {
+        const transfer = movement.data
+        if (transfer.currency_from !== viewCurrency) continue
+        list.push({
+          id: `t-${transfer.id}`,
+          type: 'transfer',
+          category: '',
+          title: `${accountName.get(transfer.from_account_id) ?? 'Cuenta'} → ${accountName.get(transfer.to_account_id) ?? 'Cuenta'}`,
+          subtitle: 'Transferencia propia',
+          amount: transfer.amount_from,
+          currency: transfer.currency_from,
+          date: transfer.date,
+        })
+      }
+    }
+
+    return list
+  }, [monthMovements, fallbackMovements, viewCurrency, accountName, selectedMonth])
 
   const filtered = movements.filter((m) => {
     if (filter === 'Gastos') return m.type === 'expense'

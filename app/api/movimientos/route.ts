@@ -44,6 +44,7 @@ export async function GET(request: Request) {
   const quincena = quincenaParam === 1 || quincenaParam === 2 ? (quincenaParam as 1 | 2) : null
   const fechaInicio = searchParams.get('fechaInicio') ?? null
   const fechaFin    = searchParams.get('fechaFin')    ?? null
+  const includeYield = searchParams.get('includeYield') !== 'false'
 
   const supabase = await createClient()
   const {
@@ -111,7 +112,7 @@ export async function GET(request: Request) {
           .order('date', { ascending: false })
       : Promise.resolve({ data: [] as Transfer[] }),
 
-    FF_YIELD && page === 1 && wantsIncome
+    includeYield && FF_YIELD && page === 1 && wantsIncome
       ? supabase.from('yield_accumulator').select('*').eq('user_id', user.id).eq('month', selectedMonth)
       : Promise.resolve({ data: [] as YieldAccumulator[] }),
 
