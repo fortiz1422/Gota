@@ -3,6 +3,21 @@ import { createClient } from '@/lib/supabase/client'
 /** Crea un usuario anónimo con sesión real en Supabase */
 export const signInAnonymously = () => createClient().auth.signInAnonymously()
 
+export const isPasskeySupported = () =>
+  typeof window !== 'undefined' && typeof PublicKeyCredential !== 'undefined' && window.isSecureContext
+
+export const signInWithPasskey = () => createClient().auth.signInWithPasskey()
+
+export const registerPasskey = () => createClient().auth.registerPasskey()
+
+export const listPasskeys = () => createClient().auth.passkey.list()
+
+export const renamePasskey = (passkeyId: string, friendlyName: string) =>
+  createClient().auth.passkey.update({ passkeyId, friendlyName })
+
+export const deletePasskey = (passkeyId: string) =>
+  createClient().auth.passkey.delete({ passkeyId })
+
 /** Vincula Google al usuario anónimo actual → convierte en cuenta permanente */
 export const linkGoogleAccount = () =>
   createClient().auth.linkIdentity({

@@ -7,14 +7,18 @@ import {
   CreditCard,
   DeviceMobileSpeaker,
   GearSix,
+  Lock,
   Star,
   UserCircle,
   Wallet,
 } from '@phosphor-icons/react'
+import { PasskeysPanel } from '@/components/auth/PasskeysPanel'
 import type { Account, Card, HeroBalanceMode } from '@/types/database'
 
 type Props = {
   email: string
+  isAnonymous: boolean
+  authProviders: string[]
   currency: 'ARS' | 'USD'
   heroBalanceMode: HeroBalanceMode
   accounts: Account[]
@@ -62,6 +66,8 @@ function SectionFrame({
 
 export function WebSettingsPage({
   email,
+  isAnonymous,
+  authProviders,
   currency: initialCurrency,
   heroBalanceMode: initialHeroBalanceMode,
   accounts,
@@ -71,6 +77,8 @@ export function WebSettingsPage({
   const [heroBalanceMode, setHeroBalanceMode] = useState<HeroBalanceMode>(initialHeroBalanceMode)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [configMessage, setConfigMessage] = useState<string | null>(null)
+  const hasGoogle = authProviders.includes('google')
+  const hasEmailProvider = authProviders.includes('email')
 
   const saveConfig = async (next: {
     default_currency?: 'ARS' | 'USD'
@@ -131,9 +139,44 @@ export function WebSettingsPage({
             icon={<UserCircle size={20} weight="regular" />}
             description="Información general de la cuenta que está usando esta consola web."
           >
-            <div className="rounded-2xl bg-bg-secondary px-5 py-4">
-              <p className="type-meta text-text-dim">Email</p>
-              <p className="mt-2 text-[16px] font-semibold text-text-primary">{email}</p>
+            <div className="space-y-4">
+              <div className="rounded-2xl bg-bg-secondary px-5 py-4">
+                <p className="type-meta text-text-dim">Email</p>
+                <p className="mt-2 text-[16px] font-semibold text-text-primary">
+                  {email || 'Sin mail vinculado'}
+                </p>
+              </div>
+
+              {!isAnonymous ? (
+                <div className="rounded-2xl bg-bg-secondary px-5 py-4">
+                  <p className="type-meta text-text-dim">Métodos de acceso</p>
+                  <p className="mt-2 text-[14px] leading-6 text-text-secondary">
+                    {hasEmailProvider
+                      ? 'Ya podés entrar con mail y contraseña. Sumá una passkey para evitar fricción en otras máquinas.'
+                      : hasGoogle
+                        ? 'Entraste con Google. Sumá una passkey para no depender de ese OAuth en otras máquinas.'
+                        : 'Sumá una passkey para entrar con biometría, PIN o llavero del dispositivo.'}
+                  </p>
+
+                  <div className="mt-4">
+                    <PasskeysPanel variant="web" />
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl bg-bg-secondary px-5 py-4">
+                  <div className="flex items-start gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-soft text-primary">
+                      <Lock size={18} weight="regular" />
+                    </div>
+                    <div>
+                      <p className="text-[15px] font-semibold text-text-primary">Modo exploración</p>
+                      <p className="mt-1 text-[14px] leading-6 text-text-secondary">
+                        Primero guardá esta cuenta desde el flujo de upgrade. Después vas a poder registrar passkeys.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </SectionFrame>
 

@@ -1,7 +1,14 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { signInAnonymously, signInWithGoogle, sendOtpEmail, verifyOtpToken } from '@/lib/auth'
+import {
+  isPasskeySupported,
+  signInAnonymously,
+  signInWithGoogle,
+  signInWithPasskey,
+  sendOtpEmail,
+  verifyOtpToken,
+} from '@/lib/auth'
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -47,6 +54,21 @@ function IconMail({ className = '' }: { className?: string }) {
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" className={className}>
       <rect x="2" y="4" width="20" height="16" rx="3" stroke="currentColor" strokeWidth="1.5" />
       <path d="M2 8L12 14L22 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  )
+}
+
+function IconPasskey() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+      <circle cx="9" cy="12" r="3.25" stroke="currentColor" strokeWidth="1.7" />
+      <path
+        d="M12.5 12H21M18 12V14.5M15.5 12V13.5"
+        stroke="currentColor"
+        strokeWidth="1.7"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   )
 }
@@ -195,13 +217,23 @@ function CTAZone({ children }: { children: React.ReactNode }) {
 // ── Screen 1 — Splash ──────────────────────────────────────────────────────────
 
 function SplashScreen({
+  passkeyAvailable,
+  onPasskey,
   onGoogle,
   onEmail,
   onExplore,
+  authError,
+  isGoogleLoading,
+  isPasskeyLoading,
 }: {
+  passkeyAvailable: boolean
+  onPasskey: () => void
   onGoogle: () => void
   onEmail: () => void
   onExplore: () => void
+  authError: string | null
+  isGoogleLoading: boolean
+  isPasskeyLoading: boolean
 }) {
   const [bal, setBal] = useState(0)
   const TARGET = 14788.47
@@ -267,9 +299,22 @@ function SplashScreen({
         <CTAZone>
           <button
             onClick={onGoogle}
+            disabled={isGoogleLoading || isPasskeyLoading}
             className="flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-text-primary py-[15px] text-[15px] font-semibold text-white"
           >
-            <IconGoogle /> Continuar con Google
+            <IconGoogle /> {isGoogleLoading ? 'Redirigiendo...' : 'Continuar con Google'}
+          </button>
+          <button
+            onClick={onPasskey}
+            disabled={!passkeyAvailable || isGoogleLoading || isPasskeyLoading}
+            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-primary/18 bg-primary/[0.06] py-[15px] text-[15px] font-semibold text-text-primary transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
+          >
+            <IconPasskey />
+            {isPasskeyLoading
+              ? 'Abriendo passkey...'
+              : passkeyAvailable
+                ? 'Continuar con passkey'
+                : 'Passkey no disponible'}
           </button>
           <button
             onClick={onEmail}
@@ -277,6 +322,7 @@ function SplashScreen({
           >
             <IconMail className="text-text-secondary" /> Continuar con email
           </button>
+          {authError && <p className="text-center text-[12px] leading-snug text-danger">{authError}</p>}
           <div className="my-0.5 h-px bg-black/[0.08]" />
           <button
             onClick={onExplore}
@@ -425,7 +471,10 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
     if (data.user) {
       setVerified(true)
       const createdMs = new Date(data.user.created_at).getTime()
-      const isNew = Date.now() - createdMs < 30_000
+      const lastSignInMs = data.user.last_sign_in_at
+        ? new Date(data.user.last_sign_in_at).getTime()
+        : createdMs
+      const isNew = Math.abs(lastSignInMs - createdMs) < 30_000
       setTimeout(() => {
         window.location.href = isNew ? '/onboarding' : '/'
       }, 1400)
@@ -657,14 +706,58 @@ type Screen = 'splash' | 'email' | 'otp' | 'explore'
 export function LoginButton() {
   const [screen, setScreen] = useState<Screen>('splash')
   const [otpEmail, setOtpEmail] = useState('')
+  const [authError, setAuthError] = useState<string | null>(null)
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false)
+  const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
+  const passkeyAvailable = isPasskeySupported()
 
   const handleGoogle = async () => {
+    setAuthError(null)
+    setIsGoogleLoading(true)
     const { data, error } = await signInWithGoogle()
-    if (error) return
+    if (error) {
+      setIsGoogleLoading(false)
+      setAuthError('No pudimos iniciar con Google. Intentá de nuevo.')
+      return
+    }
     if (data?.url) window.location.href = data.url
   }
 
+  const handlePasskey = async () => {
+    setAuthError(null)
+    setIsPasskeyLoading(true)
+
+    const { error } = await signInWithPasskey()
+
+    setIsPasskeyLoading(false)
+
+    if (error) {
+      const message = error.message.toLowerCase()
+      if (message.includes('support webauthn') || message.includes('browser does not support webauthn')) {
+        setAuthError('Este navegador no soporta passkeys/WebAuthn.')
+        return
+      }
+      if (message.includes('secure context')) {
+        setAuthError('Passkeys requiere HTTPS o localhost para funcionar.')
+        return
+      }
+      if (message.includes('not found') || message.includes('credential')) {
+        setAuthError('No encontramos una passkey válida para esta cuenta en este dispositivo.')
+        return
+      }
+      if (message.includes('passkey') && message.includes('disabled')) {
+        setAuthError('Passkeys no está habilitado todavía en el backend de Gota.')
+        return
+      }
+      setAuthError('No pudimos iniciar con passkey. Probá con Google o email.')
+      return
+    }
+
+    window.location.href = '/'
+  }
+
   const handleEmailContinue = (email: string) => {
+    setAuthError(null)
     setOtpEmail(email)
     setScreen('otp')
   }
@@ -673,9 +766,20 @@ export function LoginButton() {
     <div className="min-h-app flex flex-col bg-bg-primary">
       {screen === 'splash' && (
         <SplashScreen
+          passkeyAvailable={passkeyAvailable}
+          onPasskey={handlePasskey}
           onGoogle={handleGoogle}
-          onEmail={() => setScreen('email')}
-          onExplore={() => setScreen('explore')}
+          onEmail={() => {
+            setAuthError(null)
+            setScreen('email')
+          }}
+          onExplore={() => {
+            setAuthError(null)
+            setScreen('explore')
+          }}
+          authError={authError}
+          isGoogleLoading={isGoogleLoading}
+          isPasskeyLoading={isPasskeyLoading}
         />
       )}
       {screen === 'email' && (

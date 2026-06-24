@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
+import { PasskeysPanel } from '@/components/auth/PasskeysPanel'
 import { InlineError } from '@/components/ui/InlineError'
 import { Modal } from '@/components/ui/Modal'
 import { requestPasswordReset, updatePassword } from '@/lib/auth'
@@ -131,6 +132,10 @@ export function AccountSection({
                   : 'Podés crear una contraseña para entrar con mail.'}
             </p>
 
+            <div className="mt-3">
+              <PasskeysPanel variant="mobile" />
+            </div>
+
             <div className="mt-3 flex flex-col gap-2">
               <button
                 onClick={() => {
@@ -164,7 +169,7 @@ export function AccountSection({
           <div className="rounded-input bg-bg-tertiary px-3 py-3">
             <p className="text-sm font-medium text-text-primary">Modo exploracion</p>
             <p className="mt-1 text-xs text-text-tertiary">
-              Para guardar esta cuenta sin perder datos, seguí usando el flujo de vinculacion desde el banner inferior.
+              Para guardar esta cuenta sin perder datos, seguí usando el flujo de vinculacion desde el banner inferior. Después vas a poder sumar una passkey desde esta sección.
             </p>
           </div>
         )}

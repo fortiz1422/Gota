@@ -11,6 +11,11 @@ export default async function WebSettingsRoute() {
 
   if (!user) redirect('/login')
 
+  const rawProviders = (user.app_metadata as { providers?: unknown } | undefined)?.providers
+  const authProviders = Array.isArray(rawProviders)
+    ? rawProviders.filter((provider): provider is string => typeof provider === 'string')
+    : []
+
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
       .from('user_config')
@@ -35,6 +40,8 @@ export default async function WebSettingsRoute() {
   return (
     <WebSettingsPage
       email={user.email ?? ''}
+      isAnonymous={user.is_anonymous === true}
+      authProviders={authProviders}
       currency={(config?.default_currency ?? 'ARS') as 'ARS' | 'USD'}
       heroBalanceMode={(config?.hero_balance_mode ?? 'combined_ars') as HeroBalanceMode}
       accounts={accountsData ?? []}
