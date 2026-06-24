@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowsClockwise, Bank, CaretRight, CreditCard, Lock, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
+import { PasskeysPanel } from '@/components/auth/PasskeysPanel'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
 import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
@@ -336,6 +337,10 @@ export function CuentaSheet({
                 Seguridad
               </p>
               <div className="card-s5 overflow-hidden">
+                <div className="border-b border-border-subtle px-[18px] py-3.5">
+                  <PasskeysPanel variant="mobile" />
+                </div>
+
                 <button
                   onClick={() => {
                     setPasswordSuccess(null)
