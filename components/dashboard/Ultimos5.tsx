@@ -58,9 +58,9 @@ interface Props {
 function getMovementSortDate(mv: Movement): number {
   if (mv.kind === 'yield') {
     const d = mv.data.last_accrued_date ?? mv.data.created_at
-    return new Date(d).getTime()
+    return d ? new Date(d).getTime() : 0
   }
-  return new Date(mv.data.date).getTime()
+  return mv.data.date ? new Date(mv.data.date).getTime() : 0
 }
 
 function getMovementDateOnly(mv: Movement): string {
@@ -166,6 +166,12 @@ export function Ultimos5({
     .sort((a, b) => {
       const dateA = getMovementDateOnly(a)
       const dateB = getMovementDateOnly(b)
+      const aKnown = Boolean(dateA)
+      const bKnown = Boolean(dateB)
+
+      if (aKnown !== bKnown) return aKnown ? -1 : 1
+      if (!aKnown && !bKnown) return getMovementSortDate(b) - getMovementSortDate(a)
+
       const aFuture = dateA > today
       const bFuture = dateB > today
 

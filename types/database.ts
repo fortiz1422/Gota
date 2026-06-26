@@ -635,6 +635,10 @@ export type Database = {
           opening_balance_usd: number
           daily_yield_enabled: boolean
           daily_yield_rate: number | null
+          daily_yield_provider: string | null
+          daily_yield_cap_amount: number | null
+          daily_yield_checkin_interval_days: number
+          daily_yield_last_checkin_at: string | null
           created_at: string
           updated_at: string
         }
@@ -649,6 +653,10 @@ export type Database = {
           opening_balance_usd?: number
           daily_yield_enabled?: boolean
           daily_yield_rate?: number | null
+          daily_yield_provider?: string | null
+          daily_yield_cap_amount?: number | null
+          daily_yield_checkin_interval_days?: number
+          daily_yield_last_checkin_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -663,6 +671,10 @@ export type Database = {
           opening_balance_usd?: number
           daily_yield_enabled?: boolean
           daily_yield_rate?: number | null
+          daily_yield_provider?: string | null
+          daily_yield_cap_amount?: number | null
+          daily_yield_checkin_interval_days?: number
+          daily_yield_last_checkin_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -699,6 +711,122 @@ export type Database = {
           last_accrued_date?: string | null
           confirmed_at?: string | null
           updated_at?: string
+        }
+        Relationships: []
+      }
+      yield_daily_entries: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string
+          date: string
+          currency: 'ARS' | 'USD'
+          expected_amount: number | null
+          expected_rate_tna: number | null
+          expected_cap_amount: number | null
+          expected_base_balance: number | null
+          actual_amount: number | null
+          actual_concept: string | null
+          actual_statement_balance: number | null
+          actual_source: 'statement_csv' | 'manual' | null
+          status: 'estimated' | 'matched' | 'actual_only' | 'difference' | 'ignored' | 'manual_adjusted'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          date: string
+          currency?: 'ARS' | 'USD'
+          expected_amount?: number | null
+          expected_rate_tna?: number | null
+          expected_cap_amount?: number | null
+          expected_base_balance?: number | null
+          actual_amount?: number | null
+          actual_concept?: string | null
+          actual_statement_balance?: number | null
+          actual_source?: 'statement_csv' | 'manual' | null
+          status?: 'estimated' | 'matched' | 'actual_only' | 'difference' | 'ignored' | 'manual_adjusted'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          expected_amount?: number | null
+          expected_rate_tna?: number | null
+          expected_cap_amount?: number | null
+          expected_base_balance?: number | null
+          actual_amount?: number | null
+          actual_concept?: string | null
+          actual_statement_balance?: number | null
+          actual_source?: 'statement_csv' | 'manual' | null
+          status?: 'estimated' | 'matched' | 'actual_only' | 'difference' | 'ignored' | 'manual_adjusted'
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      statement_imports: {
+        Row: {
+          id: string
+          user_id: string
+          account_id: string
+          provider: string
+          file_name: string | null
+          row_count: number
+          matched_yield_count: number
+          ignored_count: number
+          imported_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          account_id: string
+          provider: string
+          file_name?: string | null
+          row_count?: number
+          matched_yield_count?: number
+          ignored_count?: number
+          imported_at?: string
+        }
+        Update: {
+          file_name?: string | null
+          row_count?: number
+          matched_yield_count?: number
+          ignored_count?: number
+        }
+        Relationships: []
+      }
+      statement_import_rows: {
+        Row: {
+          id: string
+          import_id: string
+          user_id: string
+          account_id: string
+          date: string
+          comprobante: string | null
+          concept: string
+          amount: number
+          balance: number | null
+          raw: Json
+          matched_yield_entry_id: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          import_id: string
+          user_id: string
+          account_id: string
+          date: string
+          comprobante?: string | null
+          concept: string
+          amount: number
+          balance?: number | null
+          raw?: Json
+          matched_yield_entry_id?: string | null
+          created_at?: string
+        }
+        Update: {
+          matched_yield_entry_id?: string | null
         }
         Relationships: []
       }
@@ -901,6 +1029,13 @@ export type AccountType = 'bank' | 'cash' | 'digital'
 export type YieldAccumulator = Database['public']['Tables']['yield_accumulator']['Row']
 export type YieldAccumulatorInsert = Database['public']['Tables']['yield_accumulator']['Insert']
 export type YieldAccumulatorUpdate = Database['public']['Tables']['yield_accumulator']['Update']
+export type YieldDailyEntry = Database['public']['Tables']['yield_daily_entries']['Row']
+export type YieldDailyEntryInsert = Database['public']['Tables']['yield_daily_entries']['Insert']
+export type YieldDailyEntryUpdate = Database['public']['Tables']['yield_daily_entries']['Update']
+export type StatementImport = Database['public']['Tables']['statement_imports']['Row']
+export type StatementImportInsert = Database['public']['Tables']['statement_imports']['Insert']
+export type StatementImportRow = Database['public']['Tables']['statement_import_rows']['Row']
+export type StatementImportRowInsert = Database['public']['Tables']['statement_import_rows']['Insert']
 
 export type IncomeCategory = 'salary' | 'freelance' | 'other'
 

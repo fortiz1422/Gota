@@ -14,7 +14,17 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, opening_balance_ars, opening_balance_usd, is_primary, archived, daily_yield_enabled, daily_yield_rate } = body
+  const {
+    name,
+    opening_balance_ars,
+    opening_balance_usd,
+    is_primary,
+    archived,
+    daily_yield_enabled,
+    daily_yield_rate,
+    daily_yield_provider,
+    daily_yield_cap_amount,
+  } = body
 
   const update: AccountUpdate = {}
   if (name !== undefined) update.name = name.trim()
@@ -24,6 +34,10 @@ export async function PATCH(
   if (is_primary !== undefined) update.is_primary = is_primary
   if (daily_yield_enabled !== undefined) update.daily_yield_enabled = Boolean(daily_yield_enabled)
   if (daily_yield_rate !== undefined) update.daily_yield_rate = daily_yield_rate === null ? null : Number(daily_yield_rate)
+  if (daily_yield_provider !== undefined) update.daily_yield_provider = daily_yield_provider
+  if (daily_yield_cap_amount !== undefined) {
+    update.daily_yield_cap_amount = daily_yield_cap_amount === null ? null : Number(daily_yield_cap_amount)
+  }
 
   // If setting as primary, unset current primary first
   if (is_primary === true) {

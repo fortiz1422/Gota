@@ -38,6 +38,10 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const [yieldRate, setYieldRate] = useState(
     account?.daily_yield_rate != null ? String(account.daily_yield_rate) : '',
   )
+  const [yieldProvider, setYieldProvider] = useState(account?.daily_yield_provider ?? 'manual')
+  const [yieldCapAmount, setYieldCapAmount] = useState(
+    account?.daily_yield_cap_amount != null ? String(account.daily_yield_cap_amount) : '',
+  )
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -77,6 +81,8 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
         opening_balance_usd: Number(openingUsd) || 0,
         daily_yield_enabled: yieldEnabled,
         daily_yield_rate: yieldEnabled && yieldRate !== '' ? Number(yieldRate) : null,
+        daily_yield_provider: yieldEnabled ? yieldProvider : null,
+        daily_yield_cap_amount: yieldEnabled && yieldCapAmount !== '' ? Number(yieldCapAmount) : null,
       }
 
       let res: Response
@@ -125,7 +131,10 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const rateNum = Number(yieldRate) || 0
   const dailyEstimate =
     yieldEnabled && currentSaldoArs > 0 && rateNum > 0
-      ? currentSaldoArs * (rateNum / 100 / 365)
+      ? Math.min(
+          currentSaldoArs,
+          yieldCapAmount !== '' ? Number(yieldCapAmount) || currentSaldoArs : currentSaldoArs,
+        ) * (rateNum / 100 / 365)
       : null
 
   const inputClass =
@@ -258,6 +267,32 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                   className={inputClass}
                 />
               </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] text-text-disabled">Proveedor</span>
+                <select
+                  value={yieldProvider}
+                  onChange={(e) => {
+                    const provider = e.target.value
+                    setYieldProvider(provider)
+                    if (provider === 'bna' && yieldCapAmount === '') setYieldCapAmount('2000000')
+                  }}
+                  className={inputClass}
+                >
+                  <option value="manual">Manual / genérico</option>
+                  <option value="bna">Banco Nación</option>
+                </select>
+              </label>
+              <label className="block space-y-1">
+                <span className="text-[10px] text-text-disabled">Tope remunerado ARS</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="Ej. 2000000"
+                  value={yieldCapAmount}
+                  onChange={(e) => setYieldCapAmount(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
               <div className="flex items-center justify-between">
                 <span className="text-[11px] text-text-tertiary">Estimado diario</span>
                 <span className="text-[13px] font-semibold text-text-primary">
@@ -270,7 +305,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                 </span>
               </div>
               <p className="text-[10px] text-text-disabled">
-                Gota acreditará este rendimiento mensualmente en tu feed.
+                Gota estima rendimientos diarios y puede reemplazarlos por el monto real cuando importás el extracto del banco.
               </p>
             </div>
           )}

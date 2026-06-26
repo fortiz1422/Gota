@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowCircleUp, ArrowsLeftRight, ListBullets, TrendUp } from '@phosphor-icons/react'
-import { formatAmount, formatDate, todayAR } from '@/lib/format'
+import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
@@ -31,9 +31,13 @@ type ApiMovement =
 
 function getMovementDate(mv: ApiMovement): string {
   if (mv.kind === 'yield') {
-    return (mv.data.last_accrued_date ?? mv.data.created_at).substring(0, 10)
+    return toDateOnly(mv.data.last_accrued_date ?? mv.data.created_at)
   }
-  return mv.data.date.substring(0, 10)
+  return toDateOnly(mv.data.date)
+}
+
+function isKnownDate(dateStr: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(dateStr)
 }
 
 function groupByDate(movements: ApiMovement[]): [string, ApiMovement[]][] {
@@ -45,6 +49,11 @@ function groupByDate(movements: ApiMovement[]): [string, ApiMovement[]][] {
   }
   const today = todayAR()
   return [...map.entries()].sort(([a], [b]) => {
+    const aKnown = isKnownDate(a)
+    const bKnown = isKnownDate(b)
+    if (aKnown !== bKnown) return aKnown ? -1 : 1
+    if (!aKnown && !bKnown) return 0
+
     const aFuture = a > today
     const bFuture = b > today
     if (aFuture !== bFuture) return aFuture ? 1 : -1
@@ -53,6 +62,8 @@ function groupByDate(movements: ApiMovement[]): [string, ApiMovement[]][] {
 }
 
 function formatDayLabel(dateStr: string): string {
+  if (!isKnownDate(dateStr)) return 'Sin fecha'
+
   const [y, m, d] = dateStr.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('es-AR', {
     weekday: 'long',

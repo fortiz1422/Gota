@@ -35,7 +35,17 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { name, type, opening_balance_ars = 0, opening_balance_usd = 0, is_primary = false } = body
+  const {
+    name,
+    type,
+    opening_balance_ars = 0,
+    opening_balance_usd = 0,
+    is_primary = false,
+    daily_yield_enabled,
+    daily_yield_rate,
+    daily_yield_provider,
+    daily_yield_cap_amount,
+  } = body
 
   if (!name?.trim()) {
     return NextResponse.json({ error: 'name is required' }, { status: 400 })
@@ -62,6 +72,10 @@ export async function POST(request: Request) {
       is_primary,
       opening_balance_ars: Number(opening_balance_ars) || 0,
       opening_balance_usd: Number(opening_balance_usd) || 0,
+      daily_yield_enabled: Boolean(daily_yield_enabled),
+      daily_yield_rate: daily_yield_rate == null ? null : Number(daily_yield_rate),
+      daily_yield_provider: daily_yield_provider ?? null,
+      daily_yield_cap_amount: daily_yield_cap_amount == null ? null : Number(daily_yield_cap_amount),
     })
     .select()
     .single()

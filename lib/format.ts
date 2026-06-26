@@ -13,13 +13,20 @@ export function formatCompact(amount: number, currency: 'ARS' | 'USD'): string {
   return '$ ' + amount.toFixed(0)
 }
 
-export function formatDate(isoString: string): string {
-  const [y, m, d] = isoString.substring(0, 10).split('-').map(Number)
+function isValidDateOnly(value: string): boolean {
+  return /^\d{4}-\d{2}-\d{2}$/.test(value)
+}
+
+export function formatDate(isoString?: string | null): string {
+  const dateOnly = toDateOnly(isoString)
+  if (!isValidDateOnly(dateOnly)) return 'Sin fecha'
+
+  const [y, m, d] = dateOnly.split('-').map(Number)
   return new Date(y, m - 1, d).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
 }
 
-export function toDateOnly(value: string): string {
-  return value.substring(0, 10)
+export function toDateOnly(value?: string | null): string {
+  return typeof value === 'string' && value.length >= 10 ? value.substring(0, 10) : ''
 }
 
 const TZ = 'America/Buenos_Aires'

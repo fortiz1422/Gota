@@ -11,6 +11,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { todayAR } from '@/lib/format'
 import { buildLiveBalanceBreakdown } from '@/lib/live-balance'
+import { calculateDailyYieldAmount } from '@/lib/yield-daily'
 import type { Account, Database } from '@/types/database'
 
 export async function processYieldAccrual(
@@ -117,12 +118,17 @@ export async function processYieldAccrual(
     // Clampear al inicio del mes por seguridad (no acreditar meses anteriores)
     const effectiveStart = startDate < monthStart ? monthStart : startDate
 
-    // Capitalización compuesta para cada día pendiente
+    // Capitalización compuesta para cada día pendiente.
+    // Si la cuenta tiene tope remunerado (BNA), se aplica antes de la TNA.
     let accumulated = (ya?.accumulated ?? 0) as number
     let current = effectiveStart
     while (current <= todayStr) {
       const saldoInicioDia = baseSaldo + accumulated
-      accumulated += saldoInicioDia * (rate / 100 / 365)
+      accumulated += calculateDailyYieldAmount({
+        balance: saldoInicioDia,
+        rateTna: rate,
+        capAmount: account.daily_yield_cap_amount,
+      })
       current = addOneDay(current)
     }
 

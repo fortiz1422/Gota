@@ -37,8 +37,9 @@ export type DesktopViewProps = {
 const ACCOUNT_PALETTE = ['#2178A8', '#1B7E9E', '#1A7A42', '#7D4EC0', '#B84A12', '#A0367A']
 
 const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1)
-const localDate = (d: string) => new Date(`${d}T12:00:00-03:00`)
-const fmtDue = (iso: string) => localDate(iso).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+const isKnownDate = (d: string) => /^\d{4}-\d{2}-\d{2}$/.test(d)
+const localDate = (d: string) => (isKnownDate(d) ? new Date(`${d}T12:00:00-03:00`) : null)
+const fmtDue = (iso: string) => localDate(iso)?.toLocaleDateString('es-AR', { day: 'numeric', month: 'short' }) ?? 'Sin fecha'
 
 function isPerceived(e: Expense, currency: 'ARS' | 'USD') {
   return e.currency === currency && e.payment_method !== 'CREDIT' && e.category !== 'Pago de Tarjetas'
@@ -225,13 +226,27 @@ export function MovimientosView({ data, viewCurrency, hidden, selectedMonth }: D
       if (!byDay.has(m.date)) byDay.set(m.date, [])
       byDay.get(m.date)!.push(m)
     }
-    return Array.from(byDay.entries()).map(([date, items]) => {
-      const d = localDate(date)
-      const diff = Math.round((localDate(today).getTime() - d.getTime()) / 86_400_000)
-      const base = `${d.getDate()} ${cap(d.toLocaleDateString('es-AR', { month: 'long' }))}`
-      const label = diff === 0 ? `Hoy · ${base}` : diff === 1 ? `Ayer · ${base}` : `${cap(d.toLocaleDateString('es-AR', { weekday: 'long' }))} · ${base}`
-      return { date, label, items }
-    })
+    return Array.from(byDay.entries())
+      .sort(([a], [b]) => {
+        const aKnown = isKnownDate(a)
+        const bKnown = isKnownDate(b)
+        if (aKnown !== bKnown) return aKnown ? -1 : 1
+        return b.localeCompare(a)
+      })
+      .map(([date, items]) => {
+        const d = localDate(date)
+        if (!d) return { date, label: 'Sin fecha', items }
+
+        const diff = Math.round((localDate(today)!.getTime() - d.getTime()) / 86_400_000)
+        const base = `${d.getDate()} ${cap(d.toLocaleDateString('es-AR', { month: 'long' }))}`
+        const label =
+          diff === 0
+            ? `Hoy · ${base}`
+            : diff === 1
+              ? `Ayer · ${base}`
+              : `${cap(d.toLocaleDateString('es-AR', { weekday: 'long' }))} · ${base}`
+        return { date, label, items }
+      })
   }, [filtered])
 
   const totalGastos = movements.filter((m) => m.type === 'expense').reduce((s, m) => s + m.amount, 0)
