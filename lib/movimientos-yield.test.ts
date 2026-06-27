@@ -7,7 +7,6 @@ describe('aggregateYieldDailyEntriesForMovements', () => {
     const movements = aggregateYieldDailyEntriesForMovements(
       [
         {
-          id: 'y-1',
           account_id: 'acc-bna',
           date: '2026-06-01',
           currency: 'ARS',
@@ -16,7 +15,6 @@ describe('aggregateYieldDailyEntriesForMovements', () => {
           status: 'estimated',
         },
         {
-          id: 'y-2',
           account_id: 'acc-bna',
           date: '2026-06-02',
           currency: 'ARS',
@@ -25,7 +23,6 @@ describe('aggregateYieldDailyEntriesForMovements', () => {
           status: 'difference',
         },
         {
-          id: 'y-3',
           account_id: 'acc-other',
           date: '2026-06-02',
           currency: 'ARS',
@@ -33,7 +30,7 @@ describe('aggregateYieldDailyEntriesForMovements', () => {
           actual_amount: null,
           status: 'estimated',
         },
-      ] satisfies Pick<YieldDailyEntry, 'id' | 'account_id' | 'date' | 'currency' | 'expected_amount' | 'actual_amount' | 'status'>[],
+      ] satisfies Pick<YieldDailyEntry, 'account_id' | 'date' | 'currency' | 'expected_amount' | 'actual_amount' | 'status'>[],
       { 'acc-bna': 'Banco Nación', 'acc-other': 'Otra cuenta' },
     )
 

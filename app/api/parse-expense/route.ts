@@ -6,6 +6,8 @@ import { geminiModel } from '@/lib/gemini/client'
 import { buildReceiptInlineData } from '@/lib/gemini/receipt-inline-data'
 import { buildVoiceInlineData } from '@/lib/gemini/voice-inline-data'
 import { applyTextInputAmountFallback } from '@/lib/expense-parse-fallback'
+import { parseTextExpenseFallback } from '@/lib/expense-text-parser'
+import { todayAR } from '@/lib/format'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
@@ -27,13 +29,13 @@ export async function POST(request: Request) {
     )
   }
 
+  let input = ''
+  let receiptInlineData: Awaited<ReturnType<typeof buildReceiptInlineData>> | null = null
+  let voiceInlineData: Awaited<ReturnType<typeof buildVoiceInlineData>> | null = null
+
   try {
     const contentType = request.headers.get('content-type') || ''
     const isMultipart = contentType.includes('multipart/form-data')
-
-    let input = ''
-    let receiptInlineData: Awaited<ReturnType<typeof buildReceiptInlineData>> | null = null
-    let voiceInlineData: Awaited<ReturnType<typeof buildVoiceInlineData>> | null = null
 
     if (isMultipart) {
       const formData = await request.formData()
@@ -95,6 +97,10 @@ export async function POST(request: Request) {
         is_valid: false,
         reason: 'No pude interpretar ese gasto. Revisa que tenga descripcion y monto.',
       })
+    }
+
+    if (input && !receiptInlineData && !voiceInlineData) {
+      return NextResponse.json(parseTextExpenseFallback(input, todayAR()))
     }
 
     return NextResponse.json({
