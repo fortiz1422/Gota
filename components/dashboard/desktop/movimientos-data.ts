@@ -1,10 +1,10 @@
-import type { Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
+import type { Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
 export type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
 
 export type MovimientosApiResponse = {
   movements: ApiMovement[]

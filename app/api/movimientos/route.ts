@@ -7,7 +7,7 @@ import {
   isCreditAccruedExpense,
   isPerceivedExpense,
 } from '@/lib/movement-classification'
-import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
 const PAGE_SIZE = 20
 
@@ -19,10 +19,10 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
 
 function getMovementDate(mv: ApiMovement): string {
-  if (mv.kind === 'yield') return toDateOnly(mv.data.last_accrued_date ?? mv.data.created_at)
+  if (mv.kind === 'yield') return toDateOnly(mv.data.date)
   return toDateOnly(mv.data.date)
 }
 
@@ -110,7 +110,15 @@ export async function GET(request: Request) {
           .order('date', { ascending: false })
       : Promise.resolve({ data: [] as Transfer[] }),
 
-    Promise.resolve({ data: [] as YieldAccumulator[] }),
+    wantsIncome
+      ? supabase
+          .from('yield_daily_entries')
+          .select('*')
+          .eq('user_id', user.id)
+          .gte('date', effectiveStart)
+          .lt('date', effectiveEnd)
+          .order('date', { ascending: false })
+      : Promise.resolve({ data: [] as YieldDailyEntry[] }),
 
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),
@@ -140,7 +148,7 @@ export async function GET(request: Request) {
   const allExpenses = (expensesData ?? []) as Expense[]
   const allIncome = (incomeData ?? []) as IncomeEntry[]
   const allTransfers = (transfersData ?? []) as Transfer[]
-  const allYield = (yieldData ?? []) as YieldAccumulator[]
+  const allYield = (yieldData ?? []) as YieldDailyEntry[]
 
   const statsExpenses = (statsExpensesData ?? []) as Pick<
     Expense,

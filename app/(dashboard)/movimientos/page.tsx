@@ -4,7 +4,7 @@ import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { todayAR, toDateOnly } from '@/lib/format'
 import { isCardPayment, isCreditAccruedExpense, isPerceivedExpense } from '@/lib/movement-classification'
 import { MovimientosClient, type ApiResponse } from '@/components/movimientos/MovimientosClient'
-import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
 const PAGE_SIZE = 20
 
@@ -12,7 +12,7 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
 
 export default async function MovimientosPage({
   searchParams,
@@ -63,7 +63,13 @@ export default async function MovimientosPage({
       .gte('date', startOfMonth)
       .lt('date', endOfMonth)
       .order('date', { ascending: false }),
-    Promise.resolve({ data: [] as YieldAccumulator[], error: null }),
+    supabase
+      .from('yield_daily_entries')
+      .select('*')
+      .eq('user_id', user.id)
+      .gte('date', startOfMonth)
+      .lt('date', endOfMonth)
+      .order('date', { ascending: false }),
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),
     supabase
@@ -104,7 +110,7 @@ export default async function MovimientosPage({
   const allExpenses = (expensesData ?? []) as Expense[]
   const allIncome = (incomeData ?? []) as IncomeEntry[]
   const allTransfers = (transfersData ?? []) as Transfer[]
-  const allYield = (yieldData ?? []) as YieldAccumulator[]
+  const allYield = (yieldData ?? []) as YieldDailyEntry[]
   const todayStr = todayAR()
 
   let filteredExpenses = allExpenses
@@ -129,9 +135,9 @@ export default async function MovimientosPage({
     ...filteredExpenses.map((e) => ({ kind: 'expense' as const, data: e })),
   ].sort((a, b) => {
     const dateA =
-      a.kind === 'yield' ? toDateOnly(a.data.last_accrued_date ?? a.data.created_at) : toDateOnly(a.data.date)
+      a.kind === 'yield' ? toDateOnly(a.data.date) : toDateOnly(a.data.date)
     const dateB =
-      b.kind === 'yield' ? toDateOnly(b.data.last_accrued_date ?? b.data.created_at) : toDateOnly(b.data.date)
+      b.kind === 'yield' ? toDateOnly(b.data.date) : toDateOnly(b.data.date)
     const aFuture = dateA > todayStr
     const bFuture = dateB > todayStr
     if (aFuture !== bFuture) return aFuture ? 1 : -1

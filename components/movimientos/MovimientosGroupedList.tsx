@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowCircleUp, ArrowsLeftRight, ListBullets, TrendUp } from '@phosphor-icons/react'
-import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
+import { formatAmount, todayAR, toDateOnly } from '@/lib/format'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
@@ -14,7 +14,7 @@ import type {
   Expense,
   IncomeEntry,
   Transfer,
-  YieldAccumulator,
+  YieldDailyEntry,
 } from '@/types/database'
 
 const INCOME_LABELS: Record<string, string> = {
@@ -27,11 +27,23 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
+
+function getYieldMovementAmount(entry: YieldDailyEntry): number {
+  return Number(entry.actual_amount ?? entry.expected_amount ?? 0)
+}
+
+function getYieldStatusLabel(status: YieldDailyEntry['status']): string {
+  if (status === 'matched') return 'real importado'
+  if (status === 'difference') return 'con diferencia'
+  if (status === 'actual_only') return 'real'
+  if (status === 'manual_adjusted') return 'ajustado'
+  return 'estimado'
+}
 
 function getMovementDate(mv: ApiMovement): string {
   if (mv.kind === 'yield') {
-    return toDateOnly(mv.data.last_accrued_date ?? mv.data.created_at)
+    return toDateOnly(mv.data.date)
   }
   return toDateOnly(mv.data.date)
 }
@@ -126,7 +138,7 @@ export function MovimientosGroupedList({
 
               if (mv.kind === 'yield') {
                 const ya = mv.data
-                const isClosed = !!ya.confirmed_at
+                const statusLabel = getYieldStatusLabel(ya.status)
 
                 return (
                   <div
@@ -141,11 +153,11 @@ export function MovimientosGroupedList({
                         {ya.accountName}
                       </p>
                       <span className="text-[12px] text-text-dim">
-                        Rendimiento · {isClosed ? formatDate(ya.confirmed_at!) : 'en curso'}
+                        Rendimiento diario · {statusLabel}
                       </span>
                     </div>
                     <p className="text-[16px] font-bold tracking-[-0.01em] tabular-nums text-success">
-                      +{formatAmount(ya.accumulated, 'ARS')}
+                      +{formatAmount(getYieldMovementAmount(ya), ya.currency)}
                     </p>
                   </div>
                 )

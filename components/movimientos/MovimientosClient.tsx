@@ -17,14 +17,14 @@ import type {
   Expense,
   IncomeEntry,
   Transfer,
-  YieldAccumulator,
+  YieldDailyEntry,
 } from '@/types/database'
 
 type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldAccumulator & { accountName: string } }
+  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
 
 type QuickFilterKey = 'all' | 'gastos' | 'ingresos' | 'tarjetas'
 
