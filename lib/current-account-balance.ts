@@ -25,6 +25,7 @@ export async function getCurrentBalanceBreakdown(params: {
     { data: debitExpData },
     { data: cardPayData },
     { data: transfersData },
+    { data: yieldEntriesData },
     { data: instrumentsData },
   ] = await Promise.all([
     supabase
@@ -60,11 +61,18 @@ export async function getCurrentBalanceBreakdown(params: {
       .eq('user_id', userId)
       .lte('date', todayDate),
     supabase
+      .from('yield_daily_entries')
+      .select('account_id, expected_amount, actual_amount')
+      .eq('user_id', userId)
+      .lte('date', todayDate),
+    supabase
       .from('instruments')
       .select('account_id, amount, currency')
       .eq('user_id', userId)
       .eq('status', 'active'),
   ])
+
+  const yieldTotals = sumYieldEntriesByAccount(yieldEntriesData ?? [])
 
   return buildLiveBalanceBreakdown({
     accounts: accountsData ?? [],
@@ -73,9 +81,25 @@ export async function getCurrentBalanceBreakdown(params: {
     debitExpenses: debitExpData ?? [],
     cardPayments: cardPayData ?? [],
     transfers: transfersData ?? [],
-    yields: [],
+    yields: yieldTotals,
     activeInstruments: instrumentsData ?? [],
   })
+}
+
+function sumYieldEntriesByAccount(
+  entries: { account_id: string; expected_amount: number | null; actual_amount: number | null }[],
+): { account_id: string; accumulated: number }[] {
+  const totals = new Map<string, number>()
+  for (const entry of entries) {
+    totals.set(
+      entry.account_id,
+      (totals.get(entry.account_id) ?? 0) + Number(entry.actual_amount ?? entry.expected_amount ?? 0),
+    )
+  }
+  return [...totals.entries()].map(([account_id, accumulated]) => ({
+    account_id,
+    accumulated: Math.round((accumulated + Number.EPSILON) * 100) / 100,
+  }))
 }
 
 export async function getCurrentAccountBalance(params: {

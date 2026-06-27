@@ -25,6 +25,23 @@ const SOURCE_LABELS: Record<string, string> = {
   rollover_auto: 'ROLLOVER',
 }
 
+type YieldDailySummary = {
+  estimated_total: number
+  actual_total: number
+  balance_total: number
+  count: number
+  matched_count: number
+  difference_count: number
+}
+
+type YieldDailyEntryPreview = {
+  id: string
+  date: string
+  expected_amount: number | null
+  actual_amount: number | null
+  status: string
+}
+
 function getMonthLabel(ym: string): string {
   const label = new Date(ym + '-15').toLocaleDateString('es-AR', { month: 'long', year: 'numeric' })
   return label.charAt(0).toUpperCase() + label.slice(1)
@@ -53,6 +70,41 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   )
   const [periodSource, setPeriodSource] = useState<string | null>(null)
   const [currentSaldoArs, setCurrentSaldoArs] = useState(0)
+  const [yieldSummary, setYieldSummary] = useState<YieldDailySummary | null>(null)
+  const [yieldEntries, setYieldEntries] = useState<YieldDailyEntryPreview[]>([])
+  const [isImportingYield, setIsImportingYield] = useState(false)
+  const [yieldImportMessage, setYieldImportMessage] = useState<string | null>(null)
+
+  const refreshYieldEntries = async () => {
+    if (isNew || !account || !month) return
+    const res = await fetch(`/api/yield-daily?account_id=${account.id}&month=${month}`)
+    if (!res.ok) return
+    const data: { summary: YieldDailySummary; entries: YieldDailyEntryPreview[] } = await res.json()
+    setYieldSummary(data.summary)
+    setYieldEntries(data.entries.slice(0, 5))
+  }
+
+  const handleImportYieldCsv = async (file: File | null) => {
+    if (!file || !account) return
+    setIsImportingYield(true)
+    setYieldImportMessage(null)
+    try {
+      const csv = await file.text()
+      const res = await fetch('/api/yield-import/bna', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ account_id: account.id, file_name: file.name, csv }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? 'Import failed')
+      setYieldImportMessage(`${data.imported_yield_rows} rendimientos importados`)
+      await refreshYieldEntries()
+    } catch {
+      setYieldImportMessage('No pude importar el CSV.')
+    } finally {
+      setIsImportingYield(false)
+    }
+  }
 
   useEffect(() => {
     if (isNew || !account || !month) return
@@ -68,6 +120,11 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
       })
       .catch(() => {})
   }, [account?.id, month, isNew])
+
+  useEffect(() => {
+    if (!yieldEnabled) return
+    void refreshYieldEntries()
+  }, [account?.id, month, yieldEnabled])
 
   const handleSave = async () => {
     if (!name.trim()) return
@@ -307,6 +364,54 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
               <p className="text-[10px] text-text-disabled">
                 Gota estima rendimientos diarios y puede reemplazarlos por el monto real cuando importás el extracto del banco.
               </p>
+
+              {!isNew && (
+                <div className="space-y-2 rounded-card border border-border-subtle bg-bg-secondary p-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] text-text-tertiary">Impacto en Saldo Vivo</span>
+                    <span className="text-[13px] font-semibold text-success">
+                      +{(yieldSummary?.balance_total ?? 0).toLocaleString('es-AR', {
+                        style: 'currency',
+                        currency: 'ARS',
+                      })}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-text-disabled">
+                    {yieldSummary?.count ?? 0} día{(yieldSummary?.count ?? 0) === 1 ? '' : 's'} generado{(yieldSummary?.count ?? 0) === 1 ? '' : 's'} este mes.
+                  </p>
+                  {yieldEntries.length > 0 && (
+                    <div className="space-y-1 border-t border-border-subtle pt-2">
+                      {yieldEntries.map((entry) => (
+                        <div key={entry.id} className="flex items-center justify-between text-[11px]">
+                          <span className="text-text-tertiary">{entry.date.slice(5).split('-').reverse().join('/')}</span>
+                          <span className="font-medium text-text-primary">
+                            +{Number(entry.actual_amount ?? entry.expected_amount ?? 0).toLocaleString('es-AR', {
+                              style: 'currency',
+                              currency: 'ARS',
+                            })}{' '}
+                            <span className="text-text-disabled">{entry.status}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <label className="block">
+                    <input
+                      type="file"
+                      accept=".csv,text/csv"
+                      className="hidden"
+                      disabled={isImportingYield}
+                      onChange={(e) => void handleImportYieldCsv(e.target.files?.[0] ?? null)}
+                    />
+                    <span className="block w-full rounded-button border border-border-subtle bg-bg-primary py-2 text-center text-xs font-semibold text-text-primary">
+                      {isImportingYield ? 'Importando...' : 'Cargar CSV Banco Nación'}
+                    </span>
+                  </label>
+                  {yieldImportMessage && (
+                    <p className="text-[10px] text-text-disabled">{yieldImportMessage}</p>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>}

@@ -25,6 +25,36 @@ export type YieldBalanceEntry = {
   actualAmount: number | null
 }
 
+export type ExistingYieldDailyEntry = {
+  date: string
+  status: YieldEntryStatus
+}
+
+export type EstimatedYieldDailyEntry = {
+  user_id: string
+  account_id: string
+  date: string
+  currency: 'ARS'
+  expected_amount: number
+  expected_rate_tna: number
+  expected_cap_amount: number | null
+  expected_base_balance: number
+  actual_amount: null
+  actual_source: null
+  status: 'estimated'
+}
+
+export type BuildEstimatedDailyYieldEntriesInput = {
+  userId: string
+  accountId: string
+  fromDate: string
+  toDate: string
+  baseBalance: number
+  rateTna: number
+  capAmount?: number | null
+  existingEntries: ExistingYieldDailyEntry[]
+}
+
 const BNA_YIELD_CONCEPT = 'RENDIMIENTO DIARIO PESOS'
 const CENT_TOLERANCE = 0.01
 
@@ -80,6 +110,45 @@ export function sumYieldEntriesForBalance(entries: YieldBalanceEntry[]): number 
   )
 }
 
+export function buildEstimatedDailyYieldEntries({
+  userId,
+  accountId,
+  fromDate,
+  toDate,
+  baseBalance,
+  rateTna,
+  capAmount = null,
+  existingEntries,
+}: BuildEstimatedDailyYieldEntriesInput): EstimatedYieldDailyEntry[] {
+  if (fromDate > toDate) return []
+  const protectedDates = new Set(
+    existingEntries
+      .filter((entry) => entry.status !== 'estimated')
+      .map((entry) => entry.date),
+  )
+  const entries: EstimatedYieldDailyEntry[] = []
+  let current = fromDate
+  while (current <= toDate) {
+    if (!protectedDates.has(current)) {
+      entries.push({
+        user_id: userId,
+        account_id: accountId,
+        date: current,
+        currency: 'ARS',
+        expected_amount: calculateDailyYieldAmount({ balance: baseBalance, rateTna, capAmount }),
+        expected_rate_tna: rateTna,
+        expected_cap_amount: capAmount ?? null,
+        expected_base_balance: baseBalance,
+        actual_amount: null,
+        actual_source: null,
+        status: 'estimated',
+      })
+    }
+    current = addOneDay(current)
+  }
+  return entries
+}
+
 export function parseBnaYieldCsv(csvText: string): ParsedBnaYieldRow[] {
   const rows = parseCsv(csvText)
   const [header, ...body] = rows
@@ -117,6 +186,12 @@ export function parseBnaYieldCsv(csvText: string): ParsedBnaYieldRow[] {
       },
     ]
   })
+}
+
+function addOneDay(dateStr: string): string {
+  const d = new Date(`${dateStr}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + 1)
+  return d.toISOString().slice(0, 10)
 }
 
 function parseCsv(text: string): string[][] {

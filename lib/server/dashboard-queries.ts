@@ -141,6 +141,7 @@ export async function readDashboardData({
     { data: liveIncomeData },
     { data: liveExpenseData },
     { data: liveTransfersData },
+    { data: liveYieldEntriesData },
     { data: compromisoExpensesData },
     { data: activeGoalsData },
     { data: goalCommitmentsData },
@@ -212,6 +213,11 @@ export async function readDashboardData({
     supabase
       .from('transfers')
       .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
+      .eq('user_id', userId)
+      .lte('date', todayDate),
+    supabase
+      .from('yield_daily_entries')
+      .select('account_id, expected_amount, actual_amount')
       .eq('user_id', userId)
       .lte('date', todayDate),
     supabase
@@ -287,6 +293,7 @@ export async function readDashboardData({
         currency: instrument.currency,
       }))
     : []
+  const liveYieldTotals = sumYieldEntriesByAccount(liveYieldEntriesData ?? [])
 
   let autoRolloverAmount: number | null = null
   const manualRolloverSummary: PrevMonthSummary | null = null
@@ -360,7 +367,7 @@ export async function readDashboardData({
       amount: row.amount,
       currency: row.currency,
     })),
-    yields: [],
+    yields: liveYieldTotals,
   })
 
   const accountBalances = buildLiveBalanceBreakdown({
@@ -377,7 +384,7 @@ export async function readDashboardData({
       currency_from: 'ARS' | 'USD'
       currency_to: 'ARS' | 'USD'
     }[],
-    yields: [],
+    yields: liveYieldTotals,
     activeInstruments: activeInstrumentBalances,
   })
 
@@ -551,4 +558,20 @@ export async function readDashboardData({
     compromisos: compromisosView,
     accountBalances,
   }
+}
+
+function sumYieldEntriesByAccount(
+  entries: { account_id: string; expected_amount: number | null; actual_amount: number | null }[],
+): { account_id: string; accumulated: number }[] {
+  const totals = new Map<string, number>()
+  for (const entry of entries) {
+    totals.set(
+      entry.account_id,
+      (totals.get(entry.account_id) ?? 0) + Number(entry.actual_amount ?? entry.expected_amount ?? 0),
+    )
+  }
+  return [...totals.entries()].map(([account_id, accumulated]) => ({
+    account_id,
+    accumulated: Math.round((accumulated + Number.EPSILON) * 100) / 100,
+  }))
 }
