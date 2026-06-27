@@ -8,13 +8,13 @@ import { EmptyState } from '@/components/ui/EmptyState'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { IncomeEditSheet } from './IncomeEditSheet'
 import { TransferEditSheet } from './TransferEditSheet'
+import type { YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import type {
   Account,
   Card,
   Expense,
   IncomeEntry,
   Transfer,
-  YieldDailyEntry,
 } from '@/types/database'
 
 const INCOME_LABELS: Record<string, string> = {
@@ -27,18 +27,18 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
+  | { kind: 'yield'; data: YieldMonthlyMovementData }
 
-function getYieldMovementAmount(entry: YieldDailyEntry): number {
-  return Number(entry.actual_amount ?? entry.expected_amount ?? 0)
+function getYieldMovementAmount(entry: YieldMonthlyMovementData): number {
+  return Number(entry.amount ?? 0)
 }
 
-function getYieldStatusLabel(status: YieldDailyEntry['status']): string {
-  if (status === 'matched') return 'real importado'
-  if (status === 'difference') return 'con diferencia'
-  if (status === 'actual_only') return 'real'
-  if (status === 'manual_adjusted') return 'ajustado'
-  return 'estimado'
+function getYieldStatusLabel(entry: YieldMonthlyMovementData): string {
+  const parts = [`${entry.dayCount} día${entry.dayCount === 1 ? '' : 's'}`]
+  if (entry.actualCount > 0) parts.push(`${entry.actualCount} real${entry.actualCount === 1 ? '' : 'es'}`)
+  if (entry.estimatedCount > 0) parts.push(`${entry.estimatedCount} estimado${entry.estimatedCount === 1 ? '' : 's'}`)
+  if (entry.differenceCount > 0) parts.push(`${entry.differenceCount} con diferencia`)
+  return parts.join(' · ')
 }
 
 function getMovementDate(mv: ApiMovement): string {
@@ -138,7 +138,7 @@ export function MovimientosGroupedList({
 
               if (mv.kind === 'yield') {
                 const ya = mv.data
-                const statusLabel = getYieldStatusLabel(ya.status)
+                const statusLabel = getYieldStatusLabel(ya)
 
                 return (
                   <div
@@ -153,7 +153,7 @@ export function MovimientosGroupedList({
                         {ya.accountName}
                       </p>
                       <span className="text-[12px] text-text-dim">
-                        Rendimiento diario · {statusLabel}
+                        Rendimientos diarios · {statusLabel}
                       </span>
                     </div>
                     <p className="text-[16px] font-bold tracking-[-0.01em] tabular-nums text-success">

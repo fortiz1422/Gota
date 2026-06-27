@@ -7,6 +7,7 @@ import {
   isCreditAccruedExpense,
   isPerceivedExpense,
 } from '@/lib/movement-classification'
+import { aggregateYieldDailyEntriesForMovements, type YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -19,7 +20,7 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
+  | { kind: 'yield'; data: YieldMonthlyMovementData }
 
 function getMovementDate(mv: ApiMovement): string {
   if (mv.kind === 'yield') return toDateOnly(mv.data.date)
@@ -254,10 +255,7 @@ export async function GET(request: Request) {
   if (activeMonedas.length > 0 && !activeMonedas.includes('ARS')) {
     filteredYield = []
   }
-  const yieldMovements: ApiMovement[] = filteredYield.map((ya) => ({
-    kind: 'yield' as const,
-    data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' },
-  }))
+  const yieldMovements = aggregateYieldDailyEntriesForMovements(filteredYield, accountMap)
   const incomeMovements: ApiMovement[] = filteredIncome.map((e) => ({ kind: 'income' as const, data: e }))
   const transferMovements: ApiMovement[] = filteredTransfers.map((t) => ({
     kind: 'transfer' as const,

@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { todayAR, toDateOnly } from '@/lib/format'
 import { isCardPayment, isCreditAccruedExpense, isPerceivedExpense } from '@/lib/movement-classification'
+import { aggregateYieldDailyEntriesForMovements, type YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import { MovimientosClient, type ApiResponse } from '@/components/movimientos/MovimientosClient'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
@@ -12,7 +13,7 @@ type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
+  | { kind: 'yield'; data: YieldMonthlyMovementData }
 
 export default async function MovimientosPage({
   searchParams,
@@ -125,19 +126,16 @@ export default async function MovimientosPage({
   const filteredTransfers = categoria ? [] : allTransfers
   const filteredYield = categoria ? [] : allYield
 
+  const yieldMovements = aggregateYieldDailyEntriesForMovements(filteredYield, accountMap)
+
   const allMovements: ApiMovement[] = [
-    ...filteredYield.map((ya) => ({
-      kind: 'yield' as const,
-      data: { ...ya, accountName: accountMap[ya.account_id] ?? 'Cuenta' },
-    })),
+    ...yieldMovements,
     ...filteredIncome.map((e) => ({ kind: 'income' as const, data: e })),
     ...filteredTransfers.map((t) => ({ kind: 'transfer' as const, data: t })),
     ...filteredExpenses.map((e) => ({ kind: 'expense' as const, data: e })),
   ].sort((a, b) => {
-    const dateA =
-      a.kind === 'yield' ? toDateOnly(a.data.date) : toDateOnly(a.data.date)
-    const dateB =
-      b.kind === 'yield' ? toDateOnly(b.data.date) : toDateOnly(b.data.date)
+    const dateA = toDateOnly(a.data.date)
+    const dateB = toDateOnly(b.data.date)
     const aFuture = dateA > todayStr
     const bFuture = dateB > todayStr
     if (aFuture !== bFuture) return aFuture ? 1 : -1

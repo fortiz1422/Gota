@@ -11,20 +11,20 @@ import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
 import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
 import type { ActiveFilters, OrigenFilter } from './FiltroSheet'
+import type { YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import type {
   Account,
   Card,
   Expense,
   IncomeEntry,
   Transfer,
-  YieldDailyEntry,
 } from '@/types/database'
 
 type ApiMovement =
   | { kind: 'expense'; data: Expense }
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
-  | { kind: 'yield'; data: YieldDailyEntry & { accountName: string } }
+  | { kind: 'yield'; data: YieldMonthlyMovementData }
 
 type QuickFilterKey = 'all' | 'gastos' | 'ingresos' | 'tarjetas'
 
