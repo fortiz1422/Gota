@@ -1,5 +1,3 @@
-import { getCurrentMonth } from '@/lib/dates'
-import { FF_YIELD } from '@/lib/flags'
 import { todayAR } from '@/lib/format'
 import { buildLiveBalanceBreakdown, type LiveBreakdownRow } from '@/lib/live-balance'
 import type { createClient } from '@/lib/supabase/server'
@@ -18,7 +16,6 @@ export async function getCurrentBalanceBreakdown(params: {
   userId: string
   currency: Currency
 }): Promise<LiveBreakdownRow[]> {
-  const currentMonth = getCurrentMonth()
   const todayDate = todayAR()
   const { supabase, userId, currency } = params
 
@@ -28,7 +25,6 @@ export async function getCurrentBalanceBreakdown(params: {
     { data: debitExpData },
     { data: cardPayData },
     { data: transfersData },
-    { data: yieldData },
     { data: instrumentsData },
   ] = await Promise.all([
     supabase
@@ -63,13 +59,6 @@ export async function getCurrentBalanceBreakdown(params: {
       .select('from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to')
       .eq('user_id', userId)
       .lte('date', todayDate),
-    FF_YIELD
-      ? supabase
-          .from('yield_accumulator')
-          .select('account_id, accumulated')
-          .eq('user_id', userId)
-          .lte('month', currentMonth)
-      : Promise.resolve({ data: [] as { account_id: string; accumulated: number }[] }),
     supabase
       .from('instruments')
       .select('account_id, amount, currency')
@@ -84,7 +73,7 @@ export async function getCurrentBalanceBreakdown(params: {
     debitExpenses: debitExpData ?? [],
     cardPayments: cardPayData ?? [],
     transfers: transfersData ?? [],
-    yields: FF_YIELD ? yieldData ?? [] : [],
+    yields: [],
     activeInstruments: instrumentsData ?? [],
   })
 }

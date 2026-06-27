@@ -9,7 +9,6 @@ import { TransferItem } from '@/components/expenses/TransferItem'
 import { YieldItem } from '@/components/expenses/YieldItem'
 import { ExpenseFilters } from '@/components/expenses/ExpenseFilters'
 import { getCurrentMonth } from '@/lib/dates'
-import { FF_YIELD } from '@/lib/flags'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldAccumulator } from '@/types/database'
 
 export default async function ExpensesPage({
@@ -44,7 +43,7 @@ export default async function ExpensesPage({
   const [y, m] = month.split('-').map(Number)
   const nextMonthDate = new Date(y, m, 1).toISOString().split('T')[0]
 
-  const [{ data: cardsData }, incomeResult, transfersResult, accountsResult, expensesResult, yieldResult] = await Promise.all([
+  const [{ data: cardsData }, incomeResult, transfersResult, accountsResult, expensesResult] = await Promise.all([
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false).order('created_at', { ascending: true }),
     supabase
       .from('income_entries')
@@ -82,13 +81,6 @@ export default async function ExpensesPage({
       if (extraordinary === 'true' || extraordinary === 'false') q = q.eq('is_extraordinary', extraordinary === 'true')
       return q
     })(),
-    FF_YIELD
-      ? supabase
-          .from('yield_accumulator')
-          .select('id, account_id, accumulated, is_manual_override, last_accrued_date, confirmed_at, created_at, updated_at')
-          .eq('user_id', user.id)
-          .eq('month', month)
-      : Promise.resolve({ data: [] as YieldAccumulator[] }),
   ])
 
   const cards: Card[] = (cardsData ?? []) as Card[]
@@ -96,7 +88,6 @@ export default async function ExpensesPage({
   const transfers = (transfersResult.data ?? []) as Transfer[]
   const accounts = (accountsResult.data ?? []) as Account[]
   const expenses = (expensesResult.data ?? []) as Expense[]
-  const yieldAccumulators = FF_YIELD ? (yieldResult.data ?? []) as YieldAccumulator[] : []
   const total = expensesResult.count ?? 0
   const totalPages = Math.ceil(total / pageSize)
   const isCurrentMonth = month === currentMonth
@@ -109,9 +100,7 @@ export default async function ExpensesPage({
     | { kind: 'expense'; data: Expense }
     | { kind: 'yield'; data: YieldAccumulator }
 
-  const yieldRows: Row[] = FF_YIELD && page === 1
-    ? yieldAccumulators.map((ya) => ({ kind: 'yield' as const, data: ya }))
-    : []
+  const yieldRows: Row[] = []
 
   const incomeRows: Row[] = page === 1
     ? [...incomeEntries].sort((a, b) => b.date.localeCompare(a.date)).map((e) => ({ kind: 'income' as const, data: e }))

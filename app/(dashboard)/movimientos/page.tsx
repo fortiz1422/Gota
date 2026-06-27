@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
-import { FF_YIELD } from '@/lib/flags'
 import { todayAR, toDateOnly } from '@/lib/format'
 import { isCardPayment, isCreditAccruedExpense, isPerceivedExpense } from '@/lib/movement-classification'
 import { MovimientosClient, type ApiResponse } from '@/components/movimientos/MovimientosClient'
@@ -64,9 +63,7 @@ export default async function MovimientosPage({
       .gte('date', startOfMonth)
       .lt('date', endOfMonth)
       .order('date', { ascending: false }),
-    FF_YIELD
-      ? supabase.from('yield_accumulator').select('*').eq('user_id', user.id).eq('month', initialMonth)
-      : Promise.resolve({ data: [] as YieldAccumulator[], error: null }),
+    Promise.resolve({ data: [] as YieldAccumulator[], error: null }),
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),
     supabase

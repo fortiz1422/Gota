@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth } from '@/lib/dates'
-import { processYieldAccrual } from '@/lib/yieldEngine'
-import { FF_YIELD } from '@/lib/flags'
 import { todayAR } from '@/lib/format'
 import { readDashboardData } from '@/lib/server/dashboard-queries'
 
@@ -91,7 +89,8 @@ export async function GET(request: Request) {
   // Fire-and-forget subscription auto-insert (current month only)
   void processSubscriptions(supabase, user.id, currentMonth, parseInt(todayDate.split('-')[2], 10))
   // Home now reflects live balances even when browsing another month.
-  if (FF_YIELD) await processYieldAccrual(supabase, user.id, currentMonth)
+  // Rendimientos diarios BNA ya no se autogeneran en el acumulador mensual viejo;
+  // se van a materializar/reconciliar como entradas diarias explícitas.
 
   const data = await readDashboardData({
     supabase,

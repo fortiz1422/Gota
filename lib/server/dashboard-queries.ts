@@ -12,7 +12,7 @@ import {
 } from '@/lib/live-balance'
 import { computeCompromisos, type CompromisosData } from '@/lib/analytics/computeCompromisos'
 import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
-import { FF_INSTRUMENTS, FF_YIELD } from '@/lib/flags'
+import { FF_INSTRUMENTS } from '@/lib/flags'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
@@ -141,7 +141,6 @@ export async function readDashboardData({
     { data: liveIncomeData },
     { data: liveExpenseData },
     { data: liveTransfersData },
-    { data: liveYieldData },
     { data: compromisoExpensesData },
     { data: activeGoalsData },
     { data: goalCommitmentsData },
@@ -160,7 +159,7 @@ export async function readDashboardData({
     supabase.from('expenses').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('income_entries').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('transfers').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
-    supabase.from('yield_accumulator').select('month').eq('user_id', userId).order('month', { ascending: true }).limit(1).maybeSingle(),
+    Promise.resolve({ data: null as { month: string } | null }),
     supabase.from('expenses').select('id').eq('user_id', userId).eq('currency', 'USD').limit(1).maybeSingle(),
     supabase
       .from('expenses')
@@ -187,11 +186,7 @@ export async function readDashboardData({
       .eq('user_id', userId)
       .eq('is_active', true)
       .order('created_at', { ascending: true }),
-    supabase
-      .from('yield_accumulator')
-      .select('id, account_id, accumulated, is_manual_override, last_accrued_date, confirmed_at')
-      .eq('user_id', userId)
-      .eq('month', selectedMonth),
+    Promise.resolve({ data: [] as YieldAccumulator[] }),
     supabase
       .from('instruments')
       .select('*')
@@ -219,11 +214,6 @@ export async function readDashboardData({
       .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
       .eq('user_id', userId)
       .lte('date', todayDate),
-    supabase
-      .from('yield_accumulator')
-      .select('accumulated, account_id')
-      .eq('user_id', userId)
-      .lte('month', currentMonth),
     supabase
       .from('expenses')
       .select('*')
@@ -370,7 +360,7 @@ export async function readDashboardData({
       amount: row.amount,
       currency: row.currency,
     })),
-    yields: FF_YIELD ? ((liveYieldData ?? []) as { accumulated: number }[]) : [],
+    yields: [],
   })
 
   const accountBalances = buildLiveBalanceBreakdown({
@@ -387,7 +377,7 @@ export async function readDashboardData({
       currency_from: 'ARS' | 'USD'
       currency_to: 'ARS' | 'USD'
     }[],
-    yields: FF_YIELD ? ((liveYieldData ?? []) as { account_id: string; accumulated: number }[]) : [],
+    yields: [],
     activeInstruments: activeInstrumentBalances,
   })
 

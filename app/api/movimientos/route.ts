@@ -1,7 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
-import { FF_YIELD } from '@/lib/flags'
 import { todayAR, toDateOnly } from '@/lib/format'
 import {
   isCardPayment,
@@ -44,7 +43,6 @@ export async function GET(request: Request) {
   const quincena = quincenaParam === 1 || quincenaParam === 2 ? (quincenaParam as 1 | 2) : null
   const fechaInicio = searchParams.get('fechaInicio') ?? null
   const fechaFin    = searchParams.get('fechaFin')    ?? null
-  const includeYield = searchParams.get('includeYield') !== 'false'
 
   const supabase = await createClient()
   const {
@@ -112,9 +110,7 @@ export async function GET(request: Request) {
           .order('date', { ascending: false })
       : Promise.resolve({ data: [] as Transfer[] }),
 
-    includeYield && FF_YIELD && page === 1 && wantsIncome
-      ? supabase.from('yield_accumulator').select('*').eq('user_id', user.id).eq('month', selectedMonth)
-      : Promise.resolve({ data: [] as YieldAccumulator[] }),
+    Promise.resolve({ data: [] as YieldAccumulator[] }),
 
     supabase.from('accounts').select('*').eq('user_id', user.id).eq('archived', false),
     supabase.from('cards').select('*').eq('user_id', user.id).eq('archived', false),

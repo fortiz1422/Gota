@@ -123,45 +123,6 @@ export async function POST(request: Request) {
   const matchedCount = statuses.filter((entry) => entry.status === 'matched').length
 
   const months = [...new Set(rows.map((row) => row.date.substring(0, 7)))]
-  for (const month of months) {
-    const monthStart = `${month}-01`
-    const nextMonth = addMonths(month, 1)
-    const { data: monthRows, error: monthRowsError } = await supabase
-      .from('yield_daily_entries')
-      .select('actual_amount, expected_amount, date')
-      .eq('user_id', user.id)
-      .eq('account_id', account.id)
-      .gte('date', monthStart)
-      .lt('date', `${nextMonth}-01`)
-
-    if (monthRowsError) return NextResponse.json({ error: monthRowsError.message }, { status: 500 })
-
-    const accumulated = roundMoney(
-      (monthRows ?? []).reduce(
-        (sum, row) => sum + Number(row.actual_amount ?? row.expected_amount ?? 0),
-        0,
-      ),
-    )
-    const lastAccruedDate = (monthRows ?? [])
-      .map((row) => row.date)
-      .sort()
-      .at(-1) ?? null
-
-    const { error: accumulatorError } = await supabase.from('yield_accumulator').upsert(
-      {
-        user_id: user.id,
-        account_id: account.id,
-        month,
-        accumulated,
-        is_manual_override: false,
-        last_accrued_date: lastAccruedDate,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: 'account_id,month', ignoreDuplicates: false },
-    )
-
-    if (accumulatorError) return NextResponse.json({ error: accumulatorError.message }, { status: 500 })
-  }
 
   await supabase
     .from('statement_imports')
@@ -178,14 +139,4 @@ export async function POST(request: Request) {
     inferred_tna: inferredTna,
     months_updated: months,
   })
-}
-
-function addMonths(month: string, amount: number): string {
-  const date = new Date(`${month}-15T12:00:00Z`)
-  date.setUTCMonth(date.getUTCMonth() + amount)
-  return date.toISOString().slice(0, 7)
-}
-
-function roundMoney(value: number): number {
-  return Math.round((value + Number.EPSILON) * 100) / 100
 }
