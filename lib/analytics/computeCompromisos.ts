@@ -148,7 +148,10 @@ export function computeCompromisos(
   if (isCurrentMonth) {
     for (const card of cards) {
       const forThisCard = cardCycles.filter((cycle) => cycle.card_id === card.id)
-      const unpaid = forThisCard.filter((cycle) => !isPaidCycle(cycle, currency, cycleAmountsMap))
+      const unpaid = forThisCard.filter((cycle) => {
+        if (!isPaidCycle(cycle, currency, cycleAmountsMap)) return true
+        return computeRemainingCycleAmount(cycle, card, expenses, cardCycles, currency, cycleAmountsMap) > 0
+      })
       const enCursoCycle =
         unpaid
           .filter((cycle) => cycle.closing_date >= today)
