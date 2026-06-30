@@ -316,6 +316,55 @@ export function CardDetailClient({
     }
   }
 
+  const renderCycleDateEditPanel = (description: string) => (
+    <div className="mt-3 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
+      <div className="grid grid-cols-2 gap-2">
+        <label className="space-y-1">
+          <span className="block type-meta text-text-secondary">Cierre</span>
+          <input
+            type="date"
+            value={editingClosingDate}
+            onChange={(event) => setEditingClosingDate(event.target.value)}
+            disabled={isSavingCycleDates}
+            className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+        </label>
+        <label className="space-y-1">
+          <span className="block type-meta text-text-secondary">Vencimiento</span>
+          <input
+            type="date"
+            value={editingDueDate}
+            onChange={(event) => setEditingDueDate(event.target.value)}
+            disabled={isSavingCycleDates}
+            className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+          />
+        </label>
+      </div>
+      <p className="type-meta text-text-tertiary">{description}</p>
+      {saveCycleError && (
+        <p className="rounded-card bg-danger-soft px-3 py-2 type-meta text-danger">
+          {saveCycleError}
+        </p>
+      )}
+      <div className="flex gap-2">
+        <button
+          onClick={cancelCycleDateEdit}
+          disabled={isSavingCycleDates}
+          className="flex-1 rounded-full py-1.5 type-meta text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
+        >
+          Cancelar
+        </button>
+        <button
+          onClick={() => void saveCycleDates()}
+          disabled={isSavingCycleDates}
+          className="flex-1 rounded-full bg-primary py-1.5 type-meta font-semibold text-white disabled:opacity-50"
+        >
+          {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
+        </button>
+      </div>
+    </div>
+  )
+
   const renderHero = () => {
     if (!heroGroup) return null
 
@@ -355,6 +404,15 @@ export function CardDetailClient({
               Vence {formatUpcomingShort(heroGroup.dueDate)} · Cierra{' '}
               {formatUpcomingShort(heroGroup.closingDate)}
             </p>
+
+            <button
+              onClick={() => startCycleDateEdit(heroGroup.representativeCycle)}
+              className="mt-2 type-meta font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Editar fechas de este resumen
+            </button>
+            {editingCycleId === heroGroup.representativeCycle.id &&
+              renderCycleDateEditPanel('Guarda fechas exactas solo para este resumen actual.')}
 
             <button
               onClick={() => setPayingTarget({ cycleGroup: heroGroup })}
@@ -618,6 +676,8 @@ export function CardDetailClient({
   }
 
   const heroGroupStatus = heroGroup ? getGroupStatus(heroGroup) : null
+  const datePreviewCycle = heroGroup && heroGroupStatus !== 'pagado' ? heroGroup.representativeCycle : upcomingCycle
+  const datePreviewLabel = heroGroup && heroGroupStatus !== 'pagado' ? 'Resumen activo' : 'Próximo resumen'
   const headerSubtitle = heroGroup
     ? heroGroupStatus === 'vencido'
       ? `Resumen vencido · venció ${formatUpcomingShort(heroGroup.dueDate)}`
@@ -713,7 +773,7 @@ export function CardDetailClient({
               Se usa para estimar próximos resúmenes. Las fechas reales se corrigen por período.
             </p>
 
-            <div className={`py-3.5 ${upcomingCycle ? 'border-b border-border-subtle' : ''}`}>
+            <div className={`py-3.5 ${datePreviewCycle ? 'border-b border-border-subtle' : ''}`}>
               <div className="flex items-center justify-between">
                 <span className="type-meta text-text-secondary">Cuenta de débito</span>
                 <div className="flex items-center gap-2">
@@ -765,76 +825,32 @@ export function CardDetailClient({
               )}
             </div>
 
-            {upcomingCycle && (
+            {datePreviewCycle && (
               <div className="py-3.5">
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <span className="type-meta text-text-secondary">Próximo resumen</span>
+                    <span className="type-meta text-text-secondary">{datePreviewLabel}</span>
                     <p className="mt-0.5 type-meta font-semibold text-text-primary">
-                      Cierra {formatUpcomingShort(upcomingCycle.closing_date)} · Vence{' '}
-                      {formatUpcomingShort(upcomingCycle.due_date)}
+                      Cierra {formatUpcomingShort(datePreviewCycle.closing_date)} · Vence{' '}
+                      {formatUpcomingShort(datePreviewCycle.due_date)}
                     </p>
                     <p className="mt-0.5 type-meta text-text-tertiary">
-                      {upcomingCycle.dates_confirmed_at ? 'Fechas confirmadas' : 'Estimado por ciclo habitual'}
+                      {datePreviewCycle.dates_confirmed_at ? 'Fechas confirmadas' : 'Estimado por ciclo habitual'}
                     </p>
                   </div>
                   <button
-                    onClick={() => startCycleDateEdit(upcomingCycle)}
+                    onClick={() => startCycleDateEdit(datePreviewCycle)}
                     className="type-meta font-medium text-primary"
                   >
                     Editar
                   </button>
                 </div>
-                {editingCycleId === upcomingCycle.id && (
-                  <div className="mt-3 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
-                    <div className="grid grid-cols-2 gap-2">
-                      <label className="space-y-1">
-                        <span className="block type-meta text-text-secondary">Cierre</span>
-                        <input
-                          type="date"
-                          value={editingClosingDate}
-                          onChange={(event) => setEditingClosingDate(event.target.value)}
-                          disabled={isSavingCycleDates}
-                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                        />
-                      </label>
-                      <label className="space-y-1">
-                        <span className="block type-meta text-text-secondary">Vencimiento</span>
-                        <input
-                          type="date"
-                          value={editingDueDate}
-                          onChange={(event) => setEditingDueDate(event.target.value)}
-                          disabled={isSavingCycleDates}
-                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
-                        />
-                      </label>
-                    </div>
-                    <p className="type-meta text-text-tertiary">
-                      Guarda fechas exactas solo para este resumen futuro.
-                    </p>
-                    {saveCycleError && (
-                      <p className="rounded-card bg-danger-soft px-3 py-2 type-meta text-danger">
-                        {saveCycleError}
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={cancelCycleDateEdit}
-                        disabled={isSavingCycleDates}
-                        className="flex-1 rounded-full py-1.5 type-meta text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
-                      >
-                        Cancelar
-                      </button>
-                      <button
-                        onClick={() => void saveCycleDates()}
-                        disabled={isSavingCycleDates}
-                        className="flex-1 rounded-full bg-primary py-1.5 type-meta font-semibold text-white disabled:opacity-50"
-                      >
-                        {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {editingCycleId === datePreviewCycle.id &&
+                  renderCycleDateEditPanel(
+                    datePreviewLabel === 'Resumen activo'
+                      ? 'Guarda fechas exactas solo para este resumen actual.'
+                      : 'Guarda fechas exactas solo para este resumen futuro.',
+                  )}
               </div>
             )}
           </div>
