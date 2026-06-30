@@ -83,4 +83,31 @@ describe('computeCompromisos card cycle edits', () => {
     expect(data.totalEnCurso).toBe(231_281)
     expect(data.totalComprometido).toBe(231_281)
   })
+
+  it('uses the stored statement amount for the active cycle instead of only live expenses', () => {
+    const data = computeCompromisos(
+      [makeExpense({ amount: 48_000 })],
+      [makeCard()],
+      [
+        makeCycle({
+          status: 'open',
+          amount_draft: 606_215,
+          amount_paid: null,
+          paid_at: null,
+        }),
+      ],
+      7_000_000,
+      '2026-06',
+      true,
+      [],
+      'ARS',
+    )
+
+    const bna = data.tarjetas.find((tarjeta) => tarjeta.id === 'bna-card')
+
+    expect(bna?.cycleStatus).toBe('en_curso')
+    expect(bna?.currentSpend).toBe(606_215)
+    expect(data.totalEnCurso).toBe(606_215)
+    expect(data.totalComprometido).toBe(606_215)
+  })
 })

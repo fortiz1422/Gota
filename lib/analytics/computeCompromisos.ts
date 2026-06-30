@@ -172,18 +172,13 @@ export function computeCompromisos(
           if (cycle !== enCursoCycle) continue
 
           foundEnCurso = true
-          const periodFrom = getPeriodFrom(cycle, card, cardCycles)
-          const liveSpend = calcularMontoResumen(
+          currentSpend = computeRemainingCycleAmount(
+            cycle,
+            card,
             expenses,
-            card.id,
-            new Date(`${periodFrom}T12:00:00Z`),
-            new Date(`${cycle.closing_date}T12:00:00Z`),
-            cycle.id,
+            cardCycles,
             currency,
-          )
-          currentSpend = getRemainingCardCycleAmount(
-            liveSpend,
-            getEffectiveCardCycleState(cycle, currency, cycleAmountsMap).amount_paid,
+            cycleAmountsMap,
           )
           daysUntilClosing = daysDiff(today, cycle.closing_date)
           enCursoClosingDay = parseInt(cycle.closing_date.substring(8, 10), 10)
