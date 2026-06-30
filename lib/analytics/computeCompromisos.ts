@@ -152,10 +152,18 @@ export function computeCompromisos(
         if (!isPaidCycle(cycle, currency, cycleAmountsMap)) return true
         return computeRemainingCycleAmount(cycle, card, expenses, cardCycles, currency, cycleAmountsMap) > 0
       })
+      const enCursoCandidates = unpaid.filter((cycle) => cycle.closing_date >= today)
       const enCursoCycle =
-        unpaid
-          .filter((cycle) => cycle.closing_date >= today)
-          .sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ?? null
+        enCursoCandidates.find(
+          (cycle) =>
+            cycle.period_month.substring(0, 7) === selectedMonth &&
+            computeRemainingCycleAmount(cycle, card, expenses, cardCycles, currency, cycleAmountsMap) > 0,
+        ) ??
+        enCursoCandidates
+          .filter((cycle) => computeRemainingCycleAmount(cycle, card, expenses, cardCycles, currency, cycleAmountsMap) > 0)
+          .sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ??
+        enCursoCandidates.sort((a, b) => a.closing_date.localeCompare(b.closing_date))[0] ??
+        null
       const paidThisMonth = forThisCard.find(
         (cycle) => isPaidCycle(cycle, currency, cycleAmountsMap) && cycle.due_date.startsWith(selectedMonth),
       )

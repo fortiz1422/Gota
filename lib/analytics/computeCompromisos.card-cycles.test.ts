@@ -110,4 +110,56 @@ describe('computeCompromisos card cycle edits', () => {
     expect(data.totalEnCurso).toBe(606_215)
     expect(data.totalComprometido).toBe(606_215)
   })
+
+  it('prioritizes the current future cycle with remaining amount over an empty duplicate future cycle', () => {
+    const data = computeCompromisos(
+      [
+        makeExpense({
+          id: 'expense-june-summary',
+          amount: 606_215.32,
+          card_cycle_id: 'cycle-june',
+          date: '2026-06-20',
+        }),
+        makeExpense({
+          id: 'expense-july-noise',
+          amount: 48_911,
+          card_cycle_id: 'cycle-july',
+          date: '2026-06-29',
+        }),
+      ],
+      [makeCard({ closing_day: 2 })],
+      [
+        makeCycle({
+          id: 'cycle-july',
+          period_month: '2026-07-01',
+          closing_date: '2026-07-02',
+          due_date: '2026-07-13',
+          status: 'open',
+          amount_paid: null,
+          paid_at: null,
+        }),
+        makeCycle({
+          id: 'cycle-june',
+          period_month: '2026-06-01',
+          closing_date: '2026-07-02',
+          due_date: '2026-07-13',
+          status: 'open',
+          amount_paid: null,
+          paid_at: null,
+        }),
+      ],
+      7_000_000,
+      '2026-06',
+      true,
+      [],
+      'ARS',
+    )
+
+    const bna = data.tarjetas.find((tarjeta) => tarjeta.id === 'bna-card')
+
+    expect(bna?.cycleStatus).toBe('en_curso')
+    expect(bna?.currentSpend).toBe(606_215.32)
+    expect(data.totalEnCurso).toBe(606_215.32)
+    expect(data.totalComprometido).toBe(606_215.32)
+  })
 })
