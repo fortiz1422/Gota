@@ -45,7 +45,10 @@ export function EditCycleModal({ open, onClose, closingDay, dueDay, onSave }: Pr
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
       <div className="mb-5">
-        <p className="type-label text-text-tertiary">Ciclo de facturación</p>
+        <p className="type-label text-text-tertiary">Ciclo habitual</p>
+        <p className="mt-1 type-meta text-text-tertiary">
+          Se usa para estimar próximos resúmenes; cada resumen puede tener fechas propias.
+        </p>
       </div>
 
       <div className="space-y-3 pb-24">

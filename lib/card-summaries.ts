@@ -17,6 +17,7 @@ export type EnrichedCycle = {
   amount: number
   paid_at: string | null
   amount_paid: number | null
+  dates_confirmed_at: string | null
   remaining_amount: number
   has_partial_payment: boolean
   changed_after_payment: boolean
@@ -108,6 +109,7 @@ export function buildEnrichedCardCycles({
       amount,
       paid_at: paidAt,
       amount_paid: cycleState.amount_paid,
+      dates_confirmed_at: cycle.dates_confirmed_at ?? null,
       remaining_amount: remainingAmount,
       has_partial_payment: hasPartialPayment,
       changed_after_payment: changedAfterPayment,

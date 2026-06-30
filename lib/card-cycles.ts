@@ -1,6 +1,6 @@
 import { addMonths, getCurrentMonth } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
-import type { Card, CardCycle } from '@/types/database'
+import type { Card, CardCycle, CardCycleInsert } from '@/types/database'
 
 export type ResolvedCardCycle = CardCycle & {
   source: 'stored' | 'legacy'
@@ -20,6 +20,37 @@ function clampDay(periodMonth: string, day: number | null): number {
 export function buildCycleDate(periodMonth: string, day: number | null): string {
   const normalizedDay = clampDay(periodMonth, day)
   return `${periodMonth}-${String(normalizedDay).padStart(2, '0')}`
+}
+
+export function isValidCycleDateRange(closingDate: string, dueDate: string): boolean {
+  return Boolean(closingDate && dueDate && dueDate >= closingDate)
+}
+
+export function buildConfirmedCardCyclePayload({
+  userId,
+  card,
+  periodMonth,
+  closingDate,
+  dueDate,
+  confirmedAt,
+}: {
+  userId: string
+  card: Pick<Card, 'id'>
+  periodMonth: string
+  closingDate: string
+  dueDate: string
+  confirmedAt: string
+}): CardCycleInsert {
+  return {
+    user_id: userId,
+    card_id: card.id,
+    period_month: toMonthStart(periodMonth.substring(0, 7)),
+    closing_date: closingDate,
+    due_date: dueDate,
+    status: 'open',
+    amount_draft: null,
+    dates_confirmed_at: confirmedAt,
+  }
 }
 
 export function resolveDueMonth(periodMonth: string, closingDay: number | null, dueDay: number | null): string {
@@ -44,6 +75,7 @@ export function buildLegacyCardCycle(card: Card, periodMonth: string): ResolvedC
     amount_draft: null,
     amount_paid: null,
     paid_at: null,
+    dates_confirmed_at: null,
     created_at: closingDate,
     updated_at: closingDate,
     source: 'legacy',

@@ -17,6 +17,10 @@ function periodMonthLabel(periodMonth: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
+function formatShortDate(date: string): string {
+  return new Date(`${date}T12:00:00`).toLocaleDateString('es-AR', { day: 'numeric', month: 'short' })
+}
+
 type Motivo = 'gasto_olvidado' | 'cargo_banco' | 'no_detallar'
 
 type AdjustmentDraft = {
@@ -353,6 +357,14 @@ export function PagarResumenModal({ open, onClose, onSuccess, cycleGroup, card, 
         <h2 className="mt-0.5 text-base font-bold text-text-primary">
           {periodMonthLabel(cycleGroup.periodMonth)}
         </h2>
+        <p className="mt-1 text-xs text-text-tertiary">
+          Cierre {formatShortDate(cycleGroup.closingDate)} · Vence {formatShortDate(cycleGroup.dueDate)}
+        </p>
+        <p className="mt-0.5 text-xs text-text-tertiary">
+          {cycleGroup.representativeCycle.dates_confirmed_at
+            ? 'Fechas confirmadas para este resumen'
+            : 'Fechas estimadas: corregilas desde la tarjeta si el banco muestra otras'}
+        </p>
       </div>
 
       <div className="space-y-5 pb-24">

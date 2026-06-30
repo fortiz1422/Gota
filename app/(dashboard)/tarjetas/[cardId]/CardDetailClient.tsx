@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CaretDown, CaretUp, CheckCircle, ClockCounterClockwise } from '@phosphor-icons/react'
-import { formatAmount, formatDate } from '@/lib/format'
+import { formatAmount } from '@/lib/format'
 import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, Currency, Expense } from '@/types/database'
 import { CycleExpensesDetail } from './CycleExpensesDetail'
@@ -16,7 +16,7 @@ interface Props {
   card: Card
   accounts: Account[]
   resumenesByCurrency: Record<'ARS' | 'USD', EnrichedCycle[]>
-  upcomingClosingDate: string | null
+  upcomingCycle: EnrichedCycle | null
   expenses: Expense[]
   initialCurrency: Currency
 }
@@ -92,7 +92,7 @@ export function CardDetailClient({
   card,
   accounts,
   resumenesByCurrency,
-  upcomingClosingDate,
+  upcomingCycle,
   expenses,
   initialCurrency,
 }: Props) {
@@ -172,11 +172,6 @@ export function CardDetailClient({
       .sort((a, b) => b.periodMonth.localeCompare(a.periodMonth))
   }, [resumenesByCurrency])
 
-  const currentGroupKey = useMemo(
-    () => combinedCycles.find((g) => g.isCurrent)?.key ?? combinedCycles[0]?.key ?? null,
-    [combinedCycles],
-  )
-
   const heroGroup = useMemo(
     () =>
       combinedCycles.find((g) => getGroupStatus(g) === 'vencido') ??
@@ -194,6 +189,15 @@ export function CardDetailClient({
   }
 
   const selectedAccount = accounts.find((a) => a.id === currentCard.account_id)
+  const editableCycles = useMemo(() => {
+    const byId = new Map<string, EnrichedCycle>()
+    for (const group of combinedCycles) {
+      byId.set(group.representativeCycle.id, group.representativeCycle)
+      for (const block of group.blocks) byId.set(block.cycle.id, block.cycle)
+    }
+    if (upcomingCycle) byId.set(upcomingCycle.id, upcomingCycle)
+    return [...byId.values()]
+  }, [combinedCycles, upcomingCycle])
 
   const patchCard = async (patch: Partial<Pick<Card, 'closing_day' | 'due_day' | 'account_id' | 'name'>>) => {
     const res = await fetch(`/api/cards/${currentCard.id}`, {
@@ -274,17 +278,33 @@ export function CardDetailClient({
       setSaveCycleError('La fecha de vencimiento no puede ser anterior al cierre.')
       return
     }
+    const editingCycle = editableCycles.find((cycle) => cycle.id === editingCycleId)
+    if (!editingCycle) return
+
     setIsSavingCycleDates(true)
     setSaveCycleError(null)
     try {
-      const res = await fetch(`/api/card-cycles/${editingCycleId}`, {
-        method: 'PATCH',
+      const datesConfirmedAt = new Date().toISOString()
+      const isLegacyCycle = editingCycle.source === 'legacy'
+      const res = await fetch(isLegacyCycle ? '/api/card-cycles' : `/api/card-cycles/${editingCycle.id}`, {
+        method: isLegacyCycle ? 'POST' : 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          closing_date: editingClosingDate,
-          due_date: editingDueDate,
-          amount_draft: null,
-        }),
+        body: JSON.stringify(
+          isLegacyCycle
+            ? {
+                card_id: currentCard.id,
+                period_month: editingCycle.period_month.substring(0, 7),
+                closing_date: editingClosingDate,
+                due_date: editingDueDate,
+                dates_confirmed_at: datesConfirmedAt,
+              }
+            : {
+                closing_date: editingClosingDate,
+                due_date: editingDueDate,
+                amount_draft: null,
+                dates_confirmed_at: datesConfirmedAt,
+              },
+        ),
       })
       if (!res.ok) throw new Error()
       cancelCycleDateEdit()
@@ -454,12 +474,9 @@ export function CardDetailClient({
       usdBlock?.cycle.cycleStatus !== 'pagado' ? (usdBlock?.cycle.remaining_amount ?? 0) : 0
     const anyUnpaid = group.blocks.some((b) => b.cycle.cycleStatus !== 'pagado')
 
-    // First block that qualifies for date editing
-    const editableBlock = group.blocks.find(
-      (b) =>
-        b.cycle.source === 'stored' &&
-        (b.cycle.cycleStatus === 'cerrado' || b.cycle.cycleStatus === 'vencido'),
-    )
+    // Permitir corregir fechas de cualquier resumen visible: si viene del fallback legacy,
+    // al guardar se materializa en card_cycles para no pisar la regla habitual.
+    const editableBlock = group.blocks[0]
 
     return (
       <div key={group.key} className="surface-module overflow-hidden rounded-card">
@@ -680,7 +697,7 @@ export function CardDetailClient({
               onClick={() => setIsEditingCycle(true)}
               className="flex w-full items-center justify-between border-b border-border-subtle py-3.5"
             >
-              <span className="type-meta text-text-secondary">Ciclo</span>
+              <span className="type-meta text-text-secondary">Ciclo habitual</span>
               <div className="flex items-center gap-2">
                 <span className="type-meta font-semibold text-text-primary">
                   {currentCard.closing_day && currentCard.due_day
@@ -692,8 +709,11 @@ export function CardDetailClient({
                 <span className="type-meta font-medium text-primary">Editar</span>
               </div>
             </button>
+            <p className="border-b border-border-subtle pb-3 type-meta text-text-tertiary">
+              Se usa para estimar próximos resúmenes. Las fechas reales se corrigen por período.
+            </p>
 
-            <div className={`py-3.5 ${upcomingClosingDate ? 'border-b border-border-subtle' : ''}`}>
+            <div className={`py-3.5 ${upcomingCycle ? 'border-b border-border-subtle' : ''}`}>
               <div className="flex items-center justify-between">
                 <span className="type-meta text-text-secondary">Cuenta de débito</span>
                 <div className="flex items-center gap-2">
@@ -745,12 +765,76 @@ export function CardDetailClient({
               )}
             </div>
 
-            {upcomingClosingDate && (
-              <div className="flex items-center justify-between py-3.5">
-                <span className="type-meta text-text-secondary">Próximo cierre</span>
-                <span className="type-meta text-text-dim">
-                  {formatUpcomingShort(upcomingClosingDate)}
-                </span>
+            {upcomingCycle && (
+              <div className="py-3.5">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className="type-meta text-text-secondary">Próximo resumen</span>
+                    <p className="mt-0.5 type-meta font-semibold text-text-primary">
+                      Cierra {formatUpcomingShort(upcomingCycle.closing_date)} · Vence{' '}
+                      {formatUpcomingShort(upcomingCycle.due_date)}
+                    </p>
+                    <p className="mt-0.5 type-meta text-text-tertiary">
+                      {upcomingCycle.dates_confirmed_at ? 'Fechas confirmadas' : 'Estimado por ciclo habitual'}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => startCycleDateEdit(upcomingCycle)}
+                    className="type-meta font-medium text-primary"
+                  >
+                    Editar
+                  </button>
+                </div>
+                {editingCycleId === upcomingCycle.id && (
+                  <div className="mt-3 space-y-2 rounded-input border border-border-subtle bg-bg-primary px-3 py-2.5">
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="space-y-1">
+                        <span className="block type-meta text-text-secondary">Cierre</span>
+                        <input
+                          type="date"
+                          value={editingClosingDate}
+                          onChange={(event) => setEditingClosingDate(event.target.value)}
+                          disabled={isSavingCycleDates}
+                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        />
+                      </label>
+                      <label className="space-y-1">
+                        <span className="block type-meta text-text-secondary">Vencimiento</span>
+                        <input
+                          type="date"
+                          value={editingDueDate}
+                          onChange={(event) => setEditingDueDate(event.target.value)}
+                          disabled={isSavingCycleDates}
+                          className="w-full rounded-lg border border-border-strong bg-bg-secondary px-2 py-1.5 type-meta text-text-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:opacity-50"
+                        />
+                      </label>
+                    </div>
+                    <p className="type-meta text-text-tertiary">
+                      Guarda fechas exactas solo para este resumen futuro.
+                    </p>
+                    {saveCycleError && (
+                      <p className="rounded-card bg-danger-soft px-3 py-2 type-meta text-danger">
+                        {saveCycleError}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={cancelCycleDateEdit}
+                        disabled={isSavingCycleDates}
+                        className="flex-1 rounded-full py-1.5 type-meta text-text-secondary hover:bg-bg-secondary disabled:opacity-50"
+                      >
+                        Cancelar
+                      </button>
+                      <button
+                        onClick={() => void saveCycleDates()}
+                        disabled={isSavingCycleDates}
+                        className="flex-1 rounded-full bg-primary py-1.5 type-meta font-semibold text-white disabled:opacity-50"
+                      >
+                        {isSavingCycleDates ? 'Guardando...' : 'Guardar fechas'}
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

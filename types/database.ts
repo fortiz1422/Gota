@@ -527,6 +527,7 @@ export type Database = {
           amount_draft: number | null
           amount_paid: number | null
           paid_at: string | null
+          dates_confirmed_at: string | null
           created_at: string
           updated_at: string
         }
@@ -541,6 +542,7 @@ export type Database = {
           amount_draft?: number | null
           amount_paid?: number | null
           paid_at?: string | null
+          dates_confirmed_at?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -553,6 +555,7 @@ export type Database = {
           amount_draft?: number | null
           amount_paid?: number | null
           paid_at?: string | null
+          dates_confirmed_at?: string | null
         }
         Relationships: []
       }

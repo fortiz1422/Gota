@@ -1,6 +1,12 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { defaultCyclePeriodMonths, getUpcomingCycle, mergeResolvedCycles } from '@/lib/card-cycles'
+import {
+  buildConfirmedCardCyclePayload,
+  defaultCyclePeriodMonths,
+  getUpcomingCycle,
+  isValidCycleDateRange,
+  mergeResolvedCycles,
+} from '@/lib/card-cycles'
 import { getCurrentMonth } from '@/lib/dates'
 import type { Card, CardCycle } from '@/types/database'
 
@@ -75,10 +81,14 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { card_id, period_month, closing_date, due_date, status = 'open' } = body
+  const { card_id, period_month, closing_date, due_date, status = 'open', dates_confirmed_at } = body
 
   if (!card_id || !period_month || !closing_date || !due_date) {
     return NextResponse.json({ error: 'card_id, period_month, closing_date and due_date are required' }, { status: 400 })
+  }
+
+  if (!isValidCycleDateRange(closing_date, due_date)) {
+    return NextResponse.json({ error: 'due_date must be on or after closing_date' }, { status: 400 })
   }
 
   const { data: card, error: cardError } = await supabase
@@ -93,16 +103,27 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: 'Card not found' }, { status: 404 })
   }
 
+  const cyclePayload = dates_confirmed_at
+    ? buildConfirmedCardCyclePayload({
+        userId: user.id,
+        card: card as Pick<Card, 'id'>,
+        periodMonth: period_month,
+        closingDate: closing_date,
+        dueDate: due_date,
+        confirmedAt: dates_confirmed_at,
+      })
+    : {
+        user_id: user.id,
+        card_id,
+        period_month: `${period_month}-01`,
+        closing_date,
+        due_date,
+        status,
+      }
+
   const { data, error } = await supabase
     .from('card_cycles')
-    .upsert({
-      user_id: user.id,
-      card_id,
-      period_month: `${period_month}-01`,
-      closing_date,
-      due_date,
-      status,
-    }, { onConflict: 'card_id,period_month' })
+    .upsert(cyclePayload, { onConflict: 'card_id,period_month' })
     .select()
     .single()
 

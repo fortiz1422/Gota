@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server'
+import { isValidCycleDateRange } from '@/lib/card-cycles'
 import { createClient } from '@/lib/supabase/server'
 import type { CardCycleUpdate } from '@/types/database'
 
@@ -15,7 +16,11 @@ export async function PATCH(
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const body = await request.json()
-  const { period_month, closing_date, due_date, status, amount_paid, paid_at, amount_draft } = body
+  const { period_month, closing_date, due_date, status, amount_paid, paid_at, amount_draft, dates_confirmed_at } = body
+
+  if (closing_date !== undefined && due_date !== undefined && !isValidCycleDateRange(closing_date, due_date)) {
+    return NextResponse.json({ error: 'due_date must be on or after closing_date' }, { status: 400 })
+  }
 
   const update: CardCycleUpdate = {}
   if (period_month !== undefined) update.period_month = `${period_month}-01`
@@ -25,6 +30,7 @@ export async function PATCH(
   if (amount_paid !== undefined) update.amount_paid = amount_paid
   if (paid_at !== undefined) update.paid_at = paid_at
   if (amount_draft !== undefined) update.amount_draft = amount_draft
+  if (dates_confirmed_at !== undefined) update.dates_confirmed_at = dates_confirmed_at
 
   const { data, error } = await supabase
     .from('card_cycles')

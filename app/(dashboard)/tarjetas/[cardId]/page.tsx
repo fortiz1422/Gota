@@ -110,11 +110,6 @@ export default async function TarjetaPage({
 
   const upcomingCycle = enriched.find((cycle) => cycle.period_month.substring(0, 7) > currentMonth) ?? null
 
-  const resumenes = enriched.filter((cycle) => {
-    if (cycle.period_month.substring(0, 7) > currentMonth) return false
-    return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
-  })
-
   return (
     <CardDetailClient
       card={card as Card}
@@ -129,7 +124,7 @@ export default async function TarjetaPage({
           return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
         }),
       }}
-      upcomingClosingDate={upcomingCycle?.closing_date ?? null}
+      upcomingCycle={upcomingCycle}
       expenses={(expenses ?? []) as Expense[]}
       initialCurrency={(config?.default_currency ?? 'ARS') as 'ARS' | 'USD'}
     />
