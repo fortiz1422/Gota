@@ -33,6 +33,12 @@ function pendingLabel(card: CardSummary): string | null {
   return chunks.length > 0 ? chunks.join(' · ') : null
 }
 
+function amountBadgeClass(urgent: boolean): string {
+  return urgent
+    ? 'bg-warning/10 text-warning'
+    : 'bg-primary/10 text-primary'
+}
+
 function buildHeaderTotals(cards: CardSummary[]) {
   if (cards.length === 0) return null
 
@@ -185,7 +191,7 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
 
                   <div className="flex shrink-0 items-center gap-2">
                     {amountLabel ? (
-                      <span className="text-[13px] font-semibold tabular-nums text-text-primary">
+                      <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${amountBadgeClass(urgent)}`}>
                         {amountLabel}
                       </span>
                     ) : (

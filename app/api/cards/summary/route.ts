@@ -1,8 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
-import { buildEnrichedCardCycles, sumPendingResumenes } from '@/lib/card-summaries'
+import { buildEnrichedCardCycles, sumCardSummaryPreview } from '@/lib/card-summaries'
 import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
+import { todayAR } from '@/lib/format'
 import type { Card, CardCycle, CardCycleAmount, Expense } from '@/types/database'
 
 export interface CardSummary {
@@ -92,6 +93,7 @@ export async function GET() {
   }
   const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmountsData ?? []) as CardCycleAmount[])
   const defaultCurrency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const today = todayAR()
 
   const result: CardSummary[] = (cards ?? []).map((card) => ({
     id: card.id,
@@ -100,7 +102,7 @@ export async function GET() {
     due_day: card.due_day,
     account_id: card.account_id,
     account_name: card.account_id ? (accountNameById[card.account_id] ?? null) : null,
-    pending_amount: sumPendingResumenes(
+    pending_amount: sumCardSummaryPreview(
       buildEnrichedCardCycles({
         card: card as Card,
         storedCycles: cyclesByCard[card.id] ?? [],
@@ -110,8 +112,9 @@ export async function GET() {
         cycleAmountsMap,
       }),
       currentMonth,
+      today,
     ),
-    pending_ars: sumPendingResumenes(
+    pending_ars: sumCardSummaryPreview(
       buildEnrichedCardCycles({
         card: card as Card,
         storedCycles: cyclesByCard[card.id] ?? [],
@@ -121,8 +124,9 @@ export async function GET() {
         cycleAmountsMap,
       }),
       currentMonth,
+      today,
     ),
-    pending_usd: sumPendingResumenes(
+    pending_usd: sumCardSummaryPreview(
       buildEnrichedCardCycles({
         card: card as Card,
         storedCycles: cyclesByCard[card.id] ?? [],
@@ -132,6 +136,7 @@ export async function GET() {
         cycleAmountsMap,
       }),
       currentMonth,
+      today,
     ),
     default_currency: defaultCurrency,
   }))

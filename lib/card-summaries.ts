@@ -125,6 +125,20 @@ export function sumPendingResumenes(cycles: EnrichedCycle[], currentMonth: strin
     .reduce((sum, cycle) => sum + cycle.remaining_amount, 0)
 }
 
+export function sumCardSummaryPreview(
+  cycles: EnrichedCycle[],
+  currentMonth: string,
+  today = todayAR(),
+): number {
+  return cycles
+    .filter((cycle) => cycle.period_month.substring(0, 7) <= currentMonth)
+    .filter((cycle) => {
+      if (cycle.cycleStatus === 'cerrado' || cycle.cycleStatus === 'vencido') return true
+      return cycle.cycleStatus === 'en_curso' && cycle.period_from <= today
+    })
+    .reduce((sum, cycle) => sum + cycle.remaining_amount, 0)
+}
+
 export function shouldDisplayCardCycleInDetail(cycle: EnrichedCycle, today = todayAR()): boolean {
   if (cycle.period_from > today) return false
   return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
