@@ -152,7 +152,10 @@ export function computeCompromisos(
         if (!isPaidCycle(cycle, currency, cycleAmountsMap)) return true
         return computeRemainingCycleAmount(cycle, card, expenses, cardCycles, currency, cycleAmountsMap) > 0
       })
-      const enCursoCandidates = unpaid.filter((cycle) => cycle.closing_date >= today)
+      const enCursoCandidates = unpaid.filter((cycle) => {
+        const periodFrom = getPeriodFrom(cycle, card, cardCycles)
+        return periodFrom <= today && cycle.closing_date >= today
+      })
       const enCursoCycle =
         enCursoCandidates.find(
           (cycle) =>
