@@ -11,7 +11,13 @@ import {
   type LiveBreakdownRow,
 } from '@/lib/live-balance'
 import { computeCompromisos, type CompromisosData } from '@/lib/analytics/computeCompromisos'
+import {
+  buildCardPaymentPromptCandidates,
+  type CardPaymentPromptCandidate,
+} from '@/lib/card-payment-prompts'
 import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
+import { getGoals } from '@/lib/server/goal-queries'
+import type { GoalWithMetrics } from '@/lib/goals/types'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
@@ -63,6 +69,8 @@ export type DashboardApiData = {
   activeRecurring: RecurringIncome[]
   compromisos: CompromisosData | null
   accountBalances: LiveBreakdownRow[]
+  cardPaymentPrompts: CardPaymentPromptCandidate[]
+  goals: GoalWithMetrics[]
 }
 
 type ReadDashboardDataParams = {
@@ -124,6 +132,10 @@ export async function readDashboardData({
   const cards = (cardsData ?? []) as Card[]
   const accounts = (accountsData ?? []) as Account[]
   const accountIds = accounts.map((account) => account.id)
+
+  // Metas con métricas completas para el módulo Metas del Panel web.
+  // Se lanza en paralelo con el Promise.all principal (la promise arranca al crearse).
+  const goalsPromise = getGoals(supabase, userId)
 
   const [
     incomeEntriesResult,
@@ -252,6 +264,8 @@ export async function readDashboardData({
   if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
     throw new Error(cycleAmountsError.message)
   }
+
+  const goals = await goalsPromise
 
   const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
   const hasConfiguredOpeningBalance = accounts.some(
@@ -410,6 +424,15 @@ export async function readDashboardData({
     ...((paidCyclesData ?? []) as CardCycle[]),
   ]
   const cycleAmountsMap = buildCardCycleAmountsMap((cycleAmountsData ?? []) as CardCycleAmount[])
+  const cardPaymentPrompts = buildCardPaymentPromptCandidates({
+    cards,
+    storedCycles: allCardCycles,
+    expenses: compromisoExpenses,
+    cycleAmountsMap,
+    selectedMonth,
+    isCurrentMonth,
+    today: todayDate,
+  })
   const otherCurrency = viewCurrency === 'ARS' ? 'USD' : 'ARS'
   const compromisosView = computeCompromisos(
     compromisoExpenses.filter((expense) => expense.currency === viewCurrency),
@@ -557,6 +580,8 @@ export async function readDashboardData({
     activeRecurring,
     compromisos: compromisosView,
     accountBalances,
+    cardPaymentPrompts,
+    goals,
   }
 }
 

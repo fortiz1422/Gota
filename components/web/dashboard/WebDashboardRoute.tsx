@@ -87,6 +87,7 @@ export function WebDashboardRoute({
       quote={initialQuote}
       amountsVisible
       onOpenSettings={() => router.push('/settings')}
+      onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
     />
   )
 }

@@ -1,11 +1,16 @@
 'use client'
 
 import type { CSSProperties } from 'react'
+import { ArrowRight, Plus } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 import { CategoryIcon, getCategoryColors } from '@/components/ui/CategoryIcon'
 
 // ─── Design tokens (Zona Azul) ───────────────────────────────
 export const BLUE = '#2178A8'
+
+// ─── Layout constants (control room) ─────────────────────────
+export const SIDEBAR_W = 248
+export const MAXW = 1520
 
 export const CARD_STYLE: CSSProperties = {
   background: '#FFFFFF',
@@ -135,5 +140,109 @@ export function Badge({ tone = 'success', children }: { tone?: 'success' | 'warn
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 10px', borderRadius: 9999, background: t.bg, color: t.fg, fontSize: 11, fontWeight: 600 }}>
       {children}
     </span>
+  )
+}
+
+// ─── Section title (within Panel control room) ───────────────
+export function SectionTitle({
+  children,
+  sub,
+  action,
+  onAction,
+  accent = true,
+}: {
+  children: React.ReactNode
+  sub?: string
+  action?: string
+  onAction?: () => void
+  accent?: boolean
+}) {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'flex-end',
+        justifyContent: 'space-between',
+        marginBottom: 20,
+        paddingTop: 14,
+        borderTop: accent ? '1.5px solid #0D1829' : 'none',
+        position: 'relative',
+      }}
+    >
+      {accent && <span style={{ position: 'absolute', left: 0, top: -1.5, width: 46, height: 2, background: BLUE }} />}
+      <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+        <h2 style={{ margin: 0, fontSize: 20, fontWeight: 700, letterSpacing: '-0.025em', color: '#0D1829' }}>{children}</h2>
+        {sub && <span style={{ fontSize: 13, color: '#90A4B0' }}>{sub}</span>}
+      </div>
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            background: 'transparent',
+            border: 0,
+            cursor: 'pointer',
+            padding: 0,
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 5,
+            fontSize: 12,
+            fontWeight: 600,
+            color: BLUE,
+            fontFamily: 'inherit',
+            borderBottom: '1px solid rgba(33,120,168,0.25)',
+            paddingBottom: 1,
+          }}
+        >
+          {action} <ArrowRight size={12} />
+        </button>
+      )}
+    </div>
+  )
+}
+
+// ─── Page header (non-Panel sections) ────────────────────────
+export function PageHeader({
+  title,
+  sub,
+  action,
+  onAction,
+}: {
+  title: string
+  sub?: string
+  action?: string
+  onAction?: () => void
+}) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16, marginBottom: 28 }}>
+      <div>
+        <h1 style={{ margin: 0, fontSize: 27, fontWeight: 700, letterSpacing: '-0.03em', color: '#0D1829' }}>{title}</h1>
+        {sub && <p style={{ margin: '8px 0 0', fontSize: 14, color: '#90A4B0' }}>{sub}</p>}
+      </div>
+      {action && onAction && (
+        <button
+          type="button"
+          onClick={onAction}
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 7,
+            padding: '10px 18px',
+            borderRadius: 9999,
+            background: BLUE,
+            border: 0,
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 700,
+            fontFamily: 'inherit',
+            cursor: 'pointer',
+            flexShrink: 0,
+          }}
+        >
+          <Plus weight="bold" size={13} />
+          {action}
+        </button>
+      )}
+    </div>
   )
 }

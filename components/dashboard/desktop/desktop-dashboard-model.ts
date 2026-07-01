@@ -1,6 +1,7 @@
 import { addMonths } from '@/lib/dates'
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
+import type { GoalWithMetrics } from '@/lib/goals/types'
 import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome, Transfer } from '@/types/database'
 
 export type DesktopHeroStats = {
@@ -44,6 +45,13 @@ function buildLocalDate(date: string) {
   return new Date(`${date}T12:00:00-03:00`)
 }
 
+/** Adds `days` to a YYYY-MM-DD string, returning YYYY-MM-DD (TZ-stable via UTC noon). */
+function addDaysToDateOnly(dateStr: string, days: number): string {
+  const d = new Date(`${dateStr.substring(0, 10)}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
 function diffInDays(from: string, to: string) {
   const fromDate = buildLocalDate(from).getTime()
   const toDate = buildLocalDate(to).getTime()
@@ -52,6 +60,18 @@ function diffInDays(from: string, to: string) {
 
 function formatShortDate(date: string) {
   return formatDate(date).replace(/\.$/, '')
+}
+
+/** Relative day label for recent activity: Hoy / Ayer / weekday / short date. */
+function relativeDayLabel(date: string, today = todayAR()): string {
+  const diff = diffInDays(toDateOnly(date), today)
+  if (diff <= 0) return 'Hoy'
+  if (diff === 1) return 'Ayer'
+  if (diff < 7) {
+    const raw = buildLocalDate(toDateOnly(date)).toLocaleDateString('es-AR', { weekday: 'short' }).replace('.', '')
+    return raw.charAt(0).toUpperCase() + raw.slice(1)
+  }
+  return formatShortDate(date)
 }
 
 function monthLabel(month: string) {
@@ -191,43 +211,43 @@ export function buildHorizonEvents(params: {
   const { cards, recurringIncomes, activeInstruments, compromisos, selectedMonth, today = todayAR() } = params
   const events: HorizonEvent[] = []
 
+  // Tarjetas — solo las que tienen actividad real. Fechas reales del ciclo.
+  //   Cierre → solo si hay consumo en el ciclo en curso.
+  //   Vencimiento → solo si hay deuda pendiente por pagar.
+  cards.forEach((card) => {
+    const tarjeta = compromisos?.tarjetas.find((t) => t.id === card.id)
+    if (!tarjeta) return
+
+    if (tarjeta.currentSpend > 0 && tarjeta.daysUntilClosing != null && tarjeta.daysUntilClosing >= 0) {
+      events.push({
+        id: `close-${card.id}`,
+        date: addDaysToDateOnly(today, tarjeta.daysUntilClosing),
+        title: `Cierre ${card.name}`,
+        subtitle: 'CIERRE DE CICLO',
+        kind: 'card',
+        amount: tarjeta.currentSpend,
+        currency: 'ARS',
+        estimated: false,
+      })
+    }
+
+    if (tarjeta.debtTotal > 0 && tarjeta.dueDate && tarjeta.dueDate >= today && tarjeta.cycleStatus !== 'pagado') {
+      events.push({
+        id: `due-${card.id}`,
+        date: tarjeta.dueDate,
+        title: `Vence ${card.name}`,
+        subtitle: 'VENCIMIENTO',
+        kind: 'due',
+        amount: tarjeta.debtTotal,
+        currency: 'ARS',
+        estimated: false,
+      })
+    }
+  })
+
+  // Ingresos recurrentes (sueldo/ingresos fijos) — próximos 3 meses según su día de recurrencia.
   for (let offset = 0; offset < 3; offset += 1) {
     const month = addMonths(selectedMonth, offset)
-
-    cards.forEach((card) => {
-      const tarjeta = compromisos?.tarjetas.find((t) => t.id === card.id) ?? null
-
-      if (card.closing_day) {
-        const closingDate = `${month}-${String(card.closing_day).padStart(2, '0')}`
-        if (closingDate >= today) {
-          events.push({
-            id: `close-${card.id}-${month}`,
-            date: closingDate,
-            title: `Cierre ${card.name}`,
-            subtitle: 'CIERRE DE CICLO',
-            kind: 'card',
-            amount: offset === 0 && tarjeta ? tarjeta.currentSpend : undefined,
-            currency: 'ARS',
-            estimated: offset > 0,
-          })
-        }
-      }
-
-      const dueDate = `${month}-${String(card.due_day).padStart(2, '0')}`
-      if (dueDate >= today) {
-        events.push({
-          id: `due-${card.id}-${month}`,
-          date: dueDate,
-          title: `Vence ${card.name}`,
-          subtitle: 'VENCIMIENTO',
-          kind: 'due',
-          amount: offset === 0 && tarjeta ? tarjeta.debtTotal : undefined,
-          currency: 'ARS',
-          estimated: offset > 0,
-        })
-      }
-    })
-
     recurringIncomes.forEach((recurring) => {
       const incomeDate = `${month}-${String(recurring.day_of_month).padStart(2, '0')}`
       if (incomeDate >= today) {
@@ -263,13 +283,43 @@ export function buildHorizonEvents(params: {
   return events.sort((a, b) => a.date.localeCompare(b.date))
 }
 
+/**
+ * Prioridad de relevancia de una meta para el módulo Metas del Panel.
+ * Misma lógica que GoalsFocusList: atrasadas primero, luego las que están cerca,
+ * después el resto. Menor número = más relevante.
+ */
+function goalRelevance(goal: GoalWithMetrics): number {
+  if (goal.paceStatus === 'behind') return 0
+  if (goal.remainingAmount > 0 && goal.progressPct >= 0.8) return 1
+  return 2
+}
+
+/**
+ * Selecciona las metas activas más relevantes para mostrar como preview en el Panel.
+ * Ordena por relevancia (atrasada → cerca → resto) y desempata por progreso descendente.
+ */
+export function selectDashboardGoals(
+  goals: GoalWithMetrics[],
+  limit = 3,
+): GoalWithMetrics[] {
+  return goals
+    .filter((goal) => goal.status === 'active')
+    .sort((a, b) => {
+      const relevanceDiff = goalRelevance(a) - goalRelevance(b)
+      if (relevanceDiff !== 0) return relevanceDiff
+      return b.progressPct - a.progressPct
+    })
+    .slice(0, limit)
+}
+
 export function buildRecentActivityItems(params: {
   expenses: Expense[]
   incomes: IncomeEntry[]
   transfers: Transfer[]
   accounts: Account[]
+  limit?: number
 }): RecentActivityItem[] {
-  const { expenses, incomes, transfers, accounts } = params
+  const { expenses, incomes, transfers, accounts, limit = 4 } = params
   const accountMap = new Map(accounts.map((account) => [account.id, account.name]))
 
   return [
@@ -282,7 +332,7 @@ export function buildRecentActivityItems(params: {
         subtitle: expense.category,
         amountLabel: `-${formatAmount(expense.amount, expense.currency)}`,
         tone: 'neutral' as const,
-        dateLabel: formatShortDate(expense.date),
+        dateLabel: relativeDayLabel(expense.date),
       },
     })),
     ...incomes.map((income) => ({
@@ -294,7 +344,7 @@ export function buildRecentActivityItems(params: {
         subtitle: 'Ingresos',
         amountLabel: `+${formatAmount(income.amount, income.currency)}`,
         tone: 'positive' as const,
-        dateLabel: formatShortDate(income.date),
+        dateLabel: relativeDayLabel(income.date),
       },
     })),
     ...transfers.map((transfer) => ({
@@ -306,11 +356,11 @@ export function buildRecentActivityItems(params: {
         subtitle: `${accountMap.get(transfer.from_account_id) ?? 'Cuenta'} → ${accountMap.get(transfer.to_account_id) ?? 'Cuenta'}`,
         amountLabel: formatAmount(transfer.amount_from, transfer.currency_from),
         tone: 'neutral' as const,
-        dateLabel: formatShortDate(transfer.date),
+        dateLabel: relativeDayLabel(transfer.date),
       },
     })),
   ]
     .sort((a, b) => b.date.localeCompare(a.date))
-    .slice(0, 4)
+    .slice(0, limit)
     .map((entry) => entry.item)
 }

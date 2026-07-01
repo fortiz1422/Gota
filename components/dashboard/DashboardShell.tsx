@@ -188,9 +188,7 @@ export function DashboardShell({
   }
 
   const { activePrompt } = useCardPaymentPrompts(
-    data?.cards ?? [],
-    data?.isCurrentMonth ?? false,
-    viewCurrency,
+    data?.cardPaymentPrompts ?? [],
     data?.accounts ?? [],
   )
 
@@ -576,13 +574,10 @@ export function DashboardShell({
 
       {activePrompt && (
         <CardPaymentPrompt
-          card={activePrompt.card}
-          amount={activePrompt.amount}
-          currency={viewCurrency}
-          periodoDesde={activePrompt.periodoDesde}
-          periodoHasta={activePrompt.periodoHasta}
+          candidate={activePrompt.candidate}
           accounts={accounts}
-          onConfirm={(finalAmount) => activePrompt.onConfirm(finalAmount).then(invalidateDashboardData)}
+          cotizacion={cotizacionQuery.data ?? null}
+          onConfirm={(input) => activePrompt.onConfirm(input).then(invalidateDashboardData)}
           onDismiss={activePrompt.onDismiss}
         />
       )}

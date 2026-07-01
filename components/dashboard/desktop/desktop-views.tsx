@@ -488,6 +488,9 @@ export function TarjetasView({ data, analyticsData, compromisos, viewCurrency, h
   const totalMensual = cuotas.reduce((s, c) => s + c.monthly, 0)
   const totalRestante = cuotas.reduce((s, c) => s + c.monthly * (c.count - c.paid), 0)
 
+  const totalSpend = (compromisos?.tarjetas ?? []).reduce((s, t) => s + t.currentSpend, 0)
+  const totalDebt = (compromisos?.tarjetas ?? []).reduce((s, t) => s + t.debtTotal, 0)
+
   return (
     <>
       <ViewHeader
@@ -505,6 +508,22 @@ export function TarjetasView({ data, analyticsData, compromisos, viewCurrency, h
           </Link>
         }
       />
+
+      {data.cards.length > 0 && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 24 }}>
+          {[
+            { label: 'Consumo del ciclo', value: fmtMoney(totalSpend, viewCurrency, hidden), sub: 'En curso', tone: '#0D1829' },
+            { label: 'A pagar · ciclo anterior', value: fmtMoney(totalDebt, viewCurrency, hidden), sub: nextClose?.dueDate ? `Vence ${fmtDue(nextClose.dueDate)}` : 'Sin vencimientos', tone: '#A61E1E' },
+            { label: 'Tarjetas activas', value: `${data.cards.length}`, sub: data.cards.length === 1 ? 'tarjeta' : 'tarjetas', tone: '#0D1829' },
+          ].map((s) => (
+            <div key={s.label} style={{ ...CARD_STYLE, padding: '18px 22px' }}>
+              <div style={{ ...LABEL_STYLE, fontSize: 10, marginBottom: 10 }}>{s.label}</div>
+              <div style={{ fontSize: 24, fontWeight: 700, color: s.tone, letterSpacing: '-0.025em', fontVariantNumeric: 'tabular-nums', marginBottom: 4 }}>{s.value}</div>
+              <div style={{ fontSize: 12, color: '#90A4B0' }}>{s.sub}</div>
+            </div>
+          ))}
+        </div>
+      )}
 
       {data.cards.length === 0 ? (
         <div style={{ ...CARD_STYLE, padding: '40px 28px', textAlign: 'center', color: '#90A4B0', fontSize: 14 }}>No hay tarjetas activas.</div>
@@ -536,7 +555,7 @@ export function TarjetasView({ data, analyticsData, compromisos, viewCurrency, h
 
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, lineHeight: 1 }}>
                   <span style={{ fontSize: 15, color: '#90A4B0', fontWeight: 500, alignSelf: 'flex-start', marginTop: 6 }}>$</span>
-                  <span style={{ fontSize: 44, fontWeight: 800, letterSpacing: '-0.05em', color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>
+                  <span style={{ fontSize: 38, fontWeight: 700, letterSpacing: '-0.04em', color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>
                     {hidden ? '••••••' : (t?.currentSpend ?? 0).toLocaleString('es-AR')}
                   </span>
                 </div>
