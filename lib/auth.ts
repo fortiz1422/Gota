@@ -1,22 +1,34 @@
 import { createClient } from '@/lib/supabase/client'
 
+type ExperimentalPasskeyAuth = {
+  signInWithPasskey: () => Promise<any>
+  registerPasskey: () => Promise<any>
+  passkey: {
+    list: () => Promise<any>
+    update: (params: { passkeyId: string; friendlyName: string }) => Promise<any>
+    delete: (params: { passkeyId: string }) => Promise<any>
+  }
+}
+
+const passkeyAuth = () => createClient().auth as unknown as ExperimentalPasskeyAuth
+
 /** Crea un usuario anónimo con sesión real en Supabase */
 export const signInAnonymously = () => createClient().auth.signInAnonymously()
 
 export const isPasskeySupported = () =>
   typeof window !== 'undefined' && typeof PublicKeyCredential !== 'undefined' && window.isSecureContext
 
-export const signInWithPasskey = () => createClient().auth.signInWithPasskey()
+export const signInWithPasskey = () => passkeyAuth().signInWithPasskey()
 
-export const registerPasskey = () => createClient().auth.registerPasskey()
+export const registerPasskey = () => passkeyAuth().registerPasskey()
 
-export const listPasskeys = () => createClient().auth.passkey.list()
+export const listPasskeys = () => passkeyAuth().passkey.list()
 
 export const renamePasskey = (passkeyId: string, friendlyName: string) =>
-  createClient().auth.passkey.update({ passkeyId, friendlyName })
+  passkeyAuth().passkey.update({ passkeyId, friendlyName })
 
 export const deletePasskey = (passkeyId: string) =>
-  createClient().auth.passkey.delete({ passkeyId })
+  passkeyAuth().passkey.delete({ passkeyId })
 
 /** Vincula Google al usuario anónimo actual → convierte en cuenta permanente */
 export const linkGoogleAccount = () =>

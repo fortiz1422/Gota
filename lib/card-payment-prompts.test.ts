@@ -57,6 +57,7 @@ function makeCycle(overrides: Partial<CardCycle>): CardCycle {
     amount_draft: null,
     amount_paid: null,
     paid_at: null,
+    dates_confirmed_at: null,
     created_at: '2026-05-20T12:00:00.000Z',
     updated_at: '2026-05-20T12:00:00.000Z',
     ...overrides,
