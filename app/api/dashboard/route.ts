@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
+import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { processDailyYieldEntries } from '@/lib/server/daily-yield-entries'
 import { readDashboardData } from '@/lib/server/dashboard-queries'
 
@@ -40,6 +41,16 @@ async function processSubscriptions(supabase: any, userId: string, currentMonth:
     if (reservationError || !reservation) continue
 
     const expDate = `${currentMonth}-${String(sub.day_of_month).padStart(2, '0')}`
+    const cycleAssignments =
+      sub.payment_method === 'CREDIT' && sub.category !== 'Pago de Tarjetas'
+        ? await resolveCardCycleAssignments({
+            supabase,
+            userId,
+            cardId: sub.card_id,
+            baseDate: expDate,
+            installments: 1,
+          })
+        : []
     const { data: expense, error: expenseError } = await supabase
       .from('expenses')
       .insert({
@@ -51,6 +62,7 @@ async function processSubscriptions(supabase: any, userId: string, currentMonth:
         currency: sub.currency,
         payment_method: sub.payment_method,
         card_id: sub.card_id,
+        card_cycle_id: cycleAssignments[0]?.card_cycle_id ?? null,
         account_id: sub.account_id ?? null,
         date: expDate,
       })
