@@ -1,8 +1,9 @@
 import { redirect, notFound } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { buildEnrichedCardCycles } from '@/lib/card-summaries'
+import { buildEnrichedCardCycles, shouldDisplayCardCycleInDetail } from '@/lib/card-summaries'
 import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
+import { todayAR } from '@/lib/format'
 import { CardDetailClient } from './CardDetailClient'
 import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, CardCycle, CardCycleAmount, CardCycleInsert, Expense } from '@/types/database'
@@ -86,6 +87,7 @@ export default async function TarjetaPage({
     USD: buildEnrichedCardCycles({ ...commonParams, currency: 'USD' }),
   }
   const enriched = enrichedByCurrency.ARS
+  const today = todayAR()
 
   const legacyPastToMaterialize = enriched.filter(
     (cycle) => cycle.source === 'legacy' && cycle.period_month.substring(0, 7) < currentMonth
@@ -108,7 +110,9 @@ export default async function TarjetaPage({
     )
   }
 
-  const upcomingCycle = enriched.find((cycle) => cycle.period_month.substring(0, 7) > currentMonth) ?? null
+  const upcomingCycle = enriched
+    .filter((cycle) => cycle.period_from > today)
+    .sort((a, b) => a.period_from.localeCompare(b.period_from))[0] ?? null
 
   return (
     <CardDetailClient
@@ -117,11 +121,11 @@ export default async function TarjetaPage({
       resumenesByCurrency={{
         ARS: enrichedByCurrency.ARS.filter((cycle) => {
           if (cycle.period_month.substring(0, 7) > currentMonth) return false
-          return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
+          return shouldDisplayCardCycleInDetail(cycle, today)
         }),
         USD: enrichedByCurrency.USD.filter((cycle) => {
           if (cycle.period_month.substring(0, 7) > currentMonth) return false
-          return cycle.amount > 0 || cycle.cycleStatus === 'pagado'
+          return shouldDisplayCardCycleInDetail(cycle, today)
         }),
       }}
       upcomingCycle={upcomingCycle}
