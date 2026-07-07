@@ -53,7 +53,7 @@ export function AnalyticsHero({ hero, currency, variant = 'standard' }: Props) {
               </p>
             )
           })() : null}
-          {hero.driver ? (
+          {hero.driver && hero.driver.label !== hero.subcopy ? (
             <p
               className="mt-3 text-[13px]"
               style={{ color: h ? 'rgba(255,255,255,0.72)' : 'var(--color-text-secondary)' }}
