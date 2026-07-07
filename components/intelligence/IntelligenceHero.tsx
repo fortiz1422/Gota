@@ -21,10 +21,20 @@ import type {
 } from '@/lib/intelligence/heroes'
 import type { InsightSeverity } from '@/lib/intelligence/types'
 
-export type IntelligenceSurface = 'analysis-mobile' | 'home-mobile'
-
-interface Props {
-  surface: IntelligenceSurface
+/** Datos de héroes inteligentes compartidos entre superficies (cache 5 min). */
+export function useIntelligenceHeroes(enabled = true) {
+  return useQuery<IntelligenceHeroResponse>({
+    queryKey: ['intelligence-heroes'],
+    queryFn: async () => {
+      const res = await fetch('/api/intelligence/heroes')
+      if (!res.ok) throw new Error('intelligence heroes fetch failed')
+      return res.json()
+    },
+    enabled,
+    staleTime: 5 * 60_000,
+    refetchOnWindowFocus: true,
+    retry: 1,
+  })
 }
 
 const SEVERITY_CONFIG: Record<
@@ -118,7 +128,7 @@ function PrimaryHeroCard({ hero }: { hero: IntelligenceHeroData }) {
   )
 }
 
-function SecondaryHeroChip({ hero }: { hero: IntelligenceHeroData }) {
+export function IntelligenceSignalChip({ hero }: { hero: IntelligenceHeroData }) {
   const tone = SEVERITY_CONFIG[hero.severity]
   const cta = hero.cta
 
@@ -180,18 +190,24 @@ function EmptyCard() {
   )
 }
 
-export function IntelligenceHero({ surface }: Props) {
-  const { data, isLoading, isError, refetch } = useQuery<IntelligenceHeroResponse>({
-    queryKey: ['intelligence-heroes', surface],
-    queryFn: async () => {
-      const res = await fetch('/api/intelligence/heroes')
-      if (!res.ok) throw new Error('intelligence heroes fetch failed')
-      return res.json()
-    },
-    staleTime: 5 * 60_000,
-    refetchOnWindowFocus: true,
-    retry: 1,
-  })
+/** Fila de chips de señales: se degrada en silencio (loading/error/empty → nada). */
+export function IntelligenceSignalChips({ heroes }: { heroes: IntelligenceHeroData[] }) {
+  if (heroes.length === 0) return null
+  return (
+    <div className="scrollbar-none flex gap-2 overflow-x-auto px-5 pt-4">
+      {heroes.map((hero) => (
+        <IntelligenceSignalChip key={hero.id} hero={hero} />
+      ))}
+    </div>
+  )
+}
+
+/**
+ * Card completa con hero primario + chips. No se usa en Análisis (ahí la señal
+ * se integra al hero azul); queda como superficie standalone para Home mobile.
+ */
+export function IntelligenceHero() {
+  const { data, isLoading, isError, refetch } = useIntelligenceHeroes()
 
   if (isLoading) {
     return (
@@ -226,7 +242,7 @@ export function IntelligenceHero({ surface }: Props) {
           {secondary.length > 0 && (
             <div className="scrollbar-none -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
               {secondary.map((hero) => (
-                <SecondaryHeroChip key={hero.id} hero={hero} />
+                <IntelligenceSignalChip key={hero.id} hero={hero} />
               ))}
             </div>
           )}

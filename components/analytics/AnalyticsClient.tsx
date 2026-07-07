@@ -6,9 +6,16 @@ import { useRouter } from 'next/navigation'
 import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
-import { IntelligenceHero } from '@/components/intelligence/IntelligenceHero'
+import {
+  IntelligenceSignalChips,
+  useIntelligenceHeroes,
+} from '@/components/intelligence/IntelligenceHero'
 import { getCurrentMonth } from '@/lib/dates'
 import { FF_INTELLIGENCE } from '@/lib/flags'
+import {
+  resolveAnalysisPresentation,
+  takeoverSubcopy,
+} from '@/lib/intelligence/analysis-surface'
 import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
@@ -103,6 +110,25 @@ export function AnalyticsClient({
       }),
     [mode, monthlySeries, comparisonContext, metrics, compromisos],
   )
+
+  // Señales inteligentes: una señal risk toma el headline del hero azul;
+  // el resto se muestra como chips. same_day queda fuera (ya lo narra el hero).
+  const isCurrentMonth = selectedMonth === getCurrentMonth()
+  const { data: intelligence } = useIntelligenceHeroes(FF_INTELLIGENCE && isCurrentMonth)
+  const { takeover, chips } = useMemo(
+    () => resolveAnalysisPresentation(intelligence?.heroes ?? []),
+    [intelligence],
+  )
+  const displayHero = useMemo(() => {
+    if (!takeover) return hero
+    return {
+      ...hero,
+      headline: takeover.title,
+      subcopy: takeoverSubcopy(takeover),
+      driver: null,
+      visualTone: 'warning' as const,
+    }
+  }, [hero, takeover])
 
   const evolution = useMemo(
     () =>
@@ -222,7 +248,7 @@ export function AnalyticsClient({
               )}
             </button>
           </div>
-          <AnalyticsHero hero={hero} currency={currency} variant="in-header" />
+          <AnalyticsHero hero={displayHero} currency={currency} variant="in-header" />
         </BlueHeaderZone>
       )}
 
@@ -256,9 +282,7 @@ export function AnalyticsClient({
           <GoalsSection selectedMonth={selectedMonth} />
         ) : (
           <>
-            {FF_INTELLIGENCE && selectedMonth === getCurrentMonth() && (
-              <IntelligenceHero surface="analysis-mobile" />
-            )}
+            <IntelligenceSignalChips heroes={chips} />
 
             <AnalyticsModeToggle
               mode={mode}

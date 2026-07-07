@@ -11,7 +11,7 @@ Una capa de inteligencia financiera que convierte a Gota de "tablero que muestra
 
 | Pieza | Qué hace | Dónde se ve |
 |---|---|---|
-| **Héroes inteligentes** | Detectan señales del mes (riesgo, cambio, anomalía) con evidencia y CTA | Análisis mobile (piloto) |
+| **Héroes inteligentes** | Detectan señales del mes (riesgo, cambio, anomalía) con evidencia y CTA | Análisis mobile (piloto): integrados al hero azul + chips |
 | **Assistant v2** | Chat que entiende la intención, busca los datos correctos y responde citando evidencia | Botón flotante del chat (toda la app mobile) |
 | **Core determinístico** | Snapshot financiero + features + reglas. Todo calculado en TypeScript testeado | `lib/intelligence/*` (compartido por ambos) |
 
@@ -87,7 +87,8 @@ lib/intelligence/
 - `app/api/assistant/route.ts` — **POST** (migrado a v2), auth + rate limit 8/min, responde `{ answer, detailIncluded, intent, evidence, followUps }`. Compatible con el contrato anterior.
 
 ### UI
-- `components/intelligence/IntelligenceHero.tsx` — card primaria + chips secundarios, estados loading/empty/error, prop `surface` (`analysis-mobile` hoy, `home-mobile` a futuro).
+- `lib/intelligence/analysis-surface.ts` — presentación para Análisis: una señal **risk** toma el headline del hero azul; el resto va como chips; `same_day_spend_delta` se excluye de esta superficie (el hero azul ya narra el gasto vs promedio — evita duplicar la historia).
+- `components/intelligence/IntelligenceHero.tsx` — exporta `useIntelligenceHeroes` (hook compartido), `IntelligenceSignalChips` (fila de chips usada en Análisis) y la card standalone `IntelligenceHero` (reservada para Home mobile).
 - `components/assistant/GotaAssistant.tsx` — chat con follow-up chips, bloque "Basado en tus datos" y sugerencias dinámicas.
 - `lib/assistant/events.ts` — evento `gota:assistant-open` para abrir el chat desde cualquier superficie con pregunta prearmada.
 
@@ -100,7 +101,7 @@ lib/intelligence/
 ## 5. Cómo se accede
 
 ### Como usuario
-1. **Héroes**: app mobile → **Análisis** (mes corriente). El hero inteligente aparece arriba del toggle Percibido/Devengado. Si hay señales: card con título, mensaje, evidencia y CTA; señales secundarias como chips deslizables. Si no hay señales: card compacta "Nada urgente por ahora".
+1. **Héroes**: app mobile → **Análisis** (mes corriente). Si hay una señal de riesgo (resumen por vencer, liquidez, presupuesto superado), esa señal **toma el headline del hero azul** con su evidencia como subcopy; sin señales de riesgo, el hero azul cuenta su lectura habitual de gasto vs promedio. Las señales restantes aparecen como **chips deslizables** entre el hero y el toggle Percibido/Devengado, con tap a chat o deep link. Sin señales: no se agrega nada (cero ruido).
 2. **Chat**: botón flotante en cualquier pantalla del dashboard mobile. El CTA de un héroe abre el chat con la pregunta ya enviada. Cada respuesta trae chips de repregunta y un desplegable con la evidencia usada.
 
 ### Flags (env vars)
