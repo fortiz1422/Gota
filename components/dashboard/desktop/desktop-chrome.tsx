@@ -64,19 +64,19 @@ function MonthSelector({ selectedMonth, onSelectMonth }: { selectedMonth: string
           gap: 7,
           padding: '7px 12px',
           borderRadius: 9999,
-          background: open ? 'rgba(33,120,168,0.10)' : 'transparent',
-          border: '1px solid rgba(33,120,168,0.14)',
+          background: open ? 'rgba(255,255,255,0.26)' : 'rgba(255,255,255,0.14)',
+          border: '1px solid rgba(255,255,255,0.24)',
           cursor: 'pointer',
           fontFamily: 'inherit',
           fontSize: 13,
           fontWeight: 700,
-          color: '#0D1829',
+          color: '#FFFFFF',
           whiteSpace: 'nowrap',
         }}
       >
-        <CalendarBlank size={15} color={BLUE} />
+        <CalendarBlank size={15} color="rgba(255,255,255,0.85)" />
         {formatMonthLabel(current)}
-        <CaretDown weight="bold" size={11} color="#90A4B0" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms' }} />
+        <CaretDown weight="bold" size={11} color="rgba(255,255,255,0.65)" style={{ transform: open ? 'rotate(180deg)' : 'none', transition: 'transform 140ms' }} />
       </button>
       {open && (
         <div
@@ -134,6 +134,7 @@ function MonthSelector({ selectedMonth, onSelectMonth }: { selectedMonth: string
 }
 
 // ─── Topnav: wordmark + navegación + contexto (mes, USD, ojo, avatar) ──
+// Se renderiza sobre la blue-zone (S5): texto blanco y pills header-glass.
 export function DesktopTopnav({
   active,
   onNav,
@@ -156,29 +157,19 @@ export function DesktopTopnav({
   onOpenSettings: () => void
 }) {
   return (
-    <header
-      style={{
-        position: 'sticky',
-        top: 0,
-        zIndex: 50,
-        background: 'rgba(255,255,255,0.88)',
-        backdropFilter: 'blur(10px)',
-        WebkitBackdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(33,120,168,0.09)',
-      }}
-    >
+    <header>
       <style>{`
         @media (max-width: 1320px) { .topnav-quote { display: none !important; } }
         @media (max-width: 1180px) { .topnav-nav { gap: 0 !important; } .topnav-nav button { padding: 0 8px !important; } }
       `}</style>
-      <div style={{ maxWidth: MAXW, margin: '0 auto', padding: '0 40px', height: 62, display: 'flex', alignItems: 'stretch', gap: 24 }}>
+      <div style={{ maxWidth: MAXW, margin: '0 auto', padding: '0 40px', height: 64, display: 'flex', alignItems: 'stretch', gap: 24 }}>
         <button
           type="button"
           onClick={() => onNav('inicio')}
           style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 0, cursor: 'pointer', padding: 0, fontFamily: 'inherit', flexShrink: 0 }}
         >
-          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.045em', color: '#0D1829' }}>
-            gota<span style={{ color: BLUE }}>.</span>
+          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.045em', color: '#FFFFFF' }}>
+            gota<span style={{ color: 'rgba(255,255,255,0.55)' }}>.</span>
           </span>
         </button>
 
@@ -196,12 +187,12 @@ export function DesktopTopnav({
                   padding: '0 11px',
                   background: 'transparent',
                   border: 0,
-                  borderBottom: isActive ? `2px solid ${BLUE}` : '2px solid transparent',
+                  borderBottom: isActive ? '2px solid #FFFFFF' : '2px solid transparent',
                   cursor: 'pointer',
                   fontFamily: 'inherit',
                   fontSize: 13.5,
                   fontWeight: isActive ? 700 : 500,
-                  color: isActive ? BLUE : '#4A6070',
+                  color: isActive ? '#FFFFFF' : 'rgba(255,255,255,0.72)',
                   whiteSpace: 'nowrap',
                   transition: 'color 140ms',
                 }}
@@ -218,8 +209,8 @@ export function DesktopTopnav({
           <MonthSelector selectedMonth={selectedMonth} onSelectMonth={onSelectMonth} />
 
           {quote && (
-            <span className="topnav-quote" style={{ fontSize: 12, color: '#90A4B0', whiteSpace: 'nowrap' }}>
-              USD oficial <span style={{ color: '#4A6070', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{quote.rate.toLocaleString('es-AR')}</span>
+            <span className="topnav-quote" style={{ fontSize: 12, color: 'rgba(255,255,255,0.68)', whiteSpace: 'nowrap' }}>
+              USD oficial <span style={{ color: '#FFFFFF', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{quote.rate.toLocaleString('es-AR')}</span>
             </span>
           )}
 
@@ -232,13 +223,13 @@ export function DesktopTopnav({
               width: 34,
               height: 34,
               borderRadius: 9999,
-              background: hidden ? 'rgba(33,120,168,0.10)' : 'transparent',
-              border: '1px solid rgba(33,120,168,0.14)',
+              background: hidden ? 'rgba(255,255,255,0.28)' : 'rgba(255,255,255,0.10)',
+              border: '1px solid rgba(255,255,255,0.24)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: hidden ? BLUE : '#90A4B0',
+              color: hidden ? '#FFFFFF' : 'rgba(255,255,255,0.82)',
             }}
           >
             {hidden ? <EyeSlash size={16} /> : <Eye size={16} />}
@@ -254,8 +245,8 @@ export function DesktopTopnav({
               height: 34,
               borderRadius: 9999,
               flexShrink: 0,
-              background: 'linear-gradient(135deg, #2178A8 0%, #1B7E9E 100%)',
-              border: 0,
+              background: 'rgba(255,255,255,0.16)',
+              border: '1px solid rgba(255,255,255,0.34)',
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',

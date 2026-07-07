@@ -1,14 +1,86 @@
 'use client'
 
-import { currencySymbol } from './desktop-ui'
+import { CARD_STYLE, currencySymbol, LABEL_STYLE, MAXW } from './desktop-ui'
 import type { DesktopHeroStats } from './desktop-dashboard-model'
 
 type Money = (n: number, currency?: 'ARS' | 'USD') => string
 
-const LIVE_DOT = '#1A7A42'
+/** Champion: Saldo Vivo en blanco sobre la blue-zone, como en mobile. */
+export function SaldoVivoBlueHero({
+  greeting,
+  stats,
+  heroBreakdown,
+  viewCurrency,
+  hidden,
+}: {
+  greeting: React.ReactNode
+  stats: DesktopHeroStats
+  heroBreakdown: Record<'ARS' | 'USD', number>
+  viewCurrency: 'ARS' | 'USD'
+  hidden: boolean
+}) {
+  const [saldoInt, saldoDec] = stats.saldoVivo.toFixed(2).split('.')
+
+  return (
+    <div style={{ maxWidth: MAXW, margin: '0 auto', padding: '22px 40px 56px' }}>
+      <p style={{ margin: '0 0 26px', fontSize: 14, color: 'rgba(255,255,255,0.72)' }}>{greeting}</p>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.11em', textTransform: 'uppercase', color: 'rgba(255,255,255,0.68)' }}>
+          Tu Saldo Vivo
+        </span>
+        <span
+          className="header-glass"
+          style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px', borderRadius: 9999, color: '#FFFFFF', fontSize: 11, fontWeight: 600 }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#7FE0A8' }} />
+          En tiempo real
+        </span>
+      </div>
+
+      <div
+        style={{
+          fontSize: 68,
+          fontWeight: 800,
+          letterSpacing: '-0.05em',
+          lineHeight: 0.95,
+          color: '#FFFFFF',
+          fontVariantNumeric: 'tabular-nums',
+          marginBottom: 12,
+        }}
+      >
+        {hidden ? (
+          '$ ••••••'
+        ) : (
+          <>
+            <span style={{ fontSize: 24, fontWeight: 600, color: 'rgba(255,255,255,0.55)', verticalAlign: '0.55em', marginRight: 6 }}>
+              {currencySymbol(viewCurrency)}
+            </span>
+            {Number(saldoInt).toLocaleString('es-AR')}
+            <span style={{ fontSize: 34, color: 'rgba(255,255,255,0.42)', fontWeight: 600 }}>,{saldoDec}</span>
+          </>
+        )}
+      </div>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: 'rgba(255,255,255,0.62)' }}>
+        <span>La foto viva de tu plata, hoy.</span>
+        <span style={{ color: 'rgba(255,255,255,0.28)' }}>·</span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ color: '#FFFFFF', fontWeight: 700 }}>ARS</span>{' '}
+          {hidden ? '••••••' : Math.round(heroBreakdown.ARS).toLocaleString('es-AR')}
+        </span>
+        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+          <span style={{ color: '#FFFFFF', fontWeight: 700 }}>USD</span>{' '}
+          {hidden ? '••••' : heroBreakdown.USD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
+        </span>
+      </div>
+    </div>
+  )
+}
 
 /** Barra de propiedad: el total es el Saldo Vivo; el segmento azul es lo disponible,
- *  el segmento rayado es lo que ya tiene destino. */
+ *  el segmento rayado es lo que ya tiene destino. Vive en la zona blanca para que
+ *  el azul conserve su significado. */
 function OwnershipBar({ pctAvailable, hidden }: { pctAvailable: number; hidden: boolean }) {
   return (
     <div
@@ -43,79 +115,29 @@ function OwnershipBar({ pctAvailable, hidden }: { pctAvailable: number; hidden: 
   )
 }
 
-export function DesktopPanelHero({
+/** Subhéroe: card blanca que solapa la blue-zone y explica cómo se reparte el Saldo Vivo. */
+export function DisponibleRelationCard({
   stats,
-  heroBreakdown,
-  viewCurrency,
   hidden,
   money,
 }: {
   stats: DesktopHeroStats
-  heroBreakdown: Record<'ARS' | 'USD', number>
-  viewCurrency: 'ARS' | 'USD'
   hidden: boolean
   money: Money
 }) {
-  const [saldoInt, saldoDec] = stats.saldoVivo.toFixed(2).split('.')
   const hasGap = stats.brecha > 0.5
   const pctAvailable =
     stats.saldoVivo > 0 ? Math.min(Math.max(stats.disponibleReal / stats.saldoVivo, 0), 1) : 0
   const disponibleNegativo = stats.disponibleReal < 0
 
   return (
-    <section style={{ padding: '10px 6px 0 0' }}>
-      {/* Champion: Saldo Vivo */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-        <span style={{ fontSize: 12, fontWeight: 700, letterSpacing: '0.11em', textTransform: 'uppercase', color: '#2178A8' }}>
-          Tu Saldo Vivo
-        </span>
-        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px', borderRadius: 9999, background: 'rgba(26,122,66,0.08)', color: '#1A7A42', fontSize: 11, fontWeight: 600 }}>
-          <span style={{ width: 6, height: 6, borderRadius: 9999, background: LIVE_DOT }} />
-          En tiempo real
-        </span>
-      </div>
+    <section style={{ ...CARD_STYLE, padding: '24px 26px', display: 'flex', flexDirection: 'column' }}>
+      <div style={{ ...LABEL_STYLE, marginBottom: 16 }}>Cómo se reparte hoy</div>
 
-      <div
-        style={{
-          fontSize: 68,
-          fontWeight: 800,
-          letterSpacing: '-0.05em',
-          lineHeight: 0.95,
-          color: '#0D1829',
-          fontVariantNumeric: 'tabular-nums',
-          marginBottom: 12,
-        }}
-      >
-        {hidden ? (
-          '$ ••••••'
-        ) : (
-          <>
-            <span style={{ fontSize: 24, fontWeight: 600, color: '#90A4B0', verticalAlign: '0.55em', marginRight: 6 }}>
-              {currencySymbol(viewCurrency)}
-            </span>
-            {Number(saldoInt).toLocaleString('es-AR')}
-            <span style={{ fontSize: 34, color: '#B8C9D4', fontWeight: 600 }}>,{saldoDec}</span>
-          </>
-        )}
-      </div>
-
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, fontSize: 13, color: '#90A4B0', marginBottom: 30 }}>
-        <span>La foto viva de tu plata, hoy.</span>
-        <span style={{ color: 'rgba(33,120,168,0.25)' }}>·</span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          <span style={{ color: '#4A6070', fontWeight: 700 }}>ARS</span>{' '}
-          {hidden ? '••••••' : Math.round(heroBreakdown.ARS).toLocaleString('es-AR')}
-        </span>
-        <span style={{ fontVariantNumeric: 'tabular-nums' }}>
-          <span style={{ color: '#4A6070', fontWeight: 700 }}>USD</span>{' '}
-          {hidden ? '••••' : heroBreakdown.USD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}
-        </span>
-      </div>
-
-      {/* Relación Saldo Vivo → Disponible Real */}
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       {stats.saldoVivo > 0 && <OwnershipBar pctAvailable={hasGap ? pctAvailable : 1} hidden={hidden} />}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 32, marginTop: 22 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 28, marginTop: 22 }}>
         {/* Subhero: Disponible real */}
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -126,13 +148,13 @@ export function DesktopPanelHero({
           </div>
           <div
             style={{
-              fontSize: 32,
+              fontSize: 36,
               fontWeight: 800,
               letterSpacing: '-0.035em',
               color: disponibleNegativo ? '#B84A12' : '#1B6A93',
               fontVariantNumeric: 'tabular-nums',
               lineHeight: 1,
-              marginBottom: 7,
+              marginBottom: 8,
             }}
           >
             {money(stats.disponibleReal)}
@@ -163,7 +185,7 @@ export function DesktopPanelHero({
           </div>
           {hasGap ? (
             <>
-              <div style={{ fontSize: 23, fontWeight: 700, letterSpacing: '-0.025em', color: '#4A6070', fontVariantNumeric: 'tabular-nums', lineHeight: 1, marginBottom: 7, marginTop: 5 }}>
+              <div style={{ fontSize: 25, fontWeight: 700, letterSpacing: '-0.025em', color: '#4A6070', fontVariantNumeric: 'tabular-nums', lineHeight: 1, marginBottom: 8, marginTop: 8 }}>
                 {money(stats.brecha)}
               </div>
               <p style={{ margin: 0, fontSize: 12.5, color: '#90A4B0', lineHeight: 1.5 }}>
@@ -176,6 +198,7 @@ export function DesktopPanelHero({
             </p>
           )}
         </div>
+      </div>
       </div>
     </section>
   )

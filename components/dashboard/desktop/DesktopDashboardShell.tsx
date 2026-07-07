@@ -8,10 +8,11 @@ import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { BudgetItemMetrics, BudgetSnapshot, BudgetStatus } from '@/lib/budgets/types'
 import type { GoalPaceStatus, GoalWithMetrics } from '@/lib/goals/types'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { BLUE, CARD_STYLE, CatSquare, fmtMoney, LABEL_STYLE, MAXW, PageHeader } from './desktop-ui'
 import { DesktopTopnav, type NavId } from './desktop-chrome'
 import { CuentasModule, MovimientosModule, PresupuestoModule, type AccountRow } from './desktop-modules'
-import { DesktopPanelHero } from './DesktopPanelHero'
+import { DisponibleRelationCard, SaldoVivoBlueHero } from './DesktopPanelHero'
 import { DesktopAttentionPanel } from './DesktopAttentionPanel'
 import { DesktopUpcomingTimeline } from './DesktopUpcomingTimeline'
 import { DesktopCommitmentsPanel } from './DesktopCommitmentsPanel'
@@ -210,6 +211,10 @@ export function DesktopDashboardShell({
     gastosMes,
   }
 
+  // El Panel con cuentas lleva el hero dentro de la blue-zone; el contenido
+  // blanco la solapa con el overlap fijo de -24px del patrón S5.
+  const isPanelHero = activeNav === 'inicio' && hasAccounts
+
   return (
     <div style={{ minHeight: '100vh', background: '#F8FBFD', color: '#0D1829', fontFamily: 'var(--font-sans)' }}>
       <style>{`
@@ -220,19 +225,43 @@ export function DesktopDashboardShell({
           .dual { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      <DesktopTopnav
-        active={activeNav}
-        onNav={handleNav}
-        hidden={hidden}
-        onToggleHidden={() => setHidden((h) => !h)}
-        quote={quote}
-        selectedMonth={selectedMonth}
-        onSelectMonth={onSelectMonth}
-        avatarInitial={avatarInitial}
-        onOpenSettings={onOpenSettings}
-      />
+      <BlueHeaderZone>
+        <DesktopTopnav
+          active={activeNav}
+          onNav={handleNav}
+          hidden={hidden}
+          onToggleHidden={() => setHidden((h) => !h)}
+          quote={quote}
+          selectedMonth={selectedMonth}
+          onSelectMonth={onSelectMonth}
+          avatarInitial={avatarInitial}
+          onOpenSettings={onOpenSettings}
+        />
+        {isPanelHero && (
+          <SaldoVivoBlueHero
+            greeting={
+              <>
+                {greetingByHour()}, <strong style={{ color: '#FFFFFF', fontWeight: 700 }}>{firstName}</strong>.{' '}
+                <span style={{ color: 'rgba(255,255,255,0.55)' }}>Esto es lo tuyo, hoy.</span>
+              </>
+            }
+            stats={stats}
+            heroBreakdown={heroBreakdown}
+            viewCurrency={viewCurrency}
+            hidden={hidden}
+          />
+        )}
+      </BlueHeaderZone>
 
-      <main style={{ maxWidth: MAXW, margin: '0 auto', padding: '34px 40px 96px' }}>
+      <main
+        style={{
+          maxWidth: MAXW,
+          margin: '0 auto',
+          padding: isPanelHero ? '0 40px 96px' : '34px 40px 96px',
+          marginTop: isPanelHero ? -24 : 0,
+          position: 'relative',
+        }}
+      >
           {!hasAccounts ? (
             <section style={{ ...CARD_STYLE, padding: '48px 40px' }}>
               <p style={{ ...LABEL_STYLE, color: BLUE, marginBottom: 18 }}>Inicio</p>
@@ -251,20 +280,9 @@ export function DesktopDashboardShell({
             </section>
           ) : activeNav === 'inicio' ? (
             <>
-              <p style={{ margin: '0 0 30px', fontSize: 14, color: '#4A6070' }}>
-                {greetingByHour()}, <strong style={{ color: '#0D1829', fontWeight: 700 }}>{firstName}</strong>.{' '}
-                <span style={{ color: '#90A4B0' }}>Esto es lo tuyo, hoy.</span>
-              </p>
-
-              {/* 1 · HERO: Saldo Vivo → Disponible Real + Atención ahora */}
-              <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 28, alignItems: 'stretch', marginBottom: 44 }}>
-                <DesktopPanelHero
-                  stats={stats}
-                  heroBreakdown={heroBreakdown}
-                  viewCurrency={viewCurrency}
-                  hidden={hidden}
-                  money={money}
-                />
+              {/* 1 · Subhéroe sobre la zona blanca: reparto del Saldo Vivo + Atención ahora */}
+              <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'stretch', marginBottom: 40 }}>
+                <DisponibleRelationCard stats={stats} hidden={hidden} money={money} />
                 <DesktopAttentionPanel signals={attention} money={money} />
               </div>
 
