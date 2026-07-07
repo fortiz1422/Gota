@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildInsightCandidates } from '../insight-rules'
 import {
-  julyBaselineExpenses,
   makeBudgetSnapshot,
   makeCard,
   makeExpense,

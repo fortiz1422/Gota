@@ -1,17 +1,23 @@
 'use client'
 
 import { FormEvent, KeyboardEvent, useEffect, useMemo, useRef, useState } from 'react'
-import { ChatCircleDots, PaperPlaneRight, Sparkle, X } from '@phosphor-icons/react'
+import { CaretDown, CaretUp, ChatCircleDots, PaperPlaneRight, Sparkle, X } from '@phosphor-icons/react'
+import { ASSISTANT_OPEN_EVENT, type AssistantOpenDetail } from '@/lib/assistant/events'
 import type { AssistantHistoryMessage } from '@/lib/assistant/prompt'
+import { FF_INTELLIGENCE } from '@/lib/flags'
+import type { IntelligenceHeroResponse } from '@/lib/intelligence/heroes'
+import type { EvidenceItem } from '@/lib/intelligence/types'
 
 type ChatMessage = AssistantHistoryMessage & {
   id: string
+  evidence?: EvidenceItem[]
+  followUps?: string[]
 }
 
 const SUGGESTIONS = [
   'En que estoy gastando mas este mes?',
   'Cuanto me queda disponible?',
-  'Donde podria recortar gastos?',
+  'Que deberia mirar hoy?',
 ]
 
 function newId(): string {
@@ -26,6 +32,22 @@ function buildHistory(messages: ChatMessage[]): AssistantHistoryMessage[] {
     .map((message) => ({ role: message.role, content: message.content }))
 }
 
+function parseEvidence(value: unknown): EvidenceItem[] {
+  if (!Array.isArray(value)) return []
+  return value.filter(
+    (item): item is EvidenceItem =>
+      typeof item === 'object' &&
+      item !== null &&
+      typeof (item as EvidenceItem).label === 'string' &&
+      typeof (item as EvidenceItem).value === 'string',
+  )
+}
+
+function parseFollowUps(value: unknown): string[] {
+  if (!Array.isArray(value)) return []
+  return value.filter((item): item is string => typeof item === 'string').slice(0, 3)
+}
+
 export function GotaAssistant() {
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
@@ -33,6 +55,8 @@ export function GotaAssistant() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
+  const [evidenceOpenId, setEvidenceOpenId] = useState<string | null>(null)
+  const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([])
   const listRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -64,6 +88,27 @@ export function GotaAssistant() {
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, loading])
+
+  // Sugerencias dinámicas: las preguntas prearmadas de los héroes del mes.
+  useEffect(() => {
+    if (!open || hasMessages || !FF_INTELLIGENCE) return
+    let cancelled = false
+    fetch('/api/intelligence/heroes')
+      .then((res) => (res.ok ? (res.json() as Promise<IntelligenceHeroResponse>) : null))
+      .then((data) => {
+        if (cancelled || !data) return
+        const questions = data.heroes
+          .map((hero) => hero.cta?.question)
+          .filter((question): question is string => Boolean(question))
+        if (questions.length > 0) {
+          setDynamicSuggestions([...new Set(questions)].slice(0, 3))
+        }
+      })
+      .catch(() => {})
+    return () => {
+      cancelled = true
+    }
+  }, [open, hasMessages])
 
   const panelTitle = useMemo(() => {
     if (loading) return 'Analizando tus datos'
@@ -101,6 +146,8 @@ export function GotaAssistant() {
           id: newId(),
           role: 'assistant',
           content: answer || 'No pude armar una respuesta con los datos disponibles.',
+          evidence: parseEvidence(payload.evidence),
+          followUps: parseFollowUps(payload.followUps),
         },
       ])
     } catch (err) {
@@ -110,6 +157,23 @@ export function GotaAssistant() {
       setLoading(false)
     }
   }
+
+  // Apertura desde héroes u otras superficies, con pregunta prearmada opcional.
+  const sendQuestionRef = useRef(sendQuestion)
+  sendQuestionRef.current = sendQuestion
+
+  useEffect(() => {
+    function onOpenRequest(event: Event) {
+      const detail = (event as CustomEvent<AssistantOpenDetail>).detail
+      setOpen(true)
+      if (detail?.question) {
+        void sendQuestionRef.current(detail.question)
+      }
+    }
+
+    window.addEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest)
+    return () => window.removeEventListener(ASSISTANT_OPEN_EVENT, onOpenRequest)
+  }, [])
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
@@ -122,6 +186,17 @@ export function GotaAssistant() {
       void sendQuestion()
     }
   }
+
+  const suggestions = useMemo(() => {
+    return [...new Set([...dynamicSuggestions, ...SUGGESTIONS])].slice(0, 4)
+  }, [dynamicSuggestions])
+
+  const lastAssistantId = useMemo(() => {
+    for (let index = messages.length - 1; index >= 0; index -= 1) {
+      if (messages[index].role === 'assistant') return messages[index].id
+    }
+    return null
+  }, [messages])
 
   return (
     <>
@@ -185,7 +260,7 @@ export function GotaAssistant() {
                     Preguntame por tendencias, categorias, compromisos o movimientos puntuales.
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {SUGGESTIONS.map((suggestion) => (
+                    {suggestions.map((suggestion) => (
                       <button
                         key={suggestion}
                         type="button"
@@ -200,19 +275,76 @@ export function GotaAssistant() {
               )}
 
               {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+                <div key={message.id}>
                   <div
-                    className={`max-w-[82%] rounded-[18px] px-4 py-3 text-[14px] font-medium leading-relaxed ${
-                      message.role === 'user'
-                        ? 'bg-[color:var(--color-primary)] text-white'
-                        : 'surface-glass-neutral text-[color:var(--color-text-primary)]'
-                    }`}
+                    className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    {message.content}
+                    <div
+                      className={`max-w-[82%] rounded-[18px] px-4 py-3 text-[14px] font-medium leading-relaxed ${
+                        message.role === 'user'
+                          ? 'bg-[color:var(--color-primary)] text-white'
+                          : 'surface-glass-neutral text-[color:var(--color-text-primary)]'
+                      }`}
+                    >
+                      {message.content}
+
+                      {message.role === 'assistant' && (message.evidence?.length ?? 0) > 0 && (
+                        <div className="mt-2 border-t border-[rgba(13,24,41,0.08)] pt-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setEvidenceOpenId((current) =>
+                                current === message.id ? null : message.id,
+                              )
+                            }
+                            className="flex items-center gap-1 text-[11px] font-bold text-[color:var(--color-text-tertiary)]"
+                          >
+                            {evidenceOpenId === message.id ? (
+                              <CaretUp size={11} weight="bold" />
+                            ) : (
+                              <CaretDown size={11} weight="bold" />
+                            )}
+                            Basado en tus datos
+                          </button>
+                          {evidenceOpenId === message.id && (
+                            <dl className="mt-2 space-y-1">
+                              {message.evidence?.map((item) => (
+                                <div
+                                  key={`${message.id}-${item.label}`}
+                                  className="flex items-baseline justify-between gap-3"
+                                >
+                                  <dt className="text-[11px] text-[color:var(--color-text-tertiary)]">
+                                    {item.label}
+                                  </dt>
+                                  <dd className="text-[11px] font-bold tabular-nums text-[color:var(--color-text-secondary)]">
+                                    {item.value}
+                                  </dd>
+                                </div>
+                              ))}
+                            </dl>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
+
+                  {message.role === 'assistant' &&
+                    message.id === lastAssistantId &&
+                    !loading &&
+                    (message.followUps?.length ?? 0) > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {message.followUps?.map((followUp) => (
+                          <button
+                            key={`${message.id}-${followUp}`}
+                            type="button"
+                            onClick={() => void sendQuestion(followUp)}
+                            className="rounded-full border border-[color:var(--color-border-ocean)] bg-white/70 px-3 py-1.5 text-left text-[11px] font-bold text-[color:var(--color-primary)] shadow-sm"
+                          >
+                            {followUp}
+                          </button>
+                        ))}
+                      </div>
+                    )}
                 </div>
               ))}
 
