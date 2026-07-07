@@ -2,37 +2,21 @@
 
 import Link from 'next/link'
 import { useMemo, useState } from 'react'
-import { ArrowRight, ArrowUpRight, CaretRight, Wallet } from '@phosphor-icons/react'
+import { ArrowRight } from '@phosphor-icons/react'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { BudgetItemMetrics, BudgetSnapshot, BudgetStatus } from '@/lib/budgets/types'
 import type { GoalPaceStatus, GoalWithMetrics } from '@/lib/goals/types'
-import {
-  BLUE,
-  CARD_STYLE,
-  CatSquare,
-  currencySymbol,
-  fmtMoney,
-  LABEL_STYLE,
-  MAXW,
-  PageHeader,
-  SectionTitle,
-  SIDEBAR_W,
-} from './desktop-ui'
-import { DesktopSidebar, DesktopTopbar, type NavId } from './desktop-chrome'
-import {
-  AtencionAhoraModule,
-  CompromisosTotalesModule,
-  CuentasModule,
-  InsightsModule,
-  MetasModule,
-  MovimientosModule,
-  PresupuestoModule,
-  Proximos30Module,
-  TarjetasModule,
-  type AccountRow,
-} from './desktop-modules'
+import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { BLUE, CARD_STYLE, CatSquare, fmtMoney, LABEL_STYLE, MAXW, PageHeader } from './desktop-ui'
+import { DesktopTopnav, type NavId } from './desktop-chrome'
+import { CuentasModule, MovimientosModule, PresupuestoModule, type AccountRow } from './desktop-modules'
+import { DisponibleRelationCard, SaldoVivoBlueHero } from './DesktopPanelHero'
+import { DesktopAttentionPanel } from './DesktopAttentionPanel'
+import { DesktopUpcomingTimeline } from './DesktopUpcomingTimeline'
+import { DesktopCommitmentsPanel } from './DesktopCommitmentsPanel'
+import { DesktopSecondarySummary } from './DesktopSecondarySummary'
 import {
   AnalisisView,
   CompromisosView,
@@ -47,7 +31,6 @@ import {
   buildDesktopHeroStats,
   buildHorizonEvents,
   buildRecentActivityItems,
-  selectDashboardGoals,
 } from './desktop-dashboard-model'
 
 type CotizacionApiData = {
@@ -97,21 +80,6 @@ function accountTypeLabel(type: 'bank' | 'cash' | 'digital'): string {
   if (type === 'bank') return 'Banco'
   if (type === 'digital') return 'Digital'
   return 'Efectivo'
-}
-
-/** Builds SVG polyline points for a sparkline in a viewBox */
-function buildSparklinePath(values: number[], w = 360, h = 150): string {
-  if (values.length < 2) return ''
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const range = Math.max(max - min, 1)
-  return values
-    .map((v, i) => {
-      const x = (i / (values.length - 1)) * w
-      const y = h - ((v - min) / range) * (h * 0.78) - h * 0.1
-      return `${i === 0 ? 'M' : 'L'} ${x.toFixed(1)} ${y.toFixed(1)}`
-    })
-    .join(' ')
 }
 
 // ─── Budget status meta ──────────────────────────────────────
@@ -198,11 +166,14 @@ export function DesktopDashboardShell({
     [data.accounts, data.allUltimos, data.incomeEntries, data.transfers],
   )
 
-  // KPI: gastos del mes (percibidos)
+  // KPI: gastos del mes (percibidos). El fallback replica la definición de
+  // percibido (sin consumos de crédito ni pagos de tarjeta) para no inflar la lectura.
   const gastosMes = useMemo(() => {
     const current = analyticsData?.monthlySeries?.find((m) => m.isCurrent)
     if (current != null) return current.percibidoTotal
-    return data.allUltimos.filter((e) => e.currency === viewCurrency).reduce((s, e) => s + e.amount, 0)
+    return data.allUltimos
+      .filter((e) => e.currency === viewCurrency && e.payment_method !== 'CREDIT' && e.category !== 'Pago de Tarjetas')
+      .reduce((s, e) => s + e.amount, 0)
   }, [analyticsData?.monthlySeries, data.allUltimos, viewCurrency])
 
   const ingresosMes = useMemo(
@@ -211,31 +182,6 @@ export function DesktopDashboardShell({
       data.incomeEntries.filter((e) => e.currency === viewCurrency).reduce((s, e) => s + e.amount, 0),
     [analyticsData?.ingresoMes, data.incomeEntries, viewCurrency],
   )
-
-  // Sparkline: expense trend inverted (less spending = higher = healthier)
-  const sparklinePath = useMemo(() => {
-    const series = analyticsData?.monthlySeries.slice(-6) ?? []
-    if (series.length < 2) return ''
-    return buildSparklinePath(series.map((m) => -m.percibidoTotal))
-  }, [analyticsData?.monthlySeries])
-
-  const sparklineMonths = useMemo(
-    () => (analyticsData?.monthlySeries.slice(-6) ?? []).map((m) => m.label.slice(0, 3).toUpperCase()),
-    [analyticsData?.monthlySeries],
-  )
-
-  // Insight: month-over-month expense trend
-  const gastoTrendPct = useMemo(() => {
-    const series = analyticsData?.monthlySeries ?? []
-    const idx = series.findIndex((m) => m.isCurrent)
-    if (idx <= 0) return null
-    const prev = series[idx - 1]
-    if (!prev || prev.percibidoTotal <= 0) return null
-    return ((series[idx].percibidoTotal - prev.percibidoTotal) / prev.percibidoTotal) * 100
-  }, [analyticsData?.monthlySeries])
-
-  const dashboardGoals = useMemo(() => selectDashboardGoals(data.goals), [data.goals])
-  const activeGoalsCount = useMemo(() => data.goals.filter((g) => g.status === 'active').length, [data.goals])
 
   const accountRows = useMemo<AccountRow[]>(
     () =>
@@ -250,14 +196,9 @@ export function DesktopDashboardShell({
     [data.accounts, data.accountBalances],
   )
 
-  const tarjetas = compromisos?.tarjetas ?? []
-
   const hasAccounts = data.accounts.length > 0
   const firstName = firstNameFromEmail(userEmail)
   const avatarInitial = firstName.charAt(0).toUpperCase()
-  const flujoResult = ingresosMes - gastosMes
-  const tasaAhorroPct = ingresosMes > 0 ? (flujoResult / ingresosMes) * 100 : null
-  const [saldoInt, saldoDec] = stats.saldoVivo.toFixed(2).split('.')
 
   const viewProps = {
     data,
@@ -270,49 +211,57 @@ export function DesktopDashboardShell({
     gastosMes,
   }
 
-  const greeting =
-    activeNav === 'inicio' ? (
-      <>
-        {greetingByHour()}, <strong style={{ color: '#0D1829', fontWeight: 700 }}>{firstName}</strong>.{' '}
-        <span style={{ color: '#90A4B0' }}>Esto es lo tuyo, hoy.</span>
-      </>
-    ) : (
-      <span style={{ color: '#90A4B0' }}>
-        gota · <span style={{ color: '#4A6070', fontWeight: 600, textTransform: 'capitalize' }}>{activeNav}</span>
-      </span>
-    )
+  // El Panel con cuentas lleva el hero dentro de la blue-zone; el contenido
+  // blanco la solapa con el overlap fijo de -24px del patrón S5.
+  const isPanelHero = activeNav === 'inicio' && hasAccounts
 
   return (
     <div style={{ minHeight: '100vh', background: '#F8FBFD', color: '#0D1829', fontFamily: 'var(--font-sans)' }}>
       <style>{`
         @media (max-width: 1180px) {
-          .panel-grid { grid-template-columns: minmax(0,1fr) !important; }
-          .panel-rail { position: static !important; display: grid !important; grid-template-columns: 1fr 1fr; gap: 20px; }
+          .hero-grid { grid-template-columns: minmax(0,1fr) !important; }
         }
         @media (max-width: 860px) {
           .dual { grid-template-columns: 1fr !important; }
-          .panel-rail { grid-template-columns: 1fr !important; }
         }
       `}</style>
-      <DesktopSidebar
-        active={activeNav}
-        onNav={handleNav}
-        userName={firstName}
-        avatarInitial={avatarInitial}
-        onOpenSettings={onOpenSettings}
-      />
-
-      <div style={{ marginLeft: SIDEBAR_W }}>
-        <DesktopTopbar
-          greeting={greeting}
+      <BlueHeaderZone>
+        <DesktopTopnav
+          active={activeNav}
+          onNav={handleNav}
           hidden={hidden}
           onToggleHidden={() => setHidden((h) => !h)}
           quote={quote}
           selectedMonth={selectedMonth}
           onSelectMonth={onSelectMonth}
+          avatarInitial={avatarInitial}
+          onOpenSettings={onOpenSettings}
         />
+        {isPanelHero && (
+          <SaldoVivoBlueHero
+            greeting={
+              <>
+                {greetingByHour()}, <strong style={{ color: '#FFFFFF', fontWeight: 700 }}>{firstName}</strong>.{' '}
+                <span style={{ color: 'rgba(255,255,255,0.55)' }}>Esto es lo tuyo, hoy.</span>
+              </>
+            }
+            stats={stats}
+            heroBreakdown={heroBreakdown}
+            viewCurrency={viewCurrency}
+            hidden={hidden}
+          />
+        )}
+      </BlueHeaderZone>
 
-        <main style={{ maxWidth: MAXW, margin: '0 auto', padding: '32px 40px 96px' }}>
+      <main
+        style={{
+          maxWidth: MAXW,
+          margin: '0 auto',
+          padding: isPanelHero ? '0 40px 96px' : '34px 40px 96px',
+          marginTop: isPanelHero ? -24 : 0,
+          position: 'relative',
+        }}
+      >
           {!hasAccounts ? (
             <section style={{ ...CARD_STYLE, padding: '48px 40px' }}>
               <p style={{ ...LABEL_STYLE, color: BLUE, marginBottom: 18 }}>Inicio</p>
@@ -331,167 +280,31 @@ export function DesktopDashboardShell({
             </section>
           ) : activeNav === 'inicio' ? (
             <>
-              {/* 1 · SALDO VIVO */}
-              <div
-                style={{
-                  background: 'linear-gradient(135deg, #2178A8 0%, #15597F 100%)',
-                  borderRadius: 24,
-                  padding: '34px 38px 36px',
-                  marginBottom: 44,
-                  boxShadow: '0 18px 44px rgba(21,89,127,0.28)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}
-              >
-                <div style={{ position: 'absolute', top: -80, right: -40, width: 320, height: 320, borderRadius: '50%', background: 'radial-gradient(circle, rgba(255,255,255,0.10) 0%, rgba(255,255,255,0) 70%)', pointerEvents: 'none' }} />
-                <div style={{ display: 'grid', gridTemplateColumns: '1.35fr 1fr', gap: 48, alignItems: 'center', position: 'relative' }}>
-                  {/* LEFT */}
-                  <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                      <span style={{ ...LABEL_STYLE, color: 'rgba(255,255,255,0.70)' }}>Saldo Vivo</span>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px', borderRadius: 9999, background: 'rgba(255,255,255,0.16)', color: '#fff', fontSize: 11, fontWeight: 600 }}>
-                        <span style={{ width: 6, height: 6, borderRadius: 9999, background: '#7FE0A8' }} />En tiempo real
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: 64, fontWeight: 700, letterSpacing: '-0.05em', lineHeight: 0.92, color: '#FFFFFF', fontVariantNumeric: 'tabular-nums', marginBottom: 16 }}>
-                      {hidden ? (
-                        '$ ••••••'
-                      ) : (
-                        <>
-                          <span style={{ fontSize: 21, fontWeight: 500, color: 'rgba(255,255,255,0.55)', verticalAlign: '0.6em', marginRight: 4 }}>{currencySymbol(viewCurrency)}</span>
-                          {Number(saldoInt).toLocaleString('es-AR')}
-                          <span style={{ fontSize: 36, color: 'rgba(255,255,255,0.42)', fontWeight: 500 }}>,{saldoDec}</span>
-                        </>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', gap: 18, fontSize: 13, color: 'rgba(255,255,255,0.65)', marginBottom: 26 }}>
-                      <span><span style={{ color: '#fff', fontWeight: 700 }}>ARS</span>{'  '}{hidden ? '••••••' : Math.round(heroBreakdown.ARS).toLocaleString('es-AR')}</span>
-                      <span style={{ color: 'rgba(255,255,255,0.25)' }}>|</span>
-                      <span><span style={{ color: '#fff', fontWeight: 700 }}>USD</span>{'  '}{hidden ? '••••' : heroBreakdown.USD.toLocaleString('es-AR', { minimumFractionDigits: 2 })}</span>
-                    </div>
-
-                    {/* Disponible real — glass */}
-                    <button
-                      type="button"
-                      onClick={() => handleNav('cuentas')}
-                      style={{ width: '100%', textAlign: 'left', cursor: 'pointer', fontFamily: 'inherit', background: 'rgba(255,255,255,0.13)', border: '1px solid rgba(255,255,255,0.22)', backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)', borderRadius: 16, padding: '15px 18px', display: 'flex', alignItems: 'center', gap: 14 }}
-                    >
-                      <span style={{ width: 40, height: 40, borderRadius: 9999, flexShrink: 0, background: 'rgba(255,255,255,0.16)', border: '1px solid rgba(255,255,255,0.26)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Wallet size={18} color="rgba(255,255,255,0.92)" />
-                      </span>
-                      <span style={{ flex: 1 }}>
-                        <span style={{ display: 'block', fontSize: 14, color: 'rgba(255,255,255,0.82)', fontWeight: 500 }}>Disponible real</span>
-                        <span style={{ display: 'block', fontSize: 12, color: 'rgba(255,255,255,0.55)', marginTop: 2 }}>
-                          Libre hoy: <span style={{ fontWeight: 700, color: '#fff' }}>{money(stats.reservas)}</span>
-                        </span>
-                      </span>
-                      <span style={{ fontSize: 19, fontWeight: 800, color: '#fff', fontVariantNumeric: 'tabular-nums', letterSpacing: '-0.02em' }}>{money(availableBreakdown[viewCurrency])}</span>
-                      <CaretRight weight="bold" size={13} color="rgba(255,255,255,0.5)" />
-                    </button>
-
-                    {flujoResult > 0 && ingresosMes > 0 && (
-                      <div style={{ marginTop: 16, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13 }}>
-                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, padding: '3px 9px', borderRadius: 9999, background: 'rgba(127,224,168,0.20)', color: '#C6F2D8', fontSize: 12, fontWeight: 700 }}>
-                          <ArrowUpRight weight="bold" size={11} />
-                          {hidden ? '+••%' : `+${((flujoResult / ingresosMes) * 100).toFixed(1)}%`}
-                        </span>
-                        <span style={{ color: 'rgba(255,255,255,0.65)' }}>
-                          resultado del mes · <strong style={{ color: '#fff', fontVariantNumeric: 'tabular-nums' }}>{money(flujoResult)}</strong>
-                        </span>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* RIGHT — sparkline */}
-                  <div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', marginBottom: 12 }}>
-                      <span style={{ ...LABEL_STYLE, color: 'rgba(255,255,255,0.55)' }}>Gastos · 6 meses</span>
-                      {analyticsData?.monthlySeries.length ? (
-                        <span style={{ fontSize: 13, fontWeight: 600, color: '#fff' }}>{analyticsData.monthlySeries.length} meses</span>
-                      ) : null}
-                    </div>
-                    <svg width="100%" height="170" viewBox="0 0 360 170" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="heroGrad" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0%" stopColor="rgba(255,255,255,0.24)" />
-                          <stop offset="100%" stopColor="rgba(255,255,255,0)" />
-                        </linearGradient>
-                      </defs>
-                      <g stroke="rgba(255,255,255,0.08)" strokeWidth="1">
-                        <line x1="0" y1="40" x2="360" y2="40" />
-                        <line x1="0" y1="90" x2="360" y2="90" />
-                        <line x1="0" y1="140" x2="360" y2="140" />
-                      </g>
-                      {sparklinePath ? (
-                        <>
-                          <path d={`${sparklinePath} L 360,170 L 0,170 Z`} fill="url(#heroGrad)" />
-                          <path d={sparklinePath} fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                        </>
-                      ) : (
-                        <>
-                          <path d="M 0,140 L 60,128 L 120,134 L 180,96 L 240,72 L 300,46 L 360,32 L 360,170 L 0,170 Z" fill="url(#heroGrad)" />
-                          <path d="M 0,140 L 60,128 L 120,134 L 180,96 L 240,72 L 300,46 L 360,32" fill="none" stroke="rgba(255,255,255,0.85)" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
-                        </>
-                      )}
-                      {sparklineMonths.length >= 2 && (
-                        <g fontFamily="var(--font-sans)" fontSize="9.5" fill="rgba(255,255,255,0.45)">
-                          {sparklineMonths.map((label, i) => (
-                            <text key={label} x={(i / (sparklineMonths.length - 1)) * 344} y="166">{label}</text>
-                          ))}
-                        </g>
-                      )}
-                    </svg>
-                  </div>
-                </div>
+              {/* 1 · Subhéroe sobre la zona blanca: reparto del Saldo Vivo + Atención ahora */}
+              <div className="hero-grid" style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: 24, alignItems: 'stretch', marginBottom: 40 }}>
+                <DisponibleRelationCard stats={stats} hidden={hidden} money={money} />
+                <DesktopAttentionPanel signals={attention} money={money} />
               </div>
 
-              {/* 2 · ATENCIÓN AHORA + PRÓXIMOS 30 DÍAS */}
-              <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 44 }}>
-                <AtencionAhoraModule signals={attention} />
-                <Proximos30Module events={horizon} money={money} onNav={handleNav} limit={6} />
+              {/* 2 · PRÓXIMOS 30 DÍAS */}
+              <div style={{ marginBottom: 24 }}>
+                <DesktopUpcomingTimeline events={horizon} money={money} onNav={handleNav} />
               </div>
 
-              {/* 3 · COMPROMISOS DEL MES + ACTIVIDAD RECIENTE */}
-              <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 44 }}>
-                <CompromisosTotalesModule compromisos={compromisos} money={money} onNav={handleNav} />
+              {/* 3 · YA TIENE DESTINO + LIQUIDEZ */}
+              <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+                <DesktopCommitmentsPanel stats={stats} compromisos={compromisos} money={money} onNav={handleNav} />
+                <CuentasModule accounts={accountRows} money={money} onNav={handleNav} />
+              </div>
+
+              {/* 4 · PRESUPUESTO + ACTIVIDAD RECIENTE */}
+              <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+                <PresupuestoModule budget={budget ?? null} money={money} onNav={handleNav} />
                 <MovimientosModule items={recentActivity} hidden={hidden} onNav={handleNav} limit={6} title="Actividad reciente" />
               </div>
 
-              {/* 4 · CUENTAS Y TARJETAS */}
-              <section style={{ marginBottom: 44 }}>
-                <SectionTitle>Cuentas y tarjetas</SectionTitle>
-                <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                  <TarjetasModule tarjetas={tarjetas} money={money} onNav={handleNav} />
-                  <CuentasModule accounts={accountRows} money={money} onNav={handleNav} />
-                </div>
-              </section>
-
-              {/* 5 · PLAN DEL MES + METAS */}
-              <section style={{ marginBottom: 44 }}>
-                <SectionTitle action="Ver presupuesto" onAction={() => handleNav('presupuestos')}>
-                  Plan del mes y metas
-                </SectionTitle>
-                <div className="dual" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                  <PresupuestoModule budget={budget ?? null} money={money} onNav={handleNav} />
-                  <MetasModule goals={dashboardGoals} activeCount={activeGoalsCount} money={money} onNav={handleNav} />
-                </div>
-              </section>
-
-              {/* 6 · INSIGHTS */}
-              <section>
-                <SectionTitle action="Ver análisis" onAction={() => handleNav('analisis')}>
-                  Cómo venís este mes
-                </SectionTitle>
-                <InsightsModule
-                  gastoTrendPct={gastoTrendPct}
-                  resultadoMes={flujoResult}
-                  tasaAhorroPct={tasaAhorroPct}
-                  money={money}
-                  onNav={handleNav}
-                />
-              </section>
+              {/* 5 · RITMO OBSERVADO */}
+              <DesktopSecondarySummary ingresosMes={ingresosMes} gastosMes={gastosMes} money={money} onNav={handleNav} />
             </>
           ) : activeNav === 'presupuestos' ? (
             <PresupuestosPage budget={budget ?? null} money={money} />
@@ -518,8 +331,7 @@ export function DesktopDashboardShell({
               }}
             />
           )}
-        </main>
-      </div>
+      </main>
     </div>
   )
 }
