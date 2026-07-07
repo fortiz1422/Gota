@@ -6,6 +6,9 @@ import { useRouter } from 'next/navigation'
 import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { IntelligenceHero } from '@/components/intelligence/IntelligenceHero'
+import { getCurrentMonth } from '@/lib/dates'
+import { FF_INTELLIGENCE } from '@/lib/flags'
 import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
@@ -253,6 +256,10 @@ export function AnalyticsClient({
           <GoalsSection selectedMonth={selectedMonth} />
         ) : (
           <>
+            {FF_INTELLIGENCE && selectedMonth === getCurrentMonth() && (
+              <IntelligenceHero surface="analysis-mobile" />
+            )}
+
             <AnalyticsModeToggle
               mode={mode}
               onChange={(nextMode) => {
