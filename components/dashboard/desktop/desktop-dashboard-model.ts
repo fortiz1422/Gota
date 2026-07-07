@@ -19,6 +19,10 @@ export type AttentionSignal = {
   detail: string
   tone: 'high' | 'medium' | 'low'
   dateLabel: string
+  /** Monto real que respalda la señal (se renderiza con el formato oculto/visible). */
+  amount?: number
+  amountCaption?: string
+  currency?: 'ARS' | 'USD'
 }
 
 export type HorizonEvent = {
@@ -72,13 +76,6 @@ function relativeDayLabel(date: string, today = todayAR()): string {
     return raw.charAt(0).toUpperCase() + raw.slice(1)
   }
   return formatShortDate(date)
-}
-
-function monthLabel(month: string) {
-  const raw = new Date(`${month}-15T12:00:00-03:00`).toLocaleDateString('es-AR', {
-    month: 'long',
-  })
-  return raw.charAt(0).toUpperCase() + raw.slice(1)
 }
 
 function recurringIncomeLabel(recurring: RecurringIncome) {
@@ -141,12 +138,17 @@ export function buildAttentionSignals(params: {
     .sort((a, b) => (a.daysUntilClosing ?? 99) - (b.daysUntilClosing ?? 99))[0]
 
   if (nearestClosing && nearestClosing.daysUntilClosing !== null) {
+    const days = nearestClosing.daysUntilClosing
+    const when = days === 0 ? 'cierra hoy' : days === 1 ? 'cierra mañana' : `cierra en ${days} días`
     items.push({
       id: `closing-${nearestClosing.id}`,
-      title: `${nearestClosing.name} cierra en ${nearestClosing.daysUntilClosing} d${nearestClosing.daysUntilClosing === 1 ? 'ía' : 'ías'}`,
-      detail: 'Conviene cuidar consumos antes del próximo corte.',
-      tone: nearestClosing.daysUntilClosing <= 3 ? 'high' : 'medium',
+      title: `${nearestClosing.name} ${when}`,
+      detail: 'Si comprás ahora, entra en el próximo resumen.',
+      tone: days <= 3 ? 'high' : 'medium',
       dateLabel: 'Próximo cierre',
+      amount: nearestClosing.currentSpend > 0 ? nearestClosing.currentSpend : undefined,
+      amountCaption: 'llevás del ciclo',
+      currency: 'ARS',
     })
   }
 
@@ -155,15 +157,18 @@ export function buildAttentionSignals(params: {
     .sort((a, b) => (a.daysUntilDue ?? 999) - (b.daysUntilDue ?? 999))[0]
 
   if (nearestDue?.dueDate && nearestDue.daysUntilDue !== null && nearestDue.daysUntilDue <= 7) {
+    const days = nearestDue.daysUntilDue
+    const when =
+      days < 0 ? 'ya venció' : days === 0 ? 'vence hoy' : days === 1 ? 'vence mañana' : `vence en ${days} días`
     items.push({
       id: `due-${nearestDue.id}`,
-      title:
-        nearestDue.daysUntilDue < 0
-          ? `${nearestDue.name} ya venció`
-          : `${nearestDue.name} vence en ${nearestDue.daysUntilDue} d${nearestDue.daysUntilDue === 1 ? 'ía' : 'ías'}`,
-      detail: 'Tenés un compromiso próximo que ya afecta tu margen disponible.',
-      tone: nearestDue.daysUntilDue <= 1 ? 'high' : 'medium',
+      title: `${nearestDue.name} ${when}`,
+      detail: 'El pago ya está descontado de tu Disponible Real.',
+      tone: days <= 1 ? 'high' : 'medium',
       dateLabel: formatShortDate(nearestDue.dueDate),
+      amount: nearestDue.debtTotal > 0 ? nearestDue.debtTotal : undefined,
+      amountCaption: 'a pagar',
+      currency: 'ARS',
     })
   }
 
@@ -173,8 +178,8 @@ export function buildAttentionSignals(params: {
     if (idleDays >= 3) {
       items.push({
         id: 'stale-log',
-        title: `Llevás ${idleDays} días sin registrar`,
-        detail: 'La lectura puede quedarse corta si faltan movimientos recientes.',
+        title: `Hace ${idleDays} días que no registrás`,
+        detail: 'La lectura puede quedar corta si faltan movimientos recientes.',
         tone: idleDays >= 5 ? 'medium' : 'low',
         dateLabel: formatShortDate(lastMovement),
       })

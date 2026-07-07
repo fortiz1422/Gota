@@ -1,28 +1,9 @@
 'use client'
 
-import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import {
-  ArrowRight,
-  Bank,
-  Bell,
-  CalendarBlank,
-  CaretDown,
-  ChartBar,
-  ChartLineUp,
-  CreditCard,
-  Eye,
-  EyeSlash,
-  Gear,
-  House,
-  ArrowsLeftRight,
-  Sparkle,
-  Target,
-  Wallet,
-} from '@phosphor-icons/react'
-import type { Icon } from '@phosphor-icons/react'
+import { CalendarBlank, CaretDown, Eye, EyeSlash } from '@phosphor-icons/react'
 import { addMonths } from '@/lib/dates'
-import { BLUE, LABEL_STYLE, MAXW, SIDEBAR_W } from './desktop-ui'
+import { BLUE, MAXW } from './desktop-ui'
 
 export type NavId =
   | 'inicio'
@@ -38,169 +19,16 @@ type CotizacionApiData = {
   rate: number
 }
 
-const NAV_MAIN: Array<{ id: NavId; label: string; icon: Icon }> = [
-  { id: 'inicio', label: 'Inicio', icon: House },
-  { id: 'movimientos', label: 'Movimientos', icon: ArrowsLeftRight },
-  { id: 'cuentas', label: 'Cuentas', icon: Bank },
-  { id: 'tarjetas', label: 'Tarjetas', icon: CreditCard },
-  { id: 'presupuestos', label: 'Presupuestos', icon: Wallet },
-  { id: 'metas', label: 'Metas', icon: Target },
-  { id: 'instrumentos', label: 'Instrumentos', icon: ChartLineUp },
-  { id: 'analisis', label: 'Análisis', icon: ChartBar },
+const NAV_ITEMS: Array<{ id: NavId; label: string }> = [
+  { id: 'inicio', label: 'Panel' },
+  { id: 'movimientos', label: 'Movimientos' },
+  { id: 'cuentas', label: 'Cuentas' },
+  { id: 'tarjetas', label: 'Tarjetas' },
+  { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'metas', label: 'Metas' },
+  { id: 'instrumentos', label: 'Instrumentos' },
+  { id: 'analisis', label: 'Análisis' },
 ]
-
-// ─── Sidebar ─────────────────────────────────────────────────
-export function DesktopSidebar({
-  active,
-  onNav,
-  userName,
-  avatarInitial,
-  onOpenSettings,
-}: {
-  active: NavId
-  onNav: (id: NavId) => void
-  userName: string
-  avatarInitial: string
-  onOpenSettings: () => void
-}) {
-  const navBtn = (item: { id: NavId; label: string; icon: Icon }) => {
-    const isActive = item.id === active
-    const IconCmp = item.icon
-    return (
-      <button
-        key={item.id}
-        type="button"
-        onClick={() => onNav(item.id)}
-        style={{
-          position: 'relative',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          width: '100%',
-          padding: '10px 14px 10px 18px',
-          borderRadius: 11,
-          background: isActive ? 'rgba(33,120,168,0.10)' : 'transparent',
-          border: 0,
-          cursor: 'pointer',
-          fontFamily: 'inherit',
-          fontSize: 14,
-          fontWeight: isActive ? 700 : 500,
-          color: isActive ? BLUE : '#4A6070',
-          transition: 'background 140ms, color 140ms',
-        }}
-      >
-        {isActive && (
-          <span style={{ position: 'absolute', left: 0, top: 9, bottom: 9, width: 3, borderRadius: 3, background: BLUE }} />
-        )}
-        <IconCmp weight={isActive ? 'fill' : 'regular'} size={19} color={isActive ? BLUE : '#90A4B0'} />
-        {item.label}
-      </button>
-    )
-  }
-
-  return (
-    <aside
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        bottom: 0,
-        width: SIDEBAR_W,
-        background: '#FFFFFF',
-        borderRight: '1px solid rgba(33,120,168,0.10)',
-        display: 'flex',
-        flexDirection: 'column',
-        zIndex: 60,
-      }}
-    >
-      {/* Logo */}
-      <Link
-        href="/web"
-        style={{ padding: '24px 24px 22px', display: 'flex', alignItems: 'center', gap: 9, textDecoration: 'none' }}
-      >
-        <span style={{ fontSize: 23, fontWeight: 800, letterSpacing: '-0.045em', color: '#0D1829' }}>
-          gota<span style={{ color: BLUE }}>.</span>
-        </span>
-      </Link>
-
-      {/* Main nav */}
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, padding: '0 12px', flex: 1, overflowY: 'auto' }}>
-        <div style={{ ...LABEL_STYLE, fontSize: 10, padding: '6px 18px 8px' }}>General</div>
-        {NAV_MAIN.slice(0, 4).map(navBtn)}
-        <div style={{ ...LABEL_STYLE, fontSize: 10, padding: '18px 18px 8px' }}>Planificación</div>
-        {NAV_MAIN.slice(4).map(navBtn)}
-      </nav>
-
-      {/* Footer: config + user */}
-      <div style={{ padding: '12px', borderTop: '1px solid rgba(33,120,168,0.08)' }}>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 12,
-            width: '100%',
-            padding: '10px 14px 10px 18px',
-            borderRadius: 11,
-            background: 'transparent',
-            border: 0,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: 14,
-            fontWeight: 500,
-            color: '#4A6070',
-          }}
-        >
-          <Gear size={19} color="#90A4B0" />
-          Configuración
-        </button>
-        <button
-          type="button"
-          onClick={onOpenSettings}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 11,
-            width: '100%',
-            padding: '10px 12px',
-            marginTop: 4,
-            borderRadius: 11,
-            background: 'transparent',
-            border: 0,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-          }}
-        >
-          <span
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 9999,
-              flexShrink: 0,
-              background: 'linear-gradient(135deg, #2178A8 0%, #1B7E9E 100%)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#fff',
-              fontSize: 13,
-              fontWeight: 700,
-            }}
-          >
-            {avatarInitial}
-          </span>
-          <span style={{ minWidth: 0 }}>
-            <span style={{ display: 'block', fontSize: 13, fontWeight: 700, color: '#0D1829', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {userName}
-            </span>
-            <span style={{ display: 'block', fontSize: 11, color: '#90A4B0' }}>Plan Personal</span>
-          </span>
-        </button>
-      </div>
-    </aside>
-  )
-}
 
 // ─── Period (month) selector ─────────────────────────────────
 function formatMonthLabel(ym: string): string {
@@ -236,7 +64,7 @@ function MonthSelector({ selectedMonth, onSelectMonth }: { selectedMonth: string
           gap: 7,
           padding: '7px 12px',
           borderRadius: 9999,
-          background: open ? 'rgba(33,120,168,0.10)' : '#FFFFFF',
+          background: open ? 'rgba(33,120,168,0.10)' : 'transparent',
           border: '1px solid rgba(33,120,168,0.14)',
           cursor: 'pointer',
           fontFamily: 'inherit',
@@ -305,139 +133,142 @@ function MonthSelector({ selectedMonth, onSelectMonth }: { selectedMonth: string
   )
 }
 
-// ─── Topbar (utility bar inside main column) ─────────────────
-export function DesktopTopbar({
-  greeting,
+// ─── Topnav: wordmark + navegación + contexto (mes, USD, ojo, avatar) ──
+export function DesktopTopnav({
+  active,
+  onNav,
   hidden,
   onToggleHidden,
   quote,
   selectedMonth,
   onSelectMonth,
+  avatarInitial,
+  onOpenSettings,
 }: {
-  greeting: React.ReactNode
+  active: NavId
+  onNav: (id: NavId) => void
   hidden: boolean
   onToggleHidden: () => void
   quote: CotizacionApiData | null
   selectedMonth: string
   onSelectMonth: (month: string) => void
+  avatarInitial: string
+  onOpenSettings: () => void
 }) {
-  const [val, setVal] = useState('')
-  const hasText = val.trim().length > 0
   return (
     <header
       style={{
         position: 'sticky',
         top: 0,
         zIndex: 50,
-        background: 'rgba(248,251,253,0.86)',
+        background: 'rgba(255,255,255,0.88)',
         backdropFilter: 'blur(10px)',
         WebkitBackdropFilter: 'blur(10px)',
-        borderBottom: '1px solid rgba(33,120,168,0.08)',
+        borderBottom: '1px solid rgba(33,120,168,0.09)',
       }}
     >
-      <div style={{ maxWidth: MAXW, margin: '0 auto', padding: '0 40px', height: 64, display: 'flex', alignItems: 'center', gap: 16 }}>
-        <div style={{ flex: 1, minWidth: 0, fontSize: 14, color: '#4A6070' }}>{greeting}</div>
-
-        {/* SmartInput */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            padding: '6px 6px 6px 16px',
-            background: '#FFFFFF',
-            border: hasText ? '1px solid rgba(33,120,168,0.32)' : '1px solid rgba(33,120,168,0.12)',
-            borderRadius: 9999,
-            width: 300,
-            transition: 'border-color 150ms',
-            flexShrink: 0,
-          }}
+      <style>{`
+        @media (max-width: 1320px) { .topnav-quote { display: none !important; } }
+        @media (max-width: 1180px) { .topnav-nav { gap: 0 !important; } .topnav-nav button { padding: 0 8px !important; } }
+      `}</style>
+      <div style={{ maxWidth: MAXW, margin: '0 auto', padding: '0 40px', height: 62, display: 'flex', alignItems: 'stretch', gap: 24 }}>
+        <button
+          type="button"
+          onClick={() => onNav('inicio')}
+          style={{ display: 'flex', alignItems: 'center', background: 'transparent', border: 0, cursor: 'pointer', padding: 0, fontFamily: 'inherit', flexShrink: 0 }}
         >
-          <input
-            value={val}
-            onChange={(e) => setVal(e.target.value)}
-            placeholder="café 2500 hoy…"
-            aria-label="Carga rápida con IA"
-            style={{ flex: 1, border: 0, outline: 'none', background: 'transparent', fontSize: 13, color: '#0D1829', fontFamily: 'inherit' }}
-          />
-          {!hasText && (
-            <span
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 4,
-                padding: '3px 8px',
-                borderRadius: 9999,
-                background: 'rgba(33,120,168,0.08)',
-                color: BLUE,
-                fontSize: 11,
-                fontWeight: 600,
-                flexShrink: 0,
-              }}
-            >
-              <Sparkle weight="bold" size={10} />
-              IA
+          <span style={{ fontSize: 22, fontWeight: 800, letterSpacing: '-0.045em', color: '#0D1829' }}>
+            gota<span style={{ color: BLUE }}>.</span>
+          </span>
+        </button>
+
+        <nav className="topnav-nav" style={{ display: 'flex', alignItems: 'stretch', gap: 4, minWidth: 0, overflowX: 'auto' }}>
+          {NAV_ITEMS.map((item) => {
+            const isActive = item.id === active
+            return (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNav(item.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: '0 11px',
+                  background: 'transparent',
+                  border: 0,
+                  borderBottom: isActive ? `2px solid ${BLUE}` : '2px solid transparent',
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  fontSize: 13.5,
+                  fontWeight: isActive ? 700 : 500,
+                  color: isActive ? BLUE : '#4A6070',
+                  whiteSpace: 'nowrap',
+                  transition: 'color 140ms',
+                }}
+              >
+                {item.label}
+              </button>
+            )
+          })}
+        </nav>
+
+        <div style={{ flex: 1 }} />
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <MonthSelector selectedMonth={selectedMonth} onSelectMonth={onSelectMonth} />
+
+          {quote && (
+            <span className="topnav-quote" style={{ fontSize: 12, color: '#90A4B0', whiteSpace: 'nowrap' }}>
+              USD oficial <span style={{ color: '#4A6070', fontWeight: 700, fontVariantNumeric: 'tabular-nums' }}>{quote.rate.toLocaleString('es-AR')}</span>
             </span>
           )}
+
           <button
             type="button"
-            aria-label="Enviar"
+            onClick={onToggleHidden}
+            aria-label={hidden ? 'Mostrar montos' : 'Ocultar montos'}
+            title={hidden ? 'Mostrar montos' : 'Ocultar montos'}
             style={{
-              width: 28,
-              height: 28,
+              width: 34,
+              height: 34,
+              borderRadius: 9999,
+              background: hidden ? 'rgba(33,120,168,0.10)' : 'transparent',
+              border: '1px solid rgba(33,120,168,0.14)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: hidden ? BLUE : '#90A4B0',
+            }}
+          >
+            {hidden ? <EyeSlash size={16} /> : <Eye size={16} />}
+          </button>
+
+          <button
+            type="button"
+            onClick={onOpenSettings}
+            aria-label="Configuración"
+            title="Configuración"
+            style={{
+              width: 34,
+              height: 34,
               borderRadius: 9999,
               flexShrink: 0,
-              background: hasText ? BLUE : 'rgba(15,30,60,0.06)',
+              background: 'linear-gradient(135deg, #2178A8 0%, #1B7E9E 100%)',
               border: 0,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
+              color: '#fff',
+              fontSize: 13,
+              fontWeight: 700,
+              fontFamily: 'inherit',
             }}
           >
-            <ArrowRight weight="bold" size={12} color={hasText ? '#fff' : '#90A4B0'} />
+            {avatarInitial}
           </button>
         </div>
-
-        <MonthSelector selectedMonth={selectedMonth} onSelectMonth={onSelectMonth} />
-
-        {quote && (
-          <span style={{ fontSize: 12, color: '#90A4B0', whiteSpace: 'nowrap', flexShrink: 0 }}>
-            ARS · USD <span style={{ color: BLUE, fontWeight: 700 }}>{quote.rate.toLocaleString('es-AR')}</span>
-          </span>
-        )}
-
-        <button
-          type="button"
-          onClick={onToggleHidden}
-          title={hidden ? 'Mostrar montos' : 'Ocultar montos'}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '7px 12px',
-            borderRadius: 9999,
-            flexShrink: 0,
-            background: hidden ? 'rgba(33,120,168,0.10)' : 'transparent',
-            border: '1px solid rgba(33,120,168,0.14)',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            fontSize: 12,
-            fontWeight: 600,
-            color: hidden ? BLUE : '#90A4B0',
-          }}
-        >
-          {hidden ? <EyeSlash size={15} /> : <Eye size={15} />}
-          {hidden ? 'Oculto' : 'Visible'}
-        </button>
-
-        <button
-          type="button"
-          aria-label="Notificaciones"
-          style={{ position: 'relative', background: 'transparent', border: 0, cursor: 'pointer', padding: 7, display: 'flex', flexShrink: 0 }}
-        >
-          <Bell size={17} color="#90A4B0" />
-        </button>
       </div>
     </header>
   )
