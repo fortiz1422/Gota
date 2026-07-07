@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server'
-import { buildAssistantFinancialContext } from '@/lib/assistant/context'
-import {
-  buildAssistantInstruction,
-  historyToText,
-  normalizeAssistantHistory,
-} from '@/lib/assistant/prompt'
+import { normalizeAssistantHistory } from '@/lib/assistant/prompt'
 import { FF_GOTA_ASSISTANT } from '@/lib/flags'
 import { geminiModel } from '@/lib/gemini/client'
+import { buildAnswerPacket } from '@/lib/intelligence/chat-evidence'
+import { planChatQuery } from '@/lib/intelligence/chat-planner'
+import { buildAssistantInstructionV2 } from '@/lib/intelligence/chat-prompt'
+import { loadFinancialSnapshot } from '@/lib/intelligence/snapshot'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -55,14 +54,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const historyText = historyToText(history)
-    const context = await buildAssistantFinancialContext({
-      supabase,
-      userId: user.id,
-      question,
-      historyText,
-    })
-    const instruction = buildAssistantInstruction(context.text)
+    const snapshot = await loadFinancialSnapshot({ supabase, userId: user.id })
+    const plan = planChatQuery(question)
+    const packet = buildAnswerPacket(snapshot, plan)
+    const instruction = buildAssistantInstructionV2(packet, snapshot)
 
     const result = await geminiModel.generateContent({
       contents: [
@@ -85,7 +80,7 @@ export async function POST(request: Request) {
       ],
       generationConfig: {
         temperature: 0.2,
-        maxOutputTokens: 450,
+        maxOutputTokens: 500,
       },
     })
 
@@ -95,7 +90,10 @@ export async function POST(request: Request) {
       answer:
         answer ||
         'No pude armar una respuesta con los datos disponibles. Probá reformulando la consulta.',
-      detailIncluded: context.detailIncluded,
+      detailIncluded: packet.movements.length > 0,
+      intent: plan.intent,
+      evidence: packet.facts.slice(0, 4),
+      followUps: packet.followUps,
     })
   } catch (error) {
     captureRouteError(error, {

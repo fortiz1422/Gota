@@ -1,0 +1,496 @@
+import { addMonths } from '@/lib/dates'
+import { formatAmount } from '@/lib/format'
+import type { ChatIntent, ChatQueryPlan, MovementWindowKind } from './chat-planner'
+import { normalizeText } from './chat-planner'
+import { addDays, endOfMonth, evidenceItem, formatShortDate, moneyEvidence } from './evidence'
+import {
+  computeBudgetPace,
+  computeSameDaySpend,
+  computeUpcomingCardDues,
+  getMonthProgress,
+} from './features'
+import { buildInsightCandidates } from './insight-rules'
+import type {
+  Currency,
+  EvidenceItem,
+  FinancialSnapshot,
+  InsightCandidate,
+  SnapshotMovement,
+  SnapshotMovementKind,
+} from './types'
+
+export type MovementEvidence = {
+  date: string
+  kind: SnapshotMovementKind
+  description: string
+  category: string
+  amount: number
+  currency: Currency
+  installmentLabel: string | null
+}
+
+export type AnswerPacket = {
+  intent: ChatIntent
+  facts: EvidenceItem[]
+  movements: MovementEvidence[]
+  caveats: string[]
+  followUps: string[]
+  insights: InsightCandidate[]
+}
+
+const FOLLOW_UPS: Record<ChatIntent, string[]> = {
+  balance_status: [
+    '¿Qué compromisos fuertes tengo antes de fin de mes?',
+    '¿En qué estoy gastando más este mes?',
+  ],
+  movement_lookup: [
+    '¿En qué estoy gastando más este mes?',
+    '¿Hubo algún gasto fuera de lo normal?',
+  ],
+  category_breakdown: [
+    '¿Dónde estoy pasado de presupuesto?',
+    '¿Qué cambió vs meses anteriores a esta altura?',
+  ],
+  trend_comparison: ['¿En qué estoy gastando más este mes?', '¿Qué debería mirar hoy?'],
+  budget_question: [
+    '¿Qué cambió vs meses anteriores a esta altura?',
+    '¿En qué estoy gastando más este mes?',
+  ],
+  card_commitments: ['¿Cuánto me queda realmente disponible?', '¿Qué debería mirar hoy?'],
+  subscription_question: [
+    '¿Qué compromisos fuertes tengo antes de fin de mes?',
+    '¿Cuánto me queda realmente disponible?',
+  ],
+  yield_question: ['¿Cuánto me queda realmente disponible?', '¿Qué debería mirar hoy?'],
+  goal_question: ['¿Cuánto me queda realmente disponible?', '¿Qué debería mirar hoy?'],
+  what_should_i_do: ['¿Dónde estoy pasado de presupuesto?', 'Mostrame movimientos grandes recientes'],
+  general: ['¿Qué debería mirar hoy?', '¿En qué estoy gastando más este mes?'],
+}
+
+function money(amount: number, currency: Currency): string {
+  return formatAmount(Math.round(amount), currency)
+}
+
+// ─── Secciones ───────────────────────────────────────────────────────────────
+
+function buildBalancesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
+  const facts: EvidenceItem[] = []
+  const base = snapshot.currency
+  const other: Currency = base === 'ARS' ? 'USD' : 'ARS'
+
+  facts.push(moneyEvidence(`Saldo Vivo ${base}`, snapshot.saldoVivo[base], base, 'dashboard:saldo_vivo'))
+  facts.push(
+    moneyEvidence(`Disponible Real ${base}`, snapshot.disponibleReal[base], base, 'dashboard:disponible_real'),
+  )
+  if (snapshot.saldoVivo[other] !== 0 || snapshot.disponibleReal[other] !== 0) {
+    facts.push(moneyEvidence(`Saldo Vivo ${other}`, snapshot.saldoVivo[other], other, 'dashboard:saldo_vivo'))
+    facts.push(
+      moneyEvidence(`Disponible Real ${other}`, snapshot.disponibleReal[other], other, 'dashboard:disponible_real'),
+    )
+  }
+
+  const committed = snapshot.goals.committed[base]
+  if (committed > 0) {
+    facts.push(moneyEvidence('Comprometido en metas', committed, base, 'goals:committed'))
+    facts.push(
+      moneyEvidence(
+        'Libre después de metas',
+        snapshot.disponibleReal[base] - committed,
+        base,
+        'dashboard:libre',
+      ),
+    )
+  }
+
+  for (const account of snapshot.accountBalances.slice(0, 5)) {
+    facts.push(moneyEvidence(`Cuenta ${account.name}`, account.saldo, base, `account:${account.id}`))
+  }
+
+  return facts
+}
+
+function buildBudgetFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
+  if (!snapshot.budget.plan) {
+    caveats.push('No hay presupuesto activo este mes; no puedo evaluar límites por categoría.')
+    return []
+  }
+
+  const currency = snapshot.budget.plan.baseCurrency
+  const { summary } = snapshot.budget
+  const facts: EvidenceItem[] = [
+    evidenceItem(
+      'Presupuesto del mes',
+      `${money(summary.totalSpent, currency)} usados de ${money(summary.totalBudgeted, currency)}`,
+      'budget:summary',
+    ),
+  ]
+
+  for (const item of computeBudgetPace(snapshot).slice(0, 6)) {
+    facts.push(
+      evidenceItem(
+        `Presupuesto ${item.category}`,
+        `${money(item.spent, currency)} de ${money(item.budgeted, currency)} (${item.usedPct}% usado, ${item.expectedPct}% del mes)`,
+        `budget:${item.category}`,
+      ),
+    )
+  }
+
+  return facts
+}
+
+function buildCommitmentsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
+  const facts: EvidenceItem[] = []
+  const currency = snapshot.currency
+
+  let pendingTotal = 0
+  for (const card of snapshot.cards) {
+    for (const statement of card.pendingStatements) {
+      pendingTotal += statement.amount
+      facts.push(
+        evidenceItem(
+          `Resumen ${card.cardName} (${statement.periodMonth})`,
+          `${money(statement.amount, currency)} — vence ${formatShortDate(statement.dueDate)}${statement.status === 'vencido' ? ' (VENCIDO)' : ''}`,
+          `card_cycle:${card.cardName}:${statement.periodMonth}`,
+        ),
+      )
+    }
+    if (card.currentCycleSpend > 0) {
+      facts.push(
+        evidenceItem(
+          `Ciclo en curso ${card.cardName}`,
+          `${money(card.currentCycleSpend, currency)}${card.daysUntilClosing !== null ? ` — cierra en ${card.daysUntilClosing} días` : ''}`,
+          `card_cycle:${card.cardName}:en_curso`,
+        ),
+      )
+    }
+  }
+
+  if (pendingTotal > 0) {
+    facts.unshift(
+      moneyEvidence('Total resúmenes pendientes', pendingTotal, currency, 'commitments:total'),
+    )
+  } else if (snapshot.cards.length > 0) {
+    facts.unshift(evidenceItem('Resúmenes pendientes', 'Ninguno', 'commitments:total'))
+  } else {
+    facts.push(evidenceItem('Tarjetas', 'Sin tarjetas con compromisos registrados', 'commitments:none'))
+  }
+
+  const dueSoon = computeUpcomingCardDues(snapshot, 7)
+  if (dueSoon.length > 0) {
+    facts.push(
+      evidenceItem(
+        'Vencimientos próximos (7 días)',
+        dueSoon
+          .map((due) => `${due.cardName} ${money(due.amount, currency)} (${formatShortDate(due.dueDate)})`)
+          .join('; '),
+        'commitments:due_soon',
+      ),
+    )
+  }
+
+  return facts
+}
+
+function buildSubscriptionsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
+  if (snapshot.subscriptions.length === 0) {
+    return [evidenceItem('Suscripciones activas', 'Ninguna registrada', 'subscriptions:none')]
+  }
+
+  const base = snapshot.currency
+  const totalBase = snapshot.subscriptions
+    .filter((sub) => sub.currency === base)
+    .reduce((sum, sub) => sum + sub.amount, 0)
+
+  const facts: EvidenceItem[] = [
+    evidenceItem(
+      'Suscripciones activas',
+      `${snapshot.subscriptions.length} por ~${money(totalBase, base)}/mes`,
+      'subscriptions:summary',
+    ),
+  ]
+
+  for (const sub of snapshot.subscriptions.slice(0, 8)) {
+    facts.push(
+      evidenceItem(
+        sub.description,
+        `${money(sub.amount, sub.currency)} — día ${sub.dayOfMonth} (${sub.paymentMethod === 'CREDIT' ? 'tarjeta' : 'débito'})`,
+        'subscriptions:item',
+      ),
+    )
+  }
+
+  return facts
+}
+
+function buildTrendFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
+  const facts: EvidenceItem[] = []
+  const currency = snapshot.currency
+  const sameDay = computeSameDaySpend(snapshot)
+
+  if (sameDay.dataQuality === 'insufficient') {
+    caveats.push(
+      'Todavía no hay meses completos para comparar el ritmo de gasto: este mes está armando la línea base.',
+    )
+  } else {
+    const baselineLabel =
+      sameDay.baselineKind === 'previous_month'
+        ? 'mes anterior al mismo día'
+        : `promedio ${sameDay.baselineWindow}m al mismo día`
+    facts.push(
+      moneyEvidence(
+        `Gasto al día ${snapshot.dayOfMonth}`,
+        sameDay.currentAmount,
+        currency,
+        'monthly_series:same_day',
+      ),
+    )
+    facts.push(
+      moneyEvidence(
+        `Referencia (${baselineLabel})`,
+        Math.round(sameDay.baselineAmount ?? 0),
+        currency,
+        'monthly_series:baseline',
+      ),
+    )
+    if (sameDay.deltaPct !== null) {
+      facts.push(
+        evidenceItem(
+          'Diferencia vs referencia',
+          `${sameDay.deltaPct > 0 ? '+' : ''}${sameDay.deltaPct}%`,
+          'monthly_series:delta',
+        ),
+      )
+    }
+  }
+
+  for (const point of snapshot.monthlySeries.slice(-4)) {
+    facts.push(
+      evidenceItem(
+        `${point.label}${point.isCurrent ? ' (en curso)' : ''}`,
+        money(point.percibidoDevengadoTotal, currency),
+        `monthly_series:${point.month}`,
+      ),
+    )
+  }
+
+  return facts
+}
+
+function buildCategoriesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
+  const facts: EvidenceItem[] = []
+  const currency = snapshot.currency
+  const current = snapshot.monthAggregates.find((aggregate) => aggregate.month === snapshot.month)
+  const previousMonth = addMonths(snapshot.month, -1)
+  const previous = snapshot.monthAggregates.find((aggregate) => aggregate.month === previousMonth)
+
+  const currentCategories = (current?.categories ?? []).filter(
+    (category) => category.currency === currency,
+  )
+  for (const category of currentCategories.slice(0, 8)) {
+    facts.push(
+      evidenceItem(
+        `${category.category} (este mes)`,
+        `${money(category.amount, currency)} en ${category.count} movimientos`,
+        `categories:${snapshot.month}:${category.category}`,
+      ),
+    )
+  }
+
+  const previousCategories = (previous?.categories ?? []).filter(
+    (category) => category.currency === currency,
+  )
+  for (const category of previousCategories.slice(0, 4)) {
+    facts.push(
+      evidenceItem(
+        `${category.category} (mes pasado)`,
+        `${money(category.amount, currency)} en ${category.count} movimientos`,
+        `categories:${previousMonth}:${category.category}`,
+      ),
+    )
+  }
+
+  return facts
+}
+
+function buildGoalsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
+  if (snapshot.goals.count === 0) {
+    return [evidenceItem('Metas', 'Sin metas activas', 'goals:none')]
+  }
+  const base = snapshot.currency
+  return [
+    evidenceItem('Metas activas', String(snapshot.goals.count), 'goals:count'),
+    moneyEvidence('Comprometido en metas', snapshot.goals.committed[base], base, 'goals:committed'),
+  ]
+}
+
+function buildYieldFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
+  if (snapshot.yieldAccumulated <= 0) {
+    caveats.push('No veo rendimientos cargados; si tenés cuentas remuneradas, faltan esos datos.')
+    return []
+  }
+  return [
+    moneyEvidence(
+      'Rendimientos acumulados',
+      snapshot.yieldAccumulated,
+      snapshot.currency,
+      'yield:accumulated',
+    ),
+  ]
+}
+
+// ─── Movimientos ─────────────────────────────────────────────────────────────
+
+function resolveWindow(
+  kind: MovementWindowKind,
+  snapshot: FinancialSnapshot,
+): { from: string; to: string } {
+  const today = snapshot.referenceDate
+  switch (kind) {
+    case 'today':
+      return { from: today, to: today }
+    case 'yesterday': {
+      const yesterday = addDays(today, -1)
+      return { from: yesterday, to: yesterday }
+    }
+    case 'last_week':
+      return { from: addDays(today, -6), to: today }
+    case 'this_month':
+      return { from: `${snapshot.month}-01`, to: today }
+    case 'previous_month': {
+      const previous = addMonths(snapshot.month, -1)
+      return { from: `${previous}-01`, to: endOfMonth(previous) }
+    }
+    case 'recent':
+      return { from: addDays(today, -59), to: today }
+  }
+}
+
+function movementMatchesTerms(movement: SnapshotMovement, terms: string[]): boolean {
+  if (terms.length === 0) return true
+  const haystack = normalizeText(`${movement.description} ${movement.category}`)
+  return terms.some((term) => haystack.includes(term))
+}
+
+export function selectMovements(
+  snapshot: FinancialSnapshot,
+  plan: ChatQueryPlan,
+): MovementEvidence[] {
+  const { movementFilter } = plan
+  const { from, to } = resolveWindow(movementFilter.window, snapshot)
+
+  const matches = snapshot.movements.filter((movement) => {
+    if (movement.date < from || movement.date > to) return false
+    if (movementFilter.kind && movement.kind !== movementFilter.kind) return false
+    return movementMatchesTerms(movement, movementFilter.terms)
+  })
+
+  let ordered: SnapshotMovement[]
+  if (movementFilter.largeOnly) {
+    // El ranking por monto nunca mezcla monedas: se ordena la moneda base
+    // y los matches de la otra moneda se agregan aparte (máximo 3).
+    const base = matches
+      .filter((movement) => movement.currency === snapshot.currency)
+      .sort((a, b) => b.amount - a.amount)
+    const other = matches
+      .filter((movement) => movement.currency !== snapshot.currency)
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3)
+    ordered = [...base.slice(0, Math.max(0, movementFilter.limit - other.length)), ...other]
+  } else {
+    ordered = matches
+  }
+
+  return ordered.slice(0, movementFilter.limit).map((movement) => ({
+    date: movement.date,
+    kind: movement.kind,
+    description: movement.description,
+    category: movement.category,
+    amount: movement.amount,
+    currency: movement.currency,
+    installmentLabel: movement.installmentLabel,
+  }))
+}
+
+// ─── Paquete ─────────────────────────────────────────────────────────────────
+
+export function buildAnswerPacket(
+  snapshot: FinancialSnapshot,
+  plan: ChatQueryPlan,
+): AnswerPacket {
+  const caveats: string[] = []
+  const facts: EvidenceItem[] = []
+  let insights: InsightCandidate[] = []
+
+  const progress = getMonthProgress(snapshot)
+  facts.push(
+    evidenceItem(
+      'Momento del mes',
+      `Día ${snapshot.dayOfMonth} de ${snapshot.daysInMonth} (${progress.elapsedPct}% transcurrido)`,
+      'calendar',
+    ),
+  )
+
+  for (const section of plan.sections) {
+    switch (section) {
+      case 'balances':
+        facts.push(...buildBalancesFacts(snapshot))
+        break
+      case 'budget':
+        facts.push(...buildBudgetFacts(snapshot, caveats))
+        break
+      case 'commitments':
+        facts.push(...buildCommitmentsFacts(snapshot))
+        break
+      case 'subscriptions':
+        facts.push(...buildSubscriptionsFacts(snapshot))
+        break
+      case 'trend':
+        facts.push(...buildTrendFacts(snapshot, caveats))
+        break
+      case 'categories':
+        facts.push(...buildCategoriesFacts(snapshot))
+        break
+      case 'goals':
+        facts.push(...buildGoalsFacts(snapshot))
+        break
+      case 'yield':
+        facts.push(...buildYieldFacts(snapshot, caveats))
+        break
+      case 'insights':
+        insights = buildInsightCandidates(snapshot)
+        if (insights.length === 0) {
+          facts.push(
+            evidenceItem(
+              'Señales del mes',
+              'Sin señales de riesgo detectadas hasta hoy',
+              'insights:none',
+            ),
+          )
+        }
+        break
+    }
+  }
+
+  const movements = plan.includeMovements ? selectMovements(snapshot, plan) : []
+  if (plan.includeMovements && movements.length === 0) {
+    caveats.push('No encontré movimientos que coincidan con la consulta en el período pedido.')
+  }
+
+  if (snapshot.availableCompletedMonths === 0) {
+    caveats.push('Es tu primer mes con datos en Gota: no hay histórico para comparar.')
+  }
+  if (snapshot.hasOtherCurrencyMovements) {
+    caveats.push(
+      `Hay movimientos del mes en otra moneda: se informan por separado y no se suman a los totales en ${snapshot.currency}.`,
+    )
+  }
+
+  return {
+    intent: plan.intent,
+    facts,
+    movements,
+    caveats,
+    followUps: FOLLOW_UPS[plan.intent],
+    insights,
+  }
+}
