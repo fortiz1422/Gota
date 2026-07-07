@@ -6,10 +6,7 @@ import { useRouter } from 'next/navigation'
 import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
-import {
-  IntelligenceSignalChips,
-  useIntelligenceHeroes,
-} from '@/components/intelligence/IntelligenceHero'
+import { useIntelligenceHeroes } from '@/components/intelligence/IntelligenceHero'
 import { getCurrentMonth } from '@/lib/dates'
 import { FF_INTELLIGENCE } from '@/lib/flags'
 import {
@@ -111,11 +108,12 @@ export function AnalyticsClient({
     [mode, monthlySeries, comparisonContext, metrics, compromisos],
   )
 
-  // Señales inteligentes: una señal risk toma el headline del hero azul;
-  // el resto se muestra como chips. same_day queda fuera (ya lo narra el hero).
+  // Señales inteligentes: solo una señal risk toma el headline del hero azul.
+  // Las demás no agregan elementos acá (llegan por el chat); same_day queda
+  // fuera de esta superficie porque el hero azul ya narra gasto vs promedio.
   const isCurrentMonth = selectedMonth === getCurrentMonth()
   const { data: intelligence } = useIntelligenceHeroes(FF_INTELLIGENCE && isCurrentMonth)
-  const { takeover, chips } = useMemo(
+  const { takeover } = useMemo(
     () => resolveAnalysisPresentation(intelligence?.heroes ?? []),
     [intelligence],
   )
@@ -282,8 +280,6 @@ export function AnalyticsClient({
           <GoalsSection selectedMonth={selectedMonth} />
         ) : (
           <>
-            <IntelligenceSignalChips heroes={chips} />
-
             <AnalyticsModeToggle
               mode={mode}
               onChange={(nextMode) => {
