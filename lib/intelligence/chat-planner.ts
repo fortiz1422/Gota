@@ -2,6 +2,7 @@ export type ChatIntent =
   | 'balance_status'
   | 'movement_lookup'
   | 'category_breakdown'
+  | 'category_history'
   | 'trend_comparison'
   | 'budget_question'
   | 'card_commitments'
@@ -17,6 +18,7 @@ export type PacketSection =
   | 'commitments'
   | 'subscriptions'
   | 'trend'
+  | 'category_history'
   | 'categories'
   | 'goals'
   | 'yield'
@@ -57,6 +59,7 @@ const STOPWORDS = new Set([
   'cuanto', 'cuanta', 'tengo', 'tuve', 'pasado', 'pasada', 'mostrame', 'decime',
   'grandes', 'grande', 'recientes', 'reciente', 'movimiento', 'movimientos',
   'quiero', 'saber', 'realmente', 'ahora', 'antes', 'despues', 'compre', 'pague',
+  'promedio', 'historico', 'historica', 'normalmente', 'consumo', 'planificar',
 ])
 
 export function extractSearchTerms(question: string): string[] {
@@ -110,6 +113,19 @@ const INTENT_MATCHERS: Array<{ intent: ChatIntent; patterns: RegExp[] }> = [
     patterns: [/\bmetas?\b/, /objetivo/, /ahorrando para/],
   },
   {
+    intent: 'category_history',
+    patterns: [
+      /promedio.*(gasto|consumo)/,
+      /(gasto|consumo).*promedio/,
+      /historico.*(gasto|consumo)/,
+      /(gasto|consumo).*historico/,
+      /cuanto gasto normalmente/,
+      /cuanto vengo gastando/,
+      /presupuesto recomendado/,
+      /cuanto deberia presupuestar/,
+    ],
+  },
+  {
     intent: 'trend_comparison',
     patterns: [
       /compar/, /\bvs\b/, /meses anteriores/, /mes pasado/, /a esta altura/,
@@ -154,6 +170,7 @@ const SECTIONS_BY_INTENT: Record<ChatIntent, PacketSection[]> = {
   balance_status: ['balances', 'commitments', 'goals'],
   movement_lookup: ['categories'],
   category_breakdown: ['categories', 'budget'],
+  category_history: ['category_history', 'budget'],
   trend_comparison: ['trend', 'categories'],
   budget_question: ['budget', 'categories'],
   card_commitments: ['commitments', 'subscriptions'],
@@ -195,7 +212,13 @@ export function planChatQuery(question: string): ChatQueryPlan {
     sections: SECTIONS_BY_INTENT[intent],
     includeMovements,
     movementFilter: {
-      terms: intent === 'movement_lookup' || intent === 'general' ? extractSearchTerms(question) : [],
+      terms:
+        intent === 'movement_lookup' ||
+        intent === 'general' ||
+        intent === 'category_history' ||
+        intent === 'budget_question'
+          ? extractSearchTerms(question)
+          : [],
       largeOnly,
       kind,
       window: detectWindow(normalized),

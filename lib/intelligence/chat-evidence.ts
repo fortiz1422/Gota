@@ -51,6 +51,10 @@ const FOLLOW_UPS: Record<ChatIntent, string[]> = {
     '¿Dónde estoy pasado de presupuesto?',
     '¿Qué cambió vs meses anteriores a esta altura?',
   ],
+  category_history: [
+    '¿Dónde estoy pasado de presupuesto?',
+    '¿En qué estoy gastando más este mes?',
+  ],
   trend_comparison: ['¿En qué estoy gastando más este mes?', '¿Qué debería mirar hoy?'],
   budget_question: [
     '¿Qué cambió vs meses anteriores a esta altura?',
@@ -312,6 +316,90 @@ function buildCategoriesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   return facts
 }
 
+function findCategoryForTerms(snapshot: FinancialSnapshot, terms: string[]): string | null {
+  if (terms.length === 0) return null
+  const categories = new Set<string>()
+  for (const aggregate of snapshot.monthAggregates) {
+    for (const category of aggregate.categories) {
+      if (category.currency === snapshot.currency) categories.add(category.category)
+    }
+  }
+
+  return (
+    Array.from(categories).find((category) => {
+      const normalizedCategory = normalizeText(category)
+      return terms.some((term) => normalizedCategory.includes(term) || term.includes(normalizedCategory))
+    }) ?? null
+  )
+}
+
+function buildCategoryHistoryFacts(
+  snapshot: FinancialSnapshot,
+  plan: ChatQueryPlan,
+  caveats: string[],
+): EvidenceItem[] {
+  const category = findCategoryForTerms(snapshot, plan.movementFilter.terms)
+  if (!category) {
+    caveats.push(
+      'No encontré histórico para esa categoría en los últimos meses disponibles. Probá con el nombre exacto de la categoría en Gota.',
+    )
+    return []
+  }
+
+  const currency = snapshot.currency
+  const closedMonths = snapshot.monthAggregates
+    .filter((aggregate) => aggregate.month < snapshot.month)
+    .map((aggregate) => {
+      const item = aggregate.categories.find(
+        (candidate) => candidate.currency === currency && candidate.category === category,
+      )
+      return { month: aggregate.month, amount: item?.amount ?? 0, count: item?.count ?? 0 }
+    })
+    .filter((month) => month.amount > 0)
+
+  if (closedMonths.length === 0) {
+    caveats.push(
+      `No encontré histórico cerrado de ${category} en los últimos meses disponibles; puedo mostrar el mes actual, pero no calcular un promedio confiable.`,
+    )
+    return []
+  }
+
+  const current = snapshot.monthAggregates
+    .find((aggregate) => aggregate.month === snapshot.month)
+    ?.categories.find((candidate) => candidate.currency === currency && candidate.category === category)
+  const currentAmount = current?.amount ?? 0
+  const average = Math.round(
+    closedMonths.reduce((sum, month) => sum + month.amount, 0) / closedMonths.length,
+  )
+  const min = Math.min(...closedMonths.map((month) => month.amount))
+  const max = Math.max(...closedMonths.map((month) => month.amount))
+  const currentDeltaPct = average > 0 ? Math.round(((currentAmount - average) / average) * 100) : null
+  const monthList = closedMonths.map((month) => month.month).join(', ')
+
+  return [
+    evidenceItem(
+      `Promedio histórico ${category}`,
+      `${money(average, currency)}/mes (${closedMonths.length} meses con gasto)`,
+      `category_history:${category}:average`,
+    ),
+    evidenceItem(
+      `Rango histórico ${category}`,
+      `${money(min, currency)} a ${money(max, currency)}`,
+      `category_history:${category}:range`,
+    ),
+    evidenceItem(
+      `Este mes a la fecha ${category}`,
+      `${money(currentAmount, currency)}${currentDeltaPct !== null ? ` (${currentDeltaPct > 0 ? '+' : ''}${currentDeltaPct}% vs promedio mensual)` : ''}`,
+      `category_history:${category}:${snapshot.month}`,
+    ),
+    evidenceItem(
+      `Meses usados ${category}`,
+      monthList,
+      `category_history:${category}:months`,
+    ),
+  ]
+}
+
 function buildGoalsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   if (snapshot.goals.count === 0) {
     return [evidenceItem('Metas', 'Sin metas activas', 'goals:none')]
@@ -437,6 +525,9 @@ export function buildAnswerPacket(
         break
       case 'budget':
         facts.push(...buildBudgetFacts(snapshot, caveats))
+        if (plan.intent === 'budget_question' && plan.movementFilter.terms.length > 0) {
+          facts.push(...buildCategoryHistoryFacts(snapshot, plan, caveats))
+        }
         break
       case 'commitments':
         facts.push(...buildCommitmentsFacts(snapshot))
@@ -446,6 +537,9 @@ export function buildAnswerPacket(
         break
       case 'trend':
         facts.push(...buildTrendFacts(snapshot, caveats))
+        break
+      case 'category_history':
+        facts.push(...buildCategoryHistoryFacts(snapshot, plan, caveats))
         break
       case 'categories':
         facts.push(...buildCategoriesFacts(snapshot))

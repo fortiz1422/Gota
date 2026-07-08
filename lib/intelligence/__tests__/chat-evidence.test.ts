@@ -5,6 +5,7 @@ import {
   makeBudgetSnapshot,
   makeCard,
   makeExpense,
+  HISTORY_MONTHS,
   makeFreshUserSnapshot,
   makeInputs,
   makeSnapshot,
@@ -55,6 +56,30 @@ describe('budget_question — "¿Dónde estoy pasado de presupuesto?"', () => {
     const item = packet.facts.find((fact) => fact.label === 'Presupuesto Supermercado')
     expect(item?.value).toContain('75% usado')
     expect(item?.value).toContain('48% del mes')
+  })
+
+  it('si pregunta por una categoría combina presupuesto actual con promedio histórico', () => {
+    const educationHistory = HISTORY_MONTHS.flatMap((month) => [
+      makeExpense({
+        date: `${month}-05`,
+        amount: 80_000,
+        category: 'Educación',
+        description: 'Colegio',
+      }),
+    ])
+    const packet = packetFor(
+      '¿Tengo que revisar mi presupuesto de educación?',
+      makeSnapshot({
+        expenses: [...makeInputs().expenses, ...educationHistory],
+        budget: makeBudgetSnapshot([
+          { category: 'Educación', amount: 60_000, spentAmount: 80_000 },
+        ]),
+      }),
+    )
+
+    expect(packet.intent).toBe('budget_question')
+    expect(labels(packet)).toContain('Presupuesto Educación')
+    expect(labels(packet)).toContain('Promedio histórico Educación')
   })
 })
 
@@ -161,6 +186,58 @@ describe('category_breakdown — "¿En qué estoy gastando más este mes?"', () 
     const current = packet.facts.find((fact) => fact.label === 'Supermercado (este mes)')
     expect(current?.value).toContain('$ 120.000')
     expect(current?.value).toContain('3 movimientos')
+  })
+})
+
+describe('category_history — promedio histórico por categoría', () => {
+  it('responde con promedio, rango, meses usados y mes actual a la fecha de la categoría consultada', () => {
+    const packet = packetFor('¿Cuál fue mi promedio histórico de gasto en supermercado?')
+
+    expect(packet.intent).toBe('category_history')
+    expect(labels(packet)).toContain('Promedio histórico Supermercado')
+    expect(labels(packet)).toContain('Rango histórico Supermercado')
+    expect(labels(packet)).toContain('Este mes a la fecha Supermercado')
+    expect(labels(packet)).toContain('Meses usados Supermercado')
+
+    const average = packet.facts.find((fact) => fact.label === 'Promedio histórico Supermercado')
+    expect(average?.value).toContain('$ 200.000/mes')
+    expect(average?.value).toContain('5 meses con gasto')
+
+    const current = packet.facts.find((fact) => fact.label === 'Este mes a la fecha Supermercado')
+    expect(current?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('-40% vs promedio mensual')
+  })
+
+  it('matchea alias parciales como super contra Supermercado', () => {
+    const packet = packetFor('¿Cuánto gasto normalmente en super?')
+
+    expect(packet.intent).toBe('category_history')
+    expect(labels(packet)).toContain('Promedio histórico Supermercado')
+  })
+
+  it('explicita cuando el promedio usa solo algunos meses con gasto', () => {
+    const sparseHistory = [
+      makeExpense({ date: '2026-03-05', amount: 30_000, category: 'Farmacia' }),
+      makeExpense({ date: '2026-06-05', amount: 90_000, category: 'Farmacia' }),
+    ]
+    const packet = packetFor(
+      '¿Cuál fue mi promedio histórico de gasto en farmacia?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, ...sparseHistory] }),
+    )
+
+    const average = packet.facts.find((fact) => fact.label === 'Promedio histórico Farmacia')
+    const months = packet.facts.find((fact) => fact.label === 'Meses usados Farmacia')
+    expect(average?.value).toContain('$ 60.000/mes')
+    expect(average?.value).toContain('2 meses con gasto')
+    expect(months?.value).toContain('2026-03, 2026-06')
+  })
+
+  it('si la categoría no existe, lo dice sin inventar promedio', () => {
+    const packet = packetFor('¿Cuál fue mi promedio histórico de gasto en farmacia?')
+
+    expect(packet.intent).toBe('category_history')
+    expect(labels(packet).some((label) => label.startsWith('Promedio histórico'))).toBe(false)
+    expect(packet.caveats.some((caveat) => caveat.includes('No encontré histórico'))).toBe(true)
   })
 })
 

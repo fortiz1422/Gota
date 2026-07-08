@@ -4,6 +4,7 @@ import { detectIntent, extractSearchTerms, planChatQuery } from '../chat-planner
 describe('detectIntent — preguntas de aceptación', () => {
   const cases: Array<[string, string]> = [
     ['¿En qué estoy gastando más este mes?', 'category_breakdown'],
+    ['¿Cuál fue mi promedio histórico de gasto en supermercado?', 'category_history'],
     ['¿Qué cambió vs meses anteriores a esta altura?', 'trend_comparison'],
     ['¿Qué compromisos fuertes tengo antes de fin de mes?', 'card_commitments'],
     ['Mostrame movimientos grandes recientes.', 'movement_lookup'],
@@ -68,6 +69,13 @@ describe('planChatQuery', () => {
     const plan = planChatQuery('¿Cuánto me queda realmente disponible?')
     expect(plan.sections).toContain('balances')
     expect(plan.sections).toContain('commitments')
+  })
+
+  it('category_history incluye histórico de categoría y conserva el término consultado', () => {
+    const plan = planChatQuery('¿Cuál fue mi promedio histórico de gasto en supermercado?')
+    expect(plan.intent).toBe('category_history')
+    expect(plan.sections).toContain('category_history')
+    expect(plan.movementFilter.terms).toContain('supermercado')
   })
 })
 
