@@ -134,6 +134,40 @@ describe('analytics historical comparison rules', () => {
     expect(hero.subcopy).toContain('vs promedio 3m a esta altura -4%')
   })
 
+  it('keeps a clearly below-average hero even when card or commitments drivers are present', () => {
+    const series = [
+      point({ month: '2026-04', percibidoTotal: 1000, percibidoDevengadoTotal: 1000, sameDayPercibidoTotal: 1000 }),
+      point({ month: '2026-05', percibidoTotal: 1000, percibidoDevengadoTotal: 1000, sameDayPercibidoTotal: 1000 }),
+      point({ month: '2026-06', percibidoTotal: 1000, percibidoDevengadoTotal: 1000, sameDayPercibidoTotal: 1000 }),
+      point({
+        month: '2026-07',
+        percibidoTotal: 670,
+        percibidoDevengadoTotal: 670,
+        sameDayPercibidoTotal: 670,
+        isCurrent: true,
+        isComplete: false,
+      }),
+    ]
+
+    const hero = resolveAnalyticsHero({
+      mode: 'percibido',
+      monthlySeries: series,
+      comparisonContext: {
+        selectedMonth: '2026-07',
+        isCurrentMonth: true,
+        availableCompletedMonths: 99,
+        comparisonDay: 8,
+      },
+      metrics: baseMetrics,
+      compromisos: { pctComprometido: 45 } as unknown as CompromisosData,
+    })
+
+    expect(hero.deltaPct).toBe(-33)
+    expect(hero.state).toBe('below_habit')
+    expect(hero.headline).toBe('Julio viene 33% abajo de tu promedio')
+    expect(hero.visualTone).toBe('positive')
+  })
+
   it('trims leading placeholder months but keeps the first real month even if its same-day value is zero', () => {
     const series = [
       point({ month: '2026-01', percibidoTotal: 0, percibidoDevengadoTotal: 0, sameDayPercibidoTotal: 0 }),

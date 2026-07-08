@@ -301,6 +301,8 @@ export function resolveAnalyticsHero(params: {
   let state: HeroState = 'on_track'
   if (driver && (driver.type === 'big_expense' || driver.type === 'category_spike')) {
     state = 'anomalous'
+  } else if (deltaPct !== null && deltaPct <= -8) {
+    state = 'below_habit'
   } else if (
     (deltaPct !== null && deltaPct >= 18) ||
     (driver && (driver.type === 'credit_shift' || driver.type === 'commitments_weight'))
@@ -308,8 +310,6 @@ export function resolveAnalyticsHero(params: {
     state = 'tense'
   } else if (deltaPct !== null && deltaPct >= 8) {
     state = 'above_habit'
-  } else if (deltaPct !== null && deltaPct <= -8) {
-    state = 'below_habit'
   }
 
   let headline = `${monthLabel} en línea con tu promedio`

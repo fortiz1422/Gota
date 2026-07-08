@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import type { Card, CardCycle, Expense } from '@/types/database'
 
@@ -64,6 +64,15 @@ function makeExpense(overrides: Partial<Expense> = {}): Expense {
 }
 
 describe('computeCompromisos card cycle edits', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-07-01T15:00:00.000Z'))
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   it('keeps a paid-marked cycle as commitment when edited dates make the statement exceed the paid amount', () => {
     const data = computeCompromisos(
       [makeExpense()],
