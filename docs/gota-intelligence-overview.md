@@ -17,7 +17,7 @@ La v2 mantiene el principio *deterministic before generative* y extiende motor +
 - `futureInstallments`: cuotas ya materializadas de los próximos 6 meses (los installments se guardan como gastos con fecha futura → esto suma compromisos reales, no estima).
 
 **Motor de proyección** (`lib/intelligence/projection.ts`):
-- `computeSafeToSpend`: libre hasta fin de mes = disponible − compromisos fechados del mes − metas; ritmo diario sugerido.
+- `computeSafeToSpend`: libre hasta fin de mes = Disponible Real − débitos automáticos restantes del mes − metas; ritmo diario sugerido. (Disponible Real ya descuenta toda la deuda de tarjeta — resúmenes y ciclo en curso — así que el pulso no la vuelve a restar.)
 - `computeInstallmentHorizon`: carga de cuotas por mes futuro vs ingreso de referencia (recurrentes o promedio histórico).
 - `simulatePurchase`: "¿me alcanza X?" al contado (margen restante) o en N cuotas (carga futura por mes). El LLM solo redacta el veredicto ya calculado.
 
@@ -30,7 +30,7 @@ La v2 mantiene el principio *deterministic before generative* y extiende motor +
 - `/api/intelligence/heroes` devuelve `pulse` además de `heroes`.
 - Sugerencias del chat renovadas hacia las capacidades nuevas.
 
-Tests: 141 en `lib/intelligence` (84 → 141). `npm run test`, lint y build verificados.
+Tests: 142 en `lib/intelligence` (84 → 142). `npm run test`, lint y build verificados.
 
 ---
 

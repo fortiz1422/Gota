@@ -140,7 +140,7 @@ function buildBalancesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
     facts.push(
       evidenceItem(
         'Ritmo sugerido hasta fin de mes',
-        `${money(safe.dailyAmount, base)}/día por ${safe.daysLeft} días (queda ${money(safe.spendable, base)} libre tras compromisos y metas)`,
+        `${money(safe.dailyAmount, base)}/día por ${safe.daysLeft} días (queda ${money(safe.spendable, base)} libre tras débitos automáticos y metas; la deuda de tarjeta ya está descontada del disponible)`,
         'projection:safe_to_spend',
       ),
     )
@@ -663,7 +663,7 @@ function buildAffordabilityFacts(
   facts.push(
     evidenceItem(
       'Libre hasta fin de mes',
-      `${money(safe.spendable, currency)} (disponible ${money(safe.disponible, currency)} − compromisos del mes ${money(safe.committedRemaining, currency)} − metas ${money(safe.goalCommitted, currency)})`,
+      `${money(safe.spendable, currency)} (disponible ${money(safe.disponible, currency)} — que ya descuenta deuda de tarjeta — menos débitos del mes ${money(safe.committedRemaining, currency)} y metas ${money(safe.goalCommitted, currency)})`,
       'projection:spendable',
     ),
   )

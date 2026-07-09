@@ -7,6 +7,7 @@ import {
   makeFreshUserSnapshot,
   makeInputs,
   makeSnapshot,
+  makeSubscription,
 } from './fixtures'
 
 describe('buildHeroesResponse', () => {
@@ -87,10 +88,21 @@ describe('pulse — ritmo del mes', () => {
     })
   })
 
-  it('con compromisos que superan el disponible el pulso queda sin margen', () => {
+  it('con metas y débitos que superan el disponible el pulso queda sin margen', () => {
     const response = buildHeroesResponse(
       makeSnapshot({
         disponibleReal: { ARS: 100_000, USD: 0 },
+        goals: { count: 1, committed: { ARS: 250_000, USD: 0 } },
+        subscriptions: [makeSubscription({ amount: 50_000, dayOfMonth: 20 })],
+      }),
+    )
+    expect(response.pulse?.spendable).toBe(-200_000)
+    expect(response.pulse?.dailyAmount).toBeNull()
+  })
+
+  it('los resúmenes pendientes no reducen el pulso: Disponible Real ya los descuenta', () => {
+    const response = buildHeroesResponse(
+      makeSnapshot({
         cards: [
           makeCard({
             pendingStatements: [
@@ -100,7 +112,7 @@ describe('pulse — ritmo del mes', () => {
         ],
       }),
     )
-    expect(response.pulse?.spendable).toBe(-200_000)
-    expect(response.pulse?.dailyAmount).toBeNull()
+    expect(response.pulse?.committedRemaining).toBe(0)
+    expect(response.pulse?.spendable).toBe(600_000)
   })
 })

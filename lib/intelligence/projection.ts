@@ -85,7 +85,7 @@ export function computeInstallmentHorizon(snapshot: FinancialSnapshot): Installm
 
 export type SafeToSpendFeature = {
   disponible: number
-  /** Compromisos fechados que faltan pagar dentro del mes (resúmenes + débitos). */
+  /** Salidas fechadas del mes que Disponible Real todavía no descuenta (débitos). */
   committedRemaining: number
   /** Plata ya comprometida en metas (se respeta, no se toca). */
   goalCommitted: number
@@ -103,23 +103,11 @@ export function computeSafeToSpend(snapshot: FinancialSnapshot): SafeToSpendFeat
   const daysLeft = Math.max(1, snapshot.daysInMonth - snapshot.dayOfMonth + 1)
   const monthEnd = endOfMonth(snapshot.month)
 
+  // Disponible Real ya descuenta TODA la deuda de tarjeta (resúmenes
+  // pendientes + ciclo en curso) vía availableBreakdown = saldo − gastosTarjeta.
+  // Restar acá los resúmenes sería un doble descuento; solo se restan las
+  // salidas fechadas que el disponible todavía no absorbió: débitos automáticos.
   const items: UpcomingCommitmentItem[] = []
-
-  for (const card of snapshot.cards) {
-    for (const statement of card.pendingStatements) {
-      if (statement.amount <= 0) continue
-      // Un resumen vencido sigue debido; uno que vence después de fin de mes
-      // no presiona el ritmo de este mes.
-      if (statement.status !== 'vencido' && statement.dueDate > monthEnd) continue
-      items.push({
-        label: `Resumen ${card.cardName}`,
-        amount: statement.amount,
-        date: statement.dueDate,
-        daysUntil: diffDays(snapshot.referenceDate, statement.dueDate),
-        source: 'card',
-      })
-    }
-  }
 
   for (const subscription of snapshot.subscriptions) {
     if (subscription.paymentMethod !== 'DEBIT') continue

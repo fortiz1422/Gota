@@ -68,43 +68,37 @@ describe('computeInstallmentHorizon', () => {
 })
 
 describe('computeSafeToSpend', () => {
-  it('resta compromisos del mes y metas del disponible', () => {
+  it('resta débitos del mes y metas del disponible', () => {
     const snapshot = makeSnapshot({
       disponibleReal: { ARS: 600_000, USD: 0 },
       goals: { count: 1, committed: { ARS: 100_000, USD: 0 } },
-      cards: [
-        makeCard({
-          pendingStatements: [
-            { periodMonth: '2026-06', amount: 200_000, dueDate: '2026-07-20', status: 'cerrado' },
-          ],
-        }),
-      ],
       subscriptions: [makeSubscription({ amount: 15_000, dayOfMonth: 20 })],
     })
     const safe = computeSafeToSpend(snapshot)
 
-    expect(safe.committedRemaining).toBe(215_000)
+    expect(safe.committedRemaining).toBe(15_000)
     expect(safe.goalCommitted).toBe(100_000)
-    expect(safe.spendable).toBe(285_000)
+    expect(safe.spendable).toBe(485_000)
     // Día 15 de un mes de 31 → quedan 17 días contando hoy.
     expect(safe.daysLeft).toBe(17)
-    expect(safe.dailyAmount).toBe(Math.floor(285_000 / 17))
+    expect(safe.dailyAmount).toBe(Math.floor(485_000 / 17))
     expect(safe.dataQuality).toBe('ok')
   })
 
-  it('un resumen que vence el mes que viene no presiona este mes, uno vencido sí', () => {
+  it('no vuelve a restar resúmenes de tarjeta: Disponible Real ya los descuenta', () => {
     const snapshot = makeSnapshot({
       cards: [
         makeCard({
           pendingStatements: [
-            { periodMonth: '2026-06', amount: 300_000, dueDate: '2026-08-05', status: 'cerrado' },
+            { periodMonth: '2026-06', amount: 200_000, dueDate: '2026-07-20', status: 'cerrado' },
             { periodMonth: '2026-05', amount: 50_000, dueDate: '2026-06-20', status: 'vencido' },
           ],
         }),
       ],
     })
     const safe = computeSafeToSpend(snapshot)
-    expect(safe.committedRemaining).toBe(50_000)
+    expect(safe.committedRemaining).toBe(0)
+    expect(safe.spendable).toBe(600_000)
   })
 
   it('las suscripciones con tarjeta no cuentan como salida de caja propia', () => {
