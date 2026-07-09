@@ -22,8 +22,9 @@ import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSha
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { IntelligenceHero } from '@/components/intelligence/IntelligenceHero'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
-import { FF_INSTRUMENTS } from '@/lib/flags'
+import { FF_INSTRUMENTS, FF_INTELLIGENCE } from '@/lib/flags'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
@@ -474,6 +475,11 @@ export function DashboardShell({
                 selectedMonth={selectedMonth}
                 amountsVisible={amountsVisible}
               />
+            )}
+
+            {/* Lectura inteligente del mes: ritmo diario + señales con evidencia */}
+            {FF_INTELLIGENCE && isCurrentMonth && hasAnyMovement && (
+              <IntelligenceHero surface="home-mobile" />
             )}
 
             {homeEmptyState.showPrimaryActivation && (

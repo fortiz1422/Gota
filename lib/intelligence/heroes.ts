@@ -1,4 +1,5 @@
 import { buildInsightCandidates } from './insight-rules'
+import { computeSafeToSpend } from './projection'
 import type {
   Currency,
   EvidenceItem,
@@ -18,11 +19,21 @@ export type IntelligenceHero = {
   cta?: InsightAction
 }
 
+/** Ritmo del mes: cuánto queda libre por día tras compromisos y metas. */
+export type IntelligencePulse = {
+  spendable: number
+  dailyAmount: number | null
+  daysLeft: number
+  committedRemaining: number
+  goalCommitted: number
+}
+
 export type IntelligenceHeroResponse = {
   generatedAt: string
   month: string
   currency: Currency
   heroes: IntelligenceHero[]
+  pulse: IntelligencePulse | null
 }
 
 const MAX_HEROES = 4
@@ -38,11 +49,23 @@ export function buildHeroesResponse(
 ): IntelligenceHeroResponse {
   const maxHeroes = options?.maxHeroes ?? MAX_HEROES
   const candidates = buildInsightCandidates(snapshot)
+  const safeToSpend = computeSafeToSpend(snapshot)
+  const pulse: IntelligencePulse | null =
+    safeToSpend.dataQuality === 'ok'
+      ? {
+          spendable: Math.round(safeToSpend.spendable),
+          dailyAmount: safeToSpend.dailyAmount,
+          daysLeft: safeToSpend.daysLeft,
+          committedRemaining: Math.round(safeToSpend.committedRemaining),
+          goalCommitted: Math.round(safeToSpend.goalCommitted),
+        }
+      : null
 
   return {
     generatedAt: options?.generatedAt ?? new Date().toISOString(),
     month: snapshot.month,
     currency: snapshot.currency,
+    pulse,
     heroes: candidates.slice(0, maxHeroes).map((candidate) => ({
       id: candidate.id,
       kind: candidate.kind,
