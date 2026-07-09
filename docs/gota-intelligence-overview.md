@@ -85,7 +85,7 @@ Claves del diseño:
 | Regla | Dispara cuando | Severidad |
 |---|---|---|
 | `upcoming_card_due` | Resumen cerrado/vencido con monto pendiente y vencimiento ≤ 7 días | risk / watch |
-| `liquidity_watch` | Disponible Real < compromisos fechados de los próximos 14 días (resúmenes + suscripciones débito) | risk |
+| `liquidity_watch` | Saldo Vivo (caja) < compromisos fechados de los próximos 14 días (resúmenes + suscripciones débito). v2: antes usaba Disponible Real, que ya netea los resúmenes (doble descuento) | risk |
 | `budget_acceleration` | Categoría con uso ≥ avance del mes + 20 puntos (y ≥ 25% del presupuesto consumido) | risk / watch |
 | `same_day_spend_delta` | Gasto observado a hoy ≥ ±15% vs promedio histórico al mismo día (risk si ≥ +35%) | risk / watch / positive |
 | `recent_unusual_movement` | Gasto reciente ≥ 3× el ticket habitual de su categoría (con ≥ 5 compras de historial) | watch / info |

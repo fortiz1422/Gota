@@ -112,7 +112,7 @@ describe('computeUpcomingCardDues', () => {
 describe('computeLiquidity', () => {
   it('suma resúmenes próximos y suscripciones DEBIT de la moneda base', () => {
     const snapshot = makeSnapshot({
-      disponibleReal: { ARS: 200_000, USD: 0 },
+      saldoVivo: { ARS: 200_000, USD: 0 },
       cards: [
         makeCard({
           pendingStatements: [
@@ -129,6 +129,7 @@ describe('computeLiquidity', () => {
     const liquidity = computeLiquidity(snapshot, 14)
     expect(liquidity.upcomingTotal).toBe(325_000)
     expect(liquidity.items.map((item) => item.label)).toEqual(['Gimnasio', 'Resumen Visa Galicia'])
+    expect(liquidity.saldo).toBe(200_000)
     expect(liquidity.gap).toBe(-125_000)
   })
 })

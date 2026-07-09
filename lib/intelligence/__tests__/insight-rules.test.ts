@@ -190,10 +190,10 @@ describe('upcoming_card_due', () => {
 })
 
 describe('liquidity_watch', () => {
-  it('emite risk cuando el disponible no cubre los compromisos de 14 días', () => {
+  it('emite risk cuando el Saldo Vivo no cubre los compromisos de 14 días', () => {
     const candidates = buildInsightCandidates(
       makeSnapshot({
-        disponibleReal: { ARS: 200_000, USD: 0 },
+        saldoVivo: { ARS: 200_000, USD: 0 },
         cards: [
           makeCard({
             pendingStatements: [
@@ -208,7 +208,7 @@ describe('liquidity_watch', () => {
     expect(liquidity?.message).toContain('Visa Galicia')
   })
 
-  it('no emite cuando el disponible cubre lo comprometido', () => {
+  it('no emite cuando el Saldo Vivo cubre lo comprometido', () => {
     const candidates = buildInsightCandidates(
       makeSnapshot({
         cards: [

@@ -177,7 +177,7 @@ function ruleUpcomingCardDue(snapshot: FinancialSnapshot): InsightCandidate[] {
 }
 
 // ─── liquidity_watch ─────────────────────────────────────────────────────────
-// Disponible Real bajo frente a compromisos fechados de los próximos 14 días.
+// Saldo Vivo (caja) bajo frente a compromisos fechados de los próximos 14 días.
 
 function ruleLiquidityWatch(snapshot: FinancialSnapshot): InsightCandidate | null {
   const liquidity = computeLiquidity(snapshot, 14)
@@ -192,11 +192,11 @@ function ruleLiquidityWatch(snapshot: FinancialSnapshot): InsightCandidate | nul
     kind: 'liquidity_watch',
     severity: 'risk',
     priority: SEVERITY_WEIGHT.risk + 40,
-    title: 'El disponible no cubre lo que viene',
-    short: `Disponible ${formatAmount(liquidity.disponible, currency)} vs ${formatAmount(liquidity.upcomingTotal, currency)} comprometidos`,
-    message: `Tenés ${formatAmount(liquidity.disponible, currency)} disponibles y ${formatAmount(liquidity.upcomingTotal, currency)} comprometidos en los próximos 14 días (lo más pesado: ${topItem.label}, ${formatAmount(topItem.amount, currency)}).`,
+    title: 'El saldo no cubre lo que viene',
+    short: `Saldo Vivo ${formatAmount(liquidity.saldo, currency)} vs ${formatAmount(liquidity.upcomingTotal, currency)} comprometidos`,
+    message: `Tenés ${formatAmount(liquidity.saldo, currency)} en Saldo Vivo y ${formatAmount(liquidity.upcomingTotal, currency)} que vencen en los próximos 14 días (lo más pesado: ${topItem.label}, ${formatAmount(topItem.amount, currency)}).`,
     evidence: [
-      moneyEvidence('Disponible Real', liquidity.disponible, currency, 'dashboard:disponible_real'),
+      moneyEvidence('Saldo Vivo', liquidity.saldo, currency, 'dashboard:saldo_vivo'),
       moneyEvidence('Comprometido 14 días', liquidity.upcomingTotal, currency, 'commitments:14d'),
       moneyEvidence(topItem.label, topItem.amount, currency, `commitments:${topItem.source}`),
     ],

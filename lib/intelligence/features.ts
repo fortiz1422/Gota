@@ -203,7 +203,8 @@ export type UpcomingCommitmentItem = {
 }
 
 export type LiquidityFeature = {
-  disponible: number
+  /** Saldo Vivo en moneda base: la caja real contra la que se mide lo que vence. */
+  saldo: number
   upcomingTotal: number
   gap: number
   items: UpcomingCommitmentItem[]
@@ -254,9 +255,12 @@ export function computeLiquidity(snapshot: FinancialSnapshot, withinDays = 14): 
 
   items.sort((a, b) => a.date.localeCompare(b.date))
   const upcomingTotal = items.reduce((sum, item) => sum + item.amount, 0)
-  const disponible = snapshot.disponibleReal[snapshot.currency]
+  // La pregunta de liquidez es de caja: ¿la plata que hay cubre lo que vence?
+  // Se mide contra Saldo Vivo. Disponible Real no sirve de base acá porque ya
+  // descuenta los resúmenes de tarjeta que este cálculo suma como compromisos.
+  const saldo = snapshot.saldoVivo[snapshot.currency]
 
-  return { disponible, upcomingTotal, gap: disponible - upcomingTotal, items }
+  return { saldo, upcomingTotal, gap: saldo - upcomingTotal, items }
 }
 
 // ─── Movimientos fuera de patrón ─────────────────────────────────────────────
