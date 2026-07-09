@@ -2,11 +2,13 @@ import { describe, expect, it } from 'vitest'
 import { buildAnswerPacket } from '../chat-evidence'
 import { planChatQuery } from '../chat-planner'
 import {
+  futureInstallmentExpenses,
   makeBudgetSnapshot,
   makeCard,
   makeExpense,
   HISTORY_MONTHS,
   makeFreshUserSnapshot,
+  makeGoal,
   makeInputs,
   makeSnapshot,
 } from './fixtures'
@@ -305,5 +307,101 @@ describe('followUps', () => {
   it('cada intent trae follow-ups determinísticos', () => {
     const packet = packetFor('¿Cuánto me queda realmente disponible?')
     expect(packet.followUps.length).toBeGreaterThan(0)
+  })
+})
+
+describe('affordability — "¿me alcanza?"', () => {
+  it('con monto que entra: veredicto positivo precalculado', () => {
+    const packet = packetFor('¿Me alcanza para comprar algo de 250.000?')
+    expect(packet.intent).toBe('affordability')
+    const verdict = packet.facts.find((fact) => fact.label === 'Veredicto')
+    expect(verdict?.value).toContain('entra')
+    expect(verdict?.value).not.toContain('no entra')
+    expect(labels(packet)).toContain('Libre hasta fin de mes')
+  })
+
+  it('con monto que no entra: veredicto negativo', () => {
+    const packet = packetFor('¿Me alcanza para comprar algo de 700.000?')
+    expect(packet.facts.find((fact) => fact.label === 'Veredicto')?.value).toContain('no entra')
+  })
+
+  it('en cuotas: cuota resultante y carga futura por mes', () => {
+    const packet = packetFor(
+      '¿Me alcanza comprar algo de 600.000 en 6 cuotas?',
+      makeSnapshot({
+        futureExpenses: futureInstallmentExpenses([{ month: '2026-08', amount: 200_000 }]),
+      }),
+    )
+    const simulation = packet.facts.find((fact) => fact.label.startsWith('Simulación'))
+    expect(simulation?.value).toContain('100.000')
+    expect(labels(packet).some((label) => label.startsWith('Cuotas ago 2026 con esta compra'))).toBe(
+      true,
+    )
+  })
+
+  it('sin monto: responde con el margen general y lo avisa', () => {
+    const packet = packetFor('¿Cuánto puedo gastar por día hasta fin de mes?')
+    expect(labels(packet)).toContain('Ritmo sugerido')
+    expect(packet.caveats.some((caveat) => caveat.includes('No detecté un monto'))).toBe(true)
+  })
+})
+
+describe('wants_question — "¿cuánto llevo en deseos?"', () => {
+  it('incluye share actual, histórico y solo movimientos deseo', () => {
+    const packet = packetFor('¿Cuánto llevo en deseos este mes?')
+    expect(packet.intent).toBe('wants_question')
+    expect(labels(packet)).toContain('Deseos este mes a la fecha')
+    expect(labels(packet)).toContain('Peso habitual de deseos')
+    expect(packet.movements.length).toBeGreaterThan(0)
+    expect(packet.movements.every((movement) => movement.description === 'Pedido delivery')).toBe(
+      true,
+    )
+  })
+})
+
+describe('installment_question — "¿cómo vienen mis cuotas?"', () => {
+  it('lista la carga por mes futuro con peso sobre el ingreso', () => {
+    const packet = packetFor(
+      '¿Cómo vienen mis cuotas de los próximos meses?',
+      makeSnapshot({
+        futureExpenses: futureInstallmentExpenses([
+          { month: '2026-08', amount: 200_000 },
+          { month: '2026-09', amount: 300_000 },
+        ]),
+      }),
+    )
+    expect(labels(packet)).toContain('Cuotas ago 2026')
+    expect(labels(packet)).toContain('Cuotas sep 2026')
+    expect(
+      packet.facts.find((fact) => fact.label === 'Cuotas sep 2026')?.value,
+    ).toContain('30% del ingreso')
+  })
+
+  it('sin cuotas futuras lo dice con caveat', () => {
+    const packet = packetFor('¿Cómo vienen mis cuotas de los próximos meses?')
+    expect(packet.caveats.some((caveat) => caveat.includes('cuotas'))).toBe(true)
+  })
+})
+
+describe('goal_question con detalle por meta', () => {
+  it('cada meta trae avance, estado y aporte necesario', () => {
+    const packet = packetFor(
+      '¿Cómo vienen mis metas?',
+      makeSnapshot({
+        goalsDetail: [makeGoal()],
+        goals: { count: 1, committed: { ARS: 300_000, USD: 0 } },
+      }),
+    )
+    const goalFact = packet.facts.find((fact) => fact.label === 'Meta Viaje')
+    expect(goalFact?.value).toContain('25%')
+    expect(goalFact?.value).toContain('atrasada')
+    expect(goalFact?.value).toContain('180.000')
+  })
+})
+
+describe('safe-to-spend en balance_status', () => {
+  it('incluye el ritmo sugerido hasta fin de mes', () => {
+    const packet = packetFor('¿Cuánto me queda realmente disponible?')
+    expect(labels(packet)).toContain('Ritmo sugerido hasta fin de mes')
   })
 })

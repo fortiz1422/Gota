@@ -2,6 +2,35 @@
 
 > **Branch:** `feat/intelligence-layer` · **Fecha:** 2026-07-07 · **Estado:** implementado, verificado, sin pushear
 > Plan técnico detallado: [`docs/plans/2026-07-07-gota-intelligence-architecture.md`](plans/2026-07-07-gota-intelligence-architecture.md)
+> **v2 (2026-07-09):** ver sección 0 — proyección, datos nuevos y superficie en Home.
+
+---
+
+## 0. v2 — Qué se agregó (2026-07-09)
+
+La v2 mantiene el principio *deterministic before generative* y extiende motor + superficies:
+
+**Datos nuevos en el snapshot** (`lib/intelligence/snapshot.ts`):
+- `is_extraordinary` en movimientos y agregados, con fallback de query si la columna no existe. Los baselines (same-day, ticket habitual) ahora **excluyen extraordinarios** — corrige señales que antes comparaban contra histórico contaminado.
+- `goalsDetail`: métricas completas por meta (pace, aporte requerido, fecha objetivo) que el snapshot v1 descartaba.
+- `recurringIncomes` con estado pendiente del mes.
+- `futureInstallments`: cuotas ya materializadas de los próximos 6 meses (los installments se guardan como gastos con fecha futura → esto suma compromisos reales, no estima).
+
+**Motor de proyección** (`lib/intelligence/projection.ts`):
+- `computeSafeToSpend`: libre hasta fin de mes = disponible − compromisos fechados del mes − metas; ritmo diario sugerido.
+- `computeInstallmentHorizon`: carga de cuotas por mes futuro vs ingreso de referencia (recurrentes o promedio histórico).
+- `simulatePurchase`: "¿me alcanza X?" al contado (margen restante) o en N cuotas (carga futura por mes). El LLM solo redacta el veredicto ya calculado.
+
+**5 reglas nuevas** (total 10): `installment_load` (mes futuro con ≥25%/40% del ingreso en cuotas), `wants_creep` (share de deseos despegado del promedio, con lado positivo), `goal_pace` (meta atrasada con aporte necesario / encaminada), `income_missing` (recurrente que no llegó, gracia 2 días), `subscription_load` (≥12%/20% del ingreso).
+
+**Chat** (3 intents nuevos, total 14): `affordability` (extrae monto — soporta "250.000", "250 lucas", "50k", "1 palo" — y cuotas; responde con veredicto determinístico), `wants_question` (share + movimientos deseo), `installment_question` (horizonte de cuotas). Además: metas por meta en `goal_question`, safe-to-spend en `balance_status`.
+
+**UX — la inteligencia ahora se ve**:
+- `IntelligenceHero` se monta en el **Home mobile** (`DashboardShell`, mes corriente con movimientos): pulso "Ritmo del mes" ($X/día libres tras compromisos y metas) + señal primaria + chips. Silencioso si no hay nada para decir.
+- `/api/intelligence/heroes` devuelve `pulse` además de `heroes`.
+- Sugerencias del chat renovadas hacia las capacidades nuevas.
+
+Tests: 141 en `lib/intelligence` (84 → 141). `npm run test`, lint y build verificados.
 
 ---
 

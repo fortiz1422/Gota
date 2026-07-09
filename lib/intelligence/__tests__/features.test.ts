@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeBudgetPace,
+  computeGoalPace,
   computeLiquidity,
+  computeMissingIncomes,
   computeSameDaySpend,
   computeUnusualMovements,
   computeUpcomingCardDues,
+  computeWantsShare,
   getMonthProgress,
 } from '../features'
 import {
@@ -13,8 +16,10 @@ import {
   makeExpense,
   makeBudgetSnapshot,
   makeFreshUserSnapshot,
+  makeGoal,
   makeIncome,
   makeInputs,
+  makeRecurringIncome,
   makeSnapshot,
   makeSubscription,
   monthPatternExpenses,
@@ -263,5 +268,140 @@ describe('ingresos del snapshot', () => {
     })
     expect(snapshot.monthIncome.ARS).toBe(1_000_000)
     expect(snapshot.monthIncome.USD).toBe(300)
+  })
+})
+
+describe('exclusión de gastos extraordinarios', () => {
+  it('un gasto extraordinario del mes no infla el same-day', () => {
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        makeExpense({
+          date: '2026-07-10',
+          amount: 100_000,
+          category: 'Salud y Farmacia',
+          description: 'Tratamiento dental',
+          is_extraordinary: true,
+        }),
+      ],
+    })
+    const feature = computeSameDaySpend(snapshot)
+    expect(feature.currentAmount).toBe(140_000)
+    expect(feature.deltaPct).toBe(0)
+    expect(feature.extraordinaryExcluded).toBe(100_000)
+  })
+
+  it('un extraordinario histórico no infla el baseline same-day', () => {
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        makeExpense({
+          date: '2026-06-10',
+          amount: 100_000,
+          category: 'Salud y Farmacia',
+          is_extraordinary: true,
+        }),
+      ],
+    })
+    const feature = computeSameDaySpend(snapshot)
+    expect(feature.baselineAmount).toBe(140_000)
+    expect(feature.deltaPct).toBe(0)
+  })
+
+  it('un extraordinario histórico no infla el ticket habitual de la categoría', () => {
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        makeExpense({ date: '2026-06-05', amount: 500_000, is_extraordinary: true }),
+        makeExpense({ date: '2026-07-14', amount: 130_000, description: 'Compra grande super' }),
+      ],
+    })
+    const [unusual] = computeUnusualMovements(snapshot)
+    expect(unusual).toBeDefined()
+    expect(unusual.movement.description).toBe('Compra grande super')
+    expect(unusual.baselineTicket).toBe(40_000)
+  })
+
+  it('un gasto ya marcado extraordinario no se reporta como fuera de patrón', () => {
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        makeExpense({ date: '2026-07-14', amount: 300_000, is_extraordinary: true }),
+      ],
+    })
+    expect(computeUnusualMovements(snapshot)).toEqual([])
+  })
+})
+
+describe('computeWantsShare', () => {
+  it('escenario estable: share actual igual al histórico', () => {
+    const feature = computeWantsShare(makeSnapshot())
+    expect(feature.currentSharePct).toBe(14)
+    expect(feature.baselineSharePct).toBe(9)
+    expect(feature.baselineMonths).toBe(5)
+    expect(feature.dataQuality).toBe('ok')
+  })
+
+  it('mes con deseos disparados: delta positivo grande', () => {
+    const feature = computeWantsShare(
+      makeSnapshot({
+        expenses: [
+          ...makeInputs().expenses,
+          makeExpense({
+            date: '2026-07-12',
+            amount: 100_000,
+            category: 'Ocio',
+            description: 'Escapada',
+            is_want: true,
+          }),
+        ],
+      }),
+    )
+    expect(feature.currentWants).toBe(120_000)
+    expect(feature.currentSharePct).toBe(50)
+    expect(feature.deltaPts).toBe(41)
+  })
+
+  it('sin meses previos con deseos clasificados no hay línea base', () => {
+    const noWantsHistory = makeInputs().expenses.map((expense) => ({
+      ...expense,
+      is_want: expense.date.startsWith(MONTH) ? expense.is_want : false,
+    }))
+    const feature = computeWantsShare(makeSnapshot({ expenses: noWantsHistory }))
+    expect(feature.dataQuality).toBe('insufficient')
+    expect(feature.baselineSharePct).toBeNull()
+  })
+})
+
+describe('computeGoalPace', () => {
+  it('separa metas atrasadas de encaminadas y ordena por fecha objetivo', () => {
+    const pace = computeGoalPace(
+      makeSnapshot({
+        goalsDetail: [
+          makeGoal({ id: 'g-later', targetDate: '2027-06-30' }),
+          makeGoal({ id: 'g-soon', targetDate: '2026-10-31' }),
+          makeGoal({ id: 'g-ok', paceStatus: 'on_track', progressPct: 60 }),
+          makeGoal({ id: 'g-paused', status: 'paused' }),
+        ],
+      }),
+    )
+    expect(pace.behind.map((goal) => goal.id)).toEqual(['g-soon', 'g-later'])
+    expect(pace.onTrack.map((goal) => goal.id)).toEqual(['g-ok'])
+  })
+})
+
+describe('computeMissingIncomes', () => {
+  it('reporta el recurrente pendiente pasado el período de gracia', () => {
+    const missing = computeMissingIncomes(
+      makeSnapshot({
+        recurringIncomes: [
+          makeRecurringIncome({ pendingThisMonth: true, dayOfMonth: 5 }),
+          makeRecurringIncome({ id: 'rec-2', pendingThisMonth: true, dayOfMonth: 14 }),
+          makeRecurringIncome({ id: 'rec-3', pendingThisMonth: false, dayOfMonth: 1 }),
+        ],
+      }),
+    )
+    // Hoy es 15: el del día 5 ya venció la gracia; el del 14 todavía no.
+    expect(missing.map((income) => income.id)).toEqual(['rec-1'])
   })
 })

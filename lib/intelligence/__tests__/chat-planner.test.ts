@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { detectIntent, extractSearchTerms, planChatQuery } from '../chat-planner'
+import { detectIntent, extractSearchTerms, extractSimulation, planChatQuery } from '../chat-planner'
 
 describe('detectIntent — preguntas de aceptación', () => {
   const cases: Array<[string, string]> = [
@@ -93,5 +93,68 @@ describe('extractSearchTerms', () => {
 
   it('descarta tokens cortos', () => {
     expect(extractSearchTerms('qué es eso')).toEqual([])
+  })
+})
+
+describe('intents v2 — affordability, deseos y cuotas', () => {
+  const cases: Array<[string, string]> = [
+    ['¿Me alcanza para comprar algo de 250.000?', 'affordability'],
+    ['¿Cuánto puedo gastar por día hasta fin de mes?', 'affordability'],
+    ['¿Puedo darme el gusto de una compra grande?', 'affordability'],
+    ['¿Cuánto llevo en deseos este mes?', 'wants_question'],
+    ['¿Cómo vienen mis cuotas de los próximos meses?', 'installment_question'],
+    ['¿Cuánto tengo financiado en la tarjeta?', 'installment_question'],
+    ['¿Qué resumen me vence esta semana?', 'card_commitments'],
+  ]
+
+  it.each(cases)('"%s" → %s', (question, intent) => {
+    expect(detectIntent(question)).toBe(intent)
+  })
+
+  it('"deseo saber..." no dispara wants_question', () => {
+    expect(detectIntent('Deseo saber cuánto gasté este mes')).not.toBe('wants_question')
+  })
+
+  it('wants_question filtra movimientos marcados como deseo del mes', () => {
+    const plan = planChatQuery('¿Cuánto llevo en deseos este mes?')
+    expect(plan.includeMovements).toBe(true)
+    expect(plan.movementFilter.wantsOnly).toBe(true)
+    expect(plan.movementFilter.kind).toBe('gasto')
+    expect(plan.movementFilter.window).toBe('this_month')
+  })
+})
+
+describe('extractSimulation', () => {
+  it('monto con separador de miles argentino', () => {
+    expect(extractSimulation('¿Me alcanza para algo de 250.000?')).toEqual({
+      amount: 250_000,
+      installments: null,
+    })
+  })
+
+  it('monto en lucas con cuotas', () => {
+    expect(extractSimulation('¿Puedo comprar algo de 250 lucas en 6 cuotas?')).toEqual({
+      amount: 250_000,
+      installments: 6,
+    })
+  })
+
+  it('sufijo k y palos', () => {
+    expect(extractSimulation('¿me alcanza si gasto 50k?').amount).toBe(50_000)
+    expect(extractSimulation('¿puedo gastar 1 palo?').amount).toBe(1_000_000)
+  })
+
+  it('el número de cuotas no se confunde con el monto', () => {
+    expect(extractSimulation('¿Me alcanza 12 cuotas de 30.000?')).toEqual({
+      amount: 30_000,
+      installments: 12,
+    })
+  })
+
+  it('sin monto explícito devuelve null', () => {
+    expect(extractSimulation('¿Me alcanza para una compra grande?')).toEqual({
+      amount: null,
+      installments: null,
+    })
   })
 })

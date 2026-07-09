@@ -73,3 +73,34 @@ describe('buildHeroesResponse', () => {
     expect(response.heroes).toEqual([])
   })
 })
+
+describe('pulse — ritmo del mes', () => {
+  it('incluye el safe-to-spend diario para el mes en curso', () => {
+    const response = buildHeroesResponse(makeSnapshot())
+    // Disponible 600k sin compromisos ni metas, día 15 de 31 → 17 días restantes.
+    expect(response.pulse).toEqual({
+      spendable: 600_000,
+      dailyAmount: Math.floor(600_000 / 17),
+      daysLeft: 17,
+      committedRemaining: 0,
+      goalCommitted: 0,
+    })
+  })
+
+  it('con compromisos que superan el disponible el pulso queda sin margen', () => {
+    const response = buildHeroesResponse(
+      makeSnapshot({
+        disponibleReal: { ARS: 100_000, USD: 0 },
+        cards: [
+          makeCard({
+            pendingStatements: [
+              { periodMonth: '2026-06', amount: 300_000, dueDate: '2026-07-20', status: 'cerrado' },
+            ],
+          }),
+        ],
+      }),
+    )
+    expect(response.pulse?.spendable).toBe(-200_000)
+    expect(response.pulse?.dailyAmount).toBeNull()
+  })
+})

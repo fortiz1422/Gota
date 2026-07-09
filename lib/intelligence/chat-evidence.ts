@@ -12,7 +12,6 @@ import {
 } from './evidence'
 import {
   computeBudgetPace,
-  computeGoalPace,
   computeSameDaySpend,
   computeUpcomingCardDues,
   computeWantsShare,
