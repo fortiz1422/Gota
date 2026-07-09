@@ -400,6 +400,101 @@ function buildCategoryHistoryFacts(
   ]
 }
 
+function amountForCategoryToDay(
+  snapshot: FinancialSnapshot,
+  category: string,
+  month: string,
+  dayOfMonth: number,
+): number {
+  return snapshot.movements
+    .filter(
+      (movement) =>
+        movement.kind === 'gasto' &&
+        movement.currency === snapshot.currency &&
+        movement.category === category &&
+        movement.date.startsWith(`${month}-`) &&
+        Number(movement.date.slice(8, 10)) <= dayOfMonth,
+    )
+    .reduce((sum, movement) => sum + movement.amount, 0)
+}
+
+function buildCategorySameDayFacts(
+  snapshot: FinancialSnapshot,
+  plan: ChatQueryPlan,
+  caveats: string[],
+): EvidenceItem[] {
+  const category = findCategoryForTerms(snapshot, plan.movementFilter.terms)
+  if (!category) return []
+
+  const currency = snapshot.currency
+  const comparableMonths = snapshot.monthAggregates
+    .filter((aggregate) => aggregate.month < snapshot.month)
+    .map((aggregate) => ({
+      month: aggregate.month,
+      sameDayAmount: amountForCategoryToDay(snapshot, category, aggregate.month, snapshot.dayOfMonth),
+      fullMonthAmount:
+        aggregate.categories.find(
+          (candidate) => candidate.currency === currency && candidate.category === category,
+        )?.amount ?? 0,
+    }))
+    .filter((month) => month.sameDayAmount > 0)
+
+  if (comparableMonths.length === 0) {
+    caveats.push(
+      `No encontré histórico de ${category} comparable al día ${snapshot.dayOfMonth}; puedo mostrar totales mensuales, pero no afirmar cómo venía a esta altura.`,
+    )
+    return []
+  }
+
+  const currentAmount = amountForCategoryToDay(snapshot, category, snapshot.month, snapshot.dayOfMonth)
+  const sameDayAverage = Math.round(
+    comparableMonths.reduce((sum, month) => sum + month.sameDayAmount, 0) /
+      comparableMonths.length,
+  )
+  const fullMonthValues = comparableMonths
+    .map((month) => month.fullMonthAmount)
+    .filter((amount) => amount > 0)
+  const fullMonthAverage =
+    fullMonthValues.length > 0
+      ? Math.round(fullMonthValues.reduce((sum, amount) => sum + amount, 0) / fullMonthValues.length)
+      : null
+  const currentDeltaPct =
+    sameDayAverage > 0 ? Math.round(((currentAmount - sameDayAverage) / sameDayAverage) * 100) : null
+  const monthList = comparableMonths
+    .map((month) => `${month.month} ${money(month.sameDayAmount, currency)}`)
+    .join('; ')
+
+  const facts = [
+    evidenceItem(
+      `Promedio a esta altura ${category}`,
+      `${money(sameDayAverage, currency)} al día ${snapshot.dayOfMonth} (${comparableMonths.length} meses comparables)`,
+      `category_same_day:${category}:average`,
+    ),
+    evidenceItem(
+      `Este mes a la fecha ${category}`,
+      `${money(currentAmount, currency)}${currentDeltaPct !== null ? ` (${currentDeltaPct > 0 ? '+' : ''}${currentDeltaPct}% vs promedio a esta altura)` : ''}`,
+      `category_same_day:${category}:${snapshot.month}`,
+    ),
+    evidenceItem(
+      `Meses comparados a esta altura ${category}`,
+      monthList,
+      `category_same_day:${category}:months`,
+    ),
+  ]
+
+  if (fullMonthAverage !== null) {
+    facts.push(
+      evidenceItem(
+        `Promedio mensual completo ${category}`,
+        `${money(fullMonthAverage, currency)}/mes; no confundir con acumulado al día ${snapshot.dayOfMonth}`,
+        `category_same_day:${category}:full_month_average`,
+      ),
+    )
+  }
+
+  return facts
+}
+
 function buildGoalsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   if (snapshot.goals.count === 0) {
     return [evidenceItem('Metas', 'Sin metas activas', 'goals:none')]
@@ -537,6 +632,9 @@ export function buildAnswerPacket(
         break
       case 'trend':
         facts.push(...buildTrendFacts(snapshot, caveats))
+        if (plan.intent === 'trend_comparison' && plan.movementFilter.terms.length > 0) {
+          facts.push(...buildCategorySameDayFacts(snapshot, plan, caveats))
+        }
         break
       case 'category_history':
         facts.push(...buildCategoryHistoryFacts(snapshot, plan, caveats))

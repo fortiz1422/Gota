@@ -77,6 +77,13 @@ describe('planChatQuery', () => {
     expect(plan.sections).toContain('category_history')
     expect(plan.movementFilter.terms).toContain('supermercado')
   })
+
+  it('trend_comparison conserva término de categoría para comparar a esta altura', () => {
+    const plan = planChatQuery('Supermercado fue 800k a esta altura en meses anteriores?')
+    expect(plan.intent).toBe('trend_comparison')
+    expect(plan.sections).toContain('trend')
+    expect(plan.movementFilter.terms).toContain('supermercado')
+  })
 })
 
 describe('extractSearchTerms', () => {

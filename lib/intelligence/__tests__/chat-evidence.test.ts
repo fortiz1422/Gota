@@ -168,6 +168,32 @@ describe('trend_comparison — "¿Qué cambió vs meses anteriores a esta altura
     expect(labels(packet)).toContain('Diferencia vs referencia')
   })
 
+  it('si pregunta por una categoría, agrega comparativa específica al mismo día', () => {
+    const packet = packetFor('Supermercado fue 800k a esta altura en meses anteriores?')
+
+    expect(packet.intent).toBe('trend_comparison')
+    expect(labels(packet)).toContain('Promedio a esta altura Supermercado')
+    expect(labels(packet)).toContain('Este mes a la fecha Supermercado')
+    expect(labels(packet)).toContain('Meses comparados a esta altura Supermercado')
+    expect(labels(packet)).toContain('Promedio mensual completo Supermercado')
+
+    const sameDayAverage = packet.facts.find(
+      (fact) => fact.label === 'Promedio a esta altura Supermercado',
+    )
+    expect(sameDayAverage?.value).toContain('$ 120.000')
+    expect(sameDayAverage?.value).toContain('día 15')
+    expect(sameDayAverage?.value).toContain('5 meses')
+
+    const current = packet.facts.find((fact) => fact.label === 'Este mes a la fecha Supermercado')
+    expect(current?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('0% vs promedio a esta altura')
+
+    const fullMonth = packet.facts.find(
+      (fact) => fact.label === 'Promedio mensual completo Supermercado',
+    )
+    expect(fullMonth?.value).toContain('$ 200.000/mes')
+  })
+
   it('sin histórico agrega caveat en lugar de inventar referencia', () => {
     const packet = packetFor(
       '¿Qué cambió vs meses anteriores a esta altura?',

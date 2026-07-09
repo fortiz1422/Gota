@@ -216,7 +216,8 @@ export function planChatQuery(question: string): ChatQueryPlan {
         intent === 'movement_lookup' ||
         intent === 'general' ||
         intent === 'category_history' ||
-        intent === 'budget_question'
+        intent === 'budget_question' ||
+        intent === 'trend_comparison'
           ? extractSearchTerms(question)
           : [],
       largeOnly,
