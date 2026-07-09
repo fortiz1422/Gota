@@ -7,6 +7,7 @@ import {
   makeFreshUserSnapshot,
   makeInputs,
   makeSnapshot,
+  makeSubscription,
 } from './fixtures'
 
 describe('buildHeroesResponse', () => {
@@ -71,5 +72,47 @@ describe('buildHeroesResponse', () => {
   it('usuario sin histórico ni compromisos: héroes vacíos, sin inventar', () => {
     const response = buildHeroesResponse(makeFreshUserSnapshot())
     expect(response.heroes).toEqual([])
+  })
+})
+
+describe('pulse — ritmo del mes', () => {
+  it('incluye el safe-to-spend diario para el mes en curso', () => {
+    const response = buildHeroesResponse(makeSnapshot())
+    // Disponible 600k sin compromisos ni metas, día 15 de 31 → 17 días restantes.
+    expect(response.pulse).toEqual({
+      spendable: 600_000,
+      dailyAmount: Math.floor(600_000 / 17),
+      daysLeft: 17,
+      committedRemaining: 0,
+      goalCommitted: 0,
+    })
+  })
+
+  it('con metas y débitos que superan el disponible el pulso queda sin margen', () => {
+    const response = buildHeroesResponse(
+      makeSnapshot({
+        disponibleReal: { ARS: 100_000, USD: 0 },
+        goals: { count: 1, committed: { ARS: 250_000, USD: 0 } },
+        subscriptions: [makeSubscription({ amount: 50_000, dayOfMonth: 20 })],
+      }),
+    )
+    expect(response.pulse?.spendable).toBe(-200_000)
+    expect(response.pulse?.dailyAmount).toBeNull()
+  })
+
+  it('los resúmenes pendientes no reducen el pulso: Disponible Real ya los descuenta', () => {
+    const response = buildHeroesResponse(
+      makeSnapshot({
+        cards: [
+          makeCard({
+            pendingStatements: [
+              { periodMonth: '2026-06', amount: 300_000, dueDate: '2026-07-20', status: 'cerrado' },
+            ],
+          }),
+        ],
+      }),
+    )
+    expect(response.pulse?.committedRemaining).toBe(0)
+    expect(response.pulse?.spendable).toBe(600_000)
   })
 })

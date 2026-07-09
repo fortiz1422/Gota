@@ -26,6 +26,12 @@ export function formatShortDate(date: string): string {
   return `${day} ${SHORT_MONTHS_ES[monthIndex] ?? ''}`.trim()
 }
 
+/** '2026-10' → 'oct 2026' */
+export function formatMonthLabel(month: string): string {
+  const monthIndex = Number(month.substring(5, 7)) - 1
+  return `${SHORT_MONTHS_ES[monthIndex] ?? month} ${month.substring(0, 4)}`.trim()
+}
+
 /** Días de diferencia entre dos fechas YYYY-MM-DD (positivo si to > from). */
 export function diffDays(from: string, to: string): number {
   const parse = (value: string) => {

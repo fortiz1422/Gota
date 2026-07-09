@@ -7,19 +7,26 @@ import {
   ArrowClockwise,
   ChartLineUp,
   ChatCircleDots,
+  Coins,
   CreditCard,
   Gauge,
+  HandCoins,
+  Heart,
   Lightning,
+  Receipt,
   Sparkle,
+  Target,
   Wallet,
 } from '@phosphor-icons/react'
 import { requestAssistantOpen } from '@/lib/assistant/events'
 import { FF_GOTA_ASSISTANT } from '@/lib/flags'
+import { formatAmount } from '@/lib/format'
 import type {
   IntelligenceHero as IntelligenceHeroData,
   IntelligenceHeroResponse,
+  IntelligencePulse,
 } from '@/lib/intelligence/heroes'
-import type { InsightSeverity } from '@/lib/intelligence/types'
+import type { Currency, InsightSeverity } from '@/lib/intelligence/types'
 
 /** Datos de héroes inteligentes compartidos entre superficies (cache 5 min). */
 export function useIntelligenceHeroes(enabled = true) {
@@ -53,6 +60,11 @@ const KIND_ICONS: Record<string, Icon> = {
   same_day_spend_delta: ChartLineUp,
   liquidity_watch: Wallet,
   recent_unusual_movement: Lightning,
+  installment_load: Coins,
+  wants_creep: Heart,
+  goal_pace: Target,
+  income_missing: HandCoins,
+  subscription_load: Receipt,
 }
 
 function HeroCta({ hero }: { hero: IntelligenceHeroData }) {
@@ -164,6 +176,41 @@ export function IntelligenceSignalChip({ hero }: { hero: IntelligenceHeroData })
   return <div className={className}>{content}</div>
 }
 
+/** Ritmo del mes: cuánto queda por día sin tocar compromisos ni metas. */
+function PulseRow({ pulse, currency }: { pulse: IntelligencePulse; currency: Currency }) {
+  const over = pulse.spendable <= 0 || pulse.dailyAmount === null
+  return (
+    <div className="card-s5 flex items-center gap-3 p-3.5">
+      <span
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-full"
+        style={{
+          background: over ? 'var(--color-warning-soft)' : 'var(--color-primary-soft)',
+          color: over ? 'var(--color-warning)' : 'var(--color-primary)',
+        }}
+      >
+        <Gauge size={17} weight="duotone" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="type-meta text-text-dim">Ritmo del mes</p>
+        {over ? (
+          <p className="text-[13px] font-bold text-text-primary">
+            Sin margen libre: lo que queda ya está comprometido
+          </p>
+        ) : (
+          <p className="text-[13px] font-bold tabular-nums text-text-primary">
+            {formatAmount(pulse.dailyAmount ?? 0, currency)}/día por {pulse.daysLeft} días
+          </p>
+        )}
+      </div>
+      {!over && (
+        <span className="whitespace-nowrap type-meta text-text-secondary">
+          {formatAmount(pulse.spendable, currency)} libres
+        </span>
+      )}
+    </div>
+  )
+}
+
 function EmptyCard() {
   return (
     <article className="card-s5 flex items-center gap-3 p-4">
@@ -203,13 +250,21 @@ export function IntelligenceSignalChips({ heroes }: { heroes: IntelligenceHeroDa
 }
 
 /**
- * Card completa con hero primario + chips. No se usa en Análisis (ahí la señal
- * se integra al hero azul); queda como superficie standalone para Home mobile.
+ * Card completa con hero primario + pulso del mes + chips.
+ * - `standalone`: con wrapper propio (padding), estado vacío visible.
+ * - `home-mobile`: sin wrapper (la white zone del Home ya maneja padding y gap)
+ *   y silenciosa cuando no hay nada para decir (cero ruido en el Home).
  */
-export function IntelligenceHero() {
+export function IntelligenceHero({
+  surface = 'standalone',
+}: {
+  surface?: 'standalone' | 'home-mobile'
+}) {
   const { data, isLoading, isError, refetch } = useIntelligenceHeroes()
+  const isHome = surface === 'home-mobile'
 
   if (isLoading) {
+    if (isHome) return <div className="skeleton h-16 rounded-[18px]" />
     return (
       <section className="px-5 pt-4">
         <div className="skeleton h-36 rounded-card" />
@@ -218,6 +273,8 @@ export function IntelligenceHero() {
   }
 
   if (isError || !data) {
+    // En el Home el error se degrada en silencio: no es una superficie crítica.
+    if (isHome) return null
     return (
       <section className="px-5 pt-4">
         <button
@@ -233,14 +290,22 @@ export function IntelligenceHero() {
   }
 
   const [primary, ...secondary] = data.heroes
+  const pulse = data.pulse ?? null
 
-  return (
-    <section className="px-5 pt-4">
+  const content = (
+    <>
+      {pulse && <PulseRow pulse={pulse} currency={data.currency} />}
       {primary ? (
         <>
           <PrimaryHeroCard hero={primary} />
           {secondary.length > 0 && (
-            <div className="scrollbar-none -mx-5 mt-3 flex gap-2 overflow-x-auto px-5">
+            <div
+              className={
+                isHome
+                  ? 'scrollbar-none flex gap-2 overflow-x-auto'
+                  : 'scrollbar-none -mx-5 flex gap-2 overflow-x-auto px-5'
+              }
+            >
               {secondary.map((hero) => (
                 <IntelligenceSignalChip key={hero.id} hero={hero} />
               ))}
@@ -248,8 +313,15 @@ export function IntelligenceHero() {
           )}
         </>
       ) : (
-        <EmptyCard />
+        !isHome && <EmptyCard />
       )}
-    </section>
+    </>
   )
+
+  if (isHome) {
+    if (!pulse && !primary) return null
+    return <div className="flex flex-col gap-3">{content}</div>
+  }
+
+  return <section className="flex flex-col gap-3 px-5 pt-4">{content}</section>
 }

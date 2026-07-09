@@ -18,10 +18,13 @@ import type {
   CategoryAggregate,
   Currency,
   FinancialSnapshot,
+  FutureInstallmentMonth,
   MonthAggregate,
   SnapshotAccountBalance,
   SnapshotCardCommitment,
+  SnapshotGoal,
   SnapshotMovement,
+  SnapshotRecurringIncome,
   SnapshotSubscription,
 } from './types'
 
@@ -40,7 +43,10 @@ export type SnapshotExpenseRow = Pick<
   | 'date'
   | 'installment_number'
   | 'installment_total'
->
+> & {
+  /** Opcional: la columna puede no existir en bases sin la migración de flags. */
+  is_extraordinary?: boolean | null
+}
 
 export type SnapshotIncomeRow = Pick<
   IncomeEntry,
@@ -63,6 +69,10 @@ export type SnapshotInputs = {
   cards: SnapshotCardCommitment[]
   subscriptions: SnapshotSubscription[]
   goals: { count: number; committed: Record<Currency, number> }
+  goalsDetail?: SnapshotGoal[]
+  recurringIncomes?: SnapshotRecurringIncome[]
+  /** Gastos con fecha futura (cuotas ya materializadas más allá del mes). */
+  futureExpenses?: SnapshotExpenseRow[]
   yieldAccumulated: number
   expenses: SnapshotExpenseRow[]
   incomeEntries: SnapshotIncomeRow[]
@@ -79,6 +89,34 @@ function installmentLabel(expense: SnapshotExpenseRow): string | null {
     return `${expense.installment_number}/${expense.installment_total}`
   }
   return null
+}
+
+/** Horizonte de meses futuros que se proyecta para cuotas comprometidas. */
+export const FUTURE_INSTALLMENT_MONTHS = 6
+
+function buildFutureInstallments(params: {
+  futureExpenses: SnapshotExpenseRow[]
+  month: string
+}): FutureInstallmentMonth[] {
+  const { futureExpenses, month } = params
+  const horizonEnd = addMonths(month, FUTURE_INSTALLMENT_MONTHS)
+  const byMonth = new Map<string, FutureInstallmentMonth>()
+
+  for (const expense of futureExpenses) {
+    if (!expense.installment_number || !expense.installment_total) continue
+    const expenseMonth = expense.date.substring(0, 7)
+    if (expenseMonth <= month || expenseMonth > horizonEnd) continue
+    const entry = byMonth.get(expenseMonth) ?? {
+      month: expenseMonth,
+      amount: emptyCurrencyTotals(),
+      count: 0,
+    }
+    entry.amount[expense.currency] += expense.amount
+    entry.count += 1
+    byMonth.set(expenseMonth, entry)
+  }
+
+  return Array.from(byMonth.values()).sort((a, b) => a.month.localeCompare(b.month))
 }
 
 function buildMonthAggregates(params: {
@@ -98,6 +136,8 @@ function buildMonthAggregates(params: {
       perceivedSpend: emptyCurrencyTotals(),
       accruedSpend: emptyCurrencyTotals(),
       cardPayments: emptyCurrencyTotals(),
+      wantsSpend: emptyCurrencyTotals(),
+      extraordinarySpend: emptyCurrencyTotals(),
       categories: [],
       categoryMap: new Map(),
     })
@@ -123,12 +163,18 @@ function buildMonthAggregates(params: {
     aggregate.income[income.currency] += income.amount
   }
 
+  const addFlagged = (aggregate: MonthAggregate, expense: SnapshotExpenseRow) => {
+    if (expense.is_want) aggregate.wantsSpend[expense.currency] += expense.amount
+    if (expense.is_extraordinary) aggregate.extraordinarySpend[expense.currency] += expense.amount
+  }
+
   for (const expense of expenses) {
     const aggregate = aggregateMap.get(expense.date.substring(0, 7))
     if (!aggregate) continue
     if (isPerceivedExpense(expense)) {
       aggregate.perceivedSpend[expense.currency] += expense.amount
       addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addFlagged(aggregate, expense)
       continue
     }
     if (isApplicableCardPayment(expense)) {
@@ -139,6 +185,7 @@ function buildMonthAggregates(params: {
     if (isCreditAccruedExpense(expense)) {
       aggregate.accruedSpend[expense.currency] += expense.amount
       addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addFlagged(aggregate, expense)
     }
   }
 
@@ -163,6 +210,7 @@ function buildMovements(params: {
     currency: expense.currency,
     paymentMethod: expense.payment_method,
     isWant: expense.is_want,
+    isExtraordinary: expense.is_extraordinary ?? null,
     isCardPayment: isCardPayment(expense),
     installmentLabel: installmentLabel(expense),
   }))
@@ -177,6 +225,7 @@ function buildMovements(params: {
     currency: income.currency,
     paymentMethod: null,
     isWant: null,
+    isExtraordinary: null,
     isCardPayment: false,
     installmentLabel: null,
   }))
@@ -191,6 +240,7 @@ function buildMovements(params: {
     currency: transfer.currency_to,
     paymentMethod: null,
     isWant: null,
+    isExtraordinary: null,
     isCardPayment: false,
     installmentLabel: null,
   }))
@@ -266,11 +316,65 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
     cards: inputs.cards,
     subscriptions: inputs.subscriptions,
     goals: inputs.goals,
+    goalsDetail: inputs.goalsDetail ?? [],
+    recurringIncomes: inputs.recurringIncomes ?? [],
+    futureInstallments: buildFutureInstallments({
+      futureExpenses: inputs.futureExpenses ?? [],
+      month,
+    }),
     yieldAccumulated: inputs.yieldAccumulated,
     movements: buildMovements({ expenses, incomeEntries, transfers }),
     monthAggregates: buildMonthAggregates({ expenses, incomeEntries, historyStartMonth, month }),
     hasOtherCurrencyMovements,
   }
+}
+
+const EXPENSE_BASE_COLUMNS =
+  'id, amount, currency, category, description, is_want, payment_method, is_legacy_card_payment, date, installment_number, installment_total'
+
+function isMissingExtraordinaryColumnError(error: unknown): boolean {
+  const candidate = error as { message?: string | null; details?: string | null; hint?: string | null }
+  return `${candidate?.message ?? ''} ${candidate?.details ?? ''} ${candidate?.hint ?? ''}`
+    .toLowerCase()
+    .includes('is_extraordinary')
+}
+
+/**
+ * Query de gastos con `is_extraordinary` cuando la columna existe; si la base
+ * no tiene la migración de flags, reintenta sin ella (mismo fallback que los
+ * writes de /api/expenses).
+ */
+async function fetchExpenseRows(options: {
+  supabase: SupabaseClient
+  userId: string
+  fromDate: string
+  toDate: string
+  onlyInstallments?: boolean
+  limit: number
+}): Promise<SnapshotExpenseRow[]> {
+  const run = (withExtraordinary: boolean) => {
+    let query = options.supabase
+      .from('expenses')
+      .select(withExtraordinary ? `${EXPENSE_BASE_COLUMNS}, is_extraordinary` : EXPENSE_BASE_COLUMNS)
+      .eq('user_id', options.userId)
+      .gte('date', options.fromDate)
+      .lt('date', options.toDate)
+    if (options.onlyInstallments) {
+      query = query.not('installment_group_id', 'is', null)
+    }
+    return query
+      .order('date', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(options.limit)
+  }
+
+  const first = await run(true)
+  if (!first.error) return (first.data ?? []) as unknown as SnapshotExpenseRow[]
+  if (!isMissingExtraordinaryColumnError(first.error)) throw first.error
+
+  const fallback = await run(false)
+  if (fallback.error) throw fallback.error
+  return (fallback.data ?? []) as unknown as SnapshotExpenseRow[]
 }
 
 /**
@@ -287,6 +391,7 @@ export async function loadFinancialSnapshot(params: {
   const today = todayAR()
   const historyStartDate = `${addMonths(month, -5)}-01`
   const nextMonthDate = `${addMonths(month, 1)}-01`
+  const futureHorizonDate = `${addMonths(month, FUTURE_INSTALLMENT_MONTHS + 1)}-01`
 
   const { data: config } = await supabase
     .from('user_config')
@@ -296,21 +401,25 @@ export async function loadFinancialSnapshot(params: {
 
   const currency = (config?.default_currency ?? 'ARS') as Currency
 
-  const [dashboard, budget, expensesResult, incomeResult, transfersResult, oldestExpenseResult] =
+  const [dashboard, budget, expenses, futureExpenses, incomeResult, transfersResult, oldestExpenseResult] =
     await Promise.all([
       readDashboardData({ supabase, userId, selectedMonth: month, viewCurrency: currency }),
       getBudgetSnapshot({ supabase, userId, month, currency }),
-      supabase
-        .from('expenses')
-        .select(
-          'id, amount, currency, category, description, is_want, payment_method, is_legacy_card_payment, date, installment_number, installment_total',
-        )
-        .eq('user_id', userId)
-        .gte('date', historyStartDate)
-        .lt('date', nextMonthDate)
-        .order('date', { ascending: false })
-        .order('created_at', { ascending: false })
-        .limit(500),
+      fetchExpenseRows({
+        supabase,
+        userId,
+        fromDate: historyStartDate,
+        toDate: nextMonthDate,
+        limit: 500,
+      }),
+      fetchExpenseRows({
+        supabase,
+        userId,
+        fromDate: nextMonthDate,
+        toDate: futureHorizonDate,
+        onlyInstallments: true,
+        limit: 400,
+      }),
       supabase
         .from('income_entries')
         .select('id, amount, currency, description, category, date')
@@ -336,7 +445,6 @@ export async function loadFinancialSnapshot(params: {
         .maybeSingle(),
     ])
 
-  if (expensesResult.error) throw expensesResult.error
   if (incomeResult.error) throw incomeResult.error
   if (transfersResult.error) throw transfersResult.error
   if (oldestExpenseResult.error) throw oldestExpenseResult.error
@@ -363,6 +471,32 @@ export async function loadFinancialSnapshot(params: {
     dayOfMonth: sub.day_of_month,
   }))
 
+  const goalsDetail: SnapshotGoal[] = dashboard.goals.map((goal) => ({
+    id: goal.id,
+    name: goal.name,
+    status: goal.status,
+    currency: goal.currency,
+    targetAmount: goal.targetAmount,
+    currentAmount: goal.currentAmount,
+    remainingAmount: goal.remainingAmount,
+    progressPct: goal.progressPct,
+    targetDate: goal.targetDate,
+    monthsRemaining: goal.monthsRemaining,
+    requiredMonthlyContribution: goal.requiredMonthlyContribution,
+    plannedMonthlyContribution: goal.plannedMonthlyContribution,
+    paceStatus: goal.paceStatus,
+  }))
+
+  const pendingRecurringIds = new Set(dashboard.recurringPending.map((income) => income.id))
+  const recurringIncomes: SnapshotRecurringIncome[] = dashboard.activeRecurring.map((income) => ({
+    id: income.id,
+    description: income.description || income.category,
+    amount: income.amount,
+    currency: income.currency as Currency,
+    dayOfMonth: income.day_of_month,
+    pendingThisMonth: pendingRecurringIds.has(income.id),
+  }))
+
   return assembleFinancialSnapshot({
     today,
     month,
@@ -378,8 +512,11 @@ export async function loadFinancialSnapshot(params: {
     cards,
     subscriptions,
     goals: { count: dashboard.goals.length, committed: dashboard.goalCommitmentsBreakdown },
+    goalsDetail,
+    recurringIncomes,
+    futureExpenses,
     yieldAccumulated: dashboard.dashboardData?.saldo_vivo?.rendimientos ?? 0,
-    expenses: (expensesResult.data ?? []) as SnapshotExpenseRow[],
+    expenses,
     incomeEntries: (incomeResult.data ?? []) as SnapshotIncomeRow[],
     transfers: (transfersResult.data ?? []) as SnapshotTransferRow[],
     earliestDataMonth: oldestExpenseResult.data?.date?.substring(0, 7) ?? null,

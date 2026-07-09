@@ -15,8 +15,9 @@ type ChatMessage = AssistantHistoryMessage & {
 }
 
 const SUGGESTIONS = [
-  'En que estoy gastando mas este mes?',
-  'Cuanto me queda disponible?',
+  'Cuanto puedo gastar por dia hasta fin de mes?',
+  'Como vienen mis cuotas de los proximos meses?',
+  'Cuanto llevo en deseos este mes?',
   'Que deberia mirar hoy?',
 ]
 

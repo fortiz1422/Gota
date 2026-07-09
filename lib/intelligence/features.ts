@@ -3,8 +3,10 @@ import { addDays, diffDays } from './evidence'
 import type {
   DataQuality,
   FinancialSnapshot,
+  SnapshotGoal,
   SnapshotMovement,
   SnapshotPendingStatement,
+  SnapshotRecurringIncome,
 } from './types'
 
 // ─── Progreso del mes ────────────────────────────────────────────────────────
@@ -32,6 +34,8 @@ export type SameDaySpendFeature = {
   baselineKind: 'previous_month' | 'rolling_average' | null
   baselineWindow: number
   deltaPct: number | null
+  /** Gasto extraordinario del mes en curso excluido de la comparación. */
+  extraordinaryExcluded: number
   dataQuality: DataQuality
 }
 
@@ -45,10 +49,36 @@ function comparablePreviousPoints(snapshot: FinancialSnapshot): MonthlySeriesPoi
   )
 }
 
+/**
+ * Gasto extraordinario acumulado hasta el día comparable, por mes (moneda
+ * base). Se resta del gasto observado y de los baselines: un gasto que el
+ * usuario marcó como extraordinario no debe distorsionar el ritmo habitual.
+ */
+function sameDayExtraordinaryByMonth(snapshot: FinancialSnapshot): Map<string, number> {
+  const comparisonDay = snapshot.comparisonDay ?? snapshot.dayOfMonth
+  const totals = new Map<string, number>()
+  for (const movement of snapshot.movements) {
+    if (movement.kind !== 'gasto' || movement.isCardPayment) continue
+    if (!movement.isExtraordinary) continue
+    if (movement.currency !== snapshot.currency) continue
+    if (Number(movement.date.slice(8, 10)) > comparisonDay) continue
+    const month = movement.date.substring(0, 7)
+    totals.set(month, (totals.get(month) ?? 0) + movement.amount)
+  }
+  return totals
+}
+
 export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFeature {
   const selectedPoint =
     snapshot.monthlySeries.find((point) => point.month === snapshot.month) ?? null
-  const currentAmount = selectedPoint?.sameDayPercibidoDevengadoTotal ?? 0
+  const extraordinaryByMonth = sameDayExtraordinaryByMonth(snapshot)
+  const extraordinaryExcluded = extraordinaryByMonth.get(snapshot.month) ?? 0
+  const adjust = (month: string, value: number | null): number | null => {
+    if (value === null) return null
+    return Math.max(0, value - (extraordinaryByMonth.get(month) ?? 0))
+  }
+  const currentAmount =
+    adjust(snapshot.month, selectedPoint?.sameDayPercibidoDevengadoTotal ?? 0) ?? 0
   const previousPoints = comparablePreviousPoints(snapshot)
 
   const insufficient: SameDaySpendFeature = {
@@ -57,6 +87,7 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
     baselineKind: null,
     baselineWindow: 0,
     deltaPct: null,
+    extraordinaryExcluded,
     dataQuality: 'insufficient',
   }
 
@@ -66,7 +97,7 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
 
   if (previousPoints.length <= 2) {
     const previous = previousPoints[previousPoints.length - 1]
-    const baselineAmount = previous.sameDayPercibidoDevengadoTotal
+    const baselineAmount = adjust(previous.month, previous.sameDayPercibidoDevengadoTotal)
     if (baselineAmount === null || baselineAmount <= 0) return insufficient
     return {
       currentAmount,
@@ -74,6 +105,7 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
       baselineKind: 'previous_month',
       baselineWindow: 1,
       deltaPct: Math.round(((currentAmount - baselineAmount) / baselineAmount) * 100),
+      extraordinaryExcluded,
       dataQuality: 'partial',
     }
   }
@@ -81,7 +113,7 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
   const windowSize = Math.min(previousPoints.length, 6)
   const values = previousPoints
     .slice(-windowSize)
-    .map((point) => point.sameDayPercibidoDevengadoTotal)
+    .map((point) => adjust(point.month, point.sameDayPercibidoDevengadoTotal))
     .filter((value): value is number => value !== null && value > 0)
   if (values.length === 0) return insufficient
 
@@ -92,6 +124,7 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
     baselineKind: 'rolling_average',
     baselineWindow: values.length,
     deltaPct: Math.round(((currentAmount - baselineAmount) / baselineAmount) * 100),
+    extraordinaryExcluded,
     dataQuality: 'ok',
   }
 }
@@ -170,13 +203,14 @@ export type UpcomingCommitmentItem = {
 }
 
 export type LiquidityFeature = {
-  disponible: number
+  /** Saldo Vivo en moneda base: la caja real contra la que se mide lo que vence. */
+  saldo: number
   upcomingTotal: number
   gap: number
   items: UpcomingCommitmentItem[]
 }
 
-function nextSubscriptionDate(snapshot: FinancialSnapshot, dayOfMonth: number): string {
+export function nextSubscriptionDate(snapshot: FinancialSnapshot, dayOfMonth: number): string {
   const clamp = (month: string, day: number) => {
     const [year, monthNumber] = month.split('-').map(Number)
     const lastDay = new Date(year, monthNumber, 0).getDate()
@@ -221,9 +255,12 @@ export function computeLiquidity(snapshot: FinancialSnapshot, withinDays = 14): 
 
   items.sort((a, b) => a.date.localeCompare(b.date))
   const upcomingTotal = items.reduce((sum, item) => sum + item.amount, 0)
-  const disponible = snapshot.disponibleReal[snapshot.currency]
+  // La pregunta de liquidez es de caja: ¿la plata que hay cubre lo que vence?
+  // Se mide contra Saldo Vivo. Disponible Real no sirve de base acá porque ya
+  // descuenta los resúmenes de tarjeta que este cálculo suma como compromisos.
+  const saldo = snapshot.saldoVivo[snapshot.currency]
 
-  return { disponible, upcomingTotal, gap: disponible - upcomingTotal, items }
+  return { saldo, upcomingTotal, gap: saldo - upcomingTotal, items }
 }
 
 // ─── Movimientos fuera de patrón ─────────────────────────────────────────────
@@ -245,16 +282,17 @@ export function computeUnusualMovements(
   const windowStart = addDays(snapshot.referenceDate, -(withinDays - 1))
 
   // Baseline por categoría con meses previos completos (moneda base).
+  // Los gastos marcados extraordinarios no forman parte del ticket habitual.
   const baselines = new Map<string, { amount: number; count: number }>()
-  for (const aggregate of snapshot.monthAggregates) {
-    if (aggregate.month >= snapshot.month) continue
-    for (const category of aggregate.categories) {
-      if (category.currency !== snapshot.currency) continue
-      const current = baselines.get(category.category) ?? { amount: 0, count: 0 }
-      current.amount += category.amount
-      current.count += category.count
-      baselines.set(category.category, current)
-    }
+  for (const movement of snapshot.movements) {
+    if (movement.kind !== 'gasto' || movement.isCardPayment) continue
+    if (movement.currency !== snapshot.currency) continue
+    if (movement.date.substring(0, 7) >= snapshot.month) continue
+    if (movement.isExtraordinary) continue
+    const current = baselines.get(movement.category) ?? { amount: 0, count: 0 }
+    current.amount += movement.amount
+    current.count += 1
+    baselines.set(movement.category, current)
   }
 
   const income = snapshot.monthIncome[snapshot.currency]
@@ -272,6 +310,8 @@ export function computeUnusualMovements(
     if (movement.kind !== 'gasto' || movement.isCardPayment) continue
     if (movement.currency !== snapshot.currency) continue
     if (movement.date < windowStart || movement.date > snapshot.referenceDate) continue
+    // Un gasto que el usuario ya marcó como extraordinario no es novedad.
+    if (movement.isExtraordinary) continue
 
     const baseline = baselines.get(movement.category)
     if (!baseline || baseline.count < minHistoricalCount) continue
@@ -292,4 +332,122 @@ export function computeUnusualMovements(
   }
 
   return results.sort((a, b) => b.multiple - a.multiple)
+}
+
+// ─── Deseo vs necesidad ──────────────────────────────────────────────────────
+
+export type WantsShareFeature = {
+  currentWants: number
+  currentSpend: number
+  currentSharePct: number | null
+  baselineSharePct: number | null
+  baselineMonths: number
+  deltaPts: number | null
+  dataQuality: DataQuality
+}
+
+/** Gasto propio del mes (percibido sin pagos de tarjeta + devengado). */
+function ownSpendOfMonth(
+  aggregate: FinancialSnapshot['monthAggregates'][number],
+  currency: FinancialSnapshot['currency'],
+): number {
+  return (
+    aggregate.perceivedSpend[currency] -
+    aggregate.cardPayments[currency] +
+    aggregate.accruedSpend[currency]
+  )
+}
+
+export function computeWantsShare(snapshot: FinancialSnapshot): WantsShareFeature {
+  const currency = snapshot.currency
+  const current = snapshot.monthAggregates.find((aggregate) => aggregate.month === snapshot.month)
+  const currentSpend = current ? ownSpendOfMonth(current, currency) : 0
+  const currentWants = current?.wantsSpend[currency] ?? 0
+  const currentSharePct =
+    currentSpend > 0 ? Math.round((currentWants / currentSpend) * 100) : null
+
+  const closedMonths = snapshot.monthAggregates.filter(
+    (aggregate) => aggregate.month < snapshot.month && ownSpendOfMonth(aggregate, currency) > 0,
+  )
+  const monthsWithWants = closedMonths.filter(
+    (aggregate) => aggregate.wantsSpend[currency] > 0,
+  ).length
+
+  // Sin meses previos clasificados con deseo no hay línea base honesta:
+  // un histórico todo en 0 suele significar "no clasifica", no "no gasta en deseos".
+  if (closedMonths.length === 0 || monthsWithWants === 0) {
+    return {
+      currentWants,
+      currentSpend,
+      currentSharePct,
+      baselineSharePct: null,
+      baselineMonths: 0,
+      deltaPts: null,
+      dataQuality: 'insufficient',
+    }
+  }
+
+  const baselineSharePct = Math.round(
+    (closedMonths.reduce(
+      (sum, aggregate) =>
+        sum + aggregate.wantsSpend[currency] / ownSpendOfMonth(aggregate, currency),
+      0,
+    ) /
+      closedMonths.length) *
+      100,
+  )
+
+  return {
+    currentWants,
+    currentSpend,
+    currentSharePct,
+    baselineSharePct,
+    baselineMonths: closedMonths.length,
+    deltaPts: currentSharePct !== null ? currentSharePct - baselineSharePct : null,
+    dataQuality: closedMonths.length >= 3 ? 'ok' : 'partial',
+  }
+}
+
+// ─── Ritmo de metas ──────────────────────────────────────────────────────────
+
+export type GoalPaceFeature = {
+  behind: SnapshotGoal[]
+  onTrack: SnapshotGoal[]
+}
+
+const byNearestTarget = (a: SnapshotGoal, b: SnapshotGoal) =>
+  (a.targetDate ?? '9999-12-31').localeCompare(b.targetDate ?? '9999-12-31')
+
+export function computeGoalPace(snapshot: FinancialSnapshot): GoalPaceFeature {
+  const active = snapshot.goalsDetail.filter((goal) => goal.status === 'active')
+  return {
+    behind: active
+      .filter(
+        (goal) =>
+          goal.paceStatus === 'behind' &&
+          goal.targetDate !== null &&
+          goal.requiredMonthlyContribution !== null &&
+          goal.requiredMonthlyContribution > 0,
+      )
+      .sort(byNearestTarget),
+    onTrack: active
+      .filter((goal) => goal.paceStatus === 'on_track' && goal.progressPct > 0)
+      .sort(byNearestTarget),
+  }
+}
+
+// ─── Ingresos recurrentes que no llegaron ────────────────────────────────────
+
+export function computeMissingIncomes(
+  snapshot: FinancialSnapshot,
+  graceDays = 2,
+): SnapshotRecurringIncome[] {
+  // Solo aplica al mes en curso: en meses pasados el pendiente no es accionable.
+  if (snapshot.comparisonDay === null) return []
+  return snapshot.recurringIncomes
+    .filter(
+      (income) =>
+        income.pendingThisMonth && snapshot.dayOfMonth >= income.dayOfMonth + graceDays,
+    )
+    .sort((a, b) => b.amount - a.amount)
 }

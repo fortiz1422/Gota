@@ -6,7 +6,13 @@ import {
   type SnapshotIncomeRow,
   type SnapshotInputs,
 } from '../snapshot'
-import type { FinancialSnapshot, SnapshotCardCommitment, SnapshotSubscription } from '../types'
+import type {
+  FinancialSnapshot,
+  SnapshotCardCommitment,
+  SnapshotGoal,
+  SnapshotRecurringIncome,
+  SnapshotSubscription,
+} from '../types'
 
 /**
  * Escenario base: usuario ARS con 5 meses completos de histórico estable.
@@ -196,4 +202,56 @@ export function makeFreshUserSnapshot(): FinancialSnapshot {
     incomeEntries: [makeIncome({ date: `${MONTH}-01`, amount: 1_000_000 })],
     earliestDataMonth: MONTH,
   })
+}
+
+// ─── Fixtures v2: metas, recurrentes y cuotas futuras ───────────────────────
+
+export function makeGoal(overrides?: Partial<SnapshotGoal>): SnapshotGoal {
+  return {
+    id: 'goal-1',
+    name: 'Viaje',
+    status: 'active',
+    currency: 'ARS',
+    targetAmount: 1_200_000,
+    currentAmount: 300_000,
+    remainingAmount: 900_000,
+    progressPct: 25,
+    targetDate: '2026-12-31',
+    monthsRemaining: 5,
+    requiredMonthlyContribution: 180_000,
+    plannedMonthlyContribution: 100_000,
+    paceStatus: 'behind',
+    ...overrides,
+  }
+}
+
+export function makeRecurringIncome(
+  overrides?: Partial<SnapshotRecurringIncome>,
+): SnapshotRecurringIncome {
+  return {
+    id: 'rec-1',
+    description: 'Sueldo',
+    amount: 1_000_000,
+    currency: 'ARS',
+    dayOfMonth: 5,
+    pendingThisMonth: false,
+    ...overrides,
+  }
+}
+
+/** Cuotas futuras: un gasto CREDIT por mes indicado, ya materializado. */
+export function futureInstallmentExpenses(
+  entries: Array<{ month: string; amount: number; number?: number; total?: number }>,
+): SnapshotExpenseRow[] {
+  return entries.map((entry, index) =>
+    makeExpense({
+      date: `${entry.month}-10`,
+      amount: entry.amount,
+      category: 'Electrónica',
+      description: 'Compra en cuotas',
+      payment_method: 'CREDIT',
+      installment_number: entry.number ?? index + 2,
+      installment_total: entry.total ?? entries.length + 1,
+    }),
+  )
 }

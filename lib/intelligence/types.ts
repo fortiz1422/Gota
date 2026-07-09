@@ -25,6 +25,11 @@ export type InsightKind =
   | 'upcoming_card_due'
   | 'liquidity_watch'
   | 'recent_unusual_movement'
+  | 'installment_load'
+  | 'wants_creep'
+  | 'goal_pace'
+  | 'income_missing'
+  | 'subscription_load'
 
 export type InsightAction = {
   label: string
@@ -61,6 +66,7 @@ export type SnapshotMovement = {
   currency: Currency
   paymentMethod: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' | null
   isWant: boolean | null
+  isExtraordinary: boolean | null
   isCardPayment: boolean
   installmentLabel: string | null
 }
@@ -108,7 +114,46 @@ export type MonthAggregate = {
   perceivedSpend: Record<Currency, number>
   accruedSpend: Record<Currency, number>
   cardPayments: Record<Currency, number>
+  /** Gasto marcado como deseo (percibido + devengado, sin pagos de tarjeta). */
+  wantsSpend: Record<Currency, number>
+  /** Gasto marcado como extraordinario: se excluye de los baselines históricos. */
+  extraordinarySpend: Record<Currency, number>
   categories: CategoryAggregate[]
+}
+
+export type GoalPace = 'on_track' | 'behind' | 'no_date' | 'completed' | 'paused'
+
+export type SnapshotGoal = {
+  id: string
+  name: string
+  status: 'active' | 'paused' | 'completed' | 'archived'
+  currency: Currency
+  targetAmount: number
+  currentAmount: number
+  remainingAmount: number
+  progressPct: number
+  targetDate: string | null
+  monthsRemaining: number | null
+  requiredMonthlyContribution: number | null
+  plannedMonthlyContribution: number | null
+  paceStatus: GoalPace
+}
+
+export type SnapshotRecurringIncome = {
+  id: string
+  description: string
+  amount: number
+  currency: Currency
+  dayOfMonth: number
+  /** true si ya pasó su día de cobro este mes y no hay ingreso registrado. */
+  pendingThisMonth: boolean
+}
+
+/** Cuotas ya comprometidas para un mes futuro (gastos con fecha futura). */
+export type FutureInstallmentMonth = {
+  month: string
+  amount: Record<Currency, number>
+  count: number
 }
 
 /**
@@ -138,6 +183,9 @@ export type FinancialSnapshot = {
   cards: SnapshotCardCommitment[]
   subscriptions: SnapshotSubscription[]
   goals: { count: number; committed: Record<Currency, number> }
+  goalsDetail: SnapshotGoal[]
+  recurringIncomes: SnapshotRecurringIncome[]
+  futureInstallments: FutureInstallmentMonth[]
   yieldAccumulated: number
 
   movements: SnapshotMovement[]

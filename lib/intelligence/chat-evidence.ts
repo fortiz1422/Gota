@@ -2,13 +2,26 @@ import { addMonths } from '@/lib/dates'
 import { formatAmount } from '@/lib/format'
 import type { ChatIntent, ChatQueryPlan, MovementWindowKind } from './chat-planner'
 import { normalizeText } from './chat-planner'
-import { addDays, endOfMonth, evidenceItem, formatShortDate, moneyEvidence } from './evidence'
+import {
+  addDays,
+  endOfMonth,
+  evidenceItem,
+  formatMonthLabel,
+  formatShortDate,
+  moneyEvidence,
+} from './evidence'
 import {
   computeBudgetPace,
   computeSameDaySpend,
   computeUpcomingCardDues,
+  computeWantsShare,
   getMonthProgress,
 } from './features'
+import {
+  computeInstallmentHorizon,
+  computeSafeToSpend,
+  simulatePurchase,
+} from './projection'
 import { buildInsightCandidates } from './insight-rules'
 import type {
   Currency,
@@ -67,6 +80,18 @@ const FOLLOW_UPS: Record<ChatIntent, string[]> = {
   ],
   yield_question: ['¿Cuánto me queda realmente disponible?', '¿Qué debería mirar hoy?'],
   goal_question: ['¿Cuánto me queda realmente disponible?', '¿Qué debería mirar hoy?'],
+  affordability: [
+    '¿Cuánto puedo gastar por día hasta fin de mes?',
+    '¿Qué compromisos fuertes tengo antes de fin de mes?',
+  ],
+  wants_question: [
+    '¿En qué estoy gastando más este mes?',
+    '¿Qué cambió vs meses anteriores a esta altura?',
+  ],
+  installment_question: [
+    '¿Cuánto me queda realmente disponible?',
+    '¿Me alcanza para una compra grande este mes?',
+  ],
   what_should_i_do: ['¿Dónde estoy pasado de presupuesto?', 'Mostrame movimientos grandes recientes'],
   general: ['¿Qué debería mirar hoy?', '¿En qué estoy gastando más este mes?'],
 }
@@ -108,6 +133,17 @@ function buildBalancesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
 
   for (const account of snapshot.accountBalances.slice(0, 5)) {
     facts.push(moneyEvidence(`Cuenta ${account.name}`, account.saldo, base, `account:${account.id}`))
+  }
+
+  const safe = computeSafeToSpend(snapshot)
+  if (safe.dataQuality === 'ok' && safe.dailyAmount !== null) {
+    facts.push(
+      evidenceItem(
+        'Ritmo sugerido hasta fin de mes',
+        `${money(safe.dailyAmount, base)}/día por ${safe.daysLeft} días (queda ${money(safe.spendable, base)} libre tras débitos automáticos y metas; la deuda de tarjeta ya está descontada del disponible)`,
+        'projection:safe_to_spend',
+      ),
+    )
   }
 
   return facts
@@ -495,15 +531,203 @@ function buildCategorySameDayFacts(
   return facts
 }
 
+const GOAL_PACE_LABEL: Record<string, string> = {
+  on_track: 'a ritmo',
+  behind: 'atrasada',
+  no_date: 'sin fecha objetivo',
+  completed: 'completada',
+  paused: 'pausada',
+}
+
 function buildGoalsFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   if (snapshot.goals.count === 0) {
     return [evidenceItem('Metas', 'Sin metas activas', 'goals:none')]
   }
   const base = snapshot.currency
-  return [
+  const facts: EvidenceItem[] = [
     evidenceItem('Metas activas', String(snapshot.goals.count), 'goals:count'),
     moneyEvidence('Comprometido en metas', snapshot.goals.committed[base], base, 'goals:committed'),
   ]
+
+  for (const goal of snapshot.goalsDetail.slice(0, 5)) {
+    if (goal.status === 'archived') continue
+    const parts = [
+      `${money(goal.currentAmount, goal.currency)} de ${money(goal.targetAmount, goal.currency)} (${goal.progressPct}%)`,
+      GOAL_PACE_LABEL[goal.paceStatus] ?? goal.paceStatus,
+    ]
+    if (goal.targetDate) parts.push(`objetivo ${formatShortDate(goal.targetDate)}`)
+    if (goal.paceStatus === 'behind' && goal.requiredMonthlyContribution) {
+      parts.push(`necesitás ${money(goal.requiredMonthlyContribution, goal.currency)}/mes`)
+    }
+    if (goal.plannedMonthlyContribution) {
+      parts.push(`aporte planificado ${money(goal.plannedMonthlyContribution, goal.currency)}/mes`)
+    }
+    facts.push(evidenceItem(`Meta ${goal.name}`, parts.join(' — '), `goal:${goal.id}`))
+  }
+
+  return facts
+}
+
+function buildWantsFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
+  const feature = computeWantsShare(snapshot)
+  const currency = snapshot.currency
+  const facts: EvidenceItem[] = []
+
+  if (feature.currentWants > 0 && feature.currentSharePct !== null) {
+    facts.push(
+      evidenceItem(
+        'Deseos este mes a la fecha',
+        `${money(feature.currentWants, currency)} (${feature.currentSharePct}% de tu gasto de ${money(feature.currentSpend, currency)})`,
+        'wants:current',
+      ),
+    )
+  } else {
+    facts.push(evidenceItem('Deseos este mes', 'Sin gastos marcados como deseo', 'wants:current'))
+  }
+
+  if (feature.dataQuality === 'insufficient') {
+    caveats.push(
+      'No hay meses previos con gastos clasificados como deseo: no puedo comparar contra tu patrón habitual.',
+    )
+  } else if (feature.baselineSharePct !== null) {
+    facts.push(
+      evidenceItem(
+        'Peso habitual de deseos',
+        `${feature.baselineSharePct}% del gasto (promedio de ${feature.baselineMonths} meses)`,
+        'wants:baseline',
+      ),
+    )
+    if (feature.deltaPts !== null) {
+      facts.push(
+        evidenceItem(
+          'Diferencia vs tu patrón',
+          `${feature.deltaPts > 0 ? '+' : ''}${feature.deltaPts} puntos`,
+          'wants:delta',
+        ),
+      )
+    }
+  }
+
+  return facts
+}
+
+function buildInstallmentsFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
+  const horizon = computeInstallmentHorizon(snapshot)
+  const currency = snapshot.currency
+
+  if (horizon.months.length === 0) {
+    caveats.push('No veo cuotas registradas para meses futuros.')
+    return [evidenceItem('Cuotas futuras', 'Ninguna registrada', 'installments:none')]
+  }
+
+  const facts: EvidenceItem[] = horizon.months.slice(0, 6).map((entry) =>
+    evidenceItem(
+      `Cuotas ${formatMonthLabel(entry.month)}`,
+      `${money(entry.amount, currency)} en ${entry.count} cuotas${entry.incomeSharePct !== null ? ` (${entry.incomeSharePct}% del ingreso)` : ''}`,
+      `installments:${entry.month}`,
+    ),
+  )
+
+  if (horizon.monthlyIncomeReference !== null) {
+    facts.push(
+      moneyEvidence(
+        `Ingreso mensual de referencia (${horizon.incomeReferenceSource === 'recurring' ? 'recurrentes' : 'promedio histórico'})`,
+        horizon.monthlyIncomeReference,
+        currency,
+        'income:reference',
+      ),
+    )
+  } else {
+    caveats.push(
+      'No hay ingreso de referencia (recurrentes o histórico), así que no puedo decir cuánto pesan las cuotas sobre tu ingreso.',
+    )
+  }
+
+  return facts
+}
+
+function buildAffordabilityFacts(
+  snapshot: FinancialSnapshot,
+  plan: ChatQueryPlan,
+  caveats: string[],
+): EvidenceItem[] {
+  const currency = snapshot.currency
+  const safe = computeSafeToSpend(snapshot)
+  const facts: EvidenceItem[] = []
+
+  if (safe.dataQuality !== 'ok') {
+    caveats.push('El ritmo diario solo se calcula para el mes en curso.')
+    return facts
+  }
+
+  facts.push(
+    evidenceItem(
+      'Libre hasta fin de mes',
+      `${money(safe.spendable, currency)} (disponible ${money(safe.disponible, currency)} — que ya descuenta deuda de tarjeta — menos débitos del mes ${money(safe.committedRemaining, currency)} y metas ${money(safe.goalCommitted, currency)})`,
+      'projection:spendable',
+    ),
+  )
+  if (safe.dailyAmount !== null) {
+    facts.push(
+      evidenceItem(
+        'Ritmo sugerido',
+        `${money(safe.dailyAmount, currency)}/día por los próximos ${safe.daysLeft} días`,
+        'projection:safe_to_spend',
+      ),
+    )
+  }
+
+  const { amount, installments } = plan.simulation
+  if (amount === null) {
+    caveats.push(
+      'No detecté un monto puntual en la pregunta: la respuesta usa tu margen general del mes.',
+    )
+    return facts
+  }
+
+  const simulation = simulatePurchase(snapshot, { amount, installments })
+
+  if (simulation.upfront) {
+    const { upfront } = simulation
+    facts.push(
+      evidenceItem(
+        `Simulación: gastar ${money(amount, currency)} ahora`,
+        upfront.fits
+          ? `Entra: te quedarían ${money(upfront.spendableAfter, currency)} libres${upfront.dailyAfter !== null ? ` (${money(upfront.dailyAfter, currency)}/día hasta fin de mes)` : ''}`
+          : `No entra sin tocar metas o compromisos: quedarías ${money(Math.abs(upfront.spendableAfter), currency)} abajo`,
+        'projection:simulation',
+      ),
+    )
+    facts.push(
+      evidenceItem(
+        'Veredicto',
+        upfront.fits ? 'La compra entra en el margen del mes' : 'La compra no entra en el margen del mes',
+        'projection:verdict',
+      ),
+    )
+  }
+
+  if (simulation.installmentPlan) {
+    const { installmentPlan } = simulation
+    facts.push(
+      evidenceItem(
+        `Simulación: ${money(amount, currency)} en ${installments} cuotas`,
+        `Cuota resultante ${money(installmentPlan.monthlyAmount, currency)}/mes`,
+        'projection:simulation',
+      ),
+    )
+    for (const month of installmentPlan.monthsAffected.slice(0, 4)) {
+      facts.push(
+        evidenceItem(
+          `Cuotas ${formatMonthLabel(month.month)} con esta compra`,
+          `${money(month.newTotal, currency)}${month.incomeSharePct !== null ? ` (${month.incomeSharePct}% del ingreso)` : ''}`,
+          `projection:simulation:${month.month}`,
+        ),
+      )
+    }
+  }
+
+  return facts
 }
 
 function buildYieldFacts(snapshot: FinancialSnapshot, caveats: string[]): EvidenceItem[] {
@@ -564,6 +788,7 @@ export function selectMovements(
   const matches = snapshot.movements.filter((movement) => {
     if (movement.date < from || movement.date > to) return false
     if (movementFilter.kind && movement.kind !== movementFilter.kind) return false
+    if (movementFilter.wantsOnly && movement.isWant !== true) return false
     return movementMatchesTerms(movement, movementFilter.terms)
   })
 
@@ -647,6 +872,15 @@ export function buildAnswerPacket(
         break
       case 'yield':
         facts.push(...buildYieldFacts(snapshot, caveats))
+        break
+      case 'wants':
+        facts.push(...buildWantsFacts(snapshot, caveats))
+        break
+      case 'installments':
+        facts.push(...buildInstallmentsFacts(snapshot, caveats))
+        break
+      case 'affordability':
+        facts.push(...buildAffordabilityFacts(snapshot, plan, caveats))
         break
       case 'insights':
         insights = buildInsightCandidates(snapshot)

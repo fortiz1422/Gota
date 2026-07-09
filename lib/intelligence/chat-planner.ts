@@ -9,6 +9,9 @@ export type ChatIntent =
   | 'subscription_question'
   | 'yield_question'
   | 'goal_question'
+  | 'affordability'
+  | 'wants_question'
+  | 'installment_question'
   | 'what_should_i_do'
   | 'general'
 
@@ -23,6 +26,9 @@ export type PacketSection =
   | 'goals'
   | 'yield'
   | 'insights'
+  | 'affordability'
+  | 'wants'
+  | 'installments'
 
 export type MovementWindowKind =
   | 'today'
@@ -40,8 +46,14 @@ export type ChatQueryPlan = {
     terms: string[]
     largeOnly: boolean
     kind: 'gasto' | 'ingreso' | null
+    wantsOnly: boolean
     window: MovementWindowKind
     limit: number
+  }
+  /** Monto y cuotas detectados para simular una compra ("¿me alcanza?"). */
+  simulation: {
+    amount: number | null
+    installments: number | null
   }
 }
 
@@ -87,13 +99,37 @@ const INTENT_MATCHERS: Array<{ intent: ChatIntent; patterns: RegExp[] }> = [
     ],
   },
   {
+    intent: 'affordability',
+    patterns: [
+      /me alcanza/,
+      /puedo (comprar|gastar|pagar|permitirme|darme)/,
+      /me da (para|el cuero)/,
+      /si (compro|gasto|pago)\b/,
+      /cuanto puedo gastar/,
+      /entra en (mi|el) (mes|presupuesto|bolsillo)/,
+      /conviene comprar/,
+    ],
+  },
+  {
+    intent: 'wants_question',
+    // "deseo" solo cuenta como sustantivo ("en deseos"), no "deseo saber...".
+    patterns: [
+      /\bdeseos\b/, /\ben deseo\b/, /gast(o|e|ando).*deseo/, /antojo/, /caprich/,
+      /impulsiv/, /darme (un|el) gusto/, /\bgustos\b/, /necesidad (vs|versus|o) deseo/,
+    ],
+  },
+  {
+    intent: 'installment_question',
+    patterns: [/cuota/, /financiaci/, /financiado/, /comprometido para (los|el)/],
+  },
+  {
     intent: 'budget_question',
     patterns: [/presupuest/, /pasado de/, /me pase (de|con)/, /\btope\b/, /\blimite\b/],
   },
   {
     intent: 'card_commitments',
     patterns: [
-      /tarjeta/, /resumen/, /vencimiento/, /\bvence\b/, /compromiso/, /cuota/,
+      /tarjeta/, /resumen/, /vencimiento/, /\bvence\b/, /compromiso/,
       /\bvisa\b/, /\bmaster(card)?\b/, /\bamex\b/, /debo pagar/,
     ],
   },
@@ -177,8 +213,66 @@ const SECTIONS_BY_INTENT: Record<ChatIntent, PacketSection[]> = {
   subscription_question: ['subscriptions'],
   yield_question: ['yield', 'balances'],
   goal_question: ['goals', 'balances'],
+  affordability: ['affordability', 'balances', 'commitments'],
+  wants_question: ['wants', 'categories'],
+  installment_question: ['installments', 'commitments'],
   what_should_i_do: ['insights', 'balances', 'budget', 'commitments'],
   general: ['balances', 'categories', 'trend', 'budget', 'commitments'],
+}
+
+// ─── Extracción de monto y cuotas para simulaciones ──────────────────────────
+
+const INSTALLMENTS_PATTERN = /(\d{1,2})\s*cuotas?/
+
+function parseAmountToken(token: string, suffix: string | undefined): number | null {
+  let value: number
+  if (/^\d{1,3}(\.\d{3})+$/.test(token)) {
+    value = Number(token.replace(/\./g, ''))
+  } else if (/^\d+,\d{1,2}$/.test(token)) {
+    value = Number(token.replace(',', '.'))
+  } else if (/^\d+$/.test(token)) {
+    value = Number(token)
+  } else {
+    return null
+  }
+  if (!Number.isFinite(value) || value <= 0) return null
+
+  if (suffix === 'k' || suffix === 'mil' || suffix === 'lucas') return value * 1_000
+  if (suffix === 'palo' || suffix === 'palos') return value * 1_000_000
+  return value
+}
+
+/**
+ * Detecta monto y cantidad de cuotas en la pregunta ("¿me alcanza para algo
+ * de 250 lucas en 6 cuotas?"). Determinístico; devuelve null si no hay monto
+ * inequívoco.
+ */
+export function extractSimulation(question: string): {
+  amount: number | null
+  installments: number | null
+} {
+  const normalized = normalizeText(question)
+  const installmentsMatch = normalized.match(INSTALLMENTS_PATTERN)
+  const installments = installmentsMatch ? Number(installmentsMatch[1]) : null
+  // El número de cuotas no debe confundirse con el monto.
+  const withoutInstallments = installmentsMatch
+    ? normalized.replace(installmentsMatch[0], ' ')
+    : normalized
+
+  const amounts: number[] = []
+  const pattern = /(\d[\d.,]*)\s*(k|mil|lucas|palos?)?\b/g
+  let match: RegExpExecArray | null
+  while ((match = pattern.exec(withoutInstallments)) !== null) {
+    const parsed = parseAmountToken(match[1].replace(/[.,]$/, ''), match[2])
+    if (parsed !== null) amounts.push(parsed)
+  }
+
+  // Montos de una compra real: se descartan números chicos sueltos (días, cantidades).
+  const candidates = amounts.filter((amount) => amount >= 1_000)
+  return {
+    amount: candidates.length > 0 ? Math.max(...candidates) : null,
+    installments: installments && installments > 1 ? installments : null,
+  }
 }
 
 function detectWindow(normalized: string): MovementWindowKind {
@@ -205,7 +299,10 @@ export function planChatQuery(question: string): ChatQueryPlan {
 
   const includeMovements =
     intent === 'movement_lookup' ||
+    intent === 'wants_question' ||
     (intent === 'general' && extractSearchTerms(question).length > 0)
+
+  const wantsOnly = intent === 'wants_question'
 
   return {
     intent,
@@ -221,9 +318,12 @@ export function planChatQuery(question: string): ChatQueryPlan {
           ? extractSearchTerms(question)
           : [],
       largeOnly,
-      kind,
-      window: detectWindow(normalized),
-      limit: largeOnly ? 8 : 12,
+      kind: wantsOnly ? 'gasto' : kind,
+      wantsOnly,
+      window: wantsOnly && detectWindow(normalized) === 'recent' ? 'this_month' : detectWindow(normalized),
+      limit: largeOnly || wantsOnly ? 8 : 12,
     },
+    simulation:
+      intent === 'affordability' ? extractSimulation(question) : { amount: null, installments: null },
   }
 }
