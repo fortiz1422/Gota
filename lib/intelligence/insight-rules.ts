@@ -3,18 +3,23 @@ import {
   addDays,
   endOfMonth,
   evidenceItem,
+  formatMonthLabel,
   formatShortDate,
   moneyEvidence,
   relativeDayLabel,
 } from './evidence'
 import {
   computeBudgetPace,
+  computeGoalPace,
   computeLiquidity,
+  computeMissingIncomes,
   computeSameDaySpend,
   computeUnusualMovements,
   computeUpcomingCardDues,
+  computeWantsShare,
   getMonthProgress,
 } from './features'
+import { computeInstallmentHorizon, computeMonthlyIncomeReference } from './projection'
 import type { FinancialSnapshot, InsightCandidate, InsightSeverity } from './types'
 
 const SEVERITY_WEIGHT: Record<InsightSeverity, number> = {
@@ -96,6 +101,10 @@ function ruleSameDaySpendDelta(snapshot: FinancialSnapshot): InsightCandidate | 
     feature.baselineKind === 'previous_month'
       ? 'el mes pasado a esta altura'
       : `tu promedio ${feature.baselineWindow}m a esta altura`
+  const extraordinaryNote =
+    feature.extraordinaryExcluded > 0
+      ? ` No cuenta ${formatAmount(feature.extraordinaryExcluded, currency)} marcados como extraordinarios.`
+      : ''
 
   return {
     id: `same_day_spend_delta:${snapshot.month}:${snapshot.referenceDate}`,
@@ -106,7 +115,7 @@ function ruleSameDaySpendDelta(snapshot: FinancialSnapshot): InsightCandidate | 
       ? `Vas ${Math.abs(feature.deltaPct)}% abajo de tu ritmo habitual`
       : `Vas ${feature.deltaPct}% arriba de tu ritmo habitual`,
     short: `Gasto al día ${snapshot.dayOfMonth}: ${formatAmount(feature.currentAmount, currency)} (${feature.deltaPct > 0 ? '+' : ''}${feature.deltaPct}%)`,
-    message: `Al día ${snapshot.dayOfMonth} llevás ${formatAmount(feature.currentAmount, currency)} en gastos observados; ${baselineLabel} eran ${formatAmount(Math.round(feature.baselineAmount), currency)}.`,
+    message: `Al día ${snapshot.dayOfMonth} llevás ${formatAmount(feature.currentAmount, currency)} en gastos observados; ${baselineLabel} eran ${formatAmount(Math.round(feature.baselineAmount), currency)}.${extraordinaryNote}`,
     evidence: [
       moneyEvidence('Gasto a hoy', feature.currentAmount, currency, 'monthly_series:same_day'),
       moneyEvidence(
@@ -245,6 +254,218 @@ function ruleRecentUnusualMovement(snapshot: FinancialSnapshot): InsightCandidat
   }
 }
 
+// ─── installment_load ────────────────────────────────────────────────────────
+// Mes futuro con demasiado ingreso ya comprometido en cuotas.
+
+function ruleInstallmentLoad(snapshot: FinancialSnapshot): InsightCandidate | null {
+  const horizon = computeInstallmentHorizon(snapshot)
+  if (horizon.dataQuality !== 'ok' || !horizon.peak) return null
+  const { peak } = horizon
+  if (peak.incomeSharePct === null || peak.incomeSharePct < 25) return null
+
+  const currency = snapshot.currency
+  const severity: InsightSeverity = peak.incomeSharePct >= 40 ? 'risk' : 'watch'
+  const monthLabel = formatMonthLabel(peak.month)
+  const monthsWithLoad = horizon.months.length
+
+  return {
+    id: `installment_load:${snapshot.month}:${peak.month}`,
+    kind: 'installment_load',
+    severity,
+    priority: SEVERITY_WEIGHT[severity] + clamp(peak.incomeSharePct - 25, 0, 30),
+    title: `${monthLabel} ya arranca con ${peak.incomeSharePct}% del ingreso en cuotas`,
+    short: `Cuotas de ${monthLabel}: ${formatAmount(peak.amount, currency)} (${peak.incomeSharePct}% del ingreso)`,
+    message: `Tus compras en cuotas ya comprometen ${formatAmount(peak.amount, currency)} para ${monthLabel} (${peak.count} cuotas, ${peak.incomeSharePct}% de tu ingreso de referencia). Tenés cuotas cayendo en ${monthsWithLoad} de los próximos 6 meses.`,
+    evidence: [
+      moneyEvidence(`Cuotas ${monthLabel}`, peak.amount, currency, `installments:${peak.month}`),
+      moneyEvidence(
+        'Ingreso de referencia',
+        horizon.monthlyIncomeReference ?? 0,
+        currency,
+        `income:${horizon.incomeReferenceSource}`,
+      ),
+      evidenceItem('Peso sobre ingreso', `${peak.incomeSharePct}%`, `installments:${peak.month}`),
+    ],
+    dataQuality: 'ok',
+    actions: [
+      { label: 'Ver cuotas futuras', question: '¿Cómo vienen mis cuotas de los próximos meses?' },
+    ],
+    validUntil: endOfMonth(snapshot.month),
+    dedupeKey: `installment_load:${peak.month}`,
+  }
+}
+
+// ─── wants_creep ─────────────────────────────────────────────────────────────
+// El share de gasto en deseos del mes se despega del promedio histórico.
+
+function ruleWantsCreep(snapshot: FinancialSnapshot): InsightCandidate | null {
+  const feature = computeWantsShare(snapshot)
+  if (feature.dataQuality === 'insufficient') return null
+  if (feature.deltaPts === null || feature.currentSharePct === null) return null
+  if (Math.abs(feature.deltaPts) < 12) return null
+
+  const currency = snapshot.currency
+  const isPositive = feature.deltaPts <= -12
+  // Subas chicas en plata no ameritan señal aunque el share salte.
+  if (!isPositive && feature.currentWants < feature.currentSpend * 0.15) return null
+
+  const severity: InsightSeverity = isPositive ? 'positive' : 'watch'
+
+  return {
+    id: `wants_creep:${snapshot.month}`,
+    kind: 'wants_creep',
+    severity,
+    priority: SEVERITY_WEIGHT[severity] + clamp(Math.abs(feature.deltaPts), 0, 25),
+    title: isPositive
+      ? 'Este mes estás gastando menos en deseos'
+      : 'Los deseos pesan más que de costumbre',
+    short: `Deseos: ${feature.currentSharePct}% del gasto (venías en ${feature.baselineSharePct}%)`,
+    message: isPositive
+      ? `Llevás ${formatAmount(feature.currentWants, currency)} en deseos, el ${feature.currentSharePct}% de tu gasto del mes; tu promedio de los últimos ${feature.baselineMonths} meses era ${feature.baselineSharePct}%.`
+      : `Llevás ${formatAmount(feature.currentWants, currency)} en deseos, el ${feature.currentSharePct}% de tu gasto del mes. En tus últimos ${feature.baselineMonths} meses ese peso venía siendo ${feature.baselineSharePct}%.`,
+    evidence: [
+      moneyEvidence('Deseos este mes', feature.currentWants, currency, 'wants:current'),
+      evidenceItem('Peso en el gasto', `${feature.currentSharePct}%`, 'wants:share'),
+      evidenceItem('Promedio histórico', `${feature.baselineSharePct}%`, 'wants:baseline'),
+    ],
+    dataQuality: feature.dataQuality,
+    actions: [{ label: 'Ver deseos', question: '¿Cuánto llevo gastado en deseos este mes?' }],
+    validUntil: endOfMonth(snapshot.month),
+    dedupeKey: `wants_creep:${snapshot.month}`,
+  }
+}
+
+// ─── goal_pace ───────────────────────────────────────────────────────────────
+// Meta activa con fecha objetivo que viene atrasada (o encaminada → positivo).
+
+function ruleGoalPace(snapshot: FinancialSnapshot): InsightCandidate | null {
+  const pace = computeGoalPace(snapshot)
+  const currency = snapshot.currency
+
+  const behind = pace.behind.find((goal) => goal.currency === currency) ?? pace.behind[0]
+  if (behind && behind.requiredMonthlyContribution !== null) {
+    const planned = behind.plannedMonthlyContribution
+    const plannedLine =
+      planned !== null && planned > 0
+        ? ` Tu aporte planificado es ${formatAmount(planned, behind.currency)}/mes.`
+        : ''
+    return {
+      id: `goal_pace:${behind.id}:${snapshot.month}`,
+      kind: 'goal_pace',
+      severity: 'watch',
+      priority:
+        SEVERITY_WEIGHT.watch +
+        clamp(behind.monthsRemaining !== null ? 12 - behind.monthsRemaining : 0, 0, 12),
+      title: `La meta ${behind.name} viene atrasada`,
+      short: `${behind.name}: falta ${formatAmount(behind.remainingAmount, behind.currency)} (${behind.progressPct}% logrado)`,
+      message: `Para llegar a ${formatAmount(behind.targetAmount, behind.currency)} en ${formatShortDate(behind.targetDate ?? '')} necesitás aportar ${formatAmount(behind.requiredMonthlyContribution, behind.currency)}/mes.${plannedLine}`,
+      evidence: [
+        moneyEvidence('Falta', behind.remainingAmount, behind.currency, `goal:${behind.id}`),
+        moneyEvidence(
+          'Necesitás por mes',
+          behind.requiredMonthlyContribution,
+          behind.currency,
+          `goal:${behind.id}`,
+        ),
+        evidenceItem('Avance', `${behind.progressPct}%`, `goal:${behind.id}`),
+      ],
+      dataQuality: 'ok',
+      actions: [{ label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
+      validUntil: endOfMonth(snapshot.month),
+      dedupeKey: `goal_pace:${behind.id}`,
+    }
+  }
+
+  const onTrack = pace.onTrack[0]
+  if (onTrack) {
+    return {
+      id: `goal_pace:${onTrack.id}:${snapshot.month}`,
+      kind: 'goal_pace',
+      severity: 'positive',
+      priority: SEVERITY_WEIGHT.positive - 40,
+      title: `La meta ${onTrack.name} viene encaminada`,
+      short: `${onTrack.name}: ${onTrack.progressPct}% logrado`,
+      message: `Llevás ${formatAmount(onTrack.currentAmount, onTrack.currency)} de ${formatAmount(onTrack.targetAmount, onTrack.currency)} (${onTrack.progressPct}%)${onTrack.targetDate ? ` y venís a ritmo para llegar en ${formatShortDate(onTrack.targetDate)}` : ''}.`,
+      evidence: [
+        moneyEvidence('Ahorrado', onTrack.currentAmount, onTrack.currency, `goal:${onTrack.id}`),
+        evidenceItem('Avance', `${onTrack.progressPct}%`, `goal:${onTrack.id}`),
+      ],
+      dataQuality: 'ok',
+      actions: [{ label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
+      validUntil: endOfMonth(snapshot.month),
+      dedupeKey: `goal_pace:${onTrack.id}`,
+    }
+  }
+
+  return null
+}
+
+// ─── income_missing ──────────────────────────────────────────────────────────
+// Ingreso recurrente que ya debería haberse acreditado y no está registrado.
+
+function ruleIncomeMissing(snapshot: FinancialSnapshot): InsightCandidate | null {
+  const [missing] = computeMissingIncomes(snapshot)
+  if (!missing) return null
+
+  const daysLate = snapshot.dayOfMonth - missing.dayOfMonth
+
+  return {
+    id: `income_missing:${missing.id}:${snapshot.month}`,
+    kind: 'income_missing',
+    severity: 'watch',
+    priority: SEVERITY_WEIGHT.watch + clamp(daysLate * 2, 0, 20),
+    title: `No veo tu ingreso "${missing.description}" este mes`,
+    short: `${missing.description} (~${formatAmount(missing.amount, missing.currency)}) suele llegar el día ${missing.dayOfMonth}`,
+    message: `Tu ingreso recurrente "${missing.description}" (~${formatAmount(missing.amount, missing.currency)}) suele acreditarse el día ${missing.dayOfMonth} y todavía no está registrado. Si ya lo cobraste, registralo para que el disponible sea real.`,
+    evidence: [
+      moneyEvidence('Monto habitual', missing.amount, missing.currency, `recurring_income:${missing.id}`),
+      evidenceItem('Día habitual', `día ${missing.dayOfMonth}`, `recurring_income:${missing.id}`),
+      evidenceItem('Días de atraso', `${daysLate}`, 'calendar'),
+    ],
+    dataQuality: 'ok',
+    actions: [{ label: 'Registrar ingreso', href: '/' }],
+    validUntil: endOfMonth(snapshot.month),
+    dedupeKey: `income_missing:${missing.id}:${snapshot.month}`,
+  }
+}
+
+// ─── subscription_load ───────────────────────────────────────────────────────
+// El total de suscripciones activas pesa demasiado sobre el ingreso.
+
+function ruleSubscriptionLoad(snapshot: FinancialSnapshot): InsightCandidate | null {
+  const currency = snapshot.currency
+  const subscriptions = snapshot.subscriptions.filter((sub) => sub.currency === currency)
+  if (subscriptions.length === 0) return null
+
+  const income = computeMonthlyIncomeReference(snapshot)
+  if (!income.amount || income.amount <= 0) return null
+
+  const total = subscriptions.reduce((sum, sub) => sum + sub.amount, 0)
+  const sharePct = Math.round((total / income.amount) * 100)
+  if (sharePct < 12) return null
+
+  const severity: InsightSeverity = sharePct >= 20 ? 'watch' : 'info'
+
+  return {
+    id: `subscription_load:${snapshot.month}`,
+    kind: 'subscription_load',
+    severity,
+    priority: SEVERITY_WEIGHT[severity] + clamp(sharePct - 12, 0, 20),
+    title: `Las suscripciones se llevan el ${sharePct}% de tu ingreso`,
+    short: `${subscriptions.length} suscripciones por ${formatAmount(total, currency)}/mes (${sharePct}%)`,
+    message: `Tenés ${subscriptions.length} suscripciones activas que suman ${formatAmount(total, currency)} por mes, el ${sharePct}% de tu ingreso de referencia (${formatAmount(income.amount, currency)}).`,
+    evidence: [
+      moneyEvidence('Suscripciones/mes', total, currency, 'subscriptions:total'),
+      evidenceItem('Peso sobre ingreso', `${sharePct}%`, 'subscriptions:share'),
+      evidenceItem('Cantidad', String(subscriptions.length), 'subscriptions:count'),
+    ],
+    dataQuality: 'ok',
+    actions: [{ label: 'Ver suscripciones', question: '¿Qué suscripciones estoy pagando?' }],
+    validUntil: endOfMonth(snapshot.month),
+    dedupeKey: `subscription_load:${snapshot.month}`,
+  }
+}
+
 // ─── Orquestación ────────────────────────────────────────────────────────────
 
 export function buildInsightCandidates(snapshot: FinancialSnapshot): InsightCandidate[] {
@@ -257,6 +478,11 @@ export function buildInsightCandidates(snapshot: FinancialSnapshot): InsightCand
     ruleLiquidityWatch(snapshot),
     ruleSameDaySpendDelta(snapshot),
     ruleRecentUnusualMovement(snapshot),
+    ruleInstallmentLoad(snapshot),
+    ruleWantsCreep(snapshot),
+    ruleGoalPace(snapshot),
+    ruleIncomeMissing(snapshot),
+    ruleSubscriptionLoad(snapshot),
   ]
   for (const candidate of singles) {
     if (candidate) candidates.push(candidate)
