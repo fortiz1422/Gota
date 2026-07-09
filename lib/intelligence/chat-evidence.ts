@@ -293,7 +293,7 @@ function buildCategoriesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   for (const category of currentCategories.slice(0, 8)) {
     facts.push(
       evidenceItem(
-        `${category.category} (este mes)`,
+        `${category.category} (este mes a la fecha)`,
         `${money(category.amount, currency)} en ${category.count} movimientos`,
         `categories:${snapshot.month}:${category.category}`,
       ),
@@ -306,7 +306,7 @@ function buildCategoriesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   for (const category of previousCategories.slice(0, 4)) {
     facts.push(
       evidenceItem(
-        `${category.category} (mes pasado)`,
+        `${category.category} (mes pasado completo)`,
         `${money(category.amount, currency)} en ${category.count} movimientos`,
         `categories:${previousMonth}:${category.category}`,
       ),

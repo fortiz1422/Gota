@@ -168,6 +168,15 @@ describe('trend_comparison — "¿Qué cambió vs meses anteriores a esta altura
     expect(labels(packet)).toContain('Diferencia vs referencia')
   })
 
+  it('etiqueta categorías con alcance temporal explícito para no confundir fechas', () => {
+    const packet = packetFor('¿Qué cambió vs meses anteriores a esta altura?')
+
+    expect(labels(packet)).toContain('Supermercado (este mes a la fecha)')
+    expect(labels(packet)).toContain('Supermercado (mes pasado completo)')
+    expect(labels(packet)).not.toContain('Supermercado (este mes)')
+    expect(labels(packet)).not.toContain('Supermercado (mes pasado)')
+  })
+
   it('si pregunta por una categoría, agrega comparativa específica al mismo día', () => {
     const packet = packetFor('Supermercado fue 800k a esta altura en meses anteriores?')
 
@@ -205,11 +214,11 @@ describe('trend_comparison — "¿Qué cambió vs meses anteriores a esta altura
 })
 
 describe('category_breakdown — "¿En qué estoy gastando más este mes?"', () => {
-  it('lista top categorías del mes y del mes pasado', () => {
+  it('lista top categorías del mes a la fecha y del mes pasado completo', () => {
     const packet = packetFor('¿En qué estoy gastando más este mes?')
-    expect(labels(packet)).toContain('Supermercado (este mes)')
-    expect(labels(packet)).toContain('Supermercado (mes pasado)')
-    const current = packet.facts.find((fact) => fact.label === 'Supermercado (este mes)')
+    expect(labels(packet)).toContain('Supermercado (este mes a la fecha)')
+    expect(labels(packet)).toContain('Supermercado (mes pasado completo)')
+    const current = packet.facts.find((fact) => fact.label === 'Supermercado (este mes a la fecha)')
     expect(current?.value).toContain('$ 120.000')
     expect(current?.value).toContain('3 movimientos')
   })
