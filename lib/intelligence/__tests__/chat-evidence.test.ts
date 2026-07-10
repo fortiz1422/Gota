@@ -428,6 +428,22 @@ describe('affordability — "¿me alcanza?"', () => {
     expect(labels(packet)).toContain('Ritmo sugerido')
     expect(packet.caveats.some((caveat) => caveat.includes('No detecté un monto'))).toBe(true)
   })
+
+  it('en cuotas: veredicto determinístico según carga sobre el ingreso', () => {
+    const packet = packetFor('¿Me alcanza comprar algo de 1.800.000 en 6 cuotas?')
+
+    const verdict = packet.facts.find((fact) => fact.id === 'projection:verdict')
+    expect(verdict?.value).toContain('ajustado')
+    expect(packet.answerEvidenceIds).toContain('projection:verdict')
+  })
+
+  it('más cuotas que el horizonte simulado: caveat de truncamiento', () => {
+    const packet = packetFor('¿Me alcanza comprar algo de 1.200.000 en 12 cuotas?')
+
+    expect(
+      packet.caveats.some((caveat) => caveat.includes('6 meses') && caveat.includes('12 cuotas')),
+    ).toBe(true)
+  })
 })
 
 describe('wants_question — "¿cuánto llevo en deseos?"', () => {

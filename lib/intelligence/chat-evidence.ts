@@ -804,6 +804,23 @@ function buildAffordabilityFacts(
         ),
       )
     }
+
+    const verdictCopy: Record<typeof installmentPlan.verdict, string> = {
+      fits: 'La cuota entra: la carga de cuotas queda por debajo del 25% del ingreso en todos los meses simulados',
+      tight:
+        'Entra pero ajustado: la carga de cuotas llega al 25–39% del ingreso en el mes más cargado',
+      overloaded:
+        'Sobrecarga: la carga de cuotas supera el 40% del ingreso en el mes más cargado',
+      insufficient_data:
+        'Sin ingreso de referencia no puedo evaluar si la carga de cuotas es aceptable',
+    }
+    facts.push(evidenceItem('Veredicto', verdictCopy[installmentPlan.verdict], 'projection:verdict'))
+
+    if (installmentPlan.truncated) {
+      caveats.push(
+        `La simulación cubre ${installmentPlan.simulatedMonths} meses de las ${installmentPlan.requestedInstallments} cuotas pedidas: la carga real sigue después de ese horizonte.`,
+      )
+    }
   }
 
   return facts
