@@ -276,6 +276,63 @@ describe('category_history — promedio histórico por categoría', () => {
     expect(labels(packet).some((label) => label.startsWith('Promedio histórico'))).toBe(false)
     expect(packet.caveats.some((caveat) => caveat.includes('No encontré histórico'))).toBe(true)
   })
+
+  it('un extraordinario en mes cerrado no infla el promedio ni el rango de la categoría', () => {
+    const extraordinary = makeExpense({
+      date: '2026-06-20',
+      amount: 500_000,
+      is_extraordinary: true,
+    })
+    const packet = packetFor(
+      '¿Cuál fue mi promedio histórico de gasto en supermercado?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, extraordinary] }),
+    )
+
+    const average = packet.facts.find((fact) => fact.label === 'Promedio histórico Supermercado')
+    const range = packet.facts.find((fact) => fact.label === 'Rango histórico Supermercado')
+    expect(average?.value).toContain('$ 200.000/mes')
+    expect(range?.value).toBe('$ 200.000 a $ 200.000')
+  })
+
+  it('un extraordinario del mes actual no distorsiona el "este mes a la fecha" de la categoría', () => {
+    const extraordinary = makeExpense({
+      date: '2026-07-05',
+      amount: 400_000,
+      is_extraordinary: true,
+    })
+    const packet = packetFor(
+      '¿Cuál fue mi promedio histórico de gasto en supermercado?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, extraordinary] }),
+    )
+
+    const current = packet.facts.find(
+      (fact) => fact.label === 'Este mes a la fecha Supermercado',
+    )
+    expect(current?.value).toContain('$ 120.000')
+  })
+})
+
+describe('category same-day — exclusión de extraordinarios', () => {
+  it('excluye extraordinarios previos al día comparable del actual y del histórico', () => {
+    const extraordinaries = [
+      makeExpense({ date: '2026-06-10', amount: 500_000, is_extraordinary: true }),
+      makeExpense({ date: '2026-07-05', amount: 400_000, is_extraordinary: true }),
+    ]
+    const packet = packetFor(
+      'Supermercado fue 800k a esta altura en meses anteriores?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, ...extraordinaries] }),
+    )
+
+    const sameDayAverage = packet.facts.find(
+      (fact) => fact.label === 'Promedio a esta altura Supermercado',
+    )
+    const current = packet.facts.find(
+      (fact) => fact.label === 'Este mes a la fecha Supermercado',
+    )
+    expect(sameDayAverage?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('0% vs promedio a esta altura')
+  })
 })
 
 describe('what_should_i_do — "¿Qué debería mirar hoy?"', () => {

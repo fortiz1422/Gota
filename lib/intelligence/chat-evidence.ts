@@ -383,13 +383,19 @@ function buildCategoryHistoryFacts(
   }
 
   const currency = snapshot.currency
+  // Baselines por categoría siempre sobre gasto habitual: un extraordinario
+  // marcado por el usuario no debe mover promedios ni rangos históricos.
   const closedMonths = snapshot.monthAggregates
     .filter((aggregate) => aggregate.month < snapshot.month)
     .map((aggregate) => {
       const item = aggregate.categories.find(
         (candidate) => candidate.currency === currency && candidate.category === category,
       )
-      return { month: aggregate.month, amount: item?.amount ?? 0, count: item?.count ?? 0 }
+      return {
+        month: aggregate.month,
+        amount: item?.habitualAmount ?? 0,
+        count: item?.habitualCount ?? 0,
+      }
     })
     .filter((month) => month.amount > 0)
 
@@ -403,7 +409,7 @@ function buildCategoryHistoryFacts(
   const current = snapshot.monthAggregates
     .find((aggregate) => aggregate.month === snapshot.month)
     ?.categories.find((candidate) => candidate.currency === currency && candidate.category === category)
-  const currentAmount = current?.amount ?? 0
+  const currentAmount = current?.habitualAmount ?? 0
   const average = Math.round(
     closedMonths.reduce((sum, month) => sum + month.amount, 0) / closedMonths.length,
   )
@@ -442,10 +448,14 @@ function amountForCategoryToDay(
   month: string,
   dayOfMonth: number,
 ): number {
+  // Misma regla que los baselines: gasto habitual, sin pagos de tarjeta ni
+  // extraordinarios, en la moneda base.
   return snapshot.movements
     .filter(
       (movement) =>
         movement.kind === 'gasto' &&
+        !movement.isCardPayment &&
+        !movement.isExtraordinary &&
         movement.currency === snapshot.currency &&
         movement.category === category &&
         movement.date.startsWith(`${month}-`) &&
@@ -471,7 +481,7 @@ function buildCategorySameDayFacts(
       fullMonthAmount:
         aggregate.categories.find(
           (candidate) => candidate.currency === currency && candidate.category === category,
-        )?.amount ?? 0,
+        )?.habitualAmount ?? 0,
     }))
     .filter((month) => month.sameDayAmount > 0)
 

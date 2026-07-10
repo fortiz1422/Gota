@@ -146,14 +146,23 @@ function buildMonthAggregates(params: {
 
   const addCategory = (
     aggregate: { categoryMap: Map<string, CategoryAggregate> },
-    category: string,
-    amount: number,
-    currency: Currency,
+    expense: SnapshotExpenseRow,
   ) => {
-    const key = `${currency}:${category}`
-    const current = aggregate.categoryMap.get(key) ?? { category, currency, amount: 0, count: 0 }
-    current.amount += amount
+    const key = `${expense.currency}:${expense.category}`
+    const current = aggregate.categoryMap.get(key) ?? {
+      category: expense.category,
+      currency: expense.currency,
+      amount: 0,
+      count: 0,
+      habitualAmount: 0,
+      habitualCount: 0,
+    }
+    current.amount += expense.amount
     current.count += 1
+    if (!expense.is_extraordinary) {
+      current.habitualAmount += expense.amount
+      current.habitualCount += 1
+    }
     aggregate.categoryMap.set(key, current)
   }
 
@@ -173,7 +182,7 @@ function buildMonthAggregates(params: {
     if (!aggregate) continue
     if (isPerceivedExpense(expense)) {
       aggregate.perceivedSpend[expense.currency] += expense.amount
-      addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addCategory(aggregate, expense)
       addFlagged(aggregate, expense)
       continue
     }
@@ -184,7 +193,7 @@ function buildMonthAggregates(params: {
     }
     if (isCreditAccruedExpense(expense)) {
       aggregate.accruedSpend[expense.currency] += expense.amount
-      addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addCategory(aggregate, expense)
       addFlagged(aggregate, expense)
     }
   }

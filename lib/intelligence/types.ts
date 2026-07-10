@@ -106,6 +106,9 @@ export type CategoryAggregate = {
   currency: Currency
   amount: number
   count: number
+  /** Sin gastos extraordinarios: base para promedios y comparativas históricas. */
+  habitualAmount: number
+  habitualCount: number
 }
 
 export type MonthAggregate = {
