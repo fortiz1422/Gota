@@ -126,6 +126,35 @@ export type MonthAggregate = {
   categories: CategoryAggregate[]
 }
 
+/**
+ * Estado editorial de la lectura del Home:
+ * - learning: sin base suficiente para afirmar nada (no simular calma)
+ * - calm: cubierto; una lectura concisa de margen o abstención
+ * - watch: una señal que conviene mirar, con acción
+ * - risk: una señal urgente, con acción nativa
+ */
+export type HomeBriefStatus = 'learning' | 'calm' | 'watch' | 'risk'
+
+export type HomeBrief = {
+  status: HomeBriefStatus
+  headline: string
+  summary: string
+  evidence: EvidenceItem[]
+  /** Acción nativa (navegación/flujo propio); 'Preguntar' va aparte. */
+  primaryAction: InsightAction | null
+  askQuestion: string | null
+  /** Señales adicionales de dominios materialmente distintos (no se listan). */
+  secondaryCount: number
+  generatedAt: string
+  validUntil: string
+  moneyBasis: {
+    mode: 'default_currency' | 'combined_ars' | 'combined_usd'
+    currency: Currency
+    valuationRate: number | null
+  }
+  sourceInsightIds: string[]
+}
+
 export type GoalPace = 'on_track' | 'behind' | 'no_date' | 'completed' | 'paused'
 
 export type SnapshotGoal = {
