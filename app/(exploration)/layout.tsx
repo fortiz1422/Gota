@@ -1,10 +1,5 @@
 // THROWAWAY — solo para exploración visual. No forma parte de la app.
+// El root layout (app/layout.tsx) ya provee html/body, globals.css y fuentes.
 export default function ExplorationLayout({ children }: { children: React.ReactNode }) {
-  return (
-    <html lang="es">
-      <body style={{ margin: 0, background: '#F0F4F8', fontFamily: 'system-ui, sans-serif' }}>
-        {children}
-      </body>
-    </html>
-  )
+  return <div style={{ minHeight: '100vh', background: '#F0F4F8' }}>{children}</div>
 }

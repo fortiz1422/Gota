@@ -7,6 +7,15 @@ export async function proxy(request: NextRequest) {
     request: { headers: request.headers },
   })
 
+  // Solo en desarrollo: la ruta de exploración visual no requiere sesión.
+  // En producción sigue detrás de auth como cualquier otra página.
+  if (
+    process.env.NODE_ENV === 'development' &&
+    request.nextUrl.pathname.startsWith('/ui-exploration')
+  ) {
+    return response
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
