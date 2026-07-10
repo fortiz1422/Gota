@@ -312,6 +312,33 @@ describe('category_history — promedio histórico por categoría', () => {
   })
 })
 
+describe('answerEvidenceIds — evidencia que sostiene la respuesta', () => {
+  it('affordability: selecciona veredicto y margen, no solo calendario y saldos', () => {
+    const packet = packetFor('¿Me alcanza para gastar 250000 ahora?')
+
+    expect(packet.intent).toBe('affordability')
+    expect(packet.answerEvidenceIds).toContain('projection:verdict')
+    expect(packet.answerEvidenceIds).toContain('projection:spendable')
+  })
+
+  it('category_history: la evidencia seleccionada es la de la categoría consultada', () => {
+    const packet = packetFor('¿Cuál fue mi promedio histórico de gasto en supermercado?')
+
+    expect(packet.answerEvidenceIds.length).toBeGreaterThan(0)
+    expect(
+      packet.answerEvidenceIds.every((id) => id.startsWith('category_history:')),
+    ).toBe(true)
+  })
+
+  it('cada fact expone un id estable', () => {
+    const packet = packetFor('¿Cómo vengo este mes?')
+
+    for (const fact of packet.facts) {
+      expect(fact.id.length).toBeGreaterThan(0)
+    }
+  })
+})
+
 describe('category same-day — exclusión de extraordinarios', () => {
   it('excluye extraordinarios previos al día comparable del actual y del histórico', () => {
     const extraordinaries = [

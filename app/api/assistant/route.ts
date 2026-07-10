@@ -86,13 +86,20 @@ export async function POST(request: Request) {
 
     const answer = cleanModelText(result.response.text())
 
+    // "Basado en tus datos" muestra los hechos que sostienen la respuesta
+    // según el intent, no los primeros del packet.
+    const evidence = packet.answerEvidenceIds
+      .map((id) => packet.facts.find((fact) => fact.id === id))
+      .filter((fact): fact is NonNullable<typeof fact> => fact !== undefined)
+      .slice(0, 4)
+
     return NextResponse.json({
       answer:
         answer ||
         'No pude armar una respuesta con los datos disponibles. Probá reformulando la consulta.',
       detailIncluded: packet.movements.length > 0,
       intent: plan.intent,
-      evidence: packet.facts.slice(0, 4),
+      evidence,
       followUps: packet.followUps,
     })
   } catch (error) {

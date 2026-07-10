@@ -12,6 +12,8 @@ export type Currency = 'ARS' | 'USD'
 export type DataQuality = 'ok' | 'partial' | 'insufficient'
 
 export type EvidenceItem = {
+  /** Igual a source: identificador estable del hecho, no depende del orden. */
+  id: string
   label: string
   value: string
   source: string
