@@ -132,6 +132,20 @@ describe('computeLiquidity', () => {
     expect(liquidity.saldo).toBe(200_000)
     expect(liquidity.gap).toBe(-125_000)
   })
+
+  it('mantiene en el mes en curso un débito que vence hoy', () => {
+    const snapshot = makeSnapshot({
+      subscriptions: [makeSubscription({ description: 'Gimnasio', amount: 25_000, dayOfMonth: 15 })],
+    })
+
+    const liquidity = computeLiquidity(snapshot, 14)
+
+    expect(liquidity.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ label: 'Gimnasio', amount: 25_000, daysUntil: 0 }),
+      ]),
+    )
+  })
 })
 
 describe('computeUnusualMovements', () => {

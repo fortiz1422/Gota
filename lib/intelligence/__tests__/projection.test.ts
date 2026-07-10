@@ -107,6 +107,15 @@ describe('computeSafeToSpend', () => {
     })
     expect(computeSafeToSpend(snapshot).committedRemaining).toBe(0)
   })
+
+  it('reserva del margen un débito que vence hoy', () => {
+    const snapshot = makeSnapshot({
+      disponibleReal: { ARS: 500_000, USD: 0 },
+      subscriptions: [makeSubscription({ amount: 25_000, dayOfMonth: 15 })],
+    })
+
+    expect(computeSafeToSpend(snapshot).committedRemaining).toBe(25_000)
+  })
 })
 
 describe('simulatePurchase', () => {
