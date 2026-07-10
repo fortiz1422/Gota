@@ -125,7 +125,9 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
     baselineWindow: values.length,
     deltaPct: Math.round(((currentAmount - baselineAmount) / baselineAmount) * 100),
     extraordinaryExcluded,
-    dataQuality: 'ok',
+    // Si el fetch de gastos llegó a su límite, los meses más viejos pueden
+    // estar incompletos: nunca reclamar calidad plena sobre esa base.
+    dataQuality: snapshot.coverage.expenses.truncated ? 'partial' : 'ok',
   }
 }
 

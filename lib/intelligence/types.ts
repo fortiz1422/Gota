@@ -166,6 +166,20 @@ export type FutureInstallmentMonth = {
  * Serializable (sin Maps ni Dates) para poder fixturearlo en tests
  * y compartirlo entre héroes y chat sin recomputar.
  */
+export type SnapshotSourceCoverage = {
+  fetched: number
+  limit: number
+  /** true si la fuente trajo exactamente el límite: puede faltar histórico. */
+  truncated: boolean
+}
+
+export type SnapshotCoverage = {
+  expenses: SnapshotSourceCoverage
+  incomes: SnapshotSourceCoverage
+  transfers: SnapshotSourceCoverage
+  historyStartDate: string
+}
+
 export type FinancialSnapshot = {
   referenceDate: string
   month: string
@@ -196,4 +210,5 @@ export type FinancialSnapshot = {
   movements: SnapshotMovement[]
   monthAggregates: MonthAggregate[]
   hasOtherCurrencyMovements: boolean
+  coverage: SnapshotCoverage
 }
