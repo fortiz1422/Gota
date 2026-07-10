@@ -17,6 +17,8 @@ export type EvidenceItem = {
   label: string
   value: string
   source: string
+  /** Fecha de referencia del dato (YYYY-MM-DD). Opcional en paths legacy. */
+  asOf?: string
 }
 
 export type InsightSeverity = 'info' | 'watch' | 'risk' | 'positive'
