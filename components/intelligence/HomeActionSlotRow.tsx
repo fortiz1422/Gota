@@ -1,5 +1,6 @@
 'use client'
 
+import { X } from '@phosphor-icons/react'
 import type { HomeAction } from '@/lib/intelligence/home-model'
 
 /**
@@ -10,9 +11,12 @@ import type { HomeAction } from '@/lib/intelligence/home-model'
 export function HomeActionSlotRow({
   action,
   onAction,
+  onSnooze,
 }: {
   action: HomeAction
   onAction?: (action: HomeAction) => void
+  /** Posponer hasta mañana (lifecycle). Sin handler no se muestra el control. */
+  onSnooze?: (action: HomeAction) => void
 }) {
   const isRisk = action.status === 'risk'
   return (
@@ -34,6 +38,16 @@ export function HomeActionSlotRow({
       >
         {action.action.label}
       </button>
+      {onSnooze && (
+        <button
+          type="button"
+          aria-label="Recordarme después"
+          onClick={() => onSnooze(action)}
+          className="shrink-0 p-1 text-text-tertiary transition-opacity hover:opacity-70"
+        >
+          <X size={14} weight="bold" />
+        </button>
+      )}
     </div>
   )
 }

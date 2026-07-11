@@ -30,6 +30,16 @@ export const PRODUCT_EVENT_NAMES = [
   'share_target_parse_started',
   'share_target_parse_succeeded',
   'share_target_dismissed',
+  'ambient_modifier_seen',
+  'ambient_explanation_opened',
+  'home_action_seen',
+  'home_action_clicked',
+  'home_action_completed',
+  'home_action_dismissed',
+  'home_action_snoozed',
+  'intelligence_feedback_submitted',
+  'simulation_started',
+  'simulation_completed',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]

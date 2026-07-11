@@ -22,8 +22,14 @@ import type { Currency, DataQuality, EvidenceItem, FinancialSnapshot } from './t
 
 export type HomeOrchestratorOptions = {
   generatedAt?: string
-  /** dedupeKeys pospuestos/descartados vigentes (lifecycle, Fase F). */
+  /** dedupeKeys pospuestos/descartados vigentes (supresión dura). */
   snoozedDedupeKeys?: string[]
+  /** Supresiones derivadas del lifecycle persistido (insight-lifecycle.ts). */
+  lifecycle?: {
+    suppressedKeys: string[]
+    /** Se muestran igual si la señal llega en risk (escalación rompe snooze). */
+    suppressedUnlessRiskKeys: string[]
+  }
   /** Caso 9 (cierre/rollover): future_flagged; requiere el modo real de rollover. */
   closingProjection?: { enabled: boolean; rolloverMode: 'auto' | 'manual' | 'off' }
 }
@@ -332,8 +338,11 @@ export function buildHomeIntelligence(
     income_missing: 2,
     subscription_increase: 3,
   }
+  const hardSuppressed = new Set([...snoozed, ...(options?.lifecycle?.suppressedKeys ?? [])])
+  const softSuppressed = new Set(options?.lifecycle?.suppressedUnlessRiskKeys ?? [])
   const selected = actionCandidates
-    .filter((candidate) => !snoozed.has(candidate.dedupeKey))
+    .filter((candidate) => !hardSuppressed.has(candidate.dedupeKey))
+    .filter((candidate) => candidate.status === 'risk' || !softSuppressed.has(candidate.dedupeKey))
     .sort((a, b) => ladder[a.kind] - ladder[b.kind])[0]
   if (selected) {
     const { explanation, ...action } = selected

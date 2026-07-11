@@ -30,8 +30,10 @@ import {
   FF_HOME_AMBIENT_INTELLIGENCE_V1,
   FF_HOME_TRANSIENT_ACTION_V1,
   FF_INSTRUMENTS,
+  FF_INTELLIGENCE_LIFECYCLE_V1,
   FF_MOVEMENT_ANNOTATIONS_V1,
 } from '@/lib/flags'
+import { requestAssistantOpen } from '@/lib/assistant/events'
 import { maskHomeIntelligence } from '@/lib/intelligence/home-orchestrator'
 import type { HomeAction } from '@/lib/intelligence/home-model'
 import { trackEvent } from '@/lib/product-analytics/client'
@@ -40,6 +42,27 @@ import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share
 import { formatAmount } from '@/lib/format'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
+
+/** Registra un evento de lifecycle (best-effort, nunca bloquea la UI). */
+function recordLifecycleEvent(
+  action: HomeAction,
+  type: 'shown' | 'snoozed' | 'acted',
+  until?: string,
+) {
+  if (!FF_INTELLIGENCE_LIFECYCLE_V1) return
+  void fetch('/api/intelligence/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type,
+      dedupeKey: action.dedupeKey,
+      insightKind: action.kind,
+      status: action.status,
+      surface: 'home',
+      until,
+    }),
+  }).catch(() => {})
+}
 
 interface Props {
   selectedMonth: string
@@ -118,6 +141,7 @@ export function DashboardShell({
   const [cuentasOpen, setCuentasOpen] = useState(false)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
   const [amountsVisible, setAmountsVisible] = useState(true)
+  const [snoozedActionKeys, setSnoozedActionKeys] = useState<string[]>([])
   const [focusSignal, setFocusSignal] = useState(0)
   const [sharedReceiptPreviewOpen, setSharedReceiptPreviewOpen] = useState(false)
   const [sharedReceiptPreview, setSharedReceiptPreview] = useState<PendingSharedReceipt | null>(null)
@@ -236,6 +260,38 @@ export function DashboardShell({
     )
   }, [homeIntelligence])
 
+  // Impresiones (una vez por señal y sesión): usefulness se mide sobre lo visto.
+  const seenIntelligenceKeys = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!homeIntelligence) return
+    const action = homeIntelligence.actionSlot
+    if (action && !seenIntelligenceKeys.current.has(action.dedupeKey)) {
+      seenIntelligenceKeys.current.add(action.dedupeKey)
+      trackEvent('home_action_seen', {
+        insight_kind: action.kind,
+        status: action.status,
+        surface: 'home',
+        has_native_action: action.action.type !== 'ask',
+      })
+      recordLifecycleEvent(action, 'shown')
+    }
+    const ambients = [
+      ['disponible_real', homeIntelligence.ambient.disponibleReal],
+      ['commitments', homeIntelligence.ambient.commitments],
+    ] as const
+    for (const [surface, modifier] of ambients) {
+      if (!modifier) continue
+      const key = `${surface}:${modifier.sourceInsightIds[0] ?? modifier.status}`
+      if (seenIntelligenceKeys.current.has(key)) continue
+      seenIntelligenceKeys.current.add(key)
+      trackEvent('ambient_modifier_seen', {
+        insight_kind: modifier.sourceInsightIds[0]?.split(':')[0] ?? 'none',
+        status: modifier.status,
+        surface,
+      })
+    }
+  }, [homeIntelligence])
+
   const hasAnyMovement =
     (data?.allUltimos.length ?? 0) > 0 ||
     (data?.incomeEntries.length ?? 0) > 0 ||
@@ -321,11 +377,19 @@ export function DashboardShell({
   const homeAction =
     FF_HOME_TRANSIENT_ACTION_V1 &&
     homeIntelligence?.actionSlot &&
+    !snoozedActionKeys.includes(homeIntelligence.actionSlot.dedupeKey) &&
     !(homeIntelligence.actionSlot.kind === 'income_missing' && recurringPending.length > 0)
       ? homeIntelligence.actionSlot
       : null
 
   const handleHomeAction = (action: HomeAction) => {
+    trackEvent('home_action_clicked', {
+      insight_kind: action.kind,
+      status: action.status,
+      surface: 'home',
+      has_native_action: action.action.type !== 'ask',
+    })
+    recordLifecycleEvent(action, 'acted')
     const commitmentsHref = `/analytics?month=${selectedMonth}&drill=compromisos`
     switch (action.action.type) {
       case 'navigate':
@@ -340,11 +404,23 @@ export function DashboardShell({
       case 'review_movement':
         router.push('/movimientos')
         break
-      // 'ask' se conecta al asistente en Fase G; mientras tanto la lectura
-      // completa vive en Análisis.
+      case 'ask':
+        requestAssistantOpen({ question: action.action.question })
+        break
       default:
         router.push('/analytics')
     }
+  }
+
+  const handleSnoozeAction = (action: HomeAction) => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    trackEvent('home_action_snoozed', {
+      insight_kind: action.kind,
+      status: action.status,
+      surface: 'home',
+    })
+    recordLifecycleEvent(action, 'snoozed', tomorrow)
+    setSnoozedActionKeys((keys) => [...keys, action.dedupeKey])
   }
   const committedGoalsDisplayValue =
     effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
@@ -533,7 +609,13 @@ export function DashboardShell({
             </div>
 
             {/* Acción transitoria: cero o una, nunca deja placeholder */}
-            {homeAction && <HomeActionSlotRow action={homeAction} onAction={handleHomeAction} />}
+            {homeAction && (
+              <HomeActionSlotRow
+                action={homeAction}
+                onAction={handleHomeAction}
+                onSnooze={handleSnoozeAction}
+              />
+            )}
 
             {/* Compromisos */}
             {compromisos && (
