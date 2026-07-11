@@ -15,6 +15,8 @@ interface Props {
   cards: Card[]
   accounts: Account[]
   onUpdate?: () => void
+  /** Anotación ambiental (una sola por fila, ej. "Monto fuera de lo habitual"). */
+  annotationLabel?: string | null
 }
 
 type SourceKey = string
@@ -65,7 +67,7 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
   return <Bank weight="duotone" size={size} />
 }
 
-export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
+export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabel }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -280,6 +282,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate }: Props) {
               </span>
             )}
           </p>
+          {annotationLabel && (
+            <p className="mt-0.5 text-[11px] font-semibold text-warning">{annotationLabel}</p>
+          )}
         </div>
         <div className="text-right">
           <p className={`text-sm font-medium ${expense.category === 'Pago de Tarjetas' ? 'text-primary' : 'text-text-primary'}`}>

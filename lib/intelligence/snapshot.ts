@@ -418,6 +418,8 @@ export async function loadFinancialSnapshot(params: {
   supabase: SupabaseClient
   userId: string
   month?: string
+  /** Dashboard ya resuelto: evita repetir sus queries (guía §19). */
+  dashboard?: Awaited<ReturnType<typeof readDashboardData>>
 }): Promise<FinancialSnapshot> {
   const { supabase, userId } = params
   const month = params.month ?? getCurrentMonth()
@@ -426,17 +428,22 @@ export async function loadFinancialSnapshot(params: {
   const nextMonthDate = `${addMonths(month, 1)}-01`
   const futureHorizonDate = `${addMonths(month, FUTURE_INSTALLMENT_MONTHS + 1)}-01`
 
-  const { data: config } = await supabase
-    .from('user_config')
-    .select('default_currency')
-    .eq('user_id', userId)
-    .single()
-
-  const currency = (config?.default_currency ?? 'ARS') as Currency
+  let currency: Currency
+  if (params.dashboard) {
+    currency = params.dashboard.currency
+  } else {
+    const { data: config } = await supabase
+      .from('user_config')
+      .select('default_currency')
+      .eq('user_id', userId)
+      .single()
+    currency = (config?.default_currency ?? 'ARS') as Currency
+  }
 
   const [dashboard, budget, expenses, futureExpenses, incomeResult, transfersResult, oldestExpenseResult] =
     await Promise.all([
-      readDashboardData({ supabase, userId, selectedMonth: month, viewCurrency: currency }),
+      params.dashboard ??
+        readDashboardData({ supabase, userId, selectedMonth: month, viewCurrency: currency }),
       getBudgetSnapshot({ supabase, userId, month, currency }),
       fetchExpenseRows({
         supabase,

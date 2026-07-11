@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CaretRight, Wallet } from '@phosphor-icons/react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
@@ -22,8 +23,17 @@ import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSha
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
+import { HomeAmbientLine } from '@/components/intelligence/HomeAmbientLine'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
-import { FF_INSTRUMENTS } from '@/lib/flags'
+import {
+  FF_HOME_AMBIENT_INTELLIGENCE_V1,
+  FF_HOME_TRANSIENT_ACTION_V1,
+  FF_INSTRUMENTS,
+  FF_MOVEMENT_ANNOTATIONS_V1,
+} from '@/lib/flags'
+import { maskHomeIntelligence } from '@/lib/intelligence/home-orchestrator'
+import type { HomeAction } from '@/lib/intelligence/home-model'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
@@ -100,6 +110,7 @@ export function DashboardShell({
   initialQuote,
 }: Props) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [disponibleSheetOpen, setDisponibleSheetOpen] = useState(false)
   const [disponibleSheetMode, setDisponibleSheetMode] = useState<'real' | 'libre'>('real')
@@ -209,6 +220,22 @@ export function DashboardShell({
     })
   }, [selectedMonth, viewCurrency, queryClient])
 
+  // ── Inteligencia ambiental (guía v1.1): edita módulos, no agrega capas ────
+  // Antes del early return: los hooks deben ejecutarse en todo render.
+  const homeIntelligence = useMemo(() => {
+    if (!FF_HOME_AMBIENT_INTELLIGENCE_V1 || !data?.isCurrentMonth) return null
+    const model = data.homeIntelligence ?? null
+    if (!model) return null
+    return amountsVisible ? model : maskHomeIntelligence(model)
+  }, [data?.homeIntelligence, data?.isCurrentMonth, amountsVisible])
+
+  const movementAnnotations = useMemo(() => {
+    if (!FF_MOVEMENT_ANNOTATIONS_V1 || !homeIntelligence) return undefined
+    return new Map(
+      homeIntelligence.ambient.movementAnnotations.map((item) => [item.movementId, item.label]),
+    )
+  }, [homeIntelligence])
+
   const hasAnyMovement =
     (data?.allUltimos.length ?? 0) > 0 ||
     (data?.incomeEntries.length ?? 0) > 0 ||
@@ -285,6 +312,40 @@ export function DashboardShell({
         : availableBreakdown[currency]
 
   const gastosTarjeta = Math.max(0, heroValue - availableDisplayValue)
+
+  const disponibleAmbient = homeIntelligence?.ambient.disponibleReal ?? null
+  const commitmentsAmbient = homeIntelligence?.ambient.commitments ?? null
+
+  // El slot transitorio no duplica módulos propietarios: si el ingreso
+  // esperado ya tiene su banner nativo, la señal queda en ese banner.
+  const homeAction =
+    FF_HOME_TRANSIENT_ACTION_V1 &&
+    homeIntelligence?.actionSlot &&
+    !(homeIntelligence.actionSlot.kind === 'income_missing' && recurringPending.length > 0)
+      ? homeIntelligence.actionSlot
+      : null
+
+  const handleHomeAction = (action: HomeAction) => {
+    const commitmentsHref = `/analytics?month=${selectedMonth}&drill=compromisos`
+    switch (action.action.type) {
+      case 'navigate':
+        router.push(action.action.href)
+        break
+      case 'review_card':
+        router.push(commitmentsHref)
+        break
+      case 'review_subscription':
+        router.push(commitmentsHref)
+        break
+      case 'review_movement':
+        router.push('/movimientos')
+        break
+      // 'ask' se conecta al asistente en Fase G; mientras tanto la lectura
+      // completa vive en Análisis.
+      default:
+        router.push('/analytics')
+    }
+  }
   const committedGoalsDisplayValue =
     effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
       ? goalCommitmentsBreakdown.ARS + goalCommitmentsBreakdown.USD * valuationRate
@@ -428,7 +489,15 @@ export function DashboardShell({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
-                    <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
+                    {disponibleAmbient ? (
+                      <div className="mt-0.5">
+                        <HomeAmbientLine modifier={disponibleAmbient} compact />
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-text-dim">
+                        Ya descuenta deuda y consumos
+                      </p>
+                    )}
                   </div>
                   <span
                     className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
@@ -463,6 +532,9 @@ export function DashboardShell({
               ) : null}
             </div>
 
+            {/* Acción transitoria: cero o una, nunca deja placeholder */}
+            {homeAction && <HomeActionSlotRow action={homeAction} onAction={handleHomeAction} />}
+
             {/* Compromisos */}
             {compromisos && (
               <CommitmentsSummary
@@ -473,6 +545,7 @@ export function DashboardShell({
                 currency={viewCurrency}
                 selectedMonth={selectedMonth}
                 amountsVisible={amountsVisible}
+                ambient={commitmentsAmbient}
               />
             )}
 
@@ -522,6 +595,7 @@ export function DashboardShell({
                 isCurrentMonth={isCurrentMonth}
                 recurringIncomes={activeRecurring}
                 emptyState={homeEmptyState}
+                annotations={movementAnnotations}
               />
             </div>
           </div>

@@ -636,6 +636,14 @@ function buildMovementAnnotations(
 
 // ─── Masking ─────────────────────────────────────────────────────────────────
 
+/**
+ * Enmascara todos los montos del modelo. El servidor entrega el modelo con
+ * montos visibles; el cliente aplica esto cuando el usuario los oculta.
+ */
+export function maskHomeIntelligence(model: HomeIntelligenceModel): HomeIntelligenceModel {
+  return maskModel(model)
+}
+
 function maskModifier(modifier: AmbientModifier | null): AmbientModifier | null {
   if (!modifier) return null
   return {

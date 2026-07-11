@@ -25,16 +25,25 @@ const STATUS_DOT: Record<AmbientStatus, string | null> = {
 export function HomeAmbientLine({
   modifier,
   onExplain,
+  compact = false,
 }: {
   modifier: AmbientModifier
   onExplain?: (explanationId: string) => void
+  /** Densidad de los módulos del Home real (11px, punto más chico). */
+  compact?: boolean
 }) {
   const dot = STATUS_DOT[modifier.status]
   const interactive = Boolean(modifier.explanationId && onExplain)
+  const textSize = compact ? 'text-[11px]' : 'text-[13px]'
   const content = (
     <>
-      {dot && <span aria-hidden className={`h-1.5 w-1.5 shrink-0 rounded-full ${dot}`} />}
-      <span className={`truncate text-[13px] font-medium ${STATUS_TEXT[modifier.status]}`}>
+      {dot && (
+        <span
+          aria-hidden
+          className={`${compact ? 'h-1 w-1' : 'h-1.5 w-1.5'} shrink-0 rounded-full ${dot}`}
+        />
+      )}
+      <span className={`truncate ${textSize} font-medium ${STATUS_TEXT[modifier.status]}`}>
         {modifier.label}
       </span>
       {interactive && <CaretRight size={12} weight="regular" className="shrink-0 text-text-tertiary" />}

@@ -1,6 +1,7 @@
 import { redirect } from 'next/navigation'
 import { getCurrentMonth } from '@/lib/dates'
 import { readDashboardData } from '@/lib/server/dashboard-queries'
+import { loadHomeIntelligence } from '@/lib/server/load-home-intelligence'
 import { createClient } from '@/lib/supabase/server'
 
 type InitialQuote = {
@@ -79,6 +80,13 @@ export async function loadDashboardPageData({ searchParams }: LoadDashboardPageD
       .then(async (res) => (res.ok ? normalizeQuote((await res.json()) as Partial<InitialQuote>) : null))
       .catch(() => null),
   ])
+
+  initialData.homeIntelligence = await loadHomeIntelligence({
+    supabase,
+    userId: user.id,
+    dashboard: initialData,
+    valuationRate: initialQuote?.rate ?? null,
+  })
 
   return {
     selectedMonth,

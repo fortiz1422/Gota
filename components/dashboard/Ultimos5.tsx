@@ -53,6 +53,8 @@ interface Props {
   isCurrentMonth: boolean
   recurringIncomes?: RecurringIncome[]
   emptyState: Pick<HomeEmptyState, 'variant' | 'showSecondaryListEmptyState'>
+  /** Anotaciones ambientales por id de gasto (guía v1.1, caso 4). */
+  annotations?: Map<string, string>
 }
 
 function getMovementSortDate(mv: Movement): number {
@@ -81,6 +83,7 @@ export function Ultimos5({
   isCurrentMonth,
   recurringIncomes,
   emptyState,
+  annotations,
 }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
@@ -367,6 +370,7 @@ export function Ultimos5({
                 cards={cards}
                 accounts={accounts}
                 onUpdate={handleRefresh}
+                annotationLabel={annotations?.get(mv.data.id) ?? null}
               />
             )
           })}

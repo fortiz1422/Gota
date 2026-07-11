@@ -14,3 +14,14 @@ export const FF_GOTA_ASSISTANT =
  * para apagarla.
  */
 export const FF_INTELLIGENCE = process.env.NEXT_PUBLIC_FF_INTELLIGENCE !== 'false'
+
+/**
+ * Home ambiental (guía v1.1): arrancan apagadas hasta pasar QA visual.
+ * Rollback = apagar la flag; el Home vuelve al estado estable sin migraciones.
+ */
+export const FF_HOME_AMBIENT_INTELLIGENCE_V1 =
+  process.env.NEXT_PUBLIC_FF_HOME_AMBIENT_INTELLIGENCE_V1 === 'true'
+export const FF_HOME_TRANSIENT_ACTION_V1 =
+  process.env.NEXT_PUBLIC_FF_HOME_TRANSIENT_ACTION_V1 === 'true'
+export const FF_MOVEMENT_ANNOTATIONS_V1 =
+  process.env.NEXT_PUBLIC_FF_MOVEMENT_ANNOTATIONS_V1 === 'true'

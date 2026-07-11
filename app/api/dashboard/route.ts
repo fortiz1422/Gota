@@ -5,6 +5,7 @@ import { todayAR } from '@/lib/format'
 import { resolveCardCycleAssignments } from '@/lib/card-cycle-assignment'
 import { processDailyYieldEntries } from '@/lib/server/daily-yield-entries'
 import { readDashboardData } from '@/lib/server/dashboard-queries'
+import { loadHomeIntelligence } from '@/lib/server/load-home-intelligence'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 async function processSubscriptions(supabase: any, userId: string, currentMonth: string, currentDay: number) {
@@ -109,6 +110,14 @@ export async function GET(request: Request) {
     userId: user.id,
     selectedMonth,
     viewCurrency,
+  })
+
+  // Inteligencia ambiental junto con el dashboard: una sola invalidación
+  // refresca métricas nativas y modelo (guía §19). Null si la flag está off.
+  data.homeIntelligence = await loadHomeIntelligence({
+    supabase,
+    userId: user.id,
+    dashboard: data,
   })
 
   return NextResponse.json(data)
