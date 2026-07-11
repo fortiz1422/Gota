@@ -35,10 +35,17 @@ import type {
   CardCycleAmount,
 } from '@/types/database'
 import type { PrevMonthSummary } from '@/lib/rollover'
+import type { HomeIntelligenceModel } from '@/lib/intelligence/home-model'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
 export type DashboardApiData = {
+  /**
+   * Modelo ambiental del Home (guía v1.1). Lo adjuntan route/page loader
+   * después de resolver el dashboard — nunca readDashboardData, porque el
+   * snapshot de inteligencia reusa este mismo payload como fuente.
+   */
+  homeIntelligence?: HomeIntelligenceModel | null
   dashboardData: DashboardData | null
   heroBalanceMode: HeroBalanceMode
   heroBreakdown: Record<'ARS' | 'USD', number>

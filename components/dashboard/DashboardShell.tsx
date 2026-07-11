@@ -1,7 +1,8 @@
 'use client'
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { CaretRight, Wallet } from '@phosphor-icons/react'
 import { SaldoVivoSheet } from '@/components/dashboard/SaldoVivoSheet'
@@ -22,15 +23,46 @@ import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSha
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
-import { IntelligenceHero } from '@/components/intelligence/IntelligenceHero'
+import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
+import { HomeAmbientLine } from '@/components/intelligence/HomeAmbientLine'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
-import { FF_INSTRUMENTS, FF_INTELLIGENCE } from '@/lib/flags'
+import {
+  FF_HOME_AMBIENT_INTELLIGENCE_V1,
+  FF_HOME_TRANSIENT_ACTION_V1,
+  FF_INSTRUMENTS,
+  FF_INTELLIGENCE_LIFECYCLE_V1,
+  FF_MOVEMENT_ANNOTATIONS_V1,
+} from '@/lib/flags'
+import { requestAssistantOpen } from '@/lib/assistant/events'
+import { maskHomeIntelligence } from '@/lib/intelligence/home-orchestrator'
+import type { HomeAction } from '@/lib/intelligence/home-model'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
 import { formatAmount } from '@/lib/format'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
+
+/** Registra un evento de lifecycle (best-effort, nunca bloquea la UI). */
+function recordLifecycleEvent(
+  action: HomeAction,
+  type: 'shown' | 'snoozed' | 'acted',
+  until?: string,
+) {
+  if (!FF_INTELLIGENCE_LIFECYCLE_V1) return
+  void fetch('/api/intelligence/events', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      type,
+      dedupeKey: action.dedupeKey,
+      insightKind: action.kind,
+      status: action.status,
+      surface: 'home',
+      until,
+    }),
+  }).catch(() => {})
+}
 
 interface Props {
   selectedMonth: string
@@ -101,6 +133,7 @@ export function DashboardShell({
   initialQuote,
 }: Props) {
   const queryClient = useQueryClient()
+  const router = useRouter()
   const [breakdownOpen, setBreakdownOpen] = useState(false)
   const [disponibleSheetOpen, setDisponibleSheetOpen] = useState(false)
   const [disponibleSheetMode, setDisponibleSheetMode] = useState<'real' | 'libre'>('real')
@@ -108,6 +141,7 @@ export function DashboardShell({
   const [cuentasOpen, setCuentasOpen] = useState(false)
   const [keyboardOffset, setKeyboardOffset] = useState(0)
   const [amountsVisible, setAmountsVisible] = useState(true)
+  const [snoozedActionKeys, setSnoozedActionKeys] = useState<string[]>([])
   const [focusSignal, setFocusSignal] = useState(0)
   const [sharedReceiptPreviewOpen, setSharedReceiptPreviewOpen] = useState(false)
   const [sharedReceiptPreview, setSharedReceiptPreview] = useState<PendingSharedReceipt | null>(null)
@@ -210,6 +244,54 @@ export function DashboardShell({
     })
   }, [selectedMonth, viewCurrency, queryClient])
 
+  // ── Inteligencia ambiental (guía v1.1): edita módulos, no agrega capas ────
+  // Antes del early return: los hooks deben ejecutarse en todo render.
+  const homeIntelligence = useMemo(() => {
+    if (!FF_HOME_AMBIENT_INTELLIGENCE_V1 || !data?.isCurrentMonth) return null
+    const model = data.homeIntelligence ?? null
+    if (!model) return null
+    return amountsVisible ? model : maskHomeIntelligence(model)
+  }, [data?.homeIntelligence, data?.isCurrentMonth, amountsVisible])
+
+  const movementAnnotations = useMemo(() => {
+    if (!FF_MOVEMENT_ANNOTATIONS_V1 || !homeIntelligence) return undefined
+    return new Map(
+      homeIntelligence.ambient.movementAnnotations.map((item) => [item.movementId, item.label]),
+    )
+  }, [homeIntelligence])
+
+  // Impresiones (una vez por señal y sesión): usefulness se mide sobre lo visto.
+  const seenIntelligenceKeys = useRef<Set<string>>(new Set())
+  useEffect(() => {
+    if (!homeIntelligence) return
+    const action = homeIntelligence.actionSlot
+    if (action && !seenIntelligenceKeys.current.has(action.dedupeKey)) {
+      seenIntelligenceKeys.current.add(action.dedupeKey)
+      trackEvent('home_action_seen', {
+        insight_kind: action.kind,
+        status: action.status,
+        surface: 'home',
+        has_native_action: action.action.type !== 'ask',
+      })
+      recordLifecycleEvent(action, 'shown')
+    }
+    const ambients = [
+      ['disponible_real', homeIntelligence.ambient.disponibleReal],
+      ['commitments', homeIntelligence.ambient.commitments],
+    ] as const
+    for (const [surface, modifier] of ambients) {
+      if (!modifier) continue
+      const key = `${surface}:${modifier.sourceInsightIds[0] ?? modifier.status}`
+      if (seenIntelligenceKeys.current.has(key)) continue
+      seenIntelligenceKeys.current.add(key)
+      trackEvent('ambient_modifier_seen', {
+        insight_kind: modifier.sourceInsightIds[0]?.split(':')[0] ?? 'none',
+        status: modifier.status,
+        surface,
+      })
+    }
+  }, [homeIntelligence])
+
   const hasAnyMovement =
     (data?.allUltimos.length ?? 0) > 0 ||
     (data?.incomeEntries.length ?? 0) > 0 ||
@@ -286,6 +368,60 @@ export function DashboardShell({
         : availableBreakdown[currency]
 
   const gastosTarjeta = Math.max(0, heroValue - availableDisplayValue)
+
+  const disponibleAmbient = homeIntelligence?.ambient.disponibleReal ?? null
+  const commitmentsAmbient = homeIntelligence?.ambient.commitments ?? null
+
+  // El slot transitorio no duplica módulos propietarios: si el ingreso
+  // esperado ya tiene su banner nativo, la señal queda en ese banner.
+  const homeAction =
+    FF_HOME_TRANSIENT_ACTION_V1 &&
+    homeIntelligence?.actionSlot &&
+    !snoozedActionKeys.includes(homeIntelligence.actionSlot.dedupeKey) &&
+    !(homeIntelligence.actionSlot.kind === 'income_missing' && recurringPending.length > 0)
+      ? homeIntelligence.actionSlot
+      : null
+
+  const handleHomeAction = (action: HomeAction) => {
+    trackEvent('home_action_clicked', {
+      insight_kind: action.kind,
+      status: action.status,
+      surface: 'home',
+      has_native_action: action.action.type !== 'ask',
+    })
+    recordLifecycleEvent(action, 'acted')
+    const commitmentsHref = `/analytics?month=${selectedMonth}&drill=compromisos`
+    switch (action.action.type) {
+      case 'navigate':
+        router.push(action.action.href)
+        break
+      case 'review_card':
+        router.push(commitmentsHref)
+        break
+      case 'review_subscription':
+        router.push(commitmentsHref)
+        break
+      case 'review_movement':
+        router.push('/movimientos')
+        break
+      case 'ask':
+        requestAssistantOpen({ question: action.action.question })
+        break
+      default:
+        router.push('/analytics')
+    }
+  }
+
+  const handleSnoozeAction = (action: HomeAction) => {
+    const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()
+    trackEvent('home_action_snoozed', {
+      insight_kind: action.kind,
+      status: action.status,
+      surface: 'home',
+    })
+    recordLifecycleEvent(action, 'snoozed', tomorrow)
+    setSnoozedActionKeys((keys) => [...keys, action.dedupeKey])
+  }
   const committedGoalsDisplayValue =
     effectiveHeroBalanceMode === 'combined_ars' && valuationRate && valuationRate > 0
       ? goalCommitmentsBreakdown.ARS + goalCommitmentsBreakdown.USD * valuationRate
@@ -429,7 +565,15 @@ export function DashboardShell({
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-[14px] font-[500] text-text-secondary">Disponible real</p>
-                    <p className="mt-0.5 text-[11px] text-text-dim">Ya descuenta deuda y consumos</p>
+                    {disponibleAmbient ? (
+                      <div className="mt-0.5">
+                        <HomeAmbientLine modifier={disponibleAmbient} compact />
+                      </div>
+                    ) : (
+                      <p className="mt-0.5 text-[11px] text-text-dim">
+                        Ya descuenta deuda y consumos
+                      </p>
+                    )}
                   </div>
                   <span
                     className="whitespace-nowrap text-[17px] font-extrabold tabular-nums text-text-primary"
@@ -464,6 +608,15 @@ export function DashboardShell({
               ) : null}
             </div>
 
+            {/* Acción transitoria: cero o una, nunca deja placeholder */}
+            {homeAction && (
+              <HomeActionSlotRow
+                action={homeAction}
+                onAction={handleHomeAction}
+                onSnooze={handleSnoozeAction}
+              />
+            )}
+
             {/* Compromisos */}
             {compromisos && (
               <CommitmentsSummary
@@ -474,12 +627,8 @@ export function DashboardShell({
                 currency={viewCurrency}
                 selectedMonth={selectedMonth}
                 amountsVisible={amountsVisible}
+                ambient={commitmentsAmbient}
               />
-            )}
-
-            {/* Lectura inteligente del mes: ritmo diario + señales con evidencia */}
-            {FF_INTELLIGENCE && isCurrentMonth && hasAnyMovement && (
-              <IntelligenceHero surface="home-mobile" />
             )}
 
             {homeEmptyState.showPrimaryActivation && (
@@ -528,6 +677,7 @@ export function DashboardShell({
                 isCurrentMonth={isCurrentMonth}
                 recurringIncomes={activeRecurring}
                 emptyState={homeEmptyState}
+                annotations={movementAnnotations}
               />
             </div>
           </div>

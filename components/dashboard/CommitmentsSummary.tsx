@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CaretRight, CreditCard } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
+import type { AmbientModifier } from '@/lib/intelligence/home-model'
 
 interface Props {
   compromisos: CompromisosData
@@ -13,6 +14,15 @@ interface Props {
   currency: 'ARS' | 'USD'
   selectedMonth: string
   amountsVisible: boolean
+  /** Línea ambiental: reemplaza el footer estático, no se apila (guía §11.6). */
+  ambient?: AmbientModifier | null
+}
+
+const AMBIENT_FOOTER_COLOR: Record<AmbientModifier['status'], string> = {
+  neutral: 'text-text-dim',
+  positive: 'text-success',
+  watch: 'text-warning',
+  risk: 'text-danger',
 }
 
 function maskAmount(currency: 'ARS' | 'USD') {
@@ -27,6 +37,7 @@ export function CommitmentsSummary({
   currency,
   selectedMonth,
   amountsVisible,
+  ambient,
 }: Props) {
   const total = Math.max(totalCommitments, 0)
   const statements = Math.max(pendingStatements, 0)
@@ -69,7 +80,13 @@ export function CommitmentsSummary({
                 </div>
                 <div className="min-w-0">
                   <p className="type-body text-text-secondary">Compromisos en tarjetas</p>
-                  <p className="mt-1 type-meta text-text-dim">{footerText}</p>
+                  <p
+                    className={`mt-1 truncate type-meta ${
+                      ambient ? AMBIENT_FOOTER_COLOR[ambient.status] : 'text-text-dim'
+                    }`}
+                  >
+                    {ambient?.label ?? footerText}
+                  </p>
                 </div>
               </div>
               <div className="flex shrink-0 items-center gap-1.5">

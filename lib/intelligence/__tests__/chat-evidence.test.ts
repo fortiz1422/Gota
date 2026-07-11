@@ -276,6 +276,90 @@ describe('category_history — promedio histórico por categoría', () => {
     expect(labels(packet).some((label) => label.startsWith('Promedio histórico'))).toBe(false)
     expect(packet.caveats.some((caveat) => caveat.includes('No encontré histórico'))).toBe(true)
   })
+
+  it('un extraordinario en mes cerrado no infla el promedio ni el rango de la categoría', () => {
+    const extraordinary = makeExpense({
+      date: '2026-06-20',
+      amount: 500_000,
+      is_extraordinary: true,
+    })
+    const packet = packetFor(
+      '¿Cuál fue mi promedio histórico de gasto en supermercado?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, extraordinary] }),
+    )
+
+    const average = packet.facts.find((fact) => fact.label === 'Promedio histórico Supermercado')
+    const range = packet.facts.find((fact) => fact.label === 'Rango histórico Supermercado')
+    expect(average?.value).toContain('$ 200.000/mes')
+    expect(range?.value).toBe('$ 200.000 a $ 200.000')
+  })
+
+  it('un extraordinario del mes actual no distorsiona el "este mes a la fecha" de la categoría', () => {
+    const extraordinary = makeExpense({
+      date: '2026-07-05',
+      amount: 400_000,
+      is_extraordinary: true,
+    })
+    const packet = packetFor(
+      '¿Cuál fue mi promedio histórico de gasto en supermercado?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, extraordinary] }),
+    )
+
+    const current = packet.facts.find(
+      (fact) => fact.label === 'Este mes a la fecha Supermercado',
+    )
+    expect(current?.value).toContain('$ 120.000')
+  })
+})
+
+describe('answerEvidenceIds — evidencia que sostiene la respuesta', () => {
+  it('affordability: selecciona veredicto y margen, no solo calendario y saldos', () => {
+    const packet = packetFor('¿Me alcanza para gastar 250000 ahora?')
+
+    expect(packet.intent).toBe('affordability')
+    expect(packet.answerEvidenceIds).toContain('projection:verdict')
+    expect(packet.answerEvidenceIds).toContain('projection:spendable')
+  })
+
+  it('category_history: la evidencia seleccionada es la de la categoría consultada', () => {
+    const packet = packetFor('¿Cuál fue mi promedio histórico de gasto en supermercado?')
+
+    expect(packet.answerEvidenceIds.length).toBeGreaterThan(0)
+    expect(
+      packet.answerEvidenceIds.every((id) => id.startsWith('category_history:')),
+    ).toBe(true)
+  })
+
+  it('cada fact expone un id estable', () => {
+    const packet = packetFor('¿Cómo vengo este mes?')
+
+    for (const fact of packet.facts) {
+      expect(fact.id.length).toBeGreaterThan(0)
+    }
+  })
+})
+
+describe('category same-day — exclusión de extraordinarios', () => {
+  it('excluye extraordinarios previos al día comparable del actual y del histórico', () => {
+    const extraordinaries = [
+      makeExpense({ date: '2026-06-10', amount: 500_000, is_extraordinary: true }),
+      makeExpense({ date: '2026-07-05', amount: 400_000, is_extraordinary: true }),
+    ]
+    const packet = packetFor(
+      'Supermercado fue 800k a esta altura en meses anteriores?',
+      makeSnapshot({ expenses: [...makeInputs().expenses, ...extraordinaries] }),
+    )
+
+    const sameDayAverage = packet.facts.find(
+      (fact) => fact.label === 'Promedio a esta altura Supermercado',
+    )
+    const current = packet.facts.find(
+      (fact) => fact.label === 'Este mes a la fecha Supermercado',
+    )
+    expect(sameDayAverage?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('$ 120.000')
+    expect(current?.value).toContain('0% vs promedio a esta altura')
+  })
 })
 
 describe('what_should_i_do — "¿Qué debería mirar hoy?"', () => {
@@ -343,6 +427,22 @@ describe('affordability — "¿me alcanza?"', () => {
     const packet = packetFor('¿Cuánto puedo gastar por día hasta fin de mes?')
     expect(labels(packet)).toContain('Ritmo sugerido')
     expect(packet.caveats.some((caveat) => caveat.includes('No detecté un monto'))).toBe(true)
+  })
+
+  it('en cuotas: veredicto determinístico según carga sobre el ingreso', () => {
+    const packet = packetFor('¿Me alcanza comprar algo de 1.800.000 en 6 cuotas?')
+
+    const verdict = packet.facts.find((fact) => fact.id === 'projection:verdict')
+    expect(verdict?.value).toContain('ajustado')
+    expect(packet.answerEvidenceIds).toContain('projection:verdict')
+  })
+
+  it('más cuotas que el horizonte simulado: caveat de truncamiento', () => {
+    const packet = packetFor('¿Me alcanza comprar algo de 1.200.000 en 12 cuotas?')
+
+    expect(
+      packet.caveats.some((caveat) => caveat.includes('6 meses') && caveat.includes('12 cuotas')),
+    ).toBe(true)
   })
 })
 

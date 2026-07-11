@@ -78,6 +78,12 @@ export type SnapshotInputs = {
   incomeEntries: SnapshotIncomeRow[]
   transfers: SnapshotTransferRow[]
   earliestDataMonth: string | null
+  /**
+   * Límites de fetch usados por el loader. Si una fuente trae exactamente su
+   * límite, la cobertura la marca como potencialmente truncada. Sin límites
+   * declarados (fixtures/tests) se asume cobertura completa.
+   */
+  sourceLimits?: { expenses: number; incomes: number; transfers: number }
 }
 
 function emptyCurrencyTotals(): Record<Currency, number> {
@@ -146,14 +152,23 @@ function buildMonthAggregates(params: {
 
   const addCategory = (
     aggregate: { categoryMap: Map<string, CategoryAggregate> },
-    category: string,
-    amount: number,
-    currency: Currency,
+    expense: SnapshotExpenseRow,
   ) => {
-    const key = `${currency}:${category}`
-    const current = aggregate.categoryMap.get(key) ?? { category, currency, amount: 0, count: 0 }
-    current.amount += amount
+    const key = `${expense.currency}:${expense.category}`
+    const current = aggregate.categoryMap.get(key) ?? {
+      category: expense.category,
+      currency: expense.currency,
+      amount: 0,
+      count: 0,
+      habitualAmount: 0,
+      habitualCount: 0,
+    }
+    current.amount += expense.amount
     current.count += 1
+    if (!expense.is_extraordinary) {
+      current.habitualAmount += expense.amount
+      current.habitualCount += 1
+    }
     aggregate.categoryMap.set(key, current)
   }
 
@@ -173,7 +188,7 @@ function buildMonthAggregates(params: {
     if (!aggregate) continue
     if (isPerceivedExpense(expense)) {
       aggregate.perceivedSpend[expense.currency] += expense.amount
-      addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addCategory(aggregate, expense)
       addFlagged(aggregate, expense)
       continue
     }
@@ -184,7 +199,7 @@ function buildMonthAggregates(params: {
     }
     if (isCreditAccruedExpense(expense)) {
       aggregate.accruedSpend[expense.currency] += expense.amount
-      addCategory(aggregate, expense.category, expense.amount, expense.currency)
+      addCategory(aggregate, expense)
       addFlagged(aggregate, expense)
     }
   }
@@ -278,6 +293,20 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
   const dayOfMonth = isCurrentMonth ? Number(today.substring(8, 10)) : daysInMonth
   const comparisonDay = isCurrentMonth ? dayOfMonth : null
 
+  // La cobertura se mide sobre las filas crudas (el límite aplica a la query,
+  // antes del filtro de ventana). Sin límite declarado, cobertura completa.
+  const sourceCoverage = (fetched: number, limit: number | undefined) => ({
+    fetched,
+    limit: limit ?? Number.MAX_SAFE_INTEGER,
+    truncated: limit !== undefined && fetched >= limit,
+  })
+  const coverage = {
+    expenses: sourceCoverage(inputs.expenses.length, inputs.sourceLimits?.expenses),
+    incomes: sourceCoverage(inputs.incomeEntries.length, inputs.sourceLimits?.incomes),
+    transfers: sourceCoverage(inputs.transfers.length, inputs.sourceLimits?.transfers),
+    historyStartDate,
+  }
+
   const monthlySeries = buildMonthlySeries({
     expenses: expenses.filter((expense) => expense.currency === currency),
     selectedMonth: month,
@@ -326,8 +355,12 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
     movements: buildMovements({ expenses, incomeEntries, transfers }),
     monthAggregates: buildMonthAggregates({ expenses, incomeEntries, historyStartMonth, month }),
     hasOtherCurrencyMovements,
+    coverage,
   }
 }
+
+/** Límites de fetch del loader: declarados para que la cobertura los audite. */
+const SNAPSHOT_LIMITS = { expenses: 500, incomes: 200, transfers: 200 } as const
 
 const EXPENSE_BASE_COLUMNS =
   'id, amount, currency, category, description, is_want, payment_method, is_legacy_card_payment, date, installment_number, installment_total'
@@ -385,6 +418,8 @@ export async function loadFinancialSnapshot(params: {
   supabase: SupabaseClient
   userId: string
   month?: string
+  /** Dashboard ya resuelto: evita repetir sus queries (guía §19). */
+  dashboard?: Awaited<ReturnType<typeof readDashboardData>>
 }): Promise<FinancialSnapshot> {
   const { supabase, userId } = params
   const month = params.month ?? getCurrentMonth()
@@ -393,24 +428,29 @@ export async function loadFinancialSnapshot(params: {
   const nextMonthDate = `${addMonths(month, 1)}-01`
   const futureHorizonDate = `${addMonths(month, FUTURE_INSTALLMENT_MONTHS + 1)}-01`
 
-  const { data: config } = await supabase
-    .from('user_config')
-    .select('default_currency')
-    .eq('user_id', userId)
-    .single()
-
-  const currency = (config?.default_currency ?? 'ARS') as Currency
+  let currency: Currency
+  if (params.dashboard) {
+    currency = params.dashboard.currency
+  } else {
+    const { data: config } = await supabase
+      .from('user_config')
+      .select('default_currency')
+      .eq('user_id', userId)
+      .single()
+    currency = (config?.default_currency ?? 'ARS') as Currency
+  }
 
   const [dashboard, budget, expenses, futureExpenses, incomeResult, transfersResult, oldestExpenseResult] =
     await Promise.all([
-      readDashboardData({ supabase, userId, selectedMonth: month, viewCurrency: currency }),
+      params.dashboard ??
+        readDashboardData({ supabase, userId, selectedMonth: month, viewCurrency: currency }),
       getBudgetSnapshot({ supabase, userId, month, currency }),
       fetchExpenseRows({
         supabase,
         userId,
         fromDate: historyStartDate,
         toDate: nextMonthDate,
-        limit: 500,
+        limit: SNAPSHOT_LIMITS.expenses,
       }),
       fetchExpenseRows({
         supabase,
@@ -427,7 +467,7 @@ export async function loadFinancialSnapshot(params: {
         .gte('date', historyStartDate)
         .lt('date', nextMonthDate)
         .order('date', { ascending: false })
-        .limit(200),
+        .limit(SNAPSHOT_LIMITS.incomes),
       supabase
         .from('transfers')
         .select('id, amount_from, amount_to, currency_from, currency_to, date, note')
@@ -435,7 +475,7 @@ export async function loadFinancialSnapshot(params: {
         .gte('date', historyStartDate)
         .lt('date', nextMonthDate)
         .order('date', { ascending: false })
-        .limit(200),
+        .limit(SNAPSHOT_LIMITS.transfers),
       supabase
         .from('expenses')
         .select('date')
@@ -520,5 +560,6 @@ export async function loadFinancialSnapshot(params: {
     incomeEntries: (incomeResult.data ?? []) as SnapshotIncomeRow[],
     transfers: (transfersResult.data ?? []) as SnapshotTransferRow[],
     earliestDataMonth: oldestExpenseResult.data?.date?.substring(0, 7) ?? null,
+    sourceLimits: SNAPSHOT_LIMITS,
   })
 }

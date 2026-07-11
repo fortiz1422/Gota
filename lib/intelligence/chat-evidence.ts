@@ -45,10 +45,65 @@ export type MovementEvidence = {
 export type AnswerPacket = {
   intent: ChatIntent
   facts: EvidenceItem[]
+  /**
+   * Ids de los facts que sostienen la respuesta según el intent, en orden de
+   * relevancia. La UI de "Basado en tus datos" debe mostrar estos, no los
+   * primeros N del array.
+   */
+  answerEvidenceIds: string[]
   movements: MovementEvidence[]
   caveats: string[]
   followUps: string[]
   insights: InsightCandidate[]
+}
+
+/**
+ * Prefijos de source por intent, en orden de relevancia para la respuesta.
+ * Un prefijo que termina en ':' matchea familia; si no, requiere igualdad
+ * o continuación con ':'.
+ */
+const ANSWER_EVIDENCE_PRIORITY: Record<ChatIntent, string[]> = {
+  balance_status: ['dashboard:', 'projection:safe_to_spend', 'goals:committed'],
+  movement_lookup: ['monthly_series:', 'categories:'],
+  category_breakdown: ['categories:', 'budget:'],
+  category_history: ['category_history:'],
+  trend_comparison: ['category_same_day:', 'monthly_series:', 'categories:'],
+  budget_question: ['budget:', 'category_history:'],
+  card_commitments: ['commitments:'],
+  subscription_question: ['subscriptions:'],
+  yield_question: ['yield:', 'dashboard:saldo_vivo:'],
+  goal_question: ['goals:', 'dashboard:disponible_real:'],
+  affordability: [
+    'projection:verdict',
+    'projection:simulation',
+    'projection:spendable',
+    'projection:safe_to_spend',
+  ],
+  wants_question: ['wants:'],
+  installment_question: ['installments:', 'income:reference'],
+  what_should_i_do: ['insights:', 'budget:', 'commitments:'],
+  general: [],
+}
+
+function matchesPriority(id: string, prefix: string): boolean {
+  if (prefix.endsWith(':')) return id.startsWith(prefix)
+  return id === prefix || id.startsWith(`${prefix}:`)
+}
+
+export function selectAnswerEvidenceIds(intent: ChatIntent, facts: EvidenceItem[]): string[] {
+  const selected: string[] = []
+  for (const prefix of ANSWER_EVIDENCE_PRIORITY[intent]) {
+    for (const fact of facts) {
+      if (matchesPriority(fact.id, prefix) && !selected.includes(fact.id)) {
+        selected.push(fact.id)
+      }
+    }
+  }
+  if (selected.length === 0) {
+    // Sin mapeo específico (o sin matches): mantener el comportamiento previo.
+    return facts.slice(0, 4).map((fact) => fact.id)
+  }
+  return selected.slice(0, 4)
 }
 
 const FOLLOW_UPS: Record<ChatIntent, string[]> = {
@@ -107,14 +162,28 @@ function buildBalancesFacts(snapshot: FinancialSnapshot): EvidenceItem[] {
   const base = snapshot.currency
   const other: Currency = base === 'ARS' ? 'USD' : 'ARS'
 
-  facts.push(moneyEvidence(`Saldo Vivo ${base}`, snapshot.saldoVivo[base], base, 'dashboard:saldo_vivo'))
   facts.push(
-    moneyEvidence(`Disponible Real ${base}`, snapshot.disponibleReal[base], base, 'dashboard:disponible_real'),
+    moneyEvidence(`Saldo Vivo ${base}`, snapshot.saldoVivo[base], base, `dashboard:saldo_vivo:${base}`),
+  )
+  facts.push(
+    moneyEvidence(
+      `Disponible Real ${base}`,
+      snapshot.disponibleReal[base],
+      base,
+      `dashboard:disponible_real:${base}`,
+    ),
   )
   if (snapshot.saldoVivo[other] !== 0 || snapshot.disponibleReal[other] !== 0) {
-    facts.push(moneyEvidence(`Saldo Vivo ${other}`, snapshot.saldoVivo[other], other, 'dashboard:saldo_vivo'))
     facts.push(
-      moneyEvidence(`Disponible Real ${other}`, snapshot.disponibleReal[other], other, 'dashboard:disponible_real'),
+      moneyEvidence(`Saldo Vivo ${other}`, snapshot.saldoVivo[other], other, `dashboard:saldo_vivo:${other}`),
+    )
+    facts.push(
+      moneyEvidence(
+        `Disponible Real ${other}`,
+        snapshot.disponibleReal[other],
+        other,
+        `dashboard:disponible_real:${other}`,
+      ),
     )
   }
 
@@ -383,13 +452,19 @@ function buildCategoryHistoryFacts(
   }
 
   const currency = snapshot.currency
+  // Baselines por categoría siempre sobre gasto habitual: un extraordinario
+  // marcado por el usuario no debe mover promedios ni rangos históricos.
   const closedMonths = snapshot.monthAggregates
     .filter((aggregate) => aggregate.month < snapshot.month)
     .map((aggregate) => {
       const item = aggregate.categories.find(
         (candidate) => candidate.currency === currency && candidate.category === category,
       )
-      return { month: aggregate.month, amount: item?.amount ?? 0, count: item?.count ?? 0 }
+      return {
+        month: aggregate.month,
+        amount: item?.habitualAmount ?? 0,
+        count: item?.habitualCount ?? 0,
+      }
     })
     .filter((month) => month.amount > 0)
 
@@ -403,7 +478,7 @@ function buildCategoryHistoryFacts(
   const current = snapshot.monthAggregates
     .find((aggregate) => aggregate.month === snapshot.month)
     ?.categories.find((candidate) => candidate.currency === currency && candidate.category === category)
-  const currentAmount = current?.amount ?? 0
+  const currentAmount = current?.habitualAmount ?? 0
   const average = Math.round(
     closedMonths.reduce((sum, month) => sum + month.amount, 0) / closedMonths.length,
   )
@@ -442,10 +517,14 @@ function amountForCategoryToDay(
   month: string,
   dayOfMonth: number,
 ): number {
+  // Misma regla que los baselines: gasto habitual, sin pagos de tarjeta ni
+  // extraordinarios, en la moneda base.
   return snapshot.movements
     .filter(
       (movement) =>
         movement.kind === 'gasto' &&
+        !movement.isCardPayment &&
+        !movement.isExtraordinary &&
         movement.currency === snapshot.currency &&
         movement.category === category &&
         movement.date.startsWith(`${month}-`) &&
@@ -471,7 +550,7 @@ function buildCategorySameDayFacts(
       fullMonthAmount:
         aggregate.categories.find(
           (candidate) => candidate.currency === currency && candidate.category === category,
-        )?.amount ?? 0,
+        )?.habitualAmount ?? 0,
     }))
     .filter((month) => month.sameDayAmount > 0)
 
@@ -725,6 +804,23 @@ function buildAffordabilityFacts(
         ),
       )
     }
+
+    const verdictCopy: Record<typeof installmentPlan.verdict, string> = {
+      fits: 'La cuota entra: la carga de cuotas queda por debajo del 25% del ingreso en todos los meses simulados',
+      tight:
+        'Entra pero ajustado: la carga de cuotas llega al 25–39% del ingreso en el mes más cargado',
+      overloaded:
+        'Sobrecarga: la carga de cuotas supera el 40% del ingreso en el mes más cargado',
+      insufficient_data:
+        'Sin ingreso de referencia no puedo evaluar si la carga de cuotas es aceptable',
+    }
+    facts.push(evidenceItem('Veredicto', verdictCopy[installmentPlan.verdict], 'projection:verdict'))
+
+    if (installmentPlan.truncated) {
+      caveats.push(
+        `La simulación cubre ${installmentPlan.simulatedMonths} meses de las ${installmentPlan.requestedInstallments} cuotas pedidas: la carga real sigue después de ese horizonte.`,
+      )
+    }
   }
 
   return facts
@@ -914,6 +1010,7 @@ export function buildAnswerPacket(
   return {
     intent: plan.intent,
     facts,
+    answerEvidenceIds: selectAnswerEvidenceIds(plan.intent, facts),
     movements,
     caveats,
     followUps: FOLLOW_UPS[plan.intent],

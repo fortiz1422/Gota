@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Variante C — Editorial mínima</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* C: el azul conserva su profundidad actual (solo Saldo Vivo).
+     Disponible Real es una fila de texto fuerte, sin borde ni card.
+     La lectura es tipografía + una regla semántica fina. */
+  .blue-zone { padding-bottom: 26px; }
+  .hero-block { margin-top: 22px; }
+
+  .sub-row {
+    display: flex; align-items: baseline; justify-content: space-between;
+    padding: 18px 0 14px;
+    border-bottom: 1px solid var(--color-separator);
+  }
+  .sub-row .lbl { font-size: 13px; font-weight: 600; color: var(--color-text-secondary); }
+  .sub-row .lbl small { display: block; font-size: 11.5px; font-weight: 500; color: var(--color-text-tertiary); margin-top: 1px; }
+  .sub-row .val { font-size: 27px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-text-primary); }
+
+  .reading { padding: 20px 0 6px; border-left: 2px solid var(--color-warning); padding-left: 14px; margin-top: 20px; }
+  .reading .section-label { color: var(--color-warning); }
+  .reading h2 { font-size: 18px; font-weight: 800; letter-spacing: -0.01em; margin-top: 8px; }
+  .reading p { font-size: 14px; line-height: 1.45; color: var(--color-text-secondary); margin-top: 6px; }
+  .reading .evidence { margin-top: 12px; }
+  .reading .actions { margin-top: 14px; }
+  .section { padding-top: 24px; }
+  .section .section-label { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+  <div class="blue-zone">
+    <div class="top-row">
+      <span class="brand">GOTA</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="header-glass month-pill">Julio 2026</span>
+        <span class="header-glass avatar">F</span>
+      </div>
+    </div>
+
+    <div class="hero-block">
+      <span class="hero-label">Saldo Vivo</span>
+      <div class="hero-number tabular">$ 2.847.300</div>
+      <div class="hero-breakdown">ARS 2.612.100 · USD 196,00</div>
+    </div>
+  </div>
+
+  <div class="white-zone">
+    <div class="sub-row">
+      <span class="lbl">Disponible Real<small>Tarjetas ya descontadas</small></span>
+      <span class="val tabular">$ 1.998.400</span>
+    </div>
+
+    <section class="reading">
+      <span class="section-label">Lectura de hoy</span>
+      <h2>Visa Galicia vence en 3 días</h2>
+      <p>Tenés $ 300.000 pendientes del resumen de Visa Galicia con vencimiento el 18 jul. Después de pagarlo seguís cubierto: quedan $ 1.698.400 disponibles.</p>
+      <div class="evidence">
+        <div><span class="ev-label">Pendiente</span><span class="ev-value tabular">$ 300.000</span></div>
+        <div><span class="ev-label">Vencimiento</span><span class="ev-value tabular">18 jul</span></div>
+      </div>
+      <div class="actions">
+        <button class="btn-primary">Ver compromisos</button>
+        <button class="btn-ask">Preguntar</button>
+      </div>
+    </section>
+
+    <section class="section">
+      <span class="section-label">Próximos movimientos de caja</span>
+      <div class="row">
+        <span class="when">18 jul</span>
+        <div class="what"><div class="t">Resumen Visa Galicia</div><div class="s">Vence en 3 días</div></div>
+        <span class="amount warn tabular">$ 300.000</span>
+      </div>
+      <div class="row">
+        <span class="when">20 jul</span>
+        <div class="what"><div class="t">Débito Gimnasio</div></div>
+        <span class="amount neg tabular">$ 25.000</span>
+      </div>
+      <div class="row">
+        <span class="when">28 jul</span>
+        <div class="what"><div class="t">Sueldo esperado</div></div>
+        <span class="amount tabular" style="color: var(--color-primary);">$ 1.000.000</span>
+      </div>
+      <div class="horizon-footer">Tarjetas: 1 a pagar · 2 en curso — <a href="#">ver compromisos</a></div>
+    </section>
+
+    <section class="section" style="padding-bottom: 90px;">
+      <span class="section-label">Actividad reciente</span>
+      <div class="row">
+        <span class="when">Hoy</span>
+        <div class="what"><div class="t">Supermercado Coto</div><div class="s">Supermercado</div></div>
+        <span class="amount neg tabular">−$ 42.300</span>
+      </div>
+      <div class="row">
+        <span class="when">Ayer</span>
+        <div class="what"><div class="t">Pedido delivery</div><div class="s">Delivery</div></div>
+        <span class="amount neg tabular">−$ 10.000</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="bottom">
+    <div class="composer"><span class="plus">+</span> Anotá un gasto, ingreso o pregunta…</div>
+  </div>
+</body>
+</html>

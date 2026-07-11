@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Variante D — B + lectura expandible por tap</title>
+<link rel="stylesheet" href="_shared.css" />
+<style>
+  /* D: estructura de B (banda superpuesta) pero con el Home conciso del
+     actual: la lectura es UNA fila por default y se expande con tap;
+     compromisos vuelve a ser un resumen de una línea, no un timeline. */
+  .blue-zone { padding-bottom: 44px; }
+  .hero-block { margin-top: 22px; }
+
+  .overlap-band {
+    margin: -24px 20px 0;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border-strong);
+    border-radius: var(--radius-card);
+    padding: 14px 18px;
+    display: flex; align-items: baseline; justify-content: space-between;
+  }
+  .ob-label { font-size: 12px; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-tertiary); }
+  .ob-hint { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .ob-number { font-size: 26px; font-weight: 800; letter-spacing: -0.02em; color: var(--color-primary); }
+
+  /* Lectura colapsada: una sola fila tappeable. */
+  .reading { padding: 16px 0 4px; cursor: pointer; }
+  .reading-row { display: flex; align-items: center; gap: 10px; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-warning); flex-shrink: 0; }
+  .reading-row .headline { flex: 1; font-size: 15.5px; font-weight: 700; letter-spacing: -0.01em; }
+  .reading-row .chevron { color: var(--color-text-tertiary); font-size: 13px; transition: transform 0.2s; }
+  body.expanded .reading-row .chevron { transform: rotate(90deg); }
+
+  .reading-detail { display: none; padding: 8px 0 6px 18px; }
+  body.expanded .reading-detail { display: block; }
+  .reading-detail p { font-size: 14px; line-height: 1.45; color: var(--color-text-secondary); }
+  .reading-detail .evidence { margin-top: 12px; }
+  .reading-detail .actions { margin-top: 14px; }
+
+  /* Compromisos: resumen conciso de una línea, como el Home actual. */
+  .commitments {
+    margin-top: 14px; padding: 13px 0;
+    border-top: 1px solid var(--color-separator);
+    border-bottom: 1px solid var(--color-separator);
+    display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  }
+  .commitments .l .t { font-size: 14px; font-weight: 700; }
+  .commitments .l .s { font-size: 12px; color: var(--color-text-secondary); margin-top: 2px; }
+  .commitments .v { font-size: 16px; font-weight: 800; }
+  .commitments .chev { color: var(--color-text-tertiary); font-size: 13px; }
+
+  .section { padding-top: 18px; }
+  .section .section-label { margin-bottom: 2px; }
+</style>
+</head>
+<body>
+  <div class="blue-zone">
+    <div class="top-row">
+      <span class="brand">GOTA</span>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <span class="header-glass month-pill">Julio 2026</span>
+        <span class="header-glass avatar">F</span>
+      </div>
+    </div>
+
+    <div class="hero-block">
+      <span class="hero-label">Saldo Vivo</span>
+      <div class="hero-number tabular">$ 2.847.300</div>
+      <div class="hero-breakdown">ARS 2.612.100 · USD 196,00</div>
+    </div>
+  </div>
+
+  <div class="overlap-band">
+    <div>
+      <span class="ob-label">Disponible Real</span>
+      <div class="ob-hint">Tarjetas ya descontadas</div>
+    </div>
+    <div class="ob-number tabular">$ 1.998.400</div>
+  </div>
+
+  <div class="white-zone">
+    <section class="reading" onclick="document.body.classList.toggle('expanded')">
+      <div class="reading-row">
+        <span class="status-dot"></span>
+        <span class="headline">Visa Galicia vence en 3 días</span>
+        <span class="chevron">›</span>
+      </div>
+      <div class="reading-detail">
+        <p>Tenés $ 300.000 pendientes del resumen, vence el 18 jul. Después de pagarlo seguís cubierto: quedan $ 1.698.400 disponibles.</p>
+        <div class="evidence">
+          <div><span class="ev-label">Pendiente</span><span class="ev-value tabular">$ 300.000</span></div>
+          <div><span class="ev-label">Vencimiento</span><span class="ev-value tabular">18 jul</span></div>
+        </div>
+        <div class="actions">
+          <button class="btn-primary">Ver compromisos</button>
+          <button class="btn-ask">Preguntar</button>
+        </div>
+      </div>
+    </section>
+
+    <div class="commitments">
+      <div class="l">
+        <div class="t">Compromisos del mes</div>
+        <div class="s">Tarjetas: 1 a pagar · 2 en curso · próximo débito 20 jul</div>
+      </div>
+      <div style="display:flex; align-items:center; gap:8px;">
+        <span class="v tabular">$ 325.000</span>
+        <span class="chev">›</span>
+      </div>
+    </div>
+
+    <section class="section" style="padding-bottom: 90px;">
+      <span class="section-label">Últimos movimientos</span>
+      <div class="row">
+        <span class="when">Hoy</span>
+        <div class="what"><div class="t">Supermercado Coto</div><div class="s">Supermercado</div></div>
+        <span class="amount neg tabular">−$ 42.300</span>
+      </div>
+      <div class="row">
+        <span class="when">Ayer</span>
+        <div class="what"><div class="t">Pedido delivery</div><div class="s">Delivery</div></div>
+        <span class="amount neg tabular">−$ 10.000</span>
+      </div>
+      <div class="row">
+        <span class="when">Ayer</span>
+        <div class="what"><div class="t">Farmacity</div><div class="s">Farmacia</div></div>
+        <span class="amount neg tabular">−$ 18.750</span>
+      </div>
+    </section>
+  </div>
+
+  <div class="bottom">
+    <div class="composer"><span class="plus">+</span> Anotá un gasto, ingreso o pregunta…</div>
+  </div>
+</body>
+</html>

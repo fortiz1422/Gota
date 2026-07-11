@@ -125,7 +125,9 @@ export function computeSameDaySpend(snapshot: FinancialSnapshot): SameDaySpendFe
     baselineWindow: values.length,
     deltaPct: Math.round(((currentAmount - baselineAmount) / baselineAmount) * 100),
     extraordinaryExcluded,
-    dataQuality: 'ok',
+    // Si el fetch de gastos llegó a su límite, los meses más viejos pueden
+    // estar incompletos: nunca reclamar calidad plena sobre esa base.
+    dataQuality: snapshot.coverage.expenses.truncated ? 'partial' : 'ok',
   }
 }
 
@@ -216,7 +218,8 @@ export function nextSubscriptionDate(snapshot: FinancialSnapshot, dayOfMonth: nu
     const lastDay = new Date(year, monthNumber, 0).getDate()
     return `${month}-${String(Math.min(day, lastDay)).padStart(2, '0')}`
   }
-  if (dayOfMonth > snapshot.dayOfMonth) return clamp(snapshot.month, dayOfMonth)
+  // Inclusivo: un débito que vence hoy sigue siendo salida del mes en curso.
+  if (dayOfMonth >= snapshot.dayOfMonth) return clamp(snapshot.month, dayOfMonth)
   const [year, monthNumber] = snapshot.month.split('-').map(Number)
   const next = new Date(year, monthNumber, 1)
   const nextMonth = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}`

@@ -148,6 +148,16 @@ export type SimulatedInstallmentMonth = {
   incomeSharePct: number | null
 }
 
+/**
+ * Política determinística de carga de cuotas, sobre el % del ingreso de
+ * referencia comprometido en el mes pico (mismos umbrales que la señal
+ * installment_load): <25% fits, 25–39% tight, >=40% overloaded.
+ */
+export type InstallmentVerdict = 'fits' | 'tight' | 'overloaded' | 'insufficient_data'
+
+/** Meses máximos simulados hacia adelante para una compra en cuotas. */
+export const INSTALLMENT_SIMULATION_MONTHS = 6
+
 export type PurchaseSimulation = {
   amount: number
   installments: number | null
@@ -161,7 +171,23 @@ export type PurchaseSimulation = {
   installmentPlan: {
     monthlyAmount: number
     monthsAffected: SimulatedInstallmentMonth[]
+    requestedInstallments: number
+    simulatedMonths: number
+    /** true si se pidieron más cuotas que el horizonte simulado. */
+    truncated: boolean
+    verdict: InstallmentVerdict
   } | null
+}
+
+function installmentVerdict(monthsAffected: SimulatedInstallmentMonth[]): InstallmentVerdict {
+  const shares = monthsAffected
+    .map((month) => month.incomeSharePct)
+    .filter((share): share is number => share !== null)
+  if (shares.length === 0) return 'insufficient_data'
+  const peakShare = Math.max(...shares)
+  if (peakShare >= 40) return 'overloaded'
+  if (peakShare >= 25) return 'tight'
+  return 'fits'
 }
 
 /**
@@ -181,8 +207,9 @@ export function simulatePurchase(
     const monthsAffected: SimulatedInstallmentMonth[] = []
 
     const horizonByMonth = new Map(horizon.months.map((entry) => [entry.month, entry.amount]))
+    const simulatedMonths = Math.min(params.installments, INSTALLMENT_SIMULATION_MONTHS)
     let cursor = snapshot.month
-    for (let index = 0; index < Math.min(params.installments, 6); index += 1) {
+    for (let index = 0; index < simulatedMonths; index += 1) {
       const [year, monthNumber] = cursor.split('-').map(Number)
       const next = new Date(Date.UTC(year, monthNumber, 1))
       cursor = `${next.getUTCFullYear()}-${String(next.getUTCMonth() + 1).padStart(2, '0')}`
@@ -199,7 +226,14 @@ export function simulatePurchase(
       amount: params.amount,
       installments: params.installments,
       upfront: null,
-      installmentPlan: { monthlyAmount, monthsAffected },
+      installmentPlan: {
+        monthlyAmount,
+        monthsAffected,
+        requestedInstallments: params.installments,
+        simulatedMonths,
+        truncated: params.installments > simulatedMonths,
+        verdict: installmentVerdict(monthsAffected),
+      },
     }
   }
 

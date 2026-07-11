@@ -107,6 +107,15 @@ describe('computeSafeToSpend', () => {
     })
     expect(computeSafeToSpend(snapshot).committedRemaining).toBe(0)
   })
+
+  it('reserva del margen un débito que vence hoy', () => {
+    const snapshot = makeSnapshot({
+      disponibleReal: { ARS: 500_000, USD: 0 },
+      subscriptions: [makeSubscription({ amount: 25_000, dayOfMonth: 15 })],
+    })
+
+    expect(computeSafeToSpend(snapshot).committedRemaining).toBe(25_000)
+  })
 })
 
 describe('simulatePurchase', () => {
@@ -144,5 +153,41 @@ describe('simulatePurchase', () => {
       incomeSharePct: 10,
     })
     expect(simulation.upfront).toBeNull()
+  })
+
+  it('cuotas con carga baja (<25% del ingreso pico): veredicto fits', () => {
+    const simulation = simulatePurchase(makeSnapshot(), { amount: 600_000, installments: 6 })
+
+    expect(simulation.installmentPlan?.verdict).toBe('fits')
+    expect(simulation.installmentPlan?.truncated).toBe(false)
+    expect(simulation.installmentPlan?.simulatedMonths).toBe(6)
+    expect(simulation.installmentPlan?.requestedInstallments).toBe(6)
+  })
+
+  it('cuotas con pico 30% del ingreso: veredicto tight', () => {
+    const simulation = simulatePurchase(makeSnapshot(), { amount: 1_800_000, installments: 6 })
+
+    expect(simulation.installmentPlan?.verdict).toBe('tight')
+  })
+
+  it('cuotas con pico 45% del ingreso: veredicto overloaded', () => {
+    const simulation = simulatePurchase(makeSnapshot(), { amount: 2_700_000, installments: 6 })
+
+    expect(simulation.installmentPlan?.verdict).toBe('overloaded')
+  })
+
+  it('12 cuotas: simula 6 meses y lo marca como horizonte truncado', () => {
+    const simulation = simulatePurchase(makeSnapshot(), { amount: 1_200_000, installments: 12 })
+
+    expect(simulation.installmentPlan?.requestedInstallments).toBe(12)
+    expect(simulation.installmentPlan?.simulatedMonths).toBe(6)
+    expect(simulation.installmentPlan?.truncated).toBe(true)
+  })
+
+  it('sin ingreso de referencia: veredicto insufficient_data', () => {
+    const snapshot = makeSnapshot({ incomeEntries: [] })
+    const simulation = simulatePurchase(snapshot, { amount: 600_000, installments: 6 })
+
+    expect(simulation.installmentPlan?.verdict).toBe('insufficient_data')
   })
 })

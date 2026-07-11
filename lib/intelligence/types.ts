@@ -12,9 +12,13 @@ export type Currency = 'ARS' | 'USD'
 export type DataQuality = 'ok' | 'partial' | 'insufficient'
 
 export type EvidenceItem = {
+  /** Igual a source: identificador estable del hecho, no depende del orden. */
+  id: string
   label: string
   value: string
   source: string
+  /** Fecha de referencia del dato (YYYY-MM-DD). Opcional en paths legacy. */
+  asOf?: string
 }
 
 export type InsightSeverity = 'info' | 'watch' | 'risk' | 'positive'
@@ -106,6 +110,9 @@ export type CategoryAggregate = {
   currency: Currency
   amount: number
   count: number
+  /** Sin gastos extraordinarios: base para promedios y comparativas históricas. */
+  habitualAmount: number
+  habitualCount: number
 }
 
 export type MonthAggregate = {
@@ -119,6 +126,35 @@ export type MonthAggregate = {
   /** Gasto marcado como extraordinario: se excluye de los baselines históricos. */
   extraordinarySpend: Record<Currency, number>
   categories: CategoryAggregate[]
+}
+
+/**
+ * Estado editorial de la lectura del Home:
+ * - learning: sin base suficiente para afirmar nada (no simular calma)
+ * - calm: cubierto; una lectura concisa de margen o abstención
+ * - watch: una señal que conviene mirar, con acción
+ * - risk: una señal urgente, con acción nativa
+ */
+export type HomeBriefStatus = 'learning' | 'calm' | 'watch' | 'risk'
+
+export type HomeBrief = {
+  status: HomeBriefStatus
+  headline: string
+  summary: string
+  evidence: EvidenceItem[]
+  /** Acción nativa (navegación/flujo propio); 'Preguntar' va aparte. */
+  primaryAction: InsightAction | null
+  askQuestion: string | null
+  /** Señales adicionales de dominios materialmente distintos (no se listan). */
+  secondaryCount: number
+  generatedAt: string
+  validUntil: string
+  moneyBasis: {
+    mode: 'default_currency' | 'combined_ars' | 'combined_usd'
+    currency: Currency
+    valuationRate: number | null
+  }
+  sourceInsightIds: string[]
 }
 
 export type GoalPace = 'on_track' | 'behind' | 'no_date' | 'completed' | 'paused'
@@ -161,6 +197,20 @@ export type FutureInstallmentMonth = {
  * Serializable (sin Maps ni Dates) para poder fixturearlo en tests
  * y compartirlo entre héroes y chat sin recomputar.
  */
+export type SnapshotSourceCoverage = {
+  fetched: number
+  limit: number
+  /** true si la fuente trajo exactamente el límite: puede faltar histórico. */
+  truncated: boolean
+}
+
+export type SnapshotCoverage = {
+  expenses: SnapshotSourceCoverage
+  incomes: SnapshotSourceCoverage
+  transfers: SnapshotSourceCoverage
+  historyStartDate: string
+}
+
 export type FinancialSnapshot = {
   referenceDate: string
   month: string
@@ -191,4 +241,5 @@ export type FinancialSnapshot = {
   movements: SnapshotMovement[]
   monthAggregates: MonthAggregate[]
   hasOtherCurrencyMovements: boolean
+  coverage: SnapshotCoverage
 }

@@ -2,7 +2,7 @@ import { formatAmount } from '@/lib/format'
 import type { Currency, EvidenceItem } from './types'
 
 export function evidenceItem(label: string, value: string, source: string): EvidenceItem {
-  return { label, value, source }
+  return { id: source, label, value, source }
 }
 
 export function moneyEvidence(
@@ -11,7 +11,7 @@ export function moneyEvidence(
   currency: Currency,
   source: string,
 ): EvidenceItem {
-  return { label, value: formatAmount(Math.round(amount), currency), source }
+  return { id: source, label, value: formatAmount(Math.round(amount), currency), source }
 }
 
 const SHORT_MONTHS_ES = [
