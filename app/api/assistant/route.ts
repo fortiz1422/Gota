@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server'
 import { normalizeAssistantHistory } from '@/lib/assistant/prompt'
 import { FF_GOTA_ASSISTANT } from '@/lib/flags'
 import { geminiModel } from '@/lib/gemini/client'
+import { planWithConversationContext } from '@/lib/intelligence/chat-context'
 import { buildAnswerPacket } from '@/lib/intelligence/chat-evidence'
-import { planChatQuery } from '@/lib/intelligence/chat-planner'
 import { buildAssistantInstructionV2 } from '@/lib/intelligence/chat-prompt'
 import { loadFinancialSnapshot } from '@/lib/intelligence/snapshot'
 import { captureRouteError } from '@/lib/observability/sentry'
@@ -55,7 +55,11 @@ export async function POST(request: Request) {
     }
 
     const snapshot = await loadFinancialSnapshot({ supabase, userId: user.id })
-    const plan = planChatQuery(question)
+    // Los follow-ups cortos heredan slots del turno anterior de forma
+    // determinística; el LLM nunca inventa contexto financiero.
+    const previousUserQuestion =
+      [...history].reverse().find((message) => message.role === 'user')?.content ?? null
+    const plan = planWithConversationContext(question, previousUserQuestion)
     const packet = buildAnswerPacket(snapshot, plan)
     const instruction = buildAssistantInstructionV2(packet, snapshot)
 
