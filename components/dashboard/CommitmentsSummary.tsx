@@ -81,7 +81,7 @@ export function CommitmentsSummary({
                 <div className="min-w-0">
                   <p className="type-body text-text-secondary">Compromisos en tarjetas</p>
                   <p
-                    className={`mt-1 truncate type-meta ${
+                    className={`mt-1 break-words leading-tight type-meta ${
                       ambient ? AMBIENT_FOOTER_COLOR[ambient.status] : 'text-text-dim'
                     }`}
                   >
