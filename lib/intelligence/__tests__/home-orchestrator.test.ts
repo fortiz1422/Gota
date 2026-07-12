@@ -220,7 +220,8 @@ describe('caso 7 — ritmo insostenible', () => {
     const model = buildHomeIntelligence(snapshot, displayContext)!
 
     expect(model.actionSlot?.kind).toBe('pace_unsustainable')
-    expect(model.actionSlot?.subtitle).toMatch(/abajo/)
+    expect(model.actionSlot?.title).toBe('Ritmo alto este mes')
+    expect(model.actionSlot?.subtitle).toMatch(/^Proyección: .* abajo$/)
     expect(model.ambient.disponibleReal?.status).toBe('watch')
     // El módulo no repite la proyección del Action Slot.
     expect(model.ambient.disponibleReal?.label).not.toMatch(/\d/)

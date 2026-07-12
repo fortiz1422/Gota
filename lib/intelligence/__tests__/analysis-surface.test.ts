@@ -26,7 +26,7 @@ describe('resolveAnalysisPresentation', () => {
     expect(presentation.chips.some((chip) => chip.kind === 'same_day_spend_delta')).toBe(false)
   })
 
-  it('una señal risk toma el hero y el resto queda como chips', () => {
+  it('un vencimiento de tarjeta no toma el hero de gasto de Análisis', () => {
     const { heroes } = buildHeroesResponse(
       makeSnapshot({
         budget: makeBudgetSnapshot([
@@ -43,8 +43,11 @@ describe('resolveAnalysisPresentation', () => {
     )
 
     const presentation = resolveAnalysisPresentation(heroes)
-    expect(presentation.takeover?.kind).toBe('upcoming_card_due')
-    expect(presentation.chips.map((chip) => chip.kind)).toEqual(['budget_acceleration'])
+    expect(presentation.takeover).toBeNull()
+    expect(presentation.chips.map((chip) => chip.kind)).toEqual([
+      'upcoming_card_due',
+      'budget_acceleration',
+    ])
   })
 
   it('sin señales risk todo va a chips (máximo 3)', () => {
@@ -80,8 +83,8 @@ describe('takeoverSubcopy', () => {
         ],
       }),
     )
-    const { takeover } = resolveAnalysisPresentation(heroes)
-    expect(takeover).not.toBeNull()
-    expect(takeoverSubcopy(takeover!)).toBe('Pendiente $ 300.000 · Vencimiento 18 jul')
+    const hero = heroes.find((item) => item.kind === 'upcoming_card_due')
+    expect(hero).toBeDefined()
+    expect(takeoverSubcopy(hero!)).toBe('Pendiente $ 300.000 · Vencimiento 18 jul')
   })
 })
