@@ -43,7 +43,7 @@ export function HomeAmbientLine({
           className={`${compact ? 'h-1 w-1' : 'h-1.5 w-1.5'} shrink-0 rounded-full ${dot}`}
         />
       )}
-      <span className={`truncate ${textSize} font-medium ${STATUS_TEXT[modifier.status]}`}>
+      <span className={`break-words ${textSize} font-medium leading-tight ${STATUS_TEXT[modifier.status]}`}>
         {modifier.label}
       </span>
       {interactive && <CaretRight size={12} weight="regular" className="shrink-0 text-text-tertiary" />}
