@@ -1,6 +1,5 @@
 'use client'
 
-import { useMemo, useState } from 'react'
 import { Modal } from '@/components/ui/Modal'
 import { Info } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
@@ -18,6 +17,17 @@ interface Props {
   isProjected?: boolean
 }
 
+function amountClass(value: number, emphasized = false) {
+  const size = emphasized ? 'text-[20px]' : 'text-sm'
+  return `${size} shrink-0 whitespace-nowrap text-right ${emphasized ? 'font-extrabold' : 'font-semibold'} leading-none tabular-nums ${
+    value < 0 ? 'text-danger' : emphasized ? 'text-primary' : 'text-text-primary'
+  }`
+}
+
+function signedAmount(value: number, currency: 'ARS' | 'USD', prefix = '') {
+  return `${value < 0 ? '−' : prefix}${formatAmount(Math.abs(value), currency)}`
+}
+
 export function DisponibleRealSheet({
   open,
   onClose,
@@ -28,124 +38,77 @@ export function DisponibleRealSheet({
   disponibleLibre,
   currency,
 }: Props) {
-  const [mode, setMode] = useState<'real' | 'libre'>(initialMode)
-
   const disponibleReal = saldoVivo - gastosTarjeta
   const libre = disponibleLibre ?? disponibleReal - comprometidoMetas
   const hasCommittedGoals = comprometidoMetas > 0
-  const activeValue = mode === 'libre' ? libre : disponibleReal
-  const activeTitle = mode === 'libre' ? 'DISPONIBLE LIBRE' : 'DISPONIBLE REAL'
-  const activeExplanation = useMemo(() => {
-    if (mode === 'libre') {
-      if (!hasCommittedGoals) {
-        return 'Hoy coincide con tu disponible real porque todavía no apartaste plata a metas.'
-      }
-      return 'Es lo que te queda después de tarjetas y también de lo que ya decidiste apartar para metas.'
-    }
-
-    return 'Es lo que te queda después de descontar obligaciones ya causadas en tarjetas.'
-  }, [hasCommittedGoals, mode])
+  const showLibre = initialMode === 'libre' && hasCommittedGoals
+  const primaryValue = showLibre ? libre : disponibleReal
+  const primaryTitle = showLibre ? 'Disponible libre' : 'Disponible real'
+  const primaryExplanation = showLibre
+    ? 'Lo que podés usar después de tarjetas y de la plata que ya apartaste para metas.'
+    : 'Lo que te queda después de descontar consumos ya registrados en tarjetas.'
 
   return (
     <Modal open={open} onClose={onClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
+      <div className="mx-auto mb-6 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-text-tertiary">{activeTitle}</p>
-          <p className="mt-2 max-w-[26rem] text-[12px] leading-[1.5] text-text-secondary">{activeExplanation}</p>
+      <header className="mb-7">
+        <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-text-tertiary">{primaryTitle}</p>
+        <p className="mt-2 max-w-[29rem] text-[14px] leading-relaxed text-text-secondary">{primaryExplanation}</p>
+        <p className={`mt-5 text-[38px] font-extrabold leading-none tabular-nums ${primaryValue < 0 ? 'text-danger' : 'text-primary'}`}>
+          {signedAmount(primaryValue, currency)}
+        </p>
+      </header>
+
+      <section aria-label="Cómo se calcula tu disponible real">
+        <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-text-tertiary">Cómo se calcula</p>
+
+        <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-3.5">
+          <span className="min-w-0 text-sm text-text-secondary">Saldo Vivo</span>
+          <span className={amountClass(saldoVivo)}>{signedAmount(saldoVivo, currency)}</span>
         </div>
 
-        {hasCommittedGoals ? (
-          <div className="inline-flex rounded-pill border border-border-subtle bg-bg-secondary p-1">
-            <button
-              type="button"
-              onClick={() => setMode('real')}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                mode === 'real' ? 'bg-white text-text-primary shadow-sm' : 'text-text-tertiary'
-              }`}
-            >
-              Real
-            </button>
-            <button
-              type="button"
-              onClick={() => setMode('libre')}
-              className={`rounded-pill px-2.5 py-1 text-[11px] font-semibold transition-colors ${
-                mode === 'libre' ? 'bg-white text-text-primary shadow-sm' : 'text-text-tertiary'
-              }`}
-            >
-              Libre
-            </button>
+        <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-3.5">
+          <span className="min-w-0 text-sm text-text-secondary">Consumos ya registrados en tarjetas</span>
+          <span className={amountClass(-gastosTarjeta)}>−{formatAmount(gastosTarjeta, currency)}</span>
+        </div>
+
+        <div className="mt-1 flex items-center justify-between gap-4 border-t border-border-strong pt-4">
+          <span className="min-w-0 text-sm font-bold text-text-primary">Disponible real</span>
+          <span className={amountClass(disponibleReal, true)}>{signedAmount(disponibleReal, currency)}</span>
+        </div>
+      </section>
+
+      {hasCommittedGoals ? (
+        <section className="mt-7" aria-label="Impacto de tus metas">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-text-tertiary">Metas</p>
+
+          <div className="flex items-center justify-between gap-4 border-b border-border-subtle py-3.5">
+            <div className="min-w-0">
+              <p className="text-sm text-text-secondary">Plata apartada para metas</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-text-tertiary">Sigue dentro de tu caja, pero ya tiene destino.</p>
+            </div>
+            <span className={amountClass(-comprometidoMetas)}>−{formatAmount(comprometidoMetas, currency)}</span>
           </div>
-        ) : null}
-      </div>
 
-      <p
-        className={`mb-6 mt-3 text-[36px] font-extrabold leading-none tabular-nums ${activeValue < 0 ? 'text-danger' : 'text-primary'}`}
-      >
-        {activeValue < 0 ? '−' : ''}
-        {formatAmount(Math.abs(activeValue), currency)}
-      </p>
-
-      <div>
-        <div className="flex items-center justify-between border-b border-border-subtle py-3.5">
-          <span className="text-sm text-text-secondary">Saldo Vivo</span>
-          <span className={`text-sm font-semibold tabular-nums ${saldoVivo < 0 ? 'text-danger' : 'text-text-primary'}`}>
-            {saldoVivo < 0 ? '−' : ''}
-            {formatAmount(Math.abs(saldoVivo), currency)}
-          </span>
-        </div>
-
-        <div className="flex items-center justify-between border-b border-border-subtle py-3.5">
-          <span className="text-sm text-text-secondary">Lo ya registrado en tarjetas</span>
-          <span className="text-sm font-semibold tabular-nums text-warning">−{formatAmount(gastosTarjeta, currency)}</span>
-        </div>
-
-        <div
-          className={`flex items-center justify-between py-3.5 ${mode === 'real' ? 'rounded-card bg-primary/5 px-3 -mx-3' : ''}`}
-        >
-          <div>
-            <span className="text-sm font-semibold text-text-primary">Disponible real</span>
-            {mode === 'real' ? (
-              <p className="mt-1 text-[12px] text-text-tertiary">Base operativa para mirar qué podés usar hoy.</p>
-            ) : null}
+          <div className="mt-1 flex items-center justify-between gap-4 border-t border-border-strong pt-4">
+            <div className="min-w-0">
+              <p className="text-sm font-bold text-text-primary">Disponible libre</p>
+              <p className="mt-1 text-[12px] leading-relaxed text-text-tertiary">Lo que podés usar sin tocar metas.</p>
+            </div>
+            <span className={amountClass(libre, true)}>{signedAmount(libre, currency)}</span>
           </div>
-          <span className={`text-[20px] font-extrabold leading-none tabular-nums ${disponibleReal < 0 ? 'text-danger' : 'text-primary'}`}>
-            {disponibleReal < 0 ? '−' : ''}
-            {formatAmount(Math.abs(disponibleReal), currency)}
-          </span>
-        </div>
+        </section>
+      ) : (
+        <p className="mt-6 text-[13px] leading-relaxed text-text-secondary">
+          No tenés metas comprometidas: hoy tu disponible libre coincide con el real.
+        </p>
+      )}
 
-        <div className="flex items-center justify-between border-b border-border-subtle py-3.5">
-          <div>
-            <span className="text-sm text-text-secondary">Comprometido en metas</span>
-            <p className="mt-1 text-[12px] text-text-tertiary">Decisiones de ahorro que siguen dentro de tu caja actual.</p>
-          </div>
-          <span className="text-sm font-semibold tabular-nums text-primary">−{formatAmount(comprometidoMetas, currency)}</span>
-        </div>
-
-        <div
-          className={`mt-1 flex items-center justify-between border-t border-border-strong pt-3.5 ${mode === 'libre' ? 'rounded-card bg-primary/5 px-3 pb-3 -mx-3' : ''}`}
-        >
-          <div>
-            <span className="text-sm font-semibold text-text-primary">Disponible libre</span>
-            <p className="mt-1 text-[12px] text-text-tertiary">
-              {!hasCommittedGoals
-                ? 'Hoy coincide con el real porque todavía no comprometiste metas.'
-                : 'Disponible real menos lo que ya decidiste apartar para metas.'}
-            </p>
-          </div>
-          <span className={`text-[20px] font-extrabold leading-none tabular-nums ${libre < 0 ? 'text-danger' : 'text-primary'}`}>
-            {libre < 0 ? '−' : ''}
-            {formatAmount(Math.abs(libre), currency)}
-          </span>
-        </div>
-      </div>
-
-      <div className="mt-5 flex gap-3 rounded-[14px] bg-bg-secondary px-4 py-3.5">
+      <div className="mt-6 flex gap-3 border-t border-border-subtle pt-4">
         <Info size={16} weight="light" className="mt-0.5 shrink-0 text-text-dim" />
         <p className="text-[12px] leading-[1.55] text-text-secondary">
-          Tarjetas refleja obligaciones ya causadas. Metas refleja plata que vos decidiste comprometer, sin cambiar el significado de Saldo Vivo.
+          Los consumos de tarjeta ya están descontados. Las metas no cambian tu Saldo Vivo: solo reservan parte de ese dinero.
         </p>
       </div>
     </Modal>
