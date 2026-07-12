@@ -40,7 +40,7 @@ export function Modal({ open, onClose, children }: ModalProps) {
   if (!open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+    <div className="fixed inset-0 z-[70] flex items-end justify-center sm:items-center">
       {/* Backdrop */}
       <div
         ref={overlayRef}
