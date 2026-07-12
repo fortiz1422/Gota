@@ -4,9 +4,9 @@ import { X } from '@phosphor-icons/react'
 import type { HomeAction } from '@/lib/intelligence/home-model'
 
 /**
- * Acción transitoria del Home: una fila de 52–64px, cero o una por vez.
- * No es una card hero: status sobrio, título y subtítulo de una línea y un
- * único CTA. No se renderiza en calma ni deja placeholder al desaparecer.
+ * Acción transitoria del Home: cero o una por vez. No es una card hero:
+ * status sobrio y un único CTA. El mensaje nunca se corta; si hace falta,
+ * la fila crece para preservar el motivo y el monto de la acción.
  */
 export function HomeActionSlotRow({
   action,
@@ -26,8 +26,8 @@ export function HomeActionSlotRow({
       }`}
     >
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[13.5px] font-bold text-text-primary">{action.title}</p>
-        <p className="truncate text-[12px] font-medium text-text-secondary">{action.subtitle}</p>
+        <p className="break-words text-[13.5px] font-bold leading-tight text-text-primary">{action.title}</p>
+        <p className="mt-0.5 break-words text-[12px] font-medium leading-tight text-text-secondary">{action.subtitle}</p>
       </div>
       <button
         type="button"
