@@ -7,6 +7,11 @@ import type { AssistantHistoryMessage } from '@/lib/assistant/prompt'
 import { FF_INTELLIGENCE } from '@/lib/flags'
 import type { IntelligenceHeroResponse } from '@/lib/intelligence/heroes'
 import type { EvidenceItem } from '@/lib/intelligence/types'
+import {
+  EXTERNAL_OVERLAY_CHANGE_EVENT,
+  isExternalOverlayOpen,
+  type ExternalOverlayChangeDetail,
+} from '@/lib/ui/overlay-events'
 
 type ChatMessage = AssistantHistoryMessage & {
   id: string
@@ -56,6 +61,7 @@ export function GotaAssistant() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [composerOpen, setComposerOpen] = useState(false)
+  const [externalOverlayOpen, setExternalOverlayOpen] = useState(false)
   const [evidenceOpenId, setEvidenceOpenId] = useState<string | null>(null)
   const [dynamicSuggestions, setDynamicSuggestions] = useState<string[]>([])
   const listRef = useRef<HTMLDivElement>(null)
@@ -73,6 +79,17 @@ export function GotaAssistant() {
     setComposerOpen(document.documentElement.dataset.bottomComposer === 'open')
     window.addEventListener('gota:bottom-composer', onComposer)
     return () => window.removeEventListener('gota:bottom-composer', onComposer)
+  }, [])
+
+  useEffect(() => {
+    function onExternalOverlayChange(event: Event) {
+      const detail = (event as CustomEvent<ExternalOverlayChangeDetail>).detail
+      setExternalOverlayOpen(Boolean(detail?.open))
+    }
+
+    setExternalOverlayOpen(isExternalOverlayOpen())
+    window.addEventListener(EXTERNAL_OVERLAY_CHANGE_EVENT, onExternalOverlayChange)
+    return () => window.removeEventListener(EXTERNAL_OVERLAY_CHANGE_EVENT, onExternalOverlayChange)
   }, [])
 
   useEffect(() => {
@@ -165,6 +182,8 @@ export function GotaAssistant() {
 
   useEffect(() => {
     function onOpenRequest(event: Event) {
+      if (isExternalOverlayOpen()) return
+
       const detail = (event as CustomEvent<AssistantOpenDetail>).detail
       setOpen(true)
       if (detail?.question) {
@@ -204,9 +223,14 @@ export function GotaAssistant() {
       <button
         type="button"
         aria-label="Abrir Gota Asistente"
+        aria-hidden={externalOverlayOpen || undefined}
+        disabled={externalOverlayOpen}
+        tabIndex={externalOverlayOpen ? -1 : undefined}
         onClick={() => setOpen(true)}
         className={`fixed right-4 z-[60] grid h-12 w-12 place-items-center rounded-full bg-[color:var(--color-primary)] text-white shadow-lg transition ${
-          open || composerOpen ? 'pointer-events-none translate-y-2 opacity-0' : 'opacity-100'
+          open || composerOpen || externalOverlayOpen
+            ? 'pointer-events-none translate-y-2 opacity-0'
+            : 'opacity-100'
         }`}
         style={{ bottom: 'calc(env(safe-area-inset-bottom) + 104px)' }}
       >
