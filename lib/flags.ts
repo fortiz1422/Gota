@@ -27,3 +27,5 @@ export const FF_MOVEMENT_ANNOTATIONS_V1 =
   process.env.NEXT_PUBLIC_FF_MOVEMENT_ANNOTATIONS_V1 === 'true'
 export const FF_INTELLIGENCE_LIFECYCLE_V1 =
   process.env.NEXT_PUBLIC_FF_INTELLIGENCE_LIFECYCLE_V1 === 'true'
+export const FF_SIGNALS_CENTER_V1 =
+  process.env.NEXT_PUBLIC_FF_SIGNALS_CENTER_V1 === 'true'
