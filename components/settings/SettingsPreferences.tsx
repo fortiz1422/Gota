@@ -8,6 +8,7 @@ import { CardsSection } from '@/components/settings/CardsSection'
 import { HeroBalanceModePreference } from '@/components/settings/HeroBalanceModePreference'
 import { SubscriptionsPreference } from '@/components/settings/SubscriptionsPreference'
 import { addMonths } from '@/lib/dates'
+import { getProfilePreferenceVisibility } from '@/lib/settings/profile-preference-visibility'
 import type { Account, Card, HeroBalanceMode } from '@/types/database'
 
 function getMonthLabel(month: string): string {
@@ -39,6 +40,7 @@ export function SettingsPreferences({
   const [month, setMonth] = useState(currentMonth)
   const minMonth = addMonths(currentMonth, -12)
   const maxMonth = addMonths(currentMonth, 3)
+  const preferenceVisibility = getProfilePreferenceVisibility(signalsCenterEnabled)
 
   return (
     <div>
@@ -72,10 +74,14 @@ export function SettingsPreferences({
 
       <div className="flex flex-col gap-3">
         <CurrencySection currency={currency} />
-        {signalsCenterEnabled && <HeroBalanceModePreference initialValue={heroBalanceMode} />}
+        {preferenceVisibility.heroBalanceMode && (
+          <HeroBalanceModePreference initialValue={heroBalanceMode} />
+        )}
         <AccountsSection initialAccounts={accounts} month={month} />
         <CardsSection cards={cards} month={month} accounts={bankDigitalAccounts} />
-        {signalsCenterEnabled && <SubscriptionsPreference defaultCurrency={currency} />}
+        {preferenceVisibility.subscriptions && (
+          <SubscriptionsPreference defaultCurrency={currency} />
+        )}
       </div>
     </div>
   )

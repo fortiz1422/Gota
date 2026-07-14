@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaretRight } from '@phosphor-icons/react'
 import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
+import { saveHeroBalanceModePreference } from '@/lib/settings/hero-balance-mode-preference'
 import type { HeroBalanceMode } from '@/types/database'
 
 const STORAGE_KEY = 'gota.hero_balance_mode'
@@ -34,26 +35,29 @@ export function HeroBalanceModePreference({
     const previous = value
     setValue(next)
     setError(null)
-    window.localStorage.setItem(STORAGE_KEY, next)
     setIsSaving(true)
 
-    try {
-      const response = await fetch('/api/user-config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ hero_balance_mode: next }),
-      })
-      if (!response.ok) throw new Error('save failed')
+    const saved = await saveHeroBalanceModePreference({
+      nextValue: next,
+      previousValue: previous,
+      writeStorage: (mode) => window.localStorage.setItem(STORAGE_KEY, mode),
+      saveRemote: (mode) =>
+        fetch('/api/user-config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hero_balance_mode: mode }),
+        }),
+    })
 
+    if (saved) {
       setOpen(false)
       router.refresh()
-    } catch {
+    } else {
       setValue(previous)
-      window.localStorage.setItem(STORAGE_KEY, previous)
       setError('No pudimos guardar el modo. Intentá de nuevo.')
-    } finally {
-      setIsSaving(false)
     }
+
+    setIsSaving(false)
   }
 
   return (
