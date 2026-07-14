@@ -4,11 +4,13 @@ import {
   selectSignalCandidates,
   type SignalIdentityResolver,
 } from '../signal-center'
-import type { InsightCandidate, InsightKind } from '../types'
+import type { InsightCandidate, InsightKind, InsightSeverity } from '../types'
 import {
   makeBudgetSnapshot,
   makeCard,
+  makeExpense,
   makeGoal,
+  makeInputs,
   makeRecurringIncome,
   makeSnapshot,
   makeSubscription,
@@ -19,11 +21,15 @@ const identify: SignalIdentityResolver = (candidate) => ({
   version: `version-${candidate.kind}`,
 })
 
-function candidate(kind: InsightKind, priority: number): InsightCandidate {
+function candidate(
+  kind: InsightKind,
+  priority: number,
+  severity: InsightSeverity = 'watch',
+): InsightCandidate {
   return {
     id: `raw-${kind}`,
     kind,
-    severity: 'watch',
+    severity,
     priority,
     title: kind,
     short: kind,
@@ -64,6 +70,54 @@ describe('buildSignalCenter', () => {
       source: 'candidate',
     })
     expect(JSON.stringify(model.signals[0])).not.toContain('dedupeKey')
+  })
+
+  it('publica evidencia financiera visible sin id ni source técnicos', () => {
+    const expenseId = 'expense-private-9e4b'
+    const cardId = 'card-private-7a2c'
+    const goalId = 'goal-private-5d1f'
+    const model = buildSignalCenter(
+      makeSnapshot({
+        expenses: [
+          ...makeInputs().expenses,
+          makeExpense({
+            id: expenseId,
+            date: '2026-07-14',
+            amount: 200_000,
+            category: 'Supermercado',
+            description: 'Compra grande',
+          }),
+        ],
+        cards: [
+          makeCard({
+            cardId,
+            pendingStatements: [
+              { periodMonth: '2026-06', amount: 50_000, dueDate: '2026-07-18', status: 'cerrado' },
+            ],
+          }),
+        ],
+        goals: { count: 1, committed: { ARS: 300_000, USD: 0 } },
+        goalsDetail: [makeGoal({ id: goalId })],
+      }),
+      identify,
+    )
+
+    const serialized = JSON.stringify(model.signals)
+    expect(serialized).not.toContain(expenseId)
+    expect(serialized).not.toContain(cardId)
+    expect(serialized).not.toContain(goalId)
+    expect(
+      model.signals
+        .flatMap(({ evidence }) => evidence)
+        .every((item) =>
+          Object.keys(item).every((key) => ['label', 'value', 'asOf'].includes(key)),
+        ),
+    ).toBe(true)
+    expect(
+      model.signals
+        .flatMap(({ evidence }) => evidence)
+        .some(({ value }) => value.includes('$')),
+    ).toBe(true)
   })
 
   it('expone exactamente las diez familias de cobertura en orden estable', () => {
@@ -136,6 +190,24 @@ describe('buildSignalCenter', () => {
     expect(states).toMatchObject({ pace: 'active', unusual: 'active', wants: 'active' })
   })
 
+  it('mantiene pace, unusual y wants aprendiendo si gastos relevantes están truncados', () => {
+    const snapshot = makeSnapshot()
+    const model = buildSignalCenter(
+      {
+        ...snapshot,
+        coverage: {
+          ...snapshot.coverage,
+          expenses: { ...snapshot.coverage.expenses, truncated: true },
+        },
+      },
+      identify,
+    )
+    const states = Object.fromEntries(model.coverage.map(({ family, state }) => [family, state]))
+
+    expect(states).toMatchObject({ pace: 'learning', unusual: 'learning', wants: 'learning' })
+    expect(model.dataQuality).toBe('partial')
+  })
+
   it('evita duplicar tarjeta cuando liquidez ya presenta el mismo riesgo', () => {
     const selected = selectSignalCandidates([
       candidate('liquidity_watch', 440),
@@ -149,11 +221,39 @@ describe('buildSignalCenter', () => {
     ])
   })
 
-  it('limita la presentación a ocho candidatos sin alterar su orden editorial', () => {
-    const candidates = Array.from({ length: 10 }, (_, index) =>
-      candidate('budget_acceleration', 500 - index),
-    )
+  it('reserva hasta seis lugares para risk/watch y dos para info/positive', () => {
+    const candidates = [
+      candidate('budget_acceleration', 500, 'risk'),
+      candidate('same_day_spend_delta', 490, 'positive'),
+      candidate('installment_load', 480, 'watch'),
+      candidate('subscription_load', 470, 'info'),
+      candidate('income_missing', 460, 'risk'),
+    ]
 
-    expect(selectSignalCandidates(candidates)).toEqual(candidates.slice(0, 8))
+    expect(selectSignalCandidates(candidates)).toEqual([
+      candidates[0],
+      candidates[2],
+      candidates[4],
+      candidates[1],
+      candidates[3],
+    ])
+  })
+
+  it('descarta overflow de cada grupo sin mutar el input', () => {
+    const candidates = [
+      ...Array.from({ length: 8 }, (_, index) =>
+        candidate('budget_acceleration', 500 - index, index % 2 === 0 ? 'risk' : 'watch'),
+      ),
+      ...Array.from({ length: 4 }, (_, index) =>
+        candidate('subscription_load', 300 - index, index % 2 === 0 ? 'info' : 'positive'),
+      ),
+    ]
+    const original = [...candidates]
+
+    expect(selectSignalCandidates(candidates)).toEqual([
+      ...candidates.slice(0, 6),
+      ...candidates.slice(8, 10),
+    ])
+    expect(candidates).toEqual(original)
   })
 })

@@ -2,7 +2,6 @@ import { buildInsightCandidates } from './insight-rules'
 import type {
   Currency,
   DataQuality,
-  EvidenceItem,
   FinancialSnapshot,
   InsightCandidate,
   InsightKind,
@@ -28,6 +27,12 @@ export type SignalAction =
   | { type: 'navigate'; label: string; href: string }
   | { type: 'ask'; label: string; question: string }
 
+export type SignalEvidenceItem = {
+  label: string
+  value: string
+  asOf?: string
+}
+
 export type SignalOccurrence = {
   id: string
   occurrenceKey: string
@@ -39,7 +44,7 @@ export type SignalOccurrence = {
   title: string
   summary: string
   message: string
-  evidence: EvidenceItem[]
+  evidence: SignalEvidenceItem[]
   caveats: string[]
   dataQuality: DataQuality
   validUntil: string
@@ -47,6 +52,11 @@ export type SignalOccurrence = {
   askQuestion: string | null
   source: 'candidate'
 }
+
+export type SignalPresentation = Omit<
+  SignalOccurrence,
+  'id' | 'occurrenceKey' | 'version'
+>
 
 export type SignalCoverage = {
   family: SignalDomain
@@ -75,7 +85,8 @@ export type BuildSignalCenterOptions = {
   generatedAt?: string
 }
 
-const MAX_SIGNALS = 8
+const MAX_ATTENTION_SIGNALS = 6
+const MAX_CONTEXT_SIGNALS = 2
 
 const DOMAIN_BY_KIND: Record<InsightKind, SignalDomain> = {
   liquidity_watch: 'liquidity',
@@ -111,16 +122,11 @@ function projectAction(candidate: InsightCandidate): {
   return { action: null, askQuestion: null }
 }
 
-function projectCandidate(
-  candidate: InsightCandidate,
-  identify: SignalIdentityResolver,
-): SignalOccurrence {
-  const identity = identify(candidate)
+export function projectSignalPresentation(
+  candidate: Readonly<InsightCandidate>,
+): SignalPresentation {
   const { action, askQuestion } = projectAction(candidate)
   return {
-    id: identity.occurrenceKey,
-    occurrenceKey: identity.occurrenceKey,
-    version: identity.version,
     kind: candidate.kind,
     domain: DOMAIN_BY_KIND[candidate.kind],
     severity: candidate.severity,
@@ -128,13 +134,30 @@ function projectCandidate(
     title: candidate.title,
     summary: candidate.short,
     message: candidate.message,
-    evidence: candidate.evidence.map((item) => ({ ...item })),
+    evidence: candidate.evidence.map(({ label, value, asOf }) => ({
+      label,
+      value,
+      ...(asOf ? { asOf } : {}),
+    })),
     caveats: [],
     dataQuality: candidate.dataQuality,
     validUntil: candidate.validUntil,
     action,
     askQuestion,
     source: 'candidate',
+  }
+}
+
+function projectCandidate(
+  candidate: InsightCandidate,
+  identify: SignalIdentityResolver,
+): SignalOccurrence {
+  const identity = identify(candidate)
+  return {
+    id: identity.occurrenceKey,
+    occurrenceKey: identity.occurrenceKey,
+    version: identity.version,
+    ...projectSignalPresentation(candidate),
   }
 }
 
@@ -146,8 +169,11 @@ function snapshotDataQuality(snapshot: FinancialSnapshot): DataQuality {
 }
 
 function buildCoverage(snapshot: FinancialSnapshot): SignalCoverage[] {
-  const historyState: SignalCoverageState =
-    snapshot.availableCompletedMonths >= 3 ? 'active' : 'learning'
+  const hasReliableExpenseHistory =
+    snapshot.availableCompletedMonths >= 3 && !snapshot.coverage.expenses.truncated
+  const historyState: SignalCoverageState = hasReliableExpenseHistory
+    ? 'active'
+    : 'learning'
   return [
     {
       family: 'liquidity',
@@ -188,12 +214,21 @@ export function selectSignalCandidates(
   const presentsLiquidityRisk = candidates.some(
     (candidate) => candidate.kind === 'liquidity_watch',
   )
-  return candidates
-    .filter(
-      (candidate) =>
-        !presentsLiquidityRisk || candidate.kind !== 'upcoming_card_due',
-    )
-    .slice(0, MAX_SIGNALS)
+  const filtered = candidates.filter(
+    (candidate) =>
+      !presentsLiquidityRisk || candidate.kind !== 'upcoming_card_due',
+  )
+  const attention = filtered.filter(
+    ({ severity }) => severity === 'risk' || severity === 'watch',
+  )
+  const context = filtered.filter(
+    ({ severity }) => severity === 'info' || severity === 'positive',
+  )
+
+  return [
+    ...attention.slice(0, MAX_ATTENTION_SIGNALS),
+    ...context.slice(0, MAX_CONTEXT_SIGNALS),
+  ]
 }
 
 export function buildSignalCenter(

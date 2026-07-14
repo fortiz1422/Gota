@@ -1,12 +1,19 @@
 import { createHash } from 'node:crypto'
-import type { SignalOccurrenceIdentity } from '@/lib/intelligence/signal-center'
+import {
+  projectSignalPresentation,
+  type SignalOccurrenceIdentity,
+} from '@/lib/intelligence/signal-center'
 import type { InsightCandidate } from '@/lib/intelligence/types'
-
-const HASH_LENGTH = 40
 
 function opaqueHash(prefix: 'sig' | 'sigv', value: string): string {
   const digest = createHash('sha256').update(value, 'utf8').digest('hex')
-  return `${prefix}_${digest.slice(0, HASH_LENGTH)}`
+  return `${prefix}_${digest}`
+}
+
+function delimited(parts: readonly string[]): string {
+  return parts
+    .map((part) => `${Buffer.byteLength(part, 'utf8')}:${part}`)
+    .join('|')
 }
 
 /**
@@ -15,23 +22,21 @@ function opaqueHash(prefix: 'sig' | 'sigv', value: string): string {
  * la versión cambia cuando cambia cualquier parte visible de la señal.
  */
 export function createSignalOccurrenceIdentity(
+  userId: string,
   candidate: Readonly<InsightCandidate>,
 ): SignalOccurrenceIdentity {
-  const presentation = JSON.stringify({
-    kind: candidate.kind,
-    severity: candidate.severity,
-    priority: candidate.priority,
-    title: candidate.title,
-    short: candidate.short,
-    message: candidate.message,
-    evidence: candidate.evidence,
-    dataQuality: candidate.dataQuality,
-    actions: candidate.actions,
-    validUntil: candidate.validUntil,
-  })
+  const presentation = JSON.stringify(projectSignalPresentation(candidate))
+
+  const occurrenceKey = opaqueHash(
+    'sig',
+    delimited(['occurrence:v1', userId, candidate.dedupeKey]),
+  )
 
   return {
-    occurrenceKey: opaqueHash('sig', candidate.dedupeKey),
-    version: opaqueHash('sigv', `${candidate.dedupeKey}\u0000${presentation}`),
+    occurrenceKey,
+    version: opaqueHash(
+      'sigv',
+      delimited(['version:v1', occurrenceKey, presentation]),
+    ),
   }
 }

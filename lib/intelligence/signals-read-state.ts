@@ -1,10 +1,14 @@
-export const SIGNALS_READ_STORAGE_KEY = 'gota:signals:read:v1'
+import type { SignalBellTone } from './signal-center'
+import type { InsightSeverity } from './types'
+
+export const SIGNALS_READ_STORAGE_KEY = 'gota.signals.read_versions.v1'
 
 const MAX_READ_VERSIONS = 100
-const OPAQUE_VERSION = /^sigv_[a-f0-9]{40}$/
+const OPAQUE_VERSION = /^sigv_[a-f0-9]{64}$/
 
 type SignalReadStorage = Pick<Storage, 'getItem' | 'setItem'>
 type VersionedSignal = { version: string }
+type ToneSignal = VersionedSignal & { severity: InsightSeverity }
 
 function opaqueVersions(values: unknown): string[] {
   if (!Array.isArray(values)) return []
@@ -15,10 +19,9 @@ function opaqueVersions(values: unknown): string[] {
 }
 
 export function loadReadSignalVersions(storage: SignalReadStorage): string[] {
-  const serialized = storage.getItem(SIGNALS_READ_STORAGE_KEY)
-  if (!serialized) return []
-
   try {
+    const serialized = storage.getItem(SIGNALS_READ_STORAGE_KEY)
+    if (!serialized) return []
     return [...new Set(opaqueVersions(JSON.parse(serialized)))].slice(
       0,
       MAX_READ_VERSIONS,
@@ -39,7 +42,11 @@ export function markSignalVersionsRead(
   }
 
   const capped = next.slice(0, MAX_READ_VERSIONS)
-  storage.setItem(SIGNALS_READ_STORAGE_KEY, JSON.stringify(capped))
+  try {
+    storage.setItem(SIGNALS_READ_STORAGE_KEY, JSON.stringify(capped))
+  } catch {
+    // localStorage puede estar bloqueado o sin cuota; el estado en memoria sigue siendo útil.
+  }
   return capped
 }
 
@@ -52,4 +59,21 @@ export function countUnreadSignals(
     (count, signal) => count + (read.has(signal.version) ? 0 : 1),
     0,
   )
+}
+
+export function highestUnreadSignalTone(
+  signals: readonly ToneSignal[],
+  readVersions: readonly string[],
+): SignalBellTone {
+  const read = new Set(readVersions)
+  let tone: SignalBellTone = 'none'
+
+  for (const signal of signals) {
+    if (read.has(signal.version)) continue
+    if (signal.severity === 'risk') return 'risk'
+    if (signal.severity === 'watch') tone = 'watch'
+    else if (tone === 'none') tone = 'new'
+  }
+
+  return tone
 }
