@@ -9,7 +9,11 @@ import {
   type RefObject,
 } from 'react'
 import { createPortal } from 'react-dom'
-import { setExternalOverlayOpen } from '@/lib/ui/overlay-events'
+import {
+  isTopExternalOverlay,
+  setExternalOverlayOpen,
+} from '@/lib/ui/overlay-events'
+import { acquireScrollLock, releaseScrollLock } from '@/lib/ui/scroll-lock'
 
 const FOCUSABLE_SELECTOR = [
   'a[href]',
@@ -38,11 +42,33 @@ interface FullScreenSheetProps {
 function getFocusableElements(panel: HTMLElement): HTMLElement[] {
   return Array.from(
     panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
-  ).filter(
-    (element) =>
-      element.getClientRects().length > 0 &&
-      element.getAttribute('aria-hidden') !== 'true'
-  )
+  ).filter((element) => {
+    if (element.getClientRects().length === 0) return false
+
+    let current: HTMLElement | null = element
+    while (current) {
+      if (
+        current.getAttribute('aria-hidden') === 'true' ||
+        current.hasAttribute('inert')
+      ) {
+        return false
+      }
+
+      const style = window.getComputedStyle(current)
+      if (
+        style.display === 'none' ||
+        style.visibility === 'hidden' ||
+        style.visibility === 'collapse'
+      ) {
+        return false
+      }
+
+      if (current === panel) break
+      current = current.parentElement
+    }
+
+    return true
+  })
 }
 
 export function FullScreenSheet({
@@ -59,13 +85,13 @@ export function FullScreenSheet({
     getClientSnapshot,
     getServerSnapshot
   )
+  const overlayRef = useRef<HTMLDivElement>(null)
   const panelRef = useRef<HTMLDivElement>(null)
   const onCloseRef = useRef(onClose)
   const overlayId = useId()
-
-  useEffect(() => {
-    onCloseRef.current = onClose
-  }, [onClose])
+  // La asignación en render elimina la ventana stale antes de que corra un effect.
+  // eslint-disable-next-line react-hooks/refs
+  onCloseRef.current = onClose
 
   useEffect(() => {
     if (!open || !mounted) return
@@ -76,36 +102,28 @@ export function FullScreenSheet({
         : null
     const returnTarget =
       triggerRef?.current ?? triggerElement ?? previouslyFocused
-    const { body, documentElement } = document
-    const scrollY = window.scrollY
-    const previousStyles = {
-      bodyOverflow: body.style.overflow,
-      bodyPosition: body.style.position,
-      bodyTop: body.style.top,
-      bodyWidth: body.style.width,
-      htmlOverflow: documentElement.style.overflow,
+    const layer = setExternalOverlayOpen(overlayId, true)
+    if (overlayRef.current && layer !== null) {
+      overlayRef.current.style.zIndex = String(70 + layer * 2)
     }
-
-    setExternalOverlayOpen(overlayId, true)
-    documentElement.style.overflow = 'hidden'
-    body.style.overflow = 'hidden'
-    body.style.position = 'fixed'
-    body.style.top = `-${scrollY}px`
-    body.style.width = '100%'
+    acquireScrollLock(overlayId)
 
     const focusFrame = window.requestAnimationFrame(() => {
       const panel = panelRef.current
-      if (!panel) return
+      if (!panel || !isTopExternalOverlay(overlayId)) return
 
       const requestedFocus = initialFocusRef?.current
+      const focusable = getFocusableElements(panel)
       const focusTarget =
-        requestedFocus && panel.contains(requestedFocus)
+        requestedFocus && focusable.includes(requestedFocus)
           ? requestedFocus
-          : (getFocusableElements(panel)[0] ?? panel)
+          : (focusable[0] ?? panel)
       focusTarget.focus({ preventScroll: true })
     })
 
     function handleKeyDown(event: globalThis.KeyboardEvent) {
+      if (!isTopExternalOverlay(overlayId)) return
+
       if (event.key === 'Escape') {
         event.preventDefault()
         onCloseRef.current()
@@ -144,6 +162,8 @@ export function FullScreenSheet({
     }
 
     function handleFocusIn(event: FocusEvent) {
+      if (!isTopExternalOverlay(overlayId)) return
+
       const panel = panelRef.current
       const target = event.target
       if (!panel || !(target instanceof Node) || panel.contains(target)) return
@@ -159,27 +179,29 @@ export function FullScreenSheet({
       window.cancelAnimationFrame(focusFrame)
       document.removeEventListener('keydown', handleKeyDown)
       document.removeEventListener('focusin', handleFocusIn)
+      const shouldRestoreFocus = isTopExternalOverlay(overlayId)
       setExternalOverlayOpen(overlayId, false)
+      releaseScrollLock(overlayId)
 
-      documentElement.style.overflow = previousStyles.htmlOverflow
-      body.style.overflow = previousStyles.bodyOverflow
-      body.style.position = previousStyles.bodyPosition
-      body.style.top = previousStyles.bodyTop
-      body.style.width = previousStyles.bodyWidth
-      window.scrollTo(0, scrollY)
-
-      if (returnTarget?.isConnected) returnTarget.focus({ preventScroll: true })
+      if (shouldRestoreFocus && returnTarget?.isConnected) {
+        returnTarget.focus({ preventScroll: true })
+      }
     }
   }, [initialFocusRef, mounted, open, overlayId, triggerElement, triggerRef])
 
   if (!mounted || !open) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[70] flex items-stretch justify-center sm:items-center sm:px-4 sm:py-[4dvh]">
+    <div
+      ref={overlayRef}
+      className="fixed inset-0 z-[70] flex items-stretch justify-center sm:items-center sm:px-4 sm:py-[4dvh]"
+    >
       <div
         aria-hidden="true"
         className="absolute inset-0 bg-[color:var(--color-backdrop)]"
-        onClick={() => onCloseRef.current()}
+        onClick={() => {
+          if (isTopExternalOverlay(overlayId)) onCloseRef.current()
+        }}
       />
       <div
         ref={panelRef}

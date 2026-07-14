@@ -12,6 +12,9 @@ import {
   isExternalOverlayOpen,
   type ExternalOverlayChangeDetail,
 } from '@/lib/ui/overlay-events'
+import { acquireScrollLock, releaseScrollLock } from '@/lib/ui/scroll-lock'
+
+const ASSISTANT_SCROLL_LOCK_ID = 'gota-assistant'
 
 type ChatMessage = AssistantHistoryMessage & {
   id: string
@@ -85,6 +88,7 @@ export function GotaAssistant() {
     function onExternalOverlayChange(event: Event) {
       const detail = (event as CustomEvent<ExternalOverlayChangeDetail>).detail
       setExternalOverlayOpen(Boolean(detail?.open))
+      if (detail?.open) setOpen(false)
     }
 
     setExternalOverlayOpen(isExternalOverlayOpen())
@@ -94,11 +98,10 @@ export function GotaAssistant() {
 
   useEffect(() => {
     if (!open) return
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
+    acquireScrollLock(ASSISTANT_SCROLL_LOCK_ID)
     const timer = window.setTimeout(() => inputRef.current?.focus(), 120)
     return () => {
-      document.body.style.overflow = previousOverflow
+      releaseScrollLock(ASSISTANT_SCROLL_LOCK_ID)
       window.clearTimeout(timer)
     }
   }, [open])
