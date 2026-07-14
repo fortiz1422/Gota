@@ -3,7 +3,8 @@ import { redirect } from 'next/navigation'
 import { AccountSection } from '@/components/settings/AccountSection'
 import { SettingsPreferences } from '@/components/settings/SettingsPreferences'
 import { getCurrentMonth } from '@/lib/dates'
-import type { Card } from '@/types/database'
+import { FF_SIGNALS_CENTER_V1 } from '@/lib/flags'
+import type { Card, HeroBalanceMode } from '@/types/database'
 
 export default async function SettingsPage() {
   const supabase = await createClient()
@@ -20,7 +21,7 @@ export default async function SettingsPage() {
   const [{ data: config }, { data: accountsData }, { data: cardsData }] = await Promise.all([
     supabase
       .from('user_config')
-      .select('default_currency')
+      .select('default_currency, hero_balance_mode')
       .eq('user_id', user.id)
       .single(),
     supabase
@@ -38,6 +39,7 @@ export default async function SettingsPage() {
   ])
 
   const currency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
+  const heroBalanceMode = (config?.hero_balance_mode ?? 'combined_ars') as HeroBalanceMode
   const allCards: Card[] = (cardsData ?? []) as Card[]
   const currentMonth = getCurrentMonth()
   const accounts = accountsData ?? []
@@ -50,6 +52,8 @@ export default async function SettingsPage() {
           currency={currency}
           cards={allCards}
           accounts={accounts}
+          heroBalanceMode={heroBalanceMode}
+          signalsCenterEnabled={FF_SIGNALS_CENTER_V1}
         />
 
         {/* Cuenta */}
