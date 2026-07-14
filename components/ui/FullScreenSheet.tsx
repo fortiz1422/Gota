@@ -43,7 +43,13 @@ function getFocusableElements(panel: HTMLElement): HTMLElement[] {
   return Array.from(
     panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
   ).filter((element) => {
-    if (element.getClientRects().length === 0) return false
+    if (
+      element.tabIndex < 0 ||
+      element.matches(':disabled') ||
+      element.getClientRects().length === 0
+    ) {
+      return false
+    }
 
     let current: HTMLElement | null = element
     while (current) {
