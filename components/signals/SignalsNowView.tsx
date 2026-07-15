@@ -57,14 +57,6 @@ export function SignalsNowView({
     )
   }
 
-  if (isHistoricalContext) {
-    return (
-      <EmptyState
-        title="Señales disponibles solo para el mes actual"
-        copy="Para evitar conclusiones desactualizadas, Gota revisa señales únicamente con el contexto de hoy. Volvé al mes actual para verlas."
-      />
-    )
-  }
 
   if (signals.length === 0) {
     const learning = coverage.some(({ state }) => state === 'learning')
@@ -80,6 +72,11 @@ export function SignalsNowView({
 
   return (
     <div className="px-5 pb-8 pt-5">
+      {isHistoricalContext && (
+        <p className="mb-3 rounded-[14px] bg-primary-soft px-3 py-2.5 text-xs font-semibold leading-relaxed text-primary">
+          Estas son Señales de hoy. El mes histórico sigue visible detrás.
+        </p>
+      )}
       <p className="mb-3 text-xs font-medium text-text-tertiary">{DATA_QUALITY_COPY[dataQuality]}</p>
       <div className="space-y-3">
         {signals.map((rawSignal) => {

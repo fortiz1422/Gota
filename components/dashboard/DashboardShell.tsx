@@ -25,17 +25,27 @@ import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousB
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
 import { HomeAmbientLine } from '@/components/intelligence/HomeAmbientLine'
+import { SignalsBellButton } from '@/components/signals/SignalsBellButton'
+import { SignalsSheet } from '@/components/signals/SignalsSheet'
 import { useCardPaymentPrompts } from '@/hooks/useCardPaymentPrompts'
+import { useSignalsCenter } from '@/hooks/useSignalsCenter'
 import {
   FF_HOME_AMBIENT_INTELLIGENCE_V1,
   FF_HOME_TRANSIENT_ACTION_V1,
   FF_INSTRUMENTS,
   FF_INTELLIGENCE_LIFECYCLE_V1,
   FF_MOVEMENT_ANNOTATIONS_V1,
+  FF_SIGNALS_CENTER_V1,
 } from '@/lib/flags'
 import { requestAssistantOpen } from '@/lib/assistant/events'
 import { maskHomeIntelligence } from '@/lib/intelligence/home-orchestrator'
 import type { HomeAction } from '@/lib/intelligence/home-model'
+import type { SignalOccurrence } from '@/lib/intelligence/signal-center'
+import {
+  highestUnreadSignalTone,
+  loadReadSignalVersions,
+  markSignalVersionsRead,
+} from '@/lib/intelligence/signals-read-state'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
@@ -139,6 +149,15 @@ export function DashboardShell({
   const [disponibleSheetMode, setDisponibleSheetMode] = useState<'real' | 'libre'>('real')
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
   const [cuentasOpen, setCuentasOpen] = useState(false)
+  const [signalsOpen, setSignalsOpen] = useState(false)
+  const [readSignalVersions, setReadSignalVersions] = useState<string[]>(() => {
+    if (typeof window === 'undefined') return []
+    try {
+      return loadReadSignalVersions(window.localStorage)
+    } catch {
+      return []
+    }
+  })
   const [keyboardOffset, setKeyboardOffset] = useState(0)
   const [amountsVisible, setAmountsVisible] = useState(true)
   const [snoozedActionKeys, setSnoozedActionKeys] = useState<string[]>([])
@@ -158,6 +177,7 @@ export function DashboardShell({
     return null
   })
   const dashboardLoadedTrackedRef = useRef(false)
+  const signalsBellRef = useRef<HTMLButtonElement>(null)
   const { setTone: setAnonymousBannerTone } = useAnonymousBannerTone()
 
   useEffect(() => {
@@ -195,6 +215,17 @@ export function DashboardShell({
     staleTime: 300_000,
     initialData: initialQuote,
   })
+
+  // Consulta en background y nunca bloquea Home; así el punto de la campana
+  // representa unread real antes de abrir el centro.
+  const signalsQuery = useSignalsCenter({
+    enabled: FF_SIGNALS_CENTER_V1,
+    currency: viewCurrency,
+  })
+  const signalsTone = highestUnreadSignalTone(
+    signalsQuery.data?.signals ?? [],
+    readSignalVersions,
+  )
 
   useEffect(() => {
     if (dashboardLoadedTrackedRef.current || !data) return
@@ -458,22 +489,84 @@ export function DashboardShell({
     setSharedReceiptPreviewOpen(false)
   }
 
+  const hasUnreadSignals = signalsTone !== 'none'
+  const signalsError =
+    signalsQuery.error instanceof Error
+      ? signalsQuery.error.message
+      : signalsQuery.isError
+        ? 'No pudimos cargar tus señales.'
+        : null
+
+  const openSignals = () => {
+    trackEvent('signals_bell_clicked', { surface: 'home', has_unread: hasUnreadSignals })
+    trackEvent('signals_center_opened', {
+      source: 'bell',
+      surface: 'home',
+      has_unread: hasUnreadSignals,
+    })
+    setSignalsOpen(true)
+  }
+
+  const markSignalsViewed = (versions: string[]) => {
+    try {
+      setReadSignalVersions(markSignalVersionsRead(window.localStorage, versions))
+    } catch {
+      setReadSignalVersions((current) => [...new Set([...versions, ...current])].slice(0, 100))
+    }
+  }
+
+  const trackSignalOpened = (signal: SignalOccurrence) => {
+    trackEvent('signals_signal_opened', {
+      signal_kind: signal.kind,
+      severity: signal.severity,
+      source: 'center',
+    })
+  }
+
+  const navigateFromSignal = (href: string, signal: SignalOccurrence) => {
+    trackEvent('signals_action_clicked', {
+      signal_kind: signal.kind,
+      action_type: 'navigate',
+      source: 'center',
+    })
+    setSignalsOpen(false)
+    router.push(href)
+  }
+
+  const askFromSignal = (question: string, signal: SignalOccurrence) => {
+    trackEvent('signals_action_clicked', {
+      signal_kind: signal.kind,
+      action_type: 'ask',
+      source: 'center',
+    })
+    setSignalsOpen(false)
+    window.setTimeout(() => requestAssistantOpen({ question }), 0)
+  }
+
   return (
     <div className="min-h-app bg-bg-primary">
       {/* ── BLUE ZONE ── */}
       <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="mx-auto max-w-md">
-          {/* Header row: avatar | month label | plus */}
+          {/* Header row: Signals | month label | plus */}
           <div className="flex h-12 items-center justify-between px-5 pt-2">
-            <button
-              onClick={() => setCuentaSheetOpen(true)}
-              aria-label="Abrir configuración de cuenta"
-              className="flex h-9 w-9 items-center justify-center rounded-full header-glass transition-opacity hover:opacity-80 active:opacity-50"
-            >
-              <span className="text-sm font-bold text-white">
-                {userEmail.charAt(0).toUpperCase()}
-              </span>
-            </button>
+            {FF_SIGNALS_CENTER_V1 ? (
+              <SignalsBellButton
+                ref={signalsBellRef}
+                tone={signalsTone}
+                onClick={openSignals}
+              />
+            ) : (
+              <button
+                onClick={() => setCuentaSheetOpen(true)}
+                aria-label="Abrir configuración de cuenta"
+                className="flex h-9 w-9 items-center justify-center rounded-full header-glass transition-opacity hover:opacity-80 active:opacity-50"
+              >
+                <span className="text-sm font-bold text-white">
+                  {userEmail.charAt(0).toUpperCase()}
+                </span>
+              </button>
+            )}
             <span
               className="text-[14px] font-semibold"
               style={{ color: 'rgba(255,255,255,0.85)' }}
@@ -709,6 +802,30 @@ export function DashboardShell({
         isProjected={isProjected}
       />
 
+      {FF_SIGNALS_CENTER_V1 && (
+        <SignalsSheet
+          open={signalsOpen}
+          onClose={() => setSignalsOpen(false)}
+          model={signalsQuery.data ?? null}
+          loading={signalsQuery.isPending}
+          error={signalsError}
+          amountsVisible={amountsVisible}
+          isHistoricalContext={!isCurrentMonth}
+          triggerRef={signalsBellRef}
+          onRetry={() => void signalsQuery.refetch()}
+          onViewed={markSignalsViewed}
+          onSignalOpened={trackSignalOpened}
+          onCoverageOpened={() =>
+            trackEvent('signals_coverage_opened', {
+              coverage_id: 'all',
+              source: 'center',
+            })
+          }
+          onNavigate={navigateFromSignal}
+          onAsk={askFromSignal}
+        />
+      )}
+
       <BottomZone
         accounts={accounts}
         cards={cards}
@@ -738,13 +855,15 @@ export function DashboardShell({
         />
       )}
 
-      <CuentaSheet
-        open={cuentaSheetOpen}
-        onClose={() => setCuentaSheetOpen(false)}
-        userEmail={userEmail}
-        heroBalanceMode={effectiveHeroBalanceMode}
-        onHeroBalanceModeChange={setHeroBalanceModeOverride}
-      />
+      {!FF_SIGNALS_CENTER_V1 && (
+        <CuentaSheet
+          open={cuentaSheetOpen}
+          onClose={() => setCuentaSheetOpen(false)}
+          userEmail={userEmail}
+          heroBalanceMode={effectiveHeroBalanceMode}
+          onHeroBalanceModeChange={setHeroBalanceModeOverride}
+        />
+      )}
       <CuentasSubSheet
         open={cuentasOpen}
         onClose={() => {

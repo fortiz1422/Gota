@@ -22,7 +22,7 @@ export function SignalDetailView({ signal: rawSignal, amountsVisible, onBack, on
   return (
     <div className="min-h-full bg-bg-secondary pb-8">
       <div className="blue-zone px-5 pb-7 pt-4 text-white">
-        <button type="button" onClick={onBack} className="header-glass grid h-9 w-9 place-items-center rounded-full" aria-label="Volver a Señales">
+        <button type="button" onClick={onBack} className="header-glass grid h-11 w-11 place-items-center rounded-full" aria-label="Volver a Señales">
           <ArrowLeft size={18} aria-hidden="true" />
         </button>
         <span className="mt-5 inline-flex rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-bold uppercase tracking-[0.08em]">{severity.label}</span>

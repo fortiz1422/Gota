@@ -20,8 +20,10 @@ interface Props {
   triggerRef?: RefObject<HTMLElement | null>
   onRetry?: () => void
   onViewed?: (versions: string[]) => void
-  onNavigate?: (href: string) => void
-  onAsk?: (question: string) => void
+  onSignalOpened?: (signal: SignalOccurrence) => void
+  onCoverageOpened?: () => void
+  onNavigate?: (href: string, signal: SignalOccurrence) => void
+  onAsk?: (question: string, signal: SignalOccurrence) => void
 }
 
 const TABS: Array<{ value: SignalCenterTab; label: string }> = [
@@ -40,6 +42,8 @@ export function SignalsSheet({
   triggerRef,
   onRetry,
   onViewed,
+  onSignalOpened,
+  onCoverageOpened,
   onNavigate,
   onAsk,
 }: Props) {
@@ -51,14 +55,14 @@ export function SignalsSheet({
   const notifiedVersions = useRef(new Set<string>())
 
   useEffect(() => {
-    if (!open || !model || isHistoricalContext || !onViewed) return
+    if (!open || !model || !onViewed) return
     const versions = model.signals
       .map(({ version }) => version)
       .filter((version) => !notifiedVersions.current.has(version))
     if (versions.length === 0) return
     versions.forEach((version) => notifiedVersions.current.add(version))
     onViewed(versions)
-  }, [isHistoricalContext, model, onViewed, open])
+  }, [model, onViewed, open])
 
   function closeSheet() {
     setDetail(null)
@@ -71,6 +75,7 @@ export function SignalsSheet({
     if (!next) return
     event.preventDefault()
     setTab(next)
+    if (next === 'coverage') onCoverageOpened?.()
     tabRefs.current[next]?.focus()
   }
 
@@ -81,8 +86,8 @@ export function SignalsSheet({
           signal={detail}
           amountsVisible={amountsVisible}
           onBack={() => setDetail(null)}
-          onNavigate={onNavigate}
-          onAsk={onAsk}
+          onNavigate={onNavigate ? (href) => onNavigate(href, detail) : undefined}
+          onAsk={onAsk ? (question) => onAsk(question, detail) : undefined}
         />
       ) : (
         <div className="min-h-full bg-bg-secondary">
@@ -92,11 +97,15 @@ export function SignalsSheet({
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/65">Centro personal</p>
                 <h2 id={titleId} className="mt-1 text-[25px] font-extrabold tracking-[-0.02em]">Señales</h2>
               </div>
-              <button type="button" onClick={closeSheet} aria-label="Cerrar Señales" className="header-glass grid h-9 w-9 place-items-center rounded-full">
+              <button type="button" onClick={closeSheet} aria-label="Cerrar Señales" className="header-glass grid h-11 w-11 place-items-center rounded-full">
                 <X size={18} aria-hidden="true" />
               </button>
             </div>
-            <p className="mt-2 max-w-[310px] text-sm leading-relaxed text-white/75">Cambios que vale la pena mirar, con la evidencia que Gota usó.</p>
+            <p className="mt-2 max-w-[310px] text-sm leading-relaxed text-white/75">
+              {isHistoricalContext
+                ? 'Señales de hoy, aunque Home esté mostrando otro mes.'
+                : 'Lo que Gota detectó en tu plata, con la evidencia que usó.'}
+            </p>
           </div>
 
           <div className="relative -mt-4 px-5">
@@ -113,9 +122,12 @@ export function SignalsSheet({
                     aria-selected={selected}
                     aria-controls={`${tabsId}-${value}-panel`}
                     tabIndex={selected ? 0 : -1}
-                    onClick={() => setTab(value)}
+                    onClick={() => {
+                      setTab(value)
+                      if (value === 'coverage') onCoverageOpened?.()
+                    }}
                     onKeyDown={handleTabKeyDown}
-                    className={`min-h-10 flex-1 rounded-[13px] px-4 text-sm font-bold transition-colors ${selected ? 'bg-primary text-white' : 'text-text-secondary'}`}
+                    className={`min-h-11 flex-1 rounded-[13px] px-4 text-sm font-bold transition-colors ${selected ? 'bg-primary text-white' : 'text-text-secondary'}`}
                   >
                     {label}
                   </button>
@@ -140,7 +152,10 @@ export function SignalsSheet({
                 error={error}
                 isHistoricalContext={isHistoricalContext}
                 onRetry={onRetry}
-                onSelectSignal={setDetail}
+                onSelectSignal={(signal) => {
+                  setDetail(signal)
+                  onSignalOpened?.(signal)
+                }}
               />
             ) : loading ? (
               <p role="status" className="px-6 py-12 text-center text-sm font-semibold text-text-secondary">Cargando cobertura…</p>
