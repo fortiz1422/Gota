@@ -21,7 +21,10 @@ export function SignalDetailView({ signal: rawSignal, amountsVisible, onBack, on
 
   return (
     <div className="min-h-full bg-bg-secondary pb-8">
-      <div className="blue-zone px-5 pb-7 pt-4 text-white">
+      <div
+        className="blue-zone px-5 pb-7 text-white"
+        style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+      >
         <button type="button" onClick={onBack} className="header-glass grid h-11 w-11 place-items-center rounded-full" aria-label="Volver a Señales">
           <ArrowLeft size={18} aria-hidden="true" />
         </button>

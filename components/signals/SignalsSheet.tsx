@@ -80,7 +80,13 @@ export function SignalsSheet({
   }
 
   return (
-    <FullScreenSheet open={open} onClose={closeSheet} labelledBy={titleId} triggerRef={triggerRef}>
+    <FullScreenSheet
+      open={open}
+      onClose={closeSheet}
+      labelledBy={titleId}
+      triggerRef={triggerRef}
+      extendIntoTopSafeArea
+    >
       {detail ? (
         <SignalDetailView
           signal={detail}
@@ -99,7 +105,10 @@ export function SignalsSheet({
         />
       ) : (
         <div className="min-h-full bg-bg-secondary">
-          <div className="blue-zone px-5 pb-7 pt-4 text-white">
+          <div
+            className="blue-zone px-5 pb-7 text-white"
+            style={{ paddingTop: 'calc(env(safe-area-inset-top) + 1rem)' }}
+          >
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/65">Centro personal</p>

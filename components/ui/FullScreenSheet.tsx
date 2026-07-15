@@ -34,6 +34,7 @@ interface FullScreenSheetProps {
   onClose: () => void
   children: ReactNode
   labelledBy: string
+  extendIntoTopSafeArea?: boolean
   triggerRef?: RefObject<HTMLElement | null>
   triggerElement?: HTMLElement | null
   initialFocusRef?: RefObject<HTMLElement | null>
@@ -82,6 +83,7 @@ export function FullScreenSheet({
   onClose,
   children,
   labelledBy,
+  extendIntoTopSafeArea = false,
   triggerRef,
   triggerElement,
   initialFocusRef,
@@ -217,7 +219,7 @@ export function FullScreenSheet({
         tabIndex={-1}
         className="slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]"
         style={{
-          paddingTop: 'env(safe-area-inset-top)',
+          paddingTop: extendIntoTopSafeArea ? 0 : 'env(safe-area-inset-top)',
           paddingBottom: 'env(safe-area-inset-bottom)',
           WebkitOverflowScrolling: 'touch',
         }}
