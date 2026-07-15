@@ -3,9 +3,10 @@
 import { useMemo, useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { ArrowLineDown, CaretLeft, SquaresFour } from '@phosphor-icons/react'
+import { ArrowLineDown, CaretLeft, ChartLineUp, SquaresFour } from '@phosphor-icons/react'
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { useIntelligenceHeroes } from '@/components/intelligence/IntelligenceHero'
 import { getCurrentMonth } from '@/lib/dates'
 import { FF_INTELLIGENCE } from '@/lib/flags'
@@ -22,7 +23,12 @@ import { BudgetsSection } from './BudgetsSection'
 import { GoalsSection } from './GoalsSection'
 import { CategoriaRow } from './CategoriaRow'
 import { ExploreModal } from './ExploreModal'
+import { AnalysisSectionTabs } from './AnalysisSectionTabs'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
+import {
+  buildAnalyticsHref,
+  type AnalyticsView,
+} from '@/lib/analytics/analytics-route-state'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import type { Metrics, HabitosDayEntry } from '@/lib/analytics/computeMetrics'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
@@ -36,6 +42,7 @@ import {
 } from '@/lib/analytics/analytics-overview'
 import type { Card, Expense, Subscription } from '@/types/database'
 import { CATEGORIES } from '@/lib/validation/schemas'
+import { FF_ANALYTICS_WORKSPACE_V1 } from '@/lib/flags'
 
 type Drill = 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 
@@ -56,6 +63,7 @@ interface Props {
   earliestDataMonth?: string
   monthlySeries: MonthlySeriesPoint[]
   comparisonContext: AnalyticsComparisonContext
+  initialView: AnalyticsView
   initialDrill?: Drill | null
   budget: BudgetSnapshot
 }
@@ -68,21 +76,31 @@ export function AnalyticsClient({
   earliestDataMonth,
   monthlySeries,
   comparisonContext,
+  initialView,
   initialDrill,
   budget,
 }: Props) {
   const router = useRouter()
   const [expanded, setExpanded] = useState(false)
   const [mode, setMode] = useState<AnalyticsMode>('percibido_devengado')
-  const [insightsOpen, setInsightsOpen] = useState(Boolean(initialDrill))
-  const [drill, setDrill] = useState<Drill | null>(initialDrill ?? null)
-  const [controlOpen, setControlOpen] = useState(false)
-  const [metasOpen, setMetasOpen] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(initialView === 'insights')
+  const [legacyDrill, setLegacyDrill] = useState<Drill | null>(initialDrill ?? null)
+  const [controlOpen, setControlOpen] = useState(initialView === 'budget')
+  const [metasOpen, setMetasOpen] = useState(initialView === 'goals')
   const [exploreOpen, setExploreOpen] = useState(false)
   const [selDay, setSelDay] = useState<HabitosDayEntry | null>(null)
 
   const { currency } = metrics
   const isPercibido = mode === 'percibido'
+  const workspaceEnabled = FF_ANALYTICS_WORKSPACE_V1
+  const drill = workspaceEnabled ? initialDrill ?? null : legacyDrill
+  const showInsights = workspaceEnabled ? initialView === 'insights' : insightsOpen
+  const showControl = workspaceEnabled ? initialView === 'budget' : controlOpen
+  const showMetas = workspaceEnabled ? initialView === 'goals' : metasOpen
+  const hasCommitmentData =
+    compromisos.hasCards ||
+    compromisos.hasCreditExpenses ||
+    compromisos.totalComprometido > 0
 
   const alertCount = budget.plan
     ? budget.summary.overBudgetCount + budget.summary.nearLimitCount
@@ -149,8 +167,18 @@ export function AnalyticsClient({
   )
 
   function handleSetDrill(nextDrill: Drill | null) {
-    setDrill(nextDrill)
     if (nextDrill !== 'habitos') setSelDay(null)
+    if (workspaceEnabled) {
+      router.push(
+        buildAnalyticsHref({
+          month: selectedMonth,
+          view: 'insights',
+          drill: nextDrill,
+        }),
+      )
+      return
+    }
+    setLegacyDrill(nextDrill)
   }
 
   function openInsights() {
@@ -177,12 +205,66 @@ export function AnalyticsClient({
     handleSetDrill(null)
   }
 
-  const isSecondaryView = insightsOpen || controlOpen || metasOpen
+  const isSecondaryView = !workspaceEnabled && (insightsOpen || controlOpen || metasOpen)
 
   return (
     <div className="bg-bg-primary">
       {/* ── Blue zone ── */}
-      {isSecondaryView ? (
+      {workspaceEnabled ? (
+        <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+          <div className="flex items-center justify-between px-[22px] pt-4">
+            <h1 className="text-[18px] font-extrabold tracking-[-0.01em] text-white">
+              Análisis
+              <span className="sr-only">
+                {' — '}
+                {initialView === 'summary'
+                  ? 'Resumen'
+                  : initialView === 'insights'
+                    ? drill
+                      ? drillTitles[drill]
+                      : 'Insights'
+                    : initialView === 'budget'
+                      ? 'Presupuesto'
+                      : 'Metas'}
+              </span>
+            </h1>
+            <DashboardHeader
+              month={selectedMonth}
+              basePath="/analytics"
+              earliestDataMonth={earliestDataMonth}
+              className=""
+              variant="in-header"
+              preserveParams={{
+                view: initialView === 'summary' ? undefined : initialView,
+                drill: initialView === 'insights' ? initialDrill ?? undefined : undefined,
+              }}
+            />
+          </div>
+          {initialView === 'summary' ? (
+            <AnalyticsHero hero={displayHero} currency={currency} variant="in-header" />
+          ) : initialView === 'budget' ? (
+            <BudgetControlHero
+              summary={budget.summary}
+              currency={currency}
+              totalCategories={budget.items.length}
+              planExists={budget.plan !== null}
+            />
+          ) : (
+            <div className="px-[22px] pb-10 pt-6">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-white/65">
+                {initialView === 'insights' ? 'Entender el mes' : 'Objetivos de ahorro'}
+              </p>
+              <h2 className="mt-1 text-[24px] font-extrabold tracking-[-0.02em] text-white">
+                {initialView === 'insights'
+                  ? drill
+                    ? drillTitles[drill]
+                    : 'Insights'
+                  : 'Metas'}
+              </h2>
+            </div>
+          )}
+        </BlueHeaderZone>
+      ) : isSecondaryView ? (
         controlOpen ? (
           <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
             <div className="flex items-center justify-between px-[22px] pt-4">
@@ -259,7 +341,24 @@ export function AnalyticsClient({
           paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)',
         }}
       >
-        {insightsOpen ? (
+        {workspaceEnabled ? (
+          <AnalysisSectionTabs
+            active={initialView}
+            month={selectedMonth}
+            budgetAlertCount={alertCount}
+          />
+        ) : null}
+
+        {showInsights ? (
+          metrics.cantidadTransacciones === 0 && !hasCommitmentData ? (
+            <div className="px-5 pt-4">
+              <EmptyState
+                icon={ChartLineUp}
+                title="Todavía no hay patrones para mostrar"
+                subtitle="Cuando registres movimientos, Gota va a encontrar hábitos y cambios en tu mes."
+              />
+            </div>
+          ) : (
           <AnalysisView
             metrics={metrics}
             compromisos={compromisos}
@@ -269,14 +368,15 @@ export function AnalyticsClient({
             setSelDay={setSelDay}
             selectedMonth={selectedMonth}
           />
-        ) : controlOpen ? (
+          )
+        ) : showControl ? (
           <BudgetsSection
             budget={budget}
             currency={currency}
             selectedMonth={selectedMonth}
             categories={[...CATEGORIES]}
           />
-        ) : metasOpen ? (
+        ) : showMetas ? (
           <GoalsSection selectedMonth={selectedMonth} />
         ) : (
           <>
@@ -293,6 +393,23 @@ export function AnalyticsClient({
               currency={currency}
               comparisonContext={comparisonContext}
             />
+
+            {workspaceEnabled && metrics.cantidadTransacciones === 0 ? (
+              <div className="mx-5 mt-4 rounded-card border border-primary/15 bg-primary/5 px-4 py-4">
+                <h2 className="text-[15px] font-bold text-text-primary">
+                  Tu análisis empieza con el primer movimiento
+                </h2>
+                <p className="mt-1 text-[13px] leading-5 text-text-secondary">
+                  Registrá un gasto o ingreso para empezar a ver evolución, categorías y comparaciones.
+                </p>
+                <Link
+                  href="/"
+                  className="mt-3 inline-flex min-h-11 items-center text-[13px] font-bold text-primary"
+                >
+                  Registrar movimiento
+                </Link>
+              </div>
+            ) : null}
 
             {!metrics.hasIngreso && (
               <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
@@ -372,14 +489,16 @@ export function AnalyticsClient({
         )}
       </div>
 
-      <ExploreModal
-        open={exploreOpen}
-        alertCount={alertCount}
-        onClose={() => setExploreOpen(false)}
-        onInsights={openInsights}
-        onPresupuesto={openControl}
-        onMetas={openMetas}
-      />
+      {!workspaceEnabled ? (
+        <ExploreModal
+          open={exploreOpen}
+          alertCount={alertCount}
+          onClose={() => setExploreOpen(false)}
+          onInsights={openInsights}
+          onPresupuesto={openControl}
+          onMetas={openMetas}
+        />
+      ) : null}
     </div>
   )
 }

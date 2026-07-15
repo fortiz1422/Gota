@@ -45,7 +45,7 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
   )
 
   async function refreshBudgets() {
-    await queryClient.invalidateQueries({ queryKey: ['budgets', selectedMonth, currency] })
+    await queryClient.invalidateQueries({ queryKey: ['budgets', selectedMonth] })
   }
 
   async function handleCreate(items: Array<{ category: string; amount: number }>) {

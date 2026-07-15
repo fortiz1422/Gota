@@ -5,6 +5,7 @@ import { CaretRight, CreditCard } from '@phosphor-icons/react'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { AmbientModifier } from '@/lib/intelligence/home-model'
+import { buildAnalyticsHref } from '@/lib/analytics/analytics-route-state'
 
 interface Props {
   compromisos: CompromisosData
@@ -59,10 +60,11 @@ export function CommitmentsSummary({
       ? 'Sin resúmenes pendientes'
       : 'Ver detalle de tarjetas, vencimientos y deuda pendiente'
 
-  const params = new URLSearchParams()
-  if (selectedMonth) params.set('month', selectedMonth)
-  params.set('drill', 'compromisos')
-  const href = `/analytics?${params.toString()}`
+  const href = buildAnalyticsHref({
+    month: selectedMonth,
+    view: 'insights',
+    drill: 'compromisos',
+  })
 
   if (total <= 0) return null
 

@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import { buildInsightCandidates } from '../insight-rules'
 import {
   futureInstallmentExpenses,
@@ -52,6 +52,10 @@ describe('budget_acceleration', () => {
     expect(budget?.severity).toBe('watch')
     expect(budget?.message).toContain('75%')
     expect(budget?.message).toContain('310.000')
+    expect(budget?.actions[0]).toEqual({
+      label: 'Ver presupuesto',
+      question: '¿Cómo viene mi presupuesto de Supermercado este mes?',
+    })
   })
 
   it('emite risk cuando ya se pasó del presupuesto con días por delante', () => {
@@ -186,6 +190,10 @@ describe('upcoming_card_due', () => {
     expect(dues[0].severity).toBe('risk')
     expect(dues[0].title).toBe('El resumen de Visa Galicia está vencido')
     expect(dues[1].severity).toBe('watch')
+    expect(dues[0].actions[0]).toEqual({
+      label: 'Ver compromisos',
+      href: '/analytics?drill=compromisos',
+    })
   })
 })
 
@@ -357,6 +365,10 @@ describe('goal_pace', () => {
     expect(insight?.severity).toBe('watch')
     expect(insight?.title).toContain('Viaje')
     expect(insight?.message).toContain('/mes')
+    expect(insight?.actions[0]).toEqual({
+      label: 'Ver metas',
+      question: '¿Cómo vienen mis metas?',
+    })
   })
 
   it('solo metas encaminadas emite señal positiva', () => {
@@ -412,5 +424,50 @@ describe('subscription_load', () => {
       makeSnapshot({ subscriptions: [makeSubscription({ amount: 50_000 })] }),
     )
     expect(kinds(candidates)).not.toContain('subscription_load')
+  })
+})
+
+describe('acciones del workspace de Análisis', () => {
+  it('proyecta deep links nativos únicamente con la flag activa', async () => {
+    const original = process.env.NEXT_PUBLIC_FF_ANALYTICS_WORKSPACE_V1
+    process.env.NEXT_PUBLIC_FF_ANALYTICS_WORKSPACE_V1 = 'true'
+    vi.resetModules()
+
+    try {
+      const { buildInsightCandidates: buildWithWorkspace } = await import('../insight-rules')
+      const candidates = buildWithWorkspace(
+        makeSnapshot({
+          budget: makeBudgetSnapshot([
+            { category: 'Supermercado', amount: 200_000, spentAmount: 150_000 },
+          ]),
+          cards: [
+            makeCard({
+              pendingStatements: [
+                { periodMonth: '2026-06', amount: 80_000, dueDate: '2026-07-10', status: 'vencido' },
+              ],
+            }),
+          ],
+          goalsDetail: [makeGoal()],
+          goals: { count: 1, committed: { ARS: 0, USD: 0 } },
+        }),
+      )
+
+      expect(candidates.find(({ kind }) => kind === 'budget_acceleration')?.actions[0]).toEqual({
+        label: 'Ver presupuesto',
+        href: '/analytics?month=2026-07&view=budget',
+      })
+      expect(candidates.find(({ kind }) => kind === 'upcoming_card_due')?.actions[0]).toEqual({
+        label: 'Ver compromisos',
+        href: '/analytics?month=2026-07&view=insights&drill=compromisos',
+      })
+      expect(candidates.find(({ kind }) => kind === 'goal_pace')?.actions[0]).toEqual({
+        label: 'Ver metas',
+        href: '/analytics?month=2026-07&view=goals',
+      })
+    } finally {
+      if (original === undefined) delete process.env.NEXT_PUBLIC_FF_ANALYTICS_WORKSPACE_V1
+      else process.env.NEXT_PUBLIC_FF_ANALYTICS_WORKSPACE_V1 = original
+      vi.resetModules()
+    }
   })
 })

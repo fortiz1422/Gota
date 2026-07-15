@@ -50,6 +50,7 @@ import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
 import { formatAmount } from '@/lib/format'
+import { buildAnalyticsHref } from '@/lib/analytics/analytics-route-state'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { HeroBalanceMode } from '@/types/database'
 
@@ -421,7 +422,11 @@ export function DashboardShell({
       has_native_action: action.action.type !== 'ask',
     })
     recordLifecycleEvent(action, 'acted')
-    const commitmentsHref = `/analytics?month=${selectedMonth}&drill=compromisos`
+    const commitmentsHref = buildAnalyticsHref({
+      month: selectedMonth,
+      view: 'insights',
+      drill: 'compromisos',
+    })
     switch (action.action.type) {
       case 'navigate':
         router.push(action.action.href)

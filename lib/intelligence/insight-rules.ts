@@ -1,4 +1,6 @@
 import { formatAmount } from '@/lib/format'
+import { buildAnalyticsHref } from '@/lib/analytics/analytics-route-state'
+import { FF_ANALYTICS_WORKSPACE_V1 } from '@/lib/flags'
 import {
   addDays,
   endOfMonth,
@@ -69,12 +71,15 @@ function ruleBudgetAcceleration(snapshot: FinancialSnapshot): InsightCandidate[]
         evidenceItem('Avance del mes', `${item.expectedPct}%`, 'calendar'),
       ],
       dataQuality: 'ok' as const,
-      actions: [
-        {
-          label: 'Ver presupuesto',
-          question: `¿Cómo viene mi presupuesto de ${item.category} este mes?`,
-        },
-      ],
+      actions: [FF_ANALYTICS_WORKSPACE_V1
+        ? {
+            label: 'Ver presupuesto',
+            href: buildAnalyticsHref({ month: snapshot.month, view: 'budget' }),
+          }
+        : {
+            label: 'Ver presupuesto',
+            question: `¿Cómo viene mi presupuesto de ${item.category} este mes?`,
+          }],
       validUntil: endOfMonth(snapshot.month),
       dedupeKey: `budget_acceleration:${snapshot.month}:${item.category}`,
     }
@@ -169,7 +174,16 @@ function ruleUpcomingCardDue(snapshot: FinancialSnapshot): InsightCandidate[] {
           evidenceItem('Vencimiento', formatShortDate(due.dueDate), `card_cycle:${due.cardName}:${due.periodMonth}`),
         ],
         dataQuality: 'ok' as const,
-        actions: [{ label: 'Ver compromisos', href: '/analytics?drill=compromisos' }],
+        actions: [{
+          label: 'Ver compromisos',
+          href: FF_ANALYTICS_WORKSPACE_V1
+            ? buildAnalyticsHref({
+                month: snapshot.month,
+                view: 'insights',
+                drill: 'compromisos',
+              })
+            : '/analytics?drill=compromisos',
+        }],
         validUntil: isOverdue ? addDays(snapshot.referenceDate, 3) : due.dueDate,
         dedupeKey: `upcoming_card_due:${due.cardId}:${due.dueDate}`,
       }
@@ -370,7 +384,12 @@ function ruleGoalPace(snapshot: FinancialSnapshot): InsightCandidate | null {
         evidenceItem('Avance', `${behind.progressPct}%`, `goal:${behind.id}`),
       ],
       dataQuality: 'ok',
-      actions: [{ label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
+      actions: [FF_ANALYTICS_WORKSPACE_V1
+        ? {
+            label: 'Ver metas',
+            href: buildAnalyticsHref({ month: snapshot.month, view: 'goals' }),
+          }
+        : { label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
       validUntil: endOfMonth(snapshot.month),
       dedupeKey: `goal_pace:${behind.id}`,
     }
@@ -391,7 +410,12 @@ function ruleGoalPace(snapshot: FinancialSnapshot): InsightCandidate | null {
         evidenceItem('Avance', `${onTrack.progressPct}%`, `goal:${onTrack.id}`),
       ],
       dataQuality: 'ok',
-      actions: [{ label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
+      actions: [FF_ANALYTICS_WORKSPACE_V1
+        ? {
+            label: 'Ver metas',
+            href: buildAnalyticsHref({ month: snapshot.month, view: 'goals' }),
+          }
+        : { label: 'Ver metas', question: '¿Cómo vienen mis metas?' }],
       validUntil: endOfMonth(snapshot.month),
       dedupeKey: `goal_pace:${onTrack.id}`,
     }

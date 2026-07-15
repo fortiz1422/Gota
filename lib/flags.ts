@@ -29,3 +29,10 @@ export const FF_INTELLIGENCE_LIFECYCLE_V1 =
   process.env.NEXT_PUBLIC_FF_INTELLIGENCE_LIFECYCLE_V1 === 'true'
 export const FF_SIGNALS_CENTER_V1 =
   process.env.NEXT_PUBLIC_FF_SIGNALS_CENTER_V1 === 'true'
+
+/**
+ * Workspace navegable de Análisis. Apagado por defecto para conservar el
+ * modal Explorar como rollback exacto hasta completar el QA productivo.
+ */
+export const FF_ANALYTICS_WORKSPACE_V1 =
+  process.env.NEXT_PUBLIC_FF_ANALYTICS_WORKSPACE_V1 === 'true'

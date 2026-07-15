@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     currency,
   })
 
-  return NextResponse.json(snapshot)
+  return NextResponse.json({ ...snapshot, currency })
 }
 
 export async function POST(request: Request) {

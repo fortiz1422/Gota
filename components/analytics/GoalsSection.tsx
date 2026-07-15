@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { Target } from '@phosphor-icons/react'
+import { EmptyState } from '@/components/ui/EmptyState'
 import { GoalContributionSheet } from './GoalContributionSheet'
 import { GoalCreateSheet } from './GoalCreateSheet'
 import { GoalDetailSheet } from './GoalDetailSheet'
@@ -9,6 +11,7 @@ import { GoalEmptyState } from './GoalEmptyState'
 import { GoalRow } from './GoalRow'
 import { GoalsFocusList } from './GoalsFocusList'
 import type { GoalWithMetrics } from '@/lib/goals/types'
+import { getCurrentMonth } from '@/lib/dates'
 
 interface Props {
   selectedMonth: string
@@ -55,8 +58,8 @@ export function GoalsSection({ selectedMonth }: Props) {
   const [contributeOpen, setContributeOpen] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
 
-  const { data, isLoading } = useQuery<{ goals: GoalWithMetrics[] }>({
-    queryKey: ['goals', selectedMonth],
+  const { data, isLoading, isError, refetch } = useQuery<{ goals: GoalWithMetrics[] }>({
+    queryKey: ['goals'],
     queryFn: async () => {
       const res = await fetch('/api/goals')
       if (!res.ok) throw new Error('goals fetch failed')
@@ -103,12 +106,32 @@ export function GoalsSection({ selectedMonth }: Props) {
   const activeGoals = useMemo(() => goals.filter((goal) => goal.status === 'active'), [goals])
   const pausedGoals = useMemo(() => goals.filter((goal) => goal.status === 'paused'), [goals])
   const completedGoals = useMemo(() => goals.filter((goal) => goal.status === 'completed'), [goals])
+  const historicalNotice = selectedMonth !== getCurrentMonth() ? (
+    <p className="mb-3 rounded-card border border-primary/10 bg-primary/5 px-3 py-2 text-[12px] leading-5 text-text-secondary">
+      Las metas muestran su estado actual, no una foto histórica del mes seleccionado.
+    </p>
+  ) : null
 
   if (isLoading) return <GoalsSkeleton />
+
+  if (isError) {
+    return (
+      <div className="mx-auto max-w-md px-[22px] pb-4">
+        <EmptyState
+          icon={Target}
+          title="No pudimos cargar tus metas"
+          subtitle="Revisá tu conexión e intentá nuevamente. Tus metas no cambiaron."
+          ctaLabel="Reintentar"
+          onCta={() => { void refetch() }}
+        />
+      </div>
+    )
+  }
 
   if (goals.length === 0) {
     return (
       <div className="mx-auto max-w-md px-[22px] pb-4">
+        {historicalNotice}
         <GoalEmptyState onCreate={() => setCreateOpen(true)} />
         <GoalCreateSheet open={createOpen} onClose={() => setCreateOpen(false)} onCreated={refresh} />
       </div>
@@ -117,6 +140,7 @@ export function GoalsSection({ selectedMonth }: Props) {
 
   return (
     <div className="mx-auto max-w-md px-[22px] pb-4">
+      {historicalNotice}
       <section className="card-s5 overflow-hidden">
         <div className="flex items-start justify-between gap-3 px-4 pt-4">
           <div>

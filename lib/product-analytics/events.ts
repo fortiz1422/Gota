@@ -45,6 +45,7 @@ export const PRODUCT_EVENT_NAMES = [
   'signals_signal_opened',
   'signals_coverage_opened',
   'signals_action_clicked',
+  'analysis_section_selected',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]
@@ -52,6 +53,7 @@ export type ProductEventValue = string | number | boolean | null
 export type ProductEventProperties = Record<string, ProductEventValue>
 
 type SignalsProductEventName = Extract<ProductEventName, `signals_${string}`>
+type AnalysisProductEventName = Extract<ProductEventName, `analysis_${string}`>
 
 const SIGNAL_EVENT_PROPERTY_ALLOWLIST: Record<
   SignalsProductEventName,
@@ -62,6 +64,13 @@ const SIGNAL_EVENT_PROPERTY_ALLOWLIST: Record<
   signals_signal_opened: ['signal_kind', 'severity', 'source'],
   signals_coverage_opened: ['coverage_id', 'coverage_state', 'source'],
   signals_action_clicked: ['signal_kind', 'action_type', 'source'],
+}
+
+const ANALYSIS_EVENT_PROPERTY_ALLOWLIST: Record<
+  AnalysisProductEventName,
+  readonly string[]
+> = {
+  analysis_section_selected: ['section', 'source'],
 }
 
 const SIGNAL_KINDS = [
@@ -120,6 +129,16 @@ const SIGNAL_EVENT_PROPERTY_VALUES: Record<
   },
 }
 
+const ANALYSIS_EVENT_PROPERTY_VALUES: Record<
+  AnalysisProductEventName,
+  Record<string, readonly ProductEventValue[]>
+> = {
+  analysis_section_selected: {
+    section: ['summary', 'insights', 'budget', 'goals'],
+    source: ['workspace_tabs'],
+  },
+}
+
 const SENSITIVE_KEY_PATTERNS = [
   /amount/i,
   /balance/i,
@@ -156,10 +175,18 @@ export function sanitizeEventProperties(
   const signalValues = eventName?.startsWith('signals_')
     ? SIGNAL_EVENT_PROPERTY_VALUES[eventName as SignalsProductEventName]
     : undefined
+  const analysisAllowlist = eventName?.startsWith('analysis_')
+    ? ANALYSIS_EVENT_PROPERTY_ALLOWLIST[eventName as AnalysisProductEventName]
+    : undefined
+  const analysisValues = eventName?.startsWith('analysis_')
+    ? ANALYSIS_EVENT_PROPERTY_VALUES[eventName as AnalysisProductEventName]
+    : undefined
+  const strictAllowlist = signalAllowlist ?? analysisAllowlist
+  const strictValues = signalValues ?? analysisValues
 
   const safeEntries = Object.entries(properties)
-    .filter(([key]) => !signalAllowlist || signalAllowlist.includes(key))
-    .filter(([key, value]) => !signalValues || signalValues[key]?.includes(value))
+    .filter(([key]) => !strictAllowlist || strictAllowlist.includes(key))
+    .filter(([key, value]) => !strictValues || strictValues[key]?.includes(value))
     .filter(([key]) => !isSensitiveKey(key))
     .slice(0, 24)
     .map(([key, value]) => [key.slice(0, 64), sanitizeValue(value)] as const)

@@ -4,6 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ChartLineUp } from '@phosphor-icons/react'
 import { AnalyticsClient } from './AnalyticsClient'
+import { AnalyticsWorkspaceStandalone } from './AnalyticsWorkspaceStandalone'
+import { BudgetsSection } from './BudgetsSection'
+import { GoalsSection } from './GoalsSection'
 import { EmptyState } from '@/components/ui/EmptyState'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { computeMetrics } from '@/lib/analytics/computeMetrics'
@@ -12,11 +15,14 @@ import { isApplicableCardPayment, isPerceivedExpense } from '@/lib/movement-clas
 import { buildEmptyBudgetSnapshot } from '@/lib/budgets/computeBudgetMetrics'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
+import { FF_ANALYTICS_WORKSPACE_V1 } from '@/lib/flags'
+import type { AnalyticsView } from '@/lib/analytics/analytics-route-state'
 import type {
   AnalyticsComparisonContext,
   MonthlySeriesPoint,
 } from '@/lib/analytics/analytics-overview'
 import type { Card, CardCycle, CardCycleAmount, Expense, Subscription } from '@/types/database'
+import { CATEGORIES } from '@/lib/validation/schemas'
 
 export type AnalyticsApiData = {
   rawExpenses: Expense[]
@@ -33,10 +39,11 @@ export type AnalyticsApiData = {
   comparisonContext: AnalyticsComparisonContext
 }
 
-export type BudgetApiData = BudgetSnapshot
+export type BudgetApiData = BudgetSnapshot & { currency?: 'ARS' | 'USD' }
 
 interface Props {
   selectedMonth: string
+  initialView: AnalyticsView
   initialDrill?: 'estado_mes' | 'fuga' | 'habitos' | 'compromisos'
 }
 
@@ -84,8 +91,24 @@ function AnalyticsSkeleton() {
   )
 }
 
-export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
+function AnalyticsLoadError({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="min-h-[60vh] bg-bg-primary px-5 pt-safe">
+      <EmptyState
+        icon={ChartLineUp}
+        title="No pudimos cargar Análisis"
+        subtitle={message}
+        ctaLabel="Reintentar"
+        onCta={onRetry}
+      />
+    </div>
+  )
+}
+
+export function AnalyticsDataLoader({ selectedMonth, initialView, initialDrill }: Props) {
   const queryClient = useQueryClient()
+  const analyticsEnabled =
+    !FF_ANALYTICS_WORKSPACE_V1 || initialView === 'summary' || initialView === 'insights'
 
   useEffect(() => {
     queryClient.prefetchQuery({
@@ -95,33 +118,133 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
     })
   }, [selectedMonth, queryClient])
 
-  const { data, isLoading } = useQuery<AnalyticsApiData>({
+  const { data, isLoading, isError, refetch } = useQuery<AnalyticsApiData>({
     queryKey: ['analytics', selectedMonth],
     queryFn: async () => {
       const res = await fetch(`/api/analytics-data?month=${selectedMonth}`)
       if (!res.ok) throw new Error('analytics fetch failed')
       return res.json()
     },
+    enabled: analyticsEnabled,
     staleTime: 0,
     refetchOnWindowFocus: true,
   })
 
-  const { data: budgetData, isLoading: isBudgetLoading } = useQuery<BudgetApiData>({
-    queryKey: ['budgets', selectedMonth, data?.currency ?? 'ARS'],
+  const {
+    data: budgetData,
+    isLoading: isBudgetLoading,
+    isError: isBudgetError,
+    refetch: refetchBudget,
+  } = useQuery<BudgetApiData>({
+    queryKey: FF_ANALYTICS_WORKSPACE_V1
+      ? ['budgets', selectedMonth]
+      : ['budgets', selectedMonth, data?.currency ?? 'ARS'],
     queryFn: async () => {
-      const currency = data?.currency ?? 'ARS'
-      const res = await fetch(`/api/budgets/current?month=${selectedMonth}&currency=${currency}`)
+      const params = new URLSearchParams({ month: selectedMonth })
+      if (!FF_ANALYTICS_WORKSPACE_V1 && data?.currency) {
+        params.set('currency', data.currency)
+      }
+      const res = await fetch(`/api/budgets/current?${params.toString()}`)
       if (!res.ok) throw new Error('budgets fetch failed')
       return res.json()
     },
-    enabled: Boolean(data?.currency),
+    enabled: FF_ANALYTICS_WORKSPACE_V1
+      ? initialView !== 'goals'
+      : Boolean(data?.currency),
     staleTime: 0,
     refetchOnWindowFocus: true,
   })
 
-  if (isLoading || !data || isBudgetLoading) return <AnalyticsSkeleton />
+  if (FF_ANALYTICS_WORKSPACE_V1 && initialView === 'goals') {
+    return (
+      <AnalyticsWorkspaceStandalone activeView="goals" selectedMonth={selectedMonth}>
+        <GoalsSection selectedMonth={selectedMonth} />
+      </AnalyticsWorkspaceStandalone>
+    )
+  }
 
-  if (data.rawExpenses.length === 0 && data.compromisoExpenses.length === 0) {
+  if (FF_ANALYTICS_WORKSPACE_V1 && initialView === 'budget') {
+    if (isBudgetLoading) {
+      return (
+        <AnalyticsWorkspaceStandalone activeView="budget" selectedMonth={selectedMonth}>
+          <div className="mx-5 skeleton h-48 rounded-card" />
+        </AnalyticsWorkspaceStandalone>
+      )
+    }
+    if (isBudgetError || !budgetData) {
+      return (
+        <AnalyticsWorkspaceStandalone activeView="budget" selectedMonth={selectedMonth}>
+          <AnalyticsLoadError
+            message="No pudimos cargar tu presupuesto. Tus datos no cambiaron."
+            onRetry={() => { void refetchBudget() }}
+          />
+        </AnalyticsWorkspaceStandalone>
+      )
+    }
+    const budgetCurrency = budgetData.currency ?? budgetData.plan?.baseCurrency ?? 'ARS'
+    return (
+      <AnalyticsWorkspaceStandalone
+        activeView="budget"
+        selectedMonth={selectedMonth}
+        budget={budgetData}
+        currency={budgetCurrency}
+      >
+        <BudgetsSection
+          budget={budgetData}
+          currency={budgetCurrency}
+          selectedMonth={selectedMonth}
+          categories={[...CATEGORIES]}
+        />
+      </AnalyticsWorkspaceStandalone>
+    )
+  }
+
+  if (FF_ANALYTICS_WORKSPACE_V1 && isLoading) {
+    return (
+      <AnalyticsWorkspaceStandalone
+        activeView={initialView}
+        selectedMonth={selectedMonth}
+        drill={initialDrill}
+      >
+        <div className="mx-5 skeleton h-48 rounded-card" />
+      </AnalyticsWorkspaceStandalone>
+    )
+  }
+
+  if (FF_ANALYTICS_WORKSPACE_V1 && (isError || !data)) {
+    return (
+      <AnalyticsWorkspaceStandalone
+        activeView={initialView}
+        selectedMonth={selectedMonth}
+        drill={initialDrill}
+      >
+        <AnalyticsLoadError
+          message="Revisá tu conexión e intentá nuevamente."
+          onRetry={() => { void refetch() }}
+        />
+      </AnalyticsWorkspaceStandalone>
+    )
+  }
+
+  if (isLoading || !data || (!FF_ANALYTICS_WORKSPACE_V1 && isBudgetLoading)) return <AnalyticsSkeleton />
+  if (isError || !data) {
+    return (
+      <AnalyticsLoadError
+        message="Revisá tu conexión e intentá nuevamente."
+        onRetry={() => { void refetch() }}
+      />
+    )
+  }
+  if (!FF_ANALYTICS_WORKSPACE_V1 && isBudgetError) {
+    return (
+      <AnalyticsLoadError
+        message="No pudimos cargar tu presupuesto. Tus datos no cambiaron."
+        onRetry={() => { void refetchBudget() }}
+      />
+    )
+  }
+
+  if (!FF_ANALYTICS_WORKSPACE_V1 && data.rawExpenses.length === 0 && data.compromisoExpenses.length === 0) {
     return (
       <div className="bg-bg-primary">
         <div
@@ -197,6 +320,7 @@ export function AnalyticsDataLoader({ selectedMonth, initialDrill }: Props) {
       earliestDataMonth={earliestDataMonth ?? undefined}
       monthlySeries={monthlySeries}
       comparisonContext={comparisonContext}
+      initialView={initialView}
       initialDrill={initialDrill}
       budget={budgetData ?? buildEmptyBudgetSnapshot()}
     />

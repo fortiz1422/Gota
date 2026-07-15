@@ -13,6 +13,7 @@ interface Props {
   className?: string
   viewCurrency?: 'ARS' | 'USD'
   variant?: 'standard' | 'in-header'
+  preserveParams?: Record<string, string | undefined>
 }
 
 function buildMonthList(
@@ -38,7 +39,7 @@ function buildMonthList(
   return months
 }
 
-export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5', viewCurrency, variant = 'standard' }: Props) {
+export function DashboardHeader({ month, basePath = '/', earliestDataMonth, className = 'px-6 pt-5', viewCurrency, variant = 'standard', preserveParams }: Props) {
   const router = useRouter()
   const [isSheetOpen, setIsSheetOpen] = useState(false)
 
@@ -53,6 +54,9 @@ export function DashboardHeader({ month, basePath = '/', earliestDataMonth, clas
 
   const handleSelectMonth = (selected: string) => {
     const params = new URLSearchParams()
+    for (const [key, value] of Object.entries(preserveParams ?? {})) {
+      if (value) params.set(key, value)
+    }
     if (selected !== current) params.set('month', selected)
     if (viewCurrency && viewCurrency !== 'ARS') params.set('currency', viewCurrency)
     const query = params.toString()

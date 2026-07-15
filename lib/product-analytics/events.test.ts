@@ -87,3 +87,33 @@ describe('Signals product analytics events', () => {
     ).toEqual({ action_type: 'navigate' })
   })
 })
+
+describe('Analysis workspace product analytics events', () => {
+  it('accepts the section selection event', () => {
+    expect(isProductEventName('analysis_section_selected')).toBe(true)
+  })
+
+  it('only preserves categorical allowlisted properties', () => {
+    expect(
+      sanitizeEventProperties(
+        {
+          section: 'budget',
+          source: 'workspace_tabs',
+          month: '2026-07',
+          category: 'Supermercado',
+          amount: 120_000,
+        },
+        'analysis_section_selected',
+      ),
+    ).toEqual({ section: 'budget', source: 'workspace_tabs' })
+  })
+
+  it('drops untrusted section and source values', () => {
+    expect(
+      sanitizeEventProperties(
+        { section: 'meta Viaje', source: 'deep_link con datos' },
+        'analysis_section_selected',
+      ),
+    ).toEqual({})
+  })
+})

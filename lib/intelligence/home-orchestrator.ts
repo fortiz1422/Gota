@@ -1,4 +1,6 @@
 import { formatAmount } from '@/lib/format'
+import { buildAnalyticsHref } from '@/lib/analytics/analytics-route-state'
+import { FF_ANALYTICS_WORKSPACE_V1 } from '@/lib/flags'
 import { normalizeText } from './chat-planner'
 import { evidenceItem, formatShortDate, moneyEvidence, relativeDayLabel } from './evidence'
 import {
@@ -34,7 +36,9 @@ export type HomeOrchestratorOptions = {
   closingProjection?: { enabled: boolean; rolloverMode: 'auto' | 'manual' | 'off' }
 }
 
-const COMMITMENTS_HREF = '/analytics?drill=compromisos'
+const commitmentsHref = (month: string) => FF_ANALYTICS_WORKSPACE_V1
+  ? buildAnalyticsHref({ month, view: 'insights', drill: 'compromisos' })
+  : '/analytics?drill=compromisos'
 const CARD_DUE_WINDOW_DAYS = 5
 const SUBSCRIPTION_INCREASE_MIN_PCT = 15
 const PACE_OVERSHOOT_RATIO = 1.25
@@ -246,7 +250,7 @@ export function buildHomeIntelligence(
         ],
         caveats: [],
         askQuestion: '¿Qué compromisos fuertes tengo antes de fin de mes?',
-        action: { type: 'navigate', href: COMMITMENTS_HREF, label: 'Ver compromisos' },
+        action: { type: 'navigate', href: commitmentsHref(snapshot.month), label: 'Ver compromisos' },
       },
     })
   }
@@ -443,7 +447,7 @@ export function buildHomeIntelligence(
       evidence: disponibleEvidence,
       caveats: disponibleCaveats,
       askQuestion: '¿Cuánto puedo gastar por día hasta fin de mes?',
-      action: { type: 'navigate', href: COMMITMENTS_HREF, label: 'Ver próximos débitos' },
+      action: { type: 'navigate', href: commitmentsHref(snapshot.month), label: 'Ver próximos débitos' },
     }
   }
   base.ambient.disponibleReal = disponibleReal
@@ -481,7 +485,7 @@ export function buildHomeIntelligence(
       ],
       caveats: [],
       askQuestion: '¿Qué compromisos fuertes tengo antes de fin de mes?',
-      action: { type: 'navigate', href: COMMITMENTS_HREF, label: 'Ver cálculo' },
+      action: { type: 'navigate', href: commitmentsHref(snapshot.month), label: 'Ver cálculo' },
     }
   } else {
     const shift = detectCreditShift(snapshot)
@@ -503,7 +507,7 @@ export function buildHomeIntelligence(
         ],
         caveats: [],
         askQuestion: '¿En qué estoy gastando más este mes?',
-        action: { type: 'navigate', href: COMMITMENTS_HREF, label: 'Ver cambio de origen' },
+        action: { type: 'navigate', href: commitmentsHref(snapshot.month), label: 'Ver cambio de origen' },
       }
     }
   }
