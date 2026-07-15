@@ -64,6 +64,62 @@ const SIGNAL_EVENT_PROPERTY_ALLOWLIST: Record<
   signals_action_clicked: ['signal_kind', 'action_type', 'source'],
 }
 
+const SIGNAL_KINDS = [
+  'budget_acceleration',
+  'same_day_spend_delta',
+  'upcoming_card_due',
+  'liquidity_watch',
+  'recent_unusual_movement',
+  'installment_load',
+  'wants_creep',
+  'goal_pace',
+  'income_missing',
+  'subscription_load',
+] as const
+
+const SIGNAL_DOMAINS = [
+  'liquidity',
+  'cards',
+  'budget',
+  'pace',
+  'unusual',
+  'installments',
+  'wants',
+  'goals',
+  'income',
+  'subscriptions',
+] as const
+
+const SIGNAL_EVENT_PROPERTY_VALUES: Record<
+  SignalsProductEventName,
+  Record<string, readonly ProductEventValue[]>
+> = {
+  signals_bell_clicked: {
+    surface: ['home'],
+    has_unread: [true, false],
+  },
+  signals_center_opened: {
+    source: ['bell'],
+    surface: ['home'],
+    has_unread: [true, false],
+  },
+  signals_signal_opened: {
+    signal_kind: SIGNAL_KINDS,
+    severity: ['risk', 'watch', 'info', 'positive'],
+    source: ['center'],
+  },
+  signals_coverage_opened: {
+    coverage_id: ['all', ...SIGNAL_DOMAINS],
+    coverage_state: ['active', 'learning', 'needs_setup', 'not_applicable'],
+    source: ['center'],
+  },
+  signals_action_clicked: {
+    signal_kind: SIGNAL_KINDS,
+    action_type: ['navigate', 'ask'],
+    source: ['center'],
+  },
+}
+
 const SENSITIVE_KEY_PATTERNS = [
   /amount/i,
   /balance/i,
@@ -97,9 +153,13 @@ export function sanitizeEventProperties(
   const signalAllowlist = eventName?.startsWith('signals_')
     ? SIGNAL_EVENT_PROPERTY_ALLOWLIST[eventName as SignalsProductEventName]
     : undefined
+  const signalValues = eventName?.startsWith('signals_')
+    ? SIGNAL_EVENT_PROPERTY_VALUES[eventName as SignalsProductEventName]
+    : undefined
 
   const safeEntries = Object.entries(properties)
     .filter(([key]) => !signalAllowlist || signalAllowlist.includes(key))
+    .filter(([key, value]) => !signalValues || signalValues[key]?.includes(value))
     .filter(([key]) => !isSensitiveKey(key))
     .slice(0, 24)
     .map(([key, value]) => [key.slice(0, 64), sanitizeValue(value)] as const)

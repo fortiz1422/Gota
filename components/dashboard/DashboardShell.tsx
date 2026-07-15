@@ -529,7 +529,6 @@ export function DashboardShell({
       action_type: 'navigate',
       source: 'center',
     })
-    setSignalsOpen(false)
     router.push(href)
   }
 
@@ -539,8 +538,7 @@ export function DashboardShell({
       action_type: 'ask',
       source: 'center',
     })
-    setSignalsOpen(false)
-    window.setTimeout(() => requestAssistantOpen({ question }), 0)
+    requestAssistantOpen({ question })
   }
 
   return (

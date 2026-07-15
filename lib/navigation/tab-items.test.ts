@@ -22,6 +22,20 @@ describe('getTabItems', () => {
     ])
   })
 
+  it('keeps the legacy hrefs with a historical month when Signals Center is disabled', () => {
+    const items = getTabItems({
+      signalsCenterEnabled: false,
+      pathname: '/',
+      month: '2026-06',
+    })
+
+    expect(items.map(({ href }) => href)).toEqual([
+      '/',
+      '/movimientos',
+      '/analytics',
+    ])
+  })
+
   it('adds Profile as the rightmost tab when Signals Center is enabled', () => {
     const items = getTabItems({
       signalsCenterEnabled: true,

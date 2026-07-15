@@ -16,7 +16,9 @@ export function getTabItems({
   pathname,
   month,
 }: GetTabItemsOptions): TabItem[] {
-  const monthSuffix = month ? `?month=${encodeURIComponent(month)}` : ''
+  const monthSuffix = signalsCenterEnabled && month
+    ? `?month=${encodeURIComponent(month)}`
+    : ''
   const items: TabItem[] = [
     {
       href: `/${monthSuffix}`,

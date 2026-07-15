@@ -27,16 +27,16 @@ describe('Signals product analytics events', () => {
           account_id: 'account-1234',
           user_document: '20-12345678-9',
           raw_payload: 'contenido financiero no clasificado',
-          signal_kind: 'card_due',
+          signal_kind: 'upcoming_card_due',
           severity: 'risk',
-          source: 'signals_center',
+          source: 'center',
         },
         'signals_signal_opened',
       ),
     ).toEqual({
-      signal_kind: 'card_due',
+      signal_kind: 'upcoming_card_due',
       severity: 'risk',
-      source: 'signals_center',
+      source: 'center',
     })
   })
 
@@ -47,29 +47,43 @@ describe('Signals product analytics events', () => {
     ],
     [
       'signals_center_opened',
-      { source: 'bell', surface: 'signals_center', has_unread: false },
+      { source: 'bell', surface: 'home', has_unread: false },
     ],
     [
       'signals_signal_opened',
-      { signal_kind: 'card_due', severity: 'risk', source: 'now' },
+      { signal_kind: 'upcoming_card_due', severity: 'risk', source: 'center' },
     ],
     [
       'signals_coverage_opened',
       {
-        coverage_id: 'coverage_cards',
+        coverage_id: 'cards',
         coverage_state: 'active',
-        source: 'coverage',
+        source: 'center',
       },
     ],
     [
       'signals_action_clicked',
       {
-        signal_kind: 'card_due',
-        action_type: 'open_card',
-        source: 'signal_detail',
+        signal_kind: 'upcoming_card_due',
+        action_type: 'navigate',
+        source: 'center',
       },
     ],
   ] as const)('preserves the allowlisted properties for %s', (eventName, properties) => {
     expect(sanitizeEventProperties(properties, eventName)).toEqual(properties)
+  })
+
+  it('drops untrusted values even when their property names are allowlisted', () => {
+    expect(
+      sanitizeEventProperties(
+        {
+          signal_kind: 'saldo ARS 500000 de Juan',
+          severity: 'risk; persona@example.com',
+          source: 'center / cuenta 1234',
+          action_type: 'navigate',
+        },
+        'signals_action_clicked',
+      ),
+    ).toEqual({ action_type: 'navigate' })
   })
 })

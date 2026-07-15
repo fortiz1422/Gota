@@ -86,8 +86,16 @@ export function SignalsSheet({
           signal={detail}
           amountsVisible={amountsVisible}
           onBack={() => setDetail(null)}
-          onNavigate={onNavigate ? (href) => onNavigate(href, detail) : undefined}
-          onAsk={onAsk ? (question) => onAsk(question, detail) : undefined}
+          onNavigate={onNavigate ? (href) => {
+            const selectedSignal = detail
+            closeSheet()
+            onNavigate(href, selectedSignal)
+          } : undefined}
+          onAsk={onAsk ? (question) => {
+            const selectedSignal = detail
+            closeSheet()
+            onAsk(question, selectedSignal)
+          } : undefined}
         />
       ) : (
         <div className="min-h-full bg-bg-secondary">
