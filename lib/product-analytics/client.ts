@@ -30,7 +30,7 @@ export function trackEvent(
 
   const body = JSON.stringify({
     event_name: eventName,
-    properties: sanitizeEventProperties(properties),
+    properties: sanitizeEventProperties(properties, eventName),
     session_id: getSessionId(),
     path: window.location.pathname,
   })

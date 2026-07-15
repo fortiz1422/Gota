@@ -19,7 +19,7 @@ export async function recordProductEvent(
   const { error } = await supabase.from('product_events').insert({
     user_id: userId,
     event_name: eventName,
-    properties: sanitizeEventProperties(properties) as Json,
+    properties: sanitizeEventProperties(properties, eventName) as Json,
     session_id: options.sessionId ?? null,
     path: options.path?.slice(0, 180) ?? null,
     is_anonymous: options.isAnonymous ?? false,

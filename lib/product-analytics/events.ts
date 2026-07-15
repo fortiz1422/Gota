@@ -40,11 +40,29 @@ export const PRODUCT_EVENT_NAMES = [
   'intelligence_feedback_submitted',
   'simulation_started',
   'simulation_completed',
+  'signals_bell_clicked',
+  'signals_center_opened',
+  'signals_signal_opened',
+  'signals_coverage_opened',
+  'signals_action_clicked',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]
 export type ProductEventValue = string | number | boolean | null
 export type ProductEventProperties = Record<string, ProductEventValue>
+
+type SignalsProductEventName = Extract<ProductEventName, `signals_${string}`>
+
+const SIGNAL_EVENT_PROPERTY_ALLOWLIST: Record<
+  SignalsProductEventName,
+  readonly string[]
+> = {
+  signals_bell_clicked: ['surface', 'has_unread'],
+  signals_center_opened: ['source', 'surface', 'has_unread'],
+  signals_signal_opened: ['signal_kind', 'severity', 'source'],
+  signals_coverage_opened: ['coverage_id', 'coverage_state', 'source'],
+  signals_action_clicked: ['signal_kind', 'action_type', 'source'],
+}
 
 const SENSITIVE_KEY_PATTERNS = [
   /amount/i,
@@ -52,11 +70,14 @@ const SENSITIVE_KEY_PATTERNS = [
   /category/i,
   /description/i,
   /email/i,
+  /evidence/i,
   /input/i,
+  /message/i,
   /monto/i,
   /name/i,
   /password/i,
   /saldo/i,
+  /title/i,
   /token/i,
 ]
 
@@ -71,8 +92,14 @@ function sanitizeValue(value: ProductEventValue): ProductEventValue {
 
 export function sanitizeEventProperties(
   properties: ProductEventProperties = {},
+  eventName?: ProductEventName,
 ): ProductEventProperties {
+  const signalAllowlist = eventName?.startsWith('signals_')
+    ? SIGNAL_EVENT_PROPERTY_ALLOWLIST[eventName as SignalsProductEventName]
+    : undefined
+
   const safeEntries = Object.entries(properties)
+    .filter(([key]) => !signalAllowlist || signalAllowlist.includes(key))
     .filter(([key]) => !isSensitiveKey(key))
     .slice(0, 24)
     .map(([key, value]) => [key.slice(0, 64), sanitizeValue(value)] as const)

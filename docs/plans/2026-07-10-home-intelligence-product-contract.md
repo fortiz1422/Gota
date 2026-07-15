@@ -107,3 +107,33 @@ Reglas:
 9. El Home es control del presente, no feed ni dashboard de IA.
 10. No se rediseña Análisis ni se toca lógica fuera del alcance sin
     aprobación explícita.
+
+## 6. Addendum — contrato Signals Center V1
+
+- **Fuente canónica:** Signals proyecta exclusivamente los candidatos de
+  `buildInsightCandidates`; no duplica ni redefine reglas financieras. Home es
+  un proyector separado y conserva un máximo de **un Action Slot**.
+- **Entrada y navegación:** bajo `FF_SIGNALS_CENTER_V1`, se habilitan la campana
+  en Home y Signals como cuarta tab de Perfil. El centro se organiza en
+  **Now**, **Coverage** y detalle de señal/cobertura.
+- **Límite de Home:** no agrega feed, cards ni chips de Signals. Home sigue
+  siendo control del presente y el centro concentra la exploración.
+- **Alcance temporal:** V1 muestra solo señales vigentes (`current-only`). El
+  estado unread es local y persiste únicamente identidades opacas; nunca IDs
+  de dominio, claves de deduplicación ni contenido financiero.
+- **Fuera de V1:** no hay lifecycle, snooze, feedback, history ni push.
+- **Operación segura:** el feature flag es el mecanismo de rollout y rollback;
+  apagarlo restaura las entradas previas sin depender de cambios de datos.
+- **Evidencia pública:** puede explicar la señal, pero nunca expone source IDs
+  técnicos. Assistant profundiza exclusivamente evidencia determinística
+  producida por Gota; no inventa ni recalcula la regla financiera.
+- **Analytics V1:** mide únicamente entrada y navegación con
+  `signals_bell_clicked`, `signals_center_opened`, `signals_signal_opened`,
+  `signals_coverage_opened` y `signals_action_clicked`. Los eventos aceptan solo
+  propiedades categóricas de una allowlist por evento: `surface`, `has_unread`,
+  `source`, `signal_kind`, `severity`, `coverage_id`, `coverage_state` y
+  `action_type`, según corresponda.
+- **Privacidad de analytics:** no se registran montos, saldos, categorías,
+  títulos, mensajes, evidencia, descripciones, PII, IDs de cuenta/usuario ni
+  payloads libres. Toda propiedad no incluida explícitamente en la allowlist
+  del evento Signals se descarta antes del envío y nuevamente al persistir.
