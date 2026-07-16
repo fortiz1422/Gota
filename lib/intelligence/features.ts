@@ -275,6 +275,53 @@ export type UnusualMovementFeature = {
   multiple: number
 }
 
+type Baseline = { amount: number; count: number }
+type RecurringDescriptionBaseline = { amounts: number[]; count: number; dates: string[] }
+
+const RECURRENCE_NOISE_WORDS = new Set(['cuota', 'pago', 'de', 'del', 'la', 'el', 'los', 'las'])
+
+function descriptionFamilyKey(movement: SnapshotMovement): string | null {
+  const normalized = movement.description
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+  const tokens = normalized
+    .split(/[^a-z0-9]+/)
+    .filter((token) => token.length >= 3 && !RECURRENCE_NOISE_WORDS.has(token))
+    .sort()
+  return tokens.length > 0 ? `${movement.category}:${tokens.join(' ')}` : null
+}
+
+function median(values: number[]): number {
+  const sorted = [...values].sort((a, b) => a - b)
+  const middle = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0
+    ? (sorted[middle - 1] + sorted[middle]) / 2
+    : sorted[middle]
+}
+
+function isMonthlyRecurring(dates: string[]): boolean {
+  if (dates.length < 3) return false
+  const ordered = [...dates].sort()
+  return ordered.slice(1).every((date, index) => {
+    const gap = diffDays(ordered[index], date)
+    return gap >= 20 && gap <= 45
+  })
+}
+
+function recurringBaseline(
+  movement: SnapshotMovement,
+  baselines: Map<string, RecurringDescriptionBaseline>,
+): Baseline | null {
+  const key = descriptionFamilyKey(movement)
+  if (!key) return null
+  const baseline = baselines.get(key)
+  if (!baseline || !isMonthlyRecurring(baseline.dates)) return null
+  return { amount: median(baseline.amounts), count: baseline.count }
+}
+
+// ─── Movimientos fuera de patrón ─────────────────────────────────────────────
+
 export function computeUnusualMovements(
   snapshot: FinancialSnapshot,
   options?: { withinDays?: number; minHistoricalCount?: number; minMultiple?: number },
@@ -284,18 +331,33 @@ export function computeUnusualMovements(
   const minMultiple = options?.minMultiple ?? 3
   const windowStart = addDays(snapshot.referenceDate, -(withinDays - 1))
 
-  // Baseline por categoría con meses previos completos (moneda base).
-  // Los gastos marcados extraordinarios no forman parte del ticket habitual.
-  const baselines = new Map<string, { amount: number; count: number }>()
+  // Primero se compara contra una familia mensual recurrente de la misma
+  // descripción; sin esa evidencia, se usa el ticket histórico de la categoría.
+  // Los gastos marcados extraordinarios no forman parte de ningún baseline.
+  const categoryBaselines = new Map<string, Baseline>()
+  const recurringDescriptionBaselines = new Map<string, RecurringDescriptionBaseline>()
   for (const movement of snapshot.movements) {
     if (movement.kind !== 'gasto' || movement.isCardPayment) continue
     if (movement.currency !== snapshot.currency) continue
     if (movement.date.substring(0, 7) >= snapshot.month) continue
     if (movement.isExtraordinary) continue
-    const current = baselines.get(movement.category) ?? { amount: 0, count: 0 }
-    current.amount += movement.amount
-    current.count += 1
-    baselines.set(movement.category, current)
+
+    const category = categoryBaselines.get(movement.category) ?? { amount: 0, count: 0 }
+    category.amount += movement.amount
+    category.count += 1
+    categoryBaselines.set(movement.category, category)
+
+    const familyKey = descriptionFamilyKey(movement)
+    if (!familyKey) continue
+    const family = recurringDescriptionBaselines.get(familyKey) ?? {
+      amounts: [],
+      count: 0,
+      dates: [],
+    }
+    family.amounts.push(movement.amount)
+    family.count += 1
+    family.dates.push(movement.date)
+    recurringDescriptionBaselines.set(familyKey, family)
   }
 
   const income = snapshot.monthIncome[snapshot.currency]
@@ -316,10 +378,12 @@ export function computeUnusualMovements(
     // Un gasto que el usuario ya marcó como extraordinario no es novedad.
     if (movement.isExtraordinary) continue
 
-    const baseline = baselines.get(movement.category)
-    if (!baseline || baseline.count < minHistoricalCount) continue
+    const recurring = recurringBaseline(movement, recurringDescriptionBaselines)
+    const baseline = recurring ?? categoryBaselines.get(movement.category)
+    const requiredHistory = recurring ? 3 : minHistoricalCount
+    if (!baseline || baseline.count < requiredHistory) continue
 
-    const baselineTicket = baseline.amount / baseline.count
+    const baselineTicket = recurring ? baseline.amount : baseline.amount / baseline.count
     if (baselineTicket <= 0) continue
 
     const multiple = movement.amount / baselineTicket
