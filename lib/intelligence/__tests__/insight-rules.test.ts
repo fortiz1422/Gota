@@ -252,6 +252,25 @@ describe('recent_unusual_movement', () => {
     expect(unusual?.message).toContain('Compra grande')
     expect(unusual?.message).toContain('5×')
   })
+
+  it('acepta fechas timestampadas y calcula la vigencia de la señal', () => {
+    const candidates = buildInsightCandidates(
+      makeSnapshot({
+        expenses: [
+          ...makeInputs().expenses,
+          makeExpense({
+            date: '2026-07-14T00:00:00+00:00',
+            amount: 200_000,
+            category: 'Supermercado',
+            description: 'Compra grande timestampada',
+          }),
+        ],
+      }),
+    )
+
+    const unusual = candidates.find((candidate) => candidate.kind === 'recent_unusual_movement')
+    expect(unusual?.validUntil).toBe('2026-07-21')
+  })
 })
 
 describe('ranking por prioridad', () => {
