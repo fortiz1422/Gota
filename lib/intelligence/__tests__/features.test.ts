@@ -168,6 +168,45 @@ describe('computeUnusualMovements', () => {
     expect(unusual.multiple).toBe(5)
   })
 
+  it('no marca un pago mensual estable solo porque comparte categoría con consumos menores', () => {
+    const recurringMortgage = [
+      ['2026-03-10', 515_610, 'Cuota hipoteca'],
+      ['2026-04-10', 530_878, 'hipoteca'],
+      ['2026-05-11', 547_682, 'Hipoteca'],
+      ['2026-06-10', 563_518, 'hipoteca'],
+    ].map(([date, amount, description]) =>
+      makeExpense({
+        date: date as string,
+        amount: amount as number,
+        description: description as string,
+        category: 'Casa/Mantenimiento',
+      }),
+    )
+    const smallerHomePurchases = Array.from({ length: 12 }, (_, index) =>
+      makeExpense({
+        date: `2026-${index < 6 ? '03' : '05'}-${String((index % 6) + 1).padStart(2, '0')}`,
+        amount: 14_500,
+        description: `Seguro hogar ${index + 1}`,
+        category: 'Casa/Mantenimiento',
+      }),
+    )
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        ...recurringMortgage,
+        ...smallerHomePurchases,
+        makeExpense({
+          date: '2026-07-14',
+          amount: 575_420,
+          description: 'hipoteca',
+          category: 'Casa/Mantenimiento',
+        }),
+      ],
+    })
+
+    expect(computeUnusualMovements(snapshot)).toEqual([])
+  })
+
   it('no marca gastos por debajo del piso de significancia (5% del ingreso)', () => {
     const snapshot = makeSnapshot({
       expenses: [
