@@ -272,19 +272,27 @@ function buildMovements(params: {
  */
 export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnapshot {
   const { today, month, currency } = inputs
+  const normalizeDateOnly = <T extends { date: string }>(row: T): T => ({
+    ...row,
+    date: row.date.substring(0, 10),
+  })
+  const rawExpenses = inputs.expenses.map(normalizeDateOnly)
+  const rawIncomeEntries = inputs.incomeEntries.map(normalizeDateOnly)
+  const rawTransfers = inputs.transfers.map(normalizeDateOnly)
+  const futureExpenses = (inputs.futureExpenses ?? []).map(normalizeDateOnly)
   const historyStartMonth = addMonths(month, -5)
   const nextMonthDate = `${addMonths(month, 1)}-01`
   const historyStartDate = `${historyStartMonth}-01`
 
   // Defensa contra contaminación: cuotas/movimientos fechados fuera de la
   // ventana [inicio histórico, fin del mes seleccionado) no entran al snapshot.
-  const expenses = inputs.expenses.filter(
+  const expenses = rawExpenses.filter(
     (expense) => expense.date >= historyStartDate && expense.date < nextMonthDate,
   )
-  const incomeEntries = inputs.incomeEntries.filter(
+  const incomeEntries = rawIncomeEntries.filter(
     (income) => income.date >= historyStartDate && income.date < nextMonthDate,
   )
-  const transfers = inputs.transfers.filter(
+  const transfers = rawTransfers.filter(
     (transfer) => transfer.date >= historyStartDate && transfer.date < nextMonthDate,
   )
 
@@ -348,7 +356,7 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
     goalsDetail: inputs.goalsDetail ?? [],
     recurringIncomes: inputs.recurringIncomes ?? [],
     futureInstallments: buildFutureInstallments({
-      futureExpenses: inputs.futureExpenses ?? [],
+      futureExpenses,
       month,
     }),
     yieldAccumulated: inputs.yieldAccumulated,
