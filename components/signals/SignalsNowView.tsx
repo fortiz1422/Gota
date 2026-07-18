@@ -6,6 +6,7 @@ import type { SignalCoverage, SignalOccurrence } from '@/lib/intelligence/signal
 import {
   DATA_QUALITY_COPY,
   maskSignalOccurrence,
+  resolveSignalsEmptyState,
   SEVERITY_DISPLAY,
 } from '@/lib/intelligence/signal-center-display'
 
@@ -59,15 +60,8 @@ export function SignalsNowView({
 
 
   if (signals.length === 0) {
-    const learning = coverage.some(({ state }) => state === 'learning')
-    const needsSetup = coverage.some(({ state }) => state === 'needs_setup')
-    if (needsSetup || dataQuality === 'insufficient') {
-      return <EmptyState title="Completá tu cobertura" copy="Hay señales que necesitan cuentas, tarjetas o presupuestos configurados. Revisá Cobertura para ver qué falta." />
-    }
-    if (learning) {
-      return <EmptyState title="Gota está aprendiendo" copy="A medida que registres movimientos, vamos a poder detectar cambios con más confianza." />
-    }
-    return <EmptyState title="Todo tranquilo por ahora" copy="No encontramos nada que necesite tu atención con los datos actuales." calm />
+    const emptyState = resolveSignalsEmptyState({ coverage, dataQuality })
+    return <EmptyState {...emptyState} />
   }
 
   return (

@@ -1,4 +1,5 @@
 import type {
+  SignalCoverage,
   SignalCoverageState,
   SignalDomain,
   SignalOccurrence,
@@ -67,6 +68,10 @@ const COVERAGE_STATES: Record<SignalCoverageState, SignalDisplayMeta> = {
     label: 'Aprendiendo',
     description: 'Gota necesita más historial para detectar cambios con confianza.',
   },
+  partial: {
+    label: 'Lectura parcial',
+    description: 'Gota tiene historial suficiente, pero todavía está completando parte del contexto.',
+  },
   needs_setup: {
     label: 'Necesita configuración',
     description: 'Falta configurar o registrar información para activar esta señal.',
@@ -88,6 +93,44 @@ export const DATA_QUALITY_COPY: Record<DataQuality, string> = {
   ok: 'Datos al día',
   partial: 'Lectura parcial: Gota todavía está completando el contexto.',
   insufficient: 'Todavía no hay datos suficientes para una conclusión.',
+}
+
+export type SignalsEmptyState = {
+  title: string
+  copy: string
+  calm: boolean
+}
+
+export function resolveSignalsEmptyState({
+  coverage,
+  dataQuality,
+}: {
+  coverage: readonly SignalCoverage[]
+  dataQuality: DataQuality
+}): SignalsEmptyState {
+  if (coverage.some(({ state }) => state === 'needs_setup') || dataQuality === 'insufficient') {
+    return {
+      title: 'Completá tu cobertura',
+      copy: 'Hay señales que necesitan cuentas, tarjetas o presupuestos configurados. Revisá Cobertura para ver qué falta.',
+      calm: false,
+    }
+  }
+  if (coverage.some(({ state }) => state === 'learning')) {
+    return {
+      title: 'Gota está aprendiendo',
+      copy: 'A medida que registres movimientos, vamos a poder detectar cambios con más confianza.',
+      calm: false,
+    }
+  }
+  const partial =
+    dataQuality === 'partial' || coverage.some(({ state }) => state === 'partial')
+  return {
+    title: 'Todo tranquilo por ahora',
+    copy: partial
+      ? 'No encontramos nada que necesite tu atención con los datos actuales. La lectura es parcial porque Gota todavía está completando parte del contexto.'
+      : 'No encontramos nada que necesite tu atención con los datos actuales.',
+    calm: true,
+  }
 }
 
 export function maskSignalText(text: string, amountsVisible: boolean): string {

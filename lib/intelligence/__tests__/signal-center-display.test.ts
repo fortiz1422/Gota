@@ -5,6 +5,7 @@ import {
   maskSignalOccurrence,
   maskSignalText,
   nextSignalTab,
+  resolveSignalsEmptyState,
 } from '../signal-center-display'
 import type { SignalOccurrence } from '../signal-center'
 
@@ -51,11 +52,37 @@ describe('labels de cobertura', () => {
     }
   })
 
-  it('traduce los cuatro estados sin depender solo de color', () => {
+  it('traduce los cinco estados sin depender solo de color', () => {
     expect(coverageStateDisplay('active').label).toBe('Activa')
     expect(coverageStateDisplay('learning').label).toBe('Aprendiendo')
+    expect(coverageStateDisplay('partial').label).toBe('Lectura parcial')
     expect(coverageStateDisplay('needs_setup').label).toBe('Necesita configuración')
     expect(coverageStateDisplay('not_applicable').label).toBe('No aplica')
+  })
+})
+
+describe('resolveSignalsEmptyState', () => {
+  it('muestra calma con advertencia parcial cuando hay historial suficiente truncado', () => {
+    const state = resolveSignalsEmptyState({
+      coverage: [{ family: 'pace', state: 'partial' }],
+      dataQuality: 'partial',
+    })
+
+    expect(state).toEqual({
+      title: 'Todo tranquilo por ahora',
+      copy: 'No encontramos nada que necesite tu atención con los datos actuales. La lectura es parcial porque Gota todavía está completando parte del contexto.',
+      calm: true,
+    })
+  })
+
+  it('conserva el aprendizaje cuando realmente faltan meses de historial', () => {
+    const state = resolveSignalsEmptyState({
+      coverage: [{ family: 'pace', state: 'learning' }],
+      dataQuality: 'partial',
+    })
+
+    expect(state.title).toBe('Gota está aprendiendo')
+    expect(state.calm).toBe(false)
   })
 })
 

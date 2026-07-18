@@ -190,11 +190,12 @@ describe('buildSignalCenter', () => {
     expect(states).toMatchObject({ pace: 'active', unusual: 'active', wants: 'active' })
   })
 
-  it('mantiene pace, unusual y wants aprendiendo si gastos relevantes están truncados', () => {
+  it('marca pace, unusual y wants como lectura parcial si hay historial suficiente truncado', () => {
     const snapshot = makeSnapshot()
     const model = buildSignalCenter(
       {
         ...snapshot,
+        availableCompletedMonths: 4,
         coverage: {
           ...snapshot.coverage,
           expenses: { ...snapshot.coverage.expenses, truncated: true },
@@ -204,7 +205,7 @@ describe('buildSignalCenter', () => {
     )
     const states = Object.fromEntries(model.coverage.map(({ family, state }) => [family, state]))
 
-    expect(states).toMatchObject({ pace: 'learning', unusual: 'learning', wants: 'learning' })
+    expect(states).toMatchObject({ pace: 'partial', unusual: 'partial', wants: 'partial' })
     expect(model.dataQuality).toBe('partial')
   })
 

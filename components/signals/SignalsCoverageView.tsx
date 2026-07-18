@@ -5,6 +5,7 @@ import { coverageFamilyDisplay, coverageStateDisplay } from '@/lib/intelligence/
 const STATE_STYLE = {
   active: { icon: CheckCircle, className: 'bg-success-soft text-success' },
   learning: { icon: Hourglass, className: 'bg-data-soft text-data' },
+  partial: { icon: Hourglass, className: 'bg-data-soft text-data' },
   needs_setup: { icon: Gear, className: 'bg-warning-soft text-warning' },
   not_applicable: { icon: MinusCircle, className: 'bg-bg-tertiary text-text-tertiary' },
 } as const

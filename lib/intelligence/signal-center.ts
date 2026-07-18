@@ -8,7 +8,12 @@ import type {
   InsightSeverity,
 } from './types'
 
-export type SignalCoverageState = 'active' | 'learning' | 'needs_setup' | 'not_applicable'
+export type SignalCoverageState =
+  | 'active'
+  | 'learning'
+  | 'partial'
+  | 'needs_setup'
+  | 'not_applicable'
 export type SignalBellTone = 'none' | 'new' | 'watch' | 'risk'
 
 export type SignalDomain =
@@ -169,11 +174,12 @@ function snapshotDataQuality(snapshot: FinancialSnapshot): DataQuality {
 }
 
 function buildCoverage(snapshot: FinancialSnapshot): SignalCoverage[] {
-  const hasReliableExpenseHistory =
-    snapshot.availableCompletedMonths >= 3 && !snapshot.coverage.expenses.truncated
-  const historyState: SignalCoverageState = hasReliableExpenseHistory
-    ? 'active'
-    : 'learning'
+  const hasEnoughExpenseHistory = snapshot.availableCompletedMonths >= 3
+  const historyState: SignalCoverageState = !hasEnoughExpenseHistory
+    ? 'learning'
+    : snapshot.coverage.expenses.truncated
+      ? 'partial'
+      : 'active'
   return [
     {
       family: 'liquidity',
