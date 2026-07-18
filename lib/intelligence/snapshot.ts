@@ -367,8 +367,9 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
   }
 }
 
-/** Límites de fetch del loader: declarados para que la cobertura los audite. */
-const SNAPSHOT_LIMITS = { expenses: 500, incomes: 200, transfers: 200 } as const
+/** Límites totales del loader: declarados para que la cobertura los audite. */
+const SNAPSHOT_LIMITS = { expenses: 2_000, incomes: 200, transfers: 200 } as const
+const EXPENSE_PAGE_SIZE = 500
 
 const EXPENSE_BASE_COLUMNS =
   'id, amount, currency, category, description, is_want, payment_method, is_legacy_card_payment, date, installment_number, installment_total'
@@ -385,37 +386,53 @@ function isMissingExtraordinaryColumnError(error: unknown): boolean {
  * no tiene la migración de flags, reintenta sin ella (mismo fallback que los
  * writes de /api/expenses).
  */
-async function fetchExpenseRows(options: {
+export async function fetchExpenseRows(options: {
   supabase: SupabaseClient
   userId: string
   fromDate: string
   toDate: string
   onlyInstallments?: boolean
-  limit: number
+  pageSize?: number
+  maxRows: number
 }): Promise<SnapshotExpenseRow[]> {
-  const run = (withExtraordinary: boolean) => {
-    let query = options.supabase
-      .from('expenses')
-      .select(withExtraordinary ? `${EXPENSE_BASE_COLUMNS}, is_extraordinary` : EXPENSE_BASE_COLUMNS)
-      .eq('user_id', options.userId)
-      .gte('date', options.fromDate)
-      .lt('date', options.toDate)
-    if (options.onlyInstallments) {
-      query = query.not('installment_group_id', 'is', null)
+  const pageSize = Math.min(options.pageSize ?? EXPENSE_PAGE_SIZE, options.maxRows)
+  const run = async (withExtraordinary: boolean) => {
+    const rows: SnapshotExpenseRow[] = []
+
+    while (rows.length < options.maxRows) {
+      const from = rows.length
+      const to = Math.min(from + pageSize, options.maxRows) - 1
+      let query = options.supabase
+        .from('expenses')
+        .select(withExtraordinary ? `${EXPENSE_BASE_COLUMNS}, is_extraordinary` : EXPENSE_BASE_COLUMNS)
+        .eq('user_id', options.userId)
+        .gte('date', options.fromDate)
+        .lt('date', options.toDate)
+      if (options.onlyInstallments) {
+        query = query.not('installment_group_id', 'is', null)
+      }
+      const result = await query
+        .order('date', { ascending: false })
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: false })
+        .range(from, to)
+
+      if (result.error) return { rows, error: result.error }
+      const page = (result.data ?? []) as unknown as SnapshotExpenseRow[]
+      rows.push(...page)
+      if (page.length < to - from + 1) break
     }
-    return query
-      .order('date', { ascending: false })
-      .order('created_at', { ascending: false })
-      .limit(options.limit)
+
+    return { rows, error: null }
   }
 
   const first = await run(true)
-  if (!first.error) return (first.data ?? []) as unknown as SnapshotExpenseRow[]
+  if (!first.error) return first.rows
   if (!isMissingExtraordinaryColumnError(first.error)) throw first.error
 
   const fallback = await run(false)
   if (fallback.error) throw fallback.error
-  return (fallback.data ?? []) as unknown as SnapshotExpenseRow[]
+  return fallback.rows
 }
 
 /**
@@ -458,7 +475,7 @@ export async function loadFinancialSnapshot(params: {
         userId,
         fromDate: historyStartDate,
         toDate: nextMonthDate,
-        limit: SNAPSHOT_LIMITS.expenses,
+        maxRows: SNAPSHOT_LIMITS.expenses,
       }),
       fetchExpenseRows({
         supabase,
@@ -466,7 +483,7 @@ export async function loadFinancialSnapshot(params: {
         fromDate: nextMonthDate,
         toDate: futureHorizonDate,
         onlyInstallments: true,
-        limit: 400,
+        maxRows: 400,
       }),
       supabase
         .from('income_entries')

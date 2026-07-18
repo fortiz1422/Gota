@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeSameDaySpend } from '../features'
-import { assembleFinancialSnapshot } from '../snapshot'
+import { assembleFinancialSnapshot, fetchExpenseRows, type SnapshotExpenseRow } from '../snapshot'
 import { makeInputs, makeSnapshot } from './fixtures'
 
 describe('cobertura del snapshot — truncamiento explícito', () => {
@@ -51,5 +51,51 @@ describe('cobertura del snapshot — truncamiento explícito', () => {
     // Base estable de 5 meses: sin truncamiento la calidad es plena.
     expect(computeSameDaySpend(complete).dataQuality).toBe('ok')
     expect(computeSameDaySpend(truncated).dataQuality).toBe('partial')
+  })
+})
+
+describe('fetchExpenseRows — histórico paginado', () => {
+  it('recupera filas posteriores a la primera página sin marcar un corte artificial en 500', async () => {
+    const rows: SnapshotExpenseRow[] = Array.from({ length: 604 }, (_, index) => ({
+      id: `expense-${index + 1}`,
+      amount: 1_000,
+      currency: 'ARS',
+      category: 'Supermercado',
+      description: 'Compra',
+      is_want: false,
+      payment_method: 'DEBIT',
+      is_legacy_card_payment: null,
+      date: `2026-${String(2 + Math.floor(index / 110)).padStart(2, '0')}-15`,
+      installment_number: null,
+      installment_total: null,
+      is_extraordinary: false,
+    }))
+    const ranges: Array<[number, number]> = []
+    const query = {
+      eq: () => query,
+      gte: () => query,
+      lt: () => query,
+      not: () => query,
+      order: () => query,
+      range: async (from: number, to: number) => {
+        ranges.push([from, to])
+        return { data: rows.slice(from, to + 1), error: null }
+      },
+    }
+    const supabase = {
+      from: () => ({ select: () => query }),
+    }
+
+    const result = await fetchExpenseRows({
+      supabase: supabase as never,
+      userId: 'user-test',
+      fromDate: '2026-02-01',
+      toDate: '2026-08-01',
+      pageSize: 500,
+      maxRows: 2_000,
+    })
+
+    expect(result).toHaveLength(604)
+    expect(ranges).toEqual([[0, 499], [500, 999]])
   })
 })
