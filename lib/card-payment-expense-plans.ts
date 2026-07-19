@@ -12,8 +12,64 @@ export type PaymentExpensePlan = {
   amount: number
 }
 
+export type PaymentAdjustmentExpensePlan = {
+  amount: number
+  currency: Currency
+  category: string
+  description: string
+  payment_method: 'CREDIT'
+  card_id: string
+  card_cycle_id: string
+  account_id: null
+  date: string
+  is_want: boolean
+}
+
 function roundMoney(value: number): number {
   return Math.round((value + Number.EPSILON) * 100) / 100
+}
+
+function lastDayOfPeriodMonth(periodMonth: string): string {
+  const month = periodMonth.substring(0, 7)
+  const [year, monthNumber] = month.split('-').map(Number)
+  const day = new Date(year, monthNumber, 0).getDate()
+  return `${month}-${String(day).padStart(2, '0')}`
+}
+
+export function buildPaymentAdjustmentExpensePlan(params: {
+  adjustment: {
+    amount: number
+    category: string
+    description: string
+    isWant: boolean
+  }
+  currency: Currency
+  cardId: string
+  cycle: {
+    id: string
+    periodMonth: string
+    closingDate: string
+  }
+}): PaymentAdjustmentExpensePlan {
+  const { adjustment, currency, cardId, cycle } = params
+  const periodMonth = cycle.periodMonth.substring(0, 7)
+  const closingDate = cycle.closingDate.substring(0, 10)
+  const date = closingDate.substring(0, 7) === periodMonth
+    ? closingDate
+    : lastDayOfPeriodMonth(periodMonth)
+
+  return {
+    amount: roundMoney(adjustment.amount),
+    currency,
+    category: adjustment.category,
+    description: adjustment.description,
+    payment_method: 'CREDIT',
+    card_id: cardId,
+    card_cycle_id: cycle.id,
+    account_id: null,
+    date,
+    is_want: adjustment.isWant,
+  }
 }
 
 function getRequestedAmountForExpenseCurrency(params: {

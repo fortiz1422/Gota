@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
-import { buildPaymentExpensePlans } from '@/lib/card-payment-expense-plans'
+import {
+  buildPaymentAdjustmentExpensePlan,
+  buildPaymentExpensePlans,
+} from '@/lib/card-payment-expense-plans'
 
 describe('buildPaymentExpensePlans', () => {
   it('creates one ARS expense per payment item when ars and usd are both funded from ars', () => {
@@ -35,5 +38,33 @@ describe('buildPaymentExpensePlans', () => {
       { plannedItemIndex: 0, expenseCurrency: 'ARS', accountId: 'ars-account', amount: 10000 },
       { plannedItemIndex: 1, expenseCurrency: 'USD', accountId: 'usd-account', amount: 50 },
     ])
+  })
+})
+
+describe('buildPaymentAdjustmentExpensePlan', () => {
+  it('imputa el cargo al último día del período cuando el cierre cae el mes siguiente', () => {
+    const plan = buildPaymentAdjustmentExpensePlan({
+      adjustment: {
+        amount: 151_679.66,
+        category: 'Cargos Bancarios',
+        description: 'Cargo bancario',
+        isWant: false,
+      },
+      currency: 'ARS',
+      cardId: 'card-1',
+      cycle: {
+        id: 'cycle-june',
+        periodMonth: '2026-06-01',
+        closingDate: '2026-07-02',
+      },
+    })
+
+    expect(plan).toMatchObject({
+      date: '2026-06-30',
+      card_id: 'card-1',
+      card_cycle_id: 'cycle-june',
+      payment_method: 'CREDIT',
+      account_id: null,
+    })
   })
 })

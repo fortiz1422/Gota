@@ -14,7 +14,10 @@ import {
 } from '@/lib/card-cycle-payments'
 import { getCurrentAccountBalance, hasSufficientFunds } from '@/lib/current-account-balance'
 import { addMonths, getCurrentMonth } from '@/lib/dates'
-import { buildPaymentExpensePlans } from '@/lib/card-payment-expense-plans'
+import {
+  buildPaymentAdjustmentExpensePlan,
+  buildPaymentExpensePlans,
+} from '@/lib/card-payment-expense-plans'
 import { formatAmount } from '@/lib/format'
 import { createClient } from '@/lib/supabase/server'
 import type { Card, CardCycle, CardCycleAmountInsert } from '@/types/database'
@@ -625,19 +628,27 @@ export async function POST(request: Request) {
     const targetCycle = plans[plans.length - 1]?.cycle
     if (!targetCycle) continue
 
+    const adjustmentPlan = buildPaymentAdjustmentExpensePlan({
+      adjustment: {
+        amount: item.adjustment.amount,
+        category: item.adjustment.category,
+        description: item.adjustment.description,
+        isWant: item.adjustment.is_want ?? false,
+      },
+      currency: item.currency,
+      cardId: card.id,
+      cycle: {
+        id: targetCycle.id,
+        periodMonth: targetCycle.period_month,
+        closingDate: targetCycle.closing_date,
+      },
+    })
+
     const { data: adjustmentExpense, error: adjustmentError } = await supabase
       .from('expenses')
       .insert({
         user_id: user.id,
-        amount: roundMoney(item.adjustment.amount),
-        currency: item.currency,
-        category: item.adjustment.category,
-        description: item.adjustment.description,
-        payment_method: 'CREDIT',
-        card_id: card.id,
-        account_id: null,
-        date: targetCycle.closing_date,
-        is_want: item.adjustment.is_want ?? false,
+        ...adjustmentPlan,
       })
       .select('id')
       .single()
