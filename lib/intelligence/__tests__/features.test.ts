@@ -294,6 +294,26 @@ describe('aislamiento same-day (cuotas y monedas)', () => {
     expect(computeSameDaySpend(snapshot).currentAmount).toBe(140_000)
   })
 
+  it('un pago de tarjeta no vuelve a sumar consumos ya devengados al ritmo same-day', () => {
+    const snapshot = makeSnapshot({
+      expenses: [
+        ...makeInputs().expenses,
+        makeExpense({
+          date: '2026-07-10',
+          amount: 500_000,
+          category: 'Pago de Tarjetas',
+          description: 'Pago resumen',
+          payment_method: 'DEBIT',
+          is_legacy_card_payment: false,
+        }),
+      ],
+    })
+
+    const feature = computeSameDaySpend(snapshot)
+    expect(feature.currentAmount).toBe(140_000)
+    expect(feature.deltaPct).toBe(0)
+  })
+
   it('gastos USD no entran a la serie same-day de la moneda base', () => {
     const snapshot = makeSnapshot({
       expenses: [

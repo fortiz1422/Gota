@@ -316,7 +316,14 @@ export function assembleFinancialSnapshot(inputs: SnapshotInputs): FinancialSnap
   }
 
   const monthlySeries = buildMonthlySeries({
-    expenses: expenses.filter((expense) => expense.currency === currency),
+    // Mismo alcance que Análisis / "Todo el gasto": gasto propio observado +
+    // consumos de crédito devengados. Los pagos de tarjeta son cancelación de
+    // caja de consumos ya contados y no deben volver a inflar el ritmo.
+    expenses: expenses.filter(
+      (expense) =>
+        expense.currency === currency &&
+        (isPerceivedExpense(expense) || isCreditAccruedExpense(expense)),
+    ),
     selectedMonth: month,
     currentMonth: isCurrentMonth ? month : today.substring(0, 7),
     comparisonDay,
