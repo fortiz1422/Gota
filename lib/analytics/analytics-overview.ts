@@ -428,7 +428,7 @@ function resolveMoversInsight(
   rows: CategoriaMetric[],
   compromisos: CompromisosData,
 ): AnalyticsMoversData['featuredInsight'] {
-  if (metrics.goteoCount >= 8 && metrics.pctGoteoDelTotal >= 40) {
+  if (metrics.goteoCount >= 10 && metrics.pctGoteoDelTotal >= 15) {
     return {
       type: 'small_expense_concentration',
       label: `${metrics.goteoCount} gastos chicos explican ${metrics.pctGoteoDelTotal}% del mes`,

@@ -327,10 +327,17 @@ export function computeMetrics(
         : 0,
   }
 
-  // — GOTEO (gastos menores al 2% del ingreso mensual) —
-  const goteoThreshold = hasIngreso && ingresoMes ? ingresoMes * 0.02 : 0
-  const goteoExpenses =
-    goteoThreshold > 0 ? expenses.filter((e) => e.amount < goteoThreshold) : []
+  // — GOTEO (tickets bajos respecto del gasto real del mes) —
+  const sortedExpenseAmounts = expenses
+    .map((expense) => expense.amount)
+    .sort((a, b) => a - b)
+  const middleIndex = Math.floor(sortedExpenseAmounts.length / 2)
+  const medianExpense =
+    sortedExpenseAmounts.length % 2 === 0
+      ? (sortedExpenseAmounts[middleIndex - 1] + sortedExpenseAmounts[middleIndex]) / 2
+      : sortedExpenseAmounts[middleIndex]
+  const goteoThreshold = Math.min(medianExpense, totalGastado * 0.01)
+  const goteoExpenses = expenses.filter((expense) => expense.amount <= goteoThreshold)
   const goteoCount = goteoExpenses.length
   const goteoTotal = goteoExpenses.reduce((s, e) => s + e.amount, 0)
   const pctGoteoDelTotal =

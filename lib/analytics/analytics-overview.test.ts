@@ -3,6 +3,7 @@ import {
   countAvailableComparisonMonths,
   resolveAnalyticsEvolution,
   resolveAnalyticsHero,
+  resolveAnalyticsMovers,
   type AnalyticsComparisonContext,
   type MonthlySeriesPoint,
 } from './analytics-overview'
@@ -219,5 +220,50 @@ describe('analytics historical comparison rules', () => {
     expect(evolution.averageValue).toBeCloseTo(150)
     expect(evolution.subcopy).toBe('Tu promedio reciente sirve como referencia.')
     expect(evolution.series.map((point) => point.value)).toEqual([100, 150, 200, 210])
+  })
+})
+
+describe('analytics movers insight', () => {
+  it('does not feature low-ticket spending when it stays below 15% of the month', () => {
+    const movers = resolveAnalyticsMovers({
+      metrics: {
+        ...baseMetrics,
+        goteoCount: 30,
+        pctGoteoDelTotal: 12,
+      } as Metrics,
+      rows: [
+        {
+          category: 'Supermercado',
+          total: 300,
+          cantidad: 2,
+          tipo: 'need',
+          pctDelTotal: 30,
+          ticketPromedio: 150,
+        },
+      ],
+      compromisos: baseCompromisos,
+    })
+
+    expect(movers.featuredInsight).toEqual({
+      type: 'top_category',
+      label: 'Supermercado fue la categoría #1 del mes',
+    })
+  })
+
+  it('features low-ticket spending when at least 10 movements reach 15% of the month', () => {
+    const movers = resolveAnalyticsMovers({
+      metrics: {
+        ...baseMetrics,
+        goteoCount: 14,
+        pctGoteoDelTotal: 18,
+      } as Metrics,
+      rows: [],
+      compromisos: baseCompromisos,
+    })
+
+    expect(movers.featuredInsight).toEqual({
+      type: 'small_expense_concentration',
+      label: '14 gastos chicos explican 18% del mes',
+    })
   })
 })
