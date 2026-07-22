@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
-import { buildDailyPaceSeries, buildMonthPaceModel } from './month-pace'
+import { buildDailyPaceSeries, buildMonthPaceModel, inspectPacePoint } from './month-pace'
 
 type MovementInput = Parameters<typeof buildDailyPaceSeries>[0]['movements'][number]
 
@@ -173,5 +173,48 @@ describe('buildMonthPaceModel', () => {
     expect(model.availableModes).toEqual([])
     expect(model.plan).toBeNull()
     expect(model.habitual).toBeNull()
+  })
+})
+
+describe('inspectPacePoint', () => {
+  const daily = buildDailyPaceSeries({
+    movements: [...history, ...current],
+    selectedMonth: '2026-07',
+    comparisonDay: 15,
+    daysInMonth: 30,
+    currency: 'ARS',
+  })
+  const plan = buildMonthPaceModel({
+    daily,
+    budget: budget(),
+    comparisonDay: 15,
+    daysInMonth: 30,
+    currency: 'ARS',
+  }).plan!
+
+  it('expone observado, referencia y delta del día seleccionado', () => {
+    expect(inspectPacePoint(plan, 15)).toEqual({
+      day: 15,
+      observed: 600,
+      benchmark: 500,
+      deltaAmount: 100,
+      deltaPct: 20,
+    })
+  })
+
+  it('no inventa diferencia después del último día observado', () => {
+    expect(inspectPacePoint(plan, 20)).toMatchObject({
+      day: 20,
+      observed: null,
+      benchmark: 667,
+      deltaAmount: null,
+      deltaPct: null,
+    })
+  })
+
+  it('redondea y limita la selección al rango de la serie', () => {
+    expect(inspectPacePoint(plan, 14.6).day).toBe(15)
+    expect(inspectPacePoint(plan, 99).day).toBe(30)
+    expect(inspectPacePoint(plan, -4).day).toBe(1)
   })
 })

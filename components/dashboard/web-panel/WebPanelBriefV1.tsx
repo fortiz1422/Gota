@@ -308,7 +308,7 @@ export function WebPanelBriefV1({
             ) : analyticsError ? (
               <div className="min-h-[280px] py-4"><p className="text-[10px] font-bold uppercase tracking-[.09em] text-text-tertiary">Este mes</p><h2 className="mt-2 text-2xl font-bold tracking-[-.03em]">No pudimos cargar el ritmo.</h2><p className="mt-2 text-sm text-text-secondary">La caja sigue disponible. Reintentá desde Análisis; no lo confundimos con falta de presupuesto.</p><button type="button" onClick={() => onNav('analisis')} className="mt-5 text-xs font-bold text-primary">Abrir Análisis →</button></div>
             ) : (
-              <WebMonthPace model={paceModel} currency={viewCurrency} hidden={hidden} daysInMonth={totalDays} onOpenAnalysis={() => onNav('analisis')} />
+              <WebMonthPace model={paceModel} currency={viewCurrency} hidden={hidden} selectedMonth={selectedMonth} daysInMonth={totalDays} onOpenAnalysis={() => onNav('analisis')} />
             )}
           </div>
           {historical ? (

@@ -49,6 +49,40 @@ export type MonthPaceModel = {
   learningCopy: string | null
 }
 
+export type PaceInspectionPoint = {
+  day: number
+  observed: number | null
+  benchmark: number | null
+  deltaAmount: number | null
+  deltaPct: number | null
+}
+
+export function inspectPacePoint(
+  benchmark: MonthPaceBenchmark,
+  requestedDay: number,
+): PaceInspectionPoint {
+  const firstDay = benchmark.points[0]?.day ?? 1
+  const lastDay = benchmark.points.at(-1)?.day ?? firstDay
+  const day = Math.max(firstDay, Math.min(Math.round(requestedDay), lastDay))
+  const point = benchmark.points.find((item) => item.day === day)
+  const observed = point?.observed ?? null
+  const reference = point?.benchmark ?? null
+  const deltaAmount = observed === null || reference === null
+    ? null
+    : observed - reference
+  const deltaPct = deltaAmount === null || reference === null || reference <= 0
+    ? null
+    : Math.round((deltaAmount / reference) * 1_000) / 10
+
+  return {
+    day,
+    observed,
+    benchmark: reference,
+    deltaAmount,
+    deltaPct,
+  }
+}
+
 function cumulativeByDay(movements: PaceMovement[], daysInMonth: number): number[] {
   const daily = Array.from({ length: daysInMonth + 1 }, () => 0)
   for (const movement of movements) {

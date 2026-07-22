@@ -1,8 +1,10 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
+import type { KeyboardEvent, PointerEvent } from 'react'
 import { ArrowRight } from '@phosphor-icons/react'
 import { fmtMoney } from '@/components/dashboard/desktop/desktop-ui'
+import { inspectPacePoint } from '@/lib/web-panel/month-pace'
 import type { MonthPaceBenchmark, MonthPaceModel, PaceMode } from '@/lib/web-panel/month-pace'
 
 const WIDTH = 820
@@ -33,20 +35,39 @@ function signedMoney(amount: number, currency: 'ARS' | 'USD', hidden: boolean) {
   return `${amount > 0 ? '+' : '−'}${absolute}`
 }
 
+function xForDay(day: number, daysInMonth: number) {
+  return ((day - 1) / Math.max(1, daysInMonth - 1)) * WIDTH
+}
+
+function yForAmount(amount: number, maxAmount: number) {
+  return HEIGHT - PAD_Y - (amount / Math.max(1, maxAmount)) * (HEIGHT - PAD_Y * 2)
+}
+
+function dayLabel(selectedMonth: string, day: number) {
+  const value = new Date(`${selectedMonth}-${String(day).padStart(2, '0')}T12:00:00-03:00`)
+    .toLocaleDateString('es-AR', { weekday: 'short', day: 'numeric', month: 'long' })
+    .replace('.', '')
+  return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
 export function WebMonthPace({
   model,
   currency,
   hidden,
+  selectedMonth,
   daysInMonth,
   onOpenAnalysis,
 }: {
   model: MonthPaceModel
   currency: 'ARS' | 'USD'
   hidden: boolean
+  selectedMonth: string
   daysInMonth: number
   onOpenAnalysis: () => void
 }) {
   const [preferredMode, setPreferredMode] = useState<PaceMode | null>(null)
+  const [inspectionDay, setInspectionDay] = useState<number | null>(null)
+  const chartRef = useRef<HTMLDivElement>(null)
   const mode: PaceMode | 'learning' =
     preferredMode && model.availableModes.includes(preferredMode)
       ? preferredMode
@@ -59,13 +80,62 @@ export function WebMonthPace({
     const maxAmount = Math.max(1, ...all) * 1.08
     const observedPath = pathFor(active.points.map(({ day, observed }) => ({ day, amount: observed })), daysInMonth, maxAmount)
     const benchmarkPath = pathFor(active.points.map(({ day, benchmark }) => ({ day, amount: benchmark })), daysInMonth, maxAmount)
-    const current = [...active.points].reverse().find(({ observed }) => observed !== null) ?? null
-    const currentX = current ? ((current.day - 1) / Math.max(1, daysInMonth - 1)) * WIDTH : 0
-    const currentY = current && current.observed !== null
-      ? HEIGHT - PAD_Y - (current.observed / maxAmount) * (HEIGHT - PAD_Y * 2)
+    const current = [...active.points].reverse().find(({ observed }) => observed !== null) ?? active.points[0] ?? null
+    const currentX = current ? xForDay(current.day, daysInMonth) : 0
+    const currentY = current?.observed !== null && current?.observed !== undefined
+      ? yForAmount(current.observed, maxAmount)
       : 0
-    return { observedPath, benchmarkPath, currentX, currentY }
+    return { observedPath, benchmarkPath, current, currentX, currentY, maxAmount }
   }, [active, daysInMonth])
+
+  const inspection = active && inspectionDay !== null
+    ? inspectPacePoint(active, inspectionDay)
+    : null
+  const inspectionX = inspection ? xForDay(inspection.day, daysInMonth) : null
+  const inspectionObservedY = inspection?.observed !== null && inspection?.observed !== undefined && chart
+    ? yForAmount(inspection.observed, chart.maxAmount)
+    : null
+  const inspectionBenchmarkY = inspection?.benchmark !== null && inspection?.benchmark !== undefined && chart
+    ? yForAmount(inspection.benchmark, chart.maxAmount)
+    : null
+
+  function selectFromPointer(event: PointerEvent<HTMLDivElement>) {
+    const rect = chartRef.current?.getBoundingClientRect()
+    if (!rect || rect.width <= 0) return
+    const ratio = Math.max(0, Math.min(1, (event.clientX - rect.left) / rect.width))
+    setInspectionDay(Math.round(ratio * Math.max(1, daysInMonth - 1)) + 1)
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLDivElement>) {
+    event.currentTarget.setPointerCapture(event.pointerId)
+    selectFromPointer(event)
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLDivElement>) {
+    if (event.pointerType !== 'mouse' && !event.currentTarget.hasPointerCapture(event.pointerId)) return
+    selectFromPointer(event)
+  }
+
+  function handleKeyDown(event: KeyboardEvent<HTMLDivElement>) {
+    const currentDay = inspectionDay ?? chart?.current?.day ?? 1
+    if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
+      event.preventDefault()
+      setInspectionDay(Math.max(1, Math.min(daysInMonth, currentDay + (event.key === 'ArrowLeft' ? -1 : 1))))
+    } else if (event.key === 'Home') {
+      event.preventDefault()
+      setInspectionDay(1)
+    } else if (event.key === 'End') {
+      event.preventDefault()
+      setInspectionDay(daysInMonth)
+    } else if (event.key === 'Escape') {
+      setInspectionDay(null)
+      event.currentTarget.blur()
+    }
+  }
+
+  const ariaValue = inspection
+    ? `${dayLabel(selectedMonth, inspection.day)}. Observado ${inspection.observed === null ? 'sin datos todavía' : fmtMoney(inspection.observed, currency, hidden)}. ${active?.benchmarkLabel ?? 'Referencia'} ${inspection.benchmark === null ? 'sin datos' : fmtMoney(inspection.benchmark, currency, hidden)}.`
+    : 'Usá las flechas para inspeccionar el gráfico por día.'
 
   if (!active || !chart) {
     return (
@@ -113,16 +183,65 @@ export function WebMonthPace({
         <div><p className="text-[10px] text-text-tertiary">Ritmo</p><p className="mt-1 text-[17px] font-bold">{active.deltaPoints === null ? `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%` : `${active.deltaPoints > 0 ? '+' : ''}${active.deltaPoints} pp`}</p></div>
       </div>
 
-      <div className="mt-5 h-[220px] w-full">
-        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="h-full w-full" role="img" aria-label={`Gasto observado comparado con ${active.benchmarkLabel}`}>
+      <div
+        ref={chartRef}
+        role="slider"
+        tabIndex={0}
+        aria-label={`Inspeccionar gasto observado comparado con ${active.benchmarkLabel}`}
+        aria-valuemin={1}
+        aria-valuemax={daysInMonth}
+        aria-valuenow={inspection?.day ?? chart.current?.day ?? 1}
+        aria-valuetext={ariaValue}
+        onFocus={() => setInspectionDay((day) => day ?? chart.current?.day ?? 1)}
+        onBlur={() => setInspectionDay(null)}
+        onKeyDown={handleKeyDown}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+        }}
+        onPointerCancel={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId)) event.currentTarget.releasePointerCapture(event.pointerId)
+          setInspectionDay(null)
+        }}
+        onPointerLeave={(event) => {
+          if (event.pointerType === 'mouse') setInspectionDay(null)
+        }}
+        className="relative mt-5 h-[220px] w-full cursor-crosshair rounded-[8px] outline-none focus-visible:ring-2 focus-visible:ring-primary/35 focus-visible:ring-offset-2"
+        style={{ touchAction: 'pan-y' }}
+      >
+        <svg viewBox={`0 0 ${WIDTH} ${HEIGHT}`} preserveAspectRatio="none" className="h-full w-full" aria-hidden="true">
           {[55, 110, 165].map((y) => <line key={y} x1="0" x2={WIDTH} y1={y} y2={y} stroke="rgba(33,120,168,.08)" />)}
           <path d={chart.benchmarkPath} fill="none" stroke="#7E96A4" strokeWidth="2" strokeDasharray="7 8" vectorEffect="non-scaling-stroke" />
           <path d={chart.observedPath} fill="none" stroke="#2178A8" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
-          <line x1={chart.currentX} x2={chart.currentX} y1="0" y2={HEIGHT} stroke="rgba(33,120,168,.10)" strokeDasharray="3 5" />
-          <circle cx={chart.currentX} cy={chart.currentY} r="6" fill="#fff" stroke="#2178A8" strokeWidth="4" vectorEffect="non-scaling-stroke" />
+          {inspection && inspectionX !== null ? (
+            <>
+              <line x1={inspectionX} x2={inspectionX} y1="0" y2={HEIGHT} stroke="rgba(13,24,41,.24)" strokeDasharray="3 5" vectorEffect="non-scaling-stroke" />
+              {inspectionBenchmarkY !== null && <circle cx={inspectionX} cy={inspectionBenchmarkY} r="5" fill="#fff" stroke="#7E96A4" strokeWidth="3" vectorEffect="non-scaling-stroke" />}
+              {inspectionObservedY !== null && <circle cx={inspectionX} cy={inspectionObservedY} r="6" fill="#fff" stroke="#2178A8" strokeWidth="4" vectorEffect="non-scaling-stroke" />}
+            </>
+          ) : (
+            <>
+              <line x1={chart.currentX} x2={chart.currentX} y1="0" y2={HEIGHT} stroke="rgba(33,120,168,.10)" strokeDasharray="3 5" />
+              <circle cx={chart.currentX} cy={chart.currentY} r="6" fill="#fff" stroke="#2178A8" strokeWidth="4" vectorEffect="non-scaling-stroke" />
+            </>
+          )}
         </svg>
+        {inspection && inspectionX !== null && (
+          <div
+            role="status"
+            className={`pointer-events-none absolute top-2 z-10 w-[218px] rounded-[10px] border border-[rgba(33,120,168,.14)] bg-white/95 p-3 shadow-[0_10px_30px_rgba(13,24,41,.14)] backdrop-blur ${inspection.day > daysInMonth / 2 ? '-ml-2 -translate-x-full' : 'ml-2'}`}
+            style={{ left: `${(inspectionX / WIDTH) * 100}%` }}
+          >
+            <p className="text-[10px] font-bold text-text-primary">{dayLabel(selectedMonth, inspection.day)}</p>
+            <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px]"><span className="text-text-tertiary">Observado</span><b className="tabular-nums text-text-primary">{inspection.observed === null ? 'Sin datos aún' : fmtMoney(inspection.observed, currency, hidden)}</b></div>
+            <div className="mt-1.5 flex items-center justify-between gap-3 text-[10.5px]"><span className="text-text-tertiary">{active.mode === 'plan' ? 'Plan' : 'Habitual'}</span><b className="tabular-nums text-text-primary">{inspection.benchmark === null ? 'Sin referencia' : fmtMoney(inspection.benchmark, currency, hidden)}</b></div>
+            <div className="mt-2 flex items-center justify-between gap-3 border-t border-[rgba(33,120,168,.10)] pt-2 text-[10.5px]"><span className="text-text-tertiary">Diferencia</span><b className={`tabular-nums ${inspection.deltaAmount !== null && inspection.deltaAmount > 0 ? 'text-warning' : 'text-success'}`}>{inspection.deltaAmount === null ? 'Todavía no aplica' : inspection.deltaPct === null ? signedMoney(inspection.deltaAmount, currency, hidden) : `${signedMoney(inspection.deltaAmount, currency, hidden)} · ${inspection.deltaPct > 0 ? '+' : ''}${inspection.deltaPct.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%`}</b></div>
+          </div>
+        )}
       </div>
       <div className="mt-1 flex justify-between text-[9.5px] text-text-tertiary"><span>1</span><span>7</span><span>14</span><span>Hoy</span><span>{daysInMonth}</span></div>
+      <p className="mt-2 text-[9.5px] text-text-tertiary">Pasá el cursor o usá las flechas para inspeccionar cada día.</p>
       <div className="mt-3 flex flex-wrap items-center gap-5 text-[10.5px] text-text-secondary">
         <span><i className="mr-1.5 inline-block h-0.5 w-4 bg-primary align-middle" />Gasto observado</span>
         <span><i className="mr-1.5 inline-block h-px w-4 border-t border-dashed border-text-tertiary align-middle" />{active.benchmarkLabel}</span>
