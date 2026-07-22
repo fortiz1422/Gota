@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
-import { buildDailyPaceSeries, buildMonthPaceModel, inspectPacePoint } from './month-pace'
+import {
+  buildDailyPaceSeries,
+  buildMonthPaceModel,
+  inspectPacePoint,
+  sumExtraordinaryPlanSpend,
+} from './month-pace'
 
 type MovementInput = Parameters<typeof buildDailyPaceSeries>[0]['movements'][number]
 
@@ -125,6 +130,7 @@ describe('buildMonthPaceModel', () => {
     const model = buildMonthPaceModel({
       daily,
       planDaily,
+      planExtraordinaryAmount: 0,
       budget: budget(),
       comparisonDay: 15,
       daysInMonth: 30,
@@ -139,9 +145,14 @@ describe('buildMonthPaceModel', () => {
       deltaAmount: 100,
       deltaPoints: 10,
       outsidePlanAmount: 0,
+      extraordinaryPlanAmount: 0,
+      usedPct: 60,
+      expectedPct: 50,
       leadingCategory: 'Supermercado',
+      leadingCategoryStatus: 'near_limit',
     })
     expect(model.plan?.scopeLabel).toContain('50% del mes')
+    expect(model.plan?.headline).not.toContain('Supermercado')
   })
 
   it('compara Plan solo con categorías presupuestadas y separa el gasto no planificado', () => {
@@ -149,6 +160,9 @@ describe('buildMonthPaceModel', () => {
       movement('2026-07-05', 300, { category: 'Supermercado' }),
       movement('2026-07-10', 200, { category: 'Médico' }),
       movement('2026-07-12', 100, { category: 'Supermercado' }),
+      movement('2026-07-13', 250, { category: 'Supermercado', isExtraordinary: true }),
+      movement('2026-07-14', 300, { category: 'Médico', isExtraordinary: true }),
+      movement('2026-07-15', 500, { category: 'Supermercado', isExtraordinary: true, isCardPayment: true }),
     ]
     const allDaily = buildDailyPaceSeries({
       movements,
@@ -166,9 +180,16 @@ describe('buildMonthPaceModel', () => {
       includedCategories: ['Supermercado'],
     })
 
+    const extraordinaryPlanAmount = sumExtraordinaryPlanSpend({
+      movements,
+      selectedMonth: '2026-07',
+      currency: 'ARS',
+      includedCategories: ['Supermercado'],
+    })
     const model = buildMonthPaceModel({
       daily: allDaily,
       planDaily: scopedPlanDaily,
+      planExtraordinaryAmount: extraordinaryPlanAmount,
       budget: budget(),
       comparisonDay: 15,
       daysInMonth: 30,
@@ -181,6 +202,7 @@ describe('buildMonthPaceModel', () => {
       deltaAmount: -100,
       deltaPoints: -10,
       outsidePlanAmount: 200,
+      extraordinaryPlanAmount: 250,
     })
     expect(model.plan?.points.find(({ day }) => day === 15)?.observed).toBe(400)
     expect(model.habitual).toBeNull()
@@ -190,6 +212,7 @@ describe('buildMonthPaceModel', () => {
     const model = buildMonthPaceModel({
       daily,
       planDaily,
+      planExtraordinaryAmount: 0,
       budget: null,
       comparisonDay: 15,
       daysInMonth: 30,
@@ -218,6 +241,7 @@ describe('buildMonthPaceModel', () => {
     const model = buildMonthPaceModel({
       daily: emptyDaily,
       planDaily: emptyDaily,
+      planExtraordinaryAmount: 0,
       budget: null,
       comparisonDay: 15,
       daysInMonth: 30,
@@ -242,6 +266,7 @@ describe('inspectPacePoint', () => {
   const plan = buildMonthPaceModel({
     daily,
     planDaily: daily,
+    planExtraordinaryAmount: 0,
     budget: budget(),
     comparisonDay: 15,
     daysInMonth: 30,

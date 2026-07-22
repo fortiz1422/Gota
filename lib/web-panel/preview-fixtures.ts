@@ -175,6 +175,14 @@ for (const [month, factor] of [['2026-04', 0.88], ['2026-05', 0.96], ['2026-06',
     })
   }
 }
+paceMovements.push({
+  date: '2026-07-19',
+  amount: 75_000,
+  category: 'Supermercado',
+  currency: 'ARS',
+  isExtraordinary: true,
+  isCardPayment: false,
+})
 
 export const WEB_PANEL_PREVIEW_ANALYTICS = {
   paceMovements,

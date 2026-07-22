@@ -18,7 +18,11 @@ import { maskSignalOccurrence } from '@/lib/intelligence/signal-center-display'
 import type { SignalCenterModel } from '@/lib/intelligence/signal-center'
 import { useSignalsCenter } from '@/hooks/useSignalsCenter'
 import { SignalsSheet } from '@/components/signals/SignalsSheet'
-import { buildDailyPaceSeries, buildMonthPaceModel } from '@/lib/web-panel/month-pace'
+import {
+  buildDailyPaceSeries,
+  buildMonthPaceModel,
+  sumExtraordinaryPlanSpend,
+} from '@/lib/web-panel/month-pace'
 import {
   buildMoneyEquation,
   buildWebBrief,
@@ -161,6 +165,10 @@ export function WebPanelBriefV1({
     }),
     [analyticsData?.paceMovements, comparisonDay, selectedMonth, totalDays, viewCurrency],
   )
+  const planCategories = useMemo(
+    () => budget?.items.map(({ category }) => category) ?? [],
+    [budget?.items],
+  )
   const planDailyPace = useMemo(
     () => buildDailyPaceSeries({
       movements: analyticsData?.paceMovements ?? [],
@@ -168,20 +176,30 @@ export function WebPanelBriefV1({
       comparisonDay,
       daysInMonth: totalDays,
       currency: viewCurrency,
-      includedCategories: budget?.items.map(({ category }) => category) ?? [],
+      includedCategories: planCategories,
     }),
-    [analyticsData?.paceMovements, budget?.items, comparisonDay, selectedMonth, totalDays, viewCurrency],
+    [analyticsData?.paceMovements, comparisonDay, planCategories, selectedMonth, totalDays, viewCurrency],
+  )
+  const planExtraordinaryAmount = useMemo(
+    () => sumExtraordinaryPlanSpend({
+      movements: analyticsData?.paceMovements ?? [],
+      selectedMonth,
+      currency: viewCurrency,
+      includedCategories: planCategories,
+    }),
+    [analyticsData?.paceMovements, planCategories, selectedMonth, viewCurrency],
   )
   const paceModel = useMemo(
     () => buildMonthPaceModel({
       daily: dailyPace,
       planDaily: planDailyPace,
+      planExtraordinaryAmount,
       budget: budgetError || budgetLoading ? null : budget,
       comparisonDay,
       daysInMonth: totalDays,
       currency: viewCurrency,
     }),
-    [budget, budgetError, budgetLoading, comparisonDay, dailyPace, planDailyPace, totalDays, viewCurrency],
+    [budget, budgetError, budgetLoading, comparisonDay, dailyPace, planDailyPace, planExtraordinaryAmount, totalDays, viewCurrency],
   )
   const horizon = useMemo(
     () => buildHorizonEvents({

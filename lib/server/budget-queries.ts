@@ -44,7 +44,7 @@ export async function getBudgetSnapshot(params: {
         .maybeSingle(),
       supabase
         .from('expenses')
-        .select('category, amount, payment_method, is_legacy_card_payment')
+        .select('category, amount, payment_method, is_legacy_card_payment, is_extraordinary')
         .eq('user_id', userId)
         .eq('currency', currency)
         .gte('date', startOfMonth)
@@ -91,8 +91,9 @@ export async function getBudgetSnapshot(params: {
   const spendByCategory = new Map<string, number>()
   for (const expense of ((expensesData ?? []) as Pick<
     Expense,
-    'category' | 'amount' | 'payment_method' | 'is_legacy_card_payment'
+    'category' | 'amount' | 'payment_method' | 'is_legacy_card_payment' | 'is_extraordinary'
   >[])) {
+    if (expense.is_extraordinary === true) continue
     if (!isPerceivedExpense(expense) && !isCreditAccruedExpense(expense)) continue
     const key = normalizeBudgetCategory(expense.category)
     spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + expense.amount)

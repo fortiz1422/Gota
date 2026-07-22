@@ -35,12 +35,16 @@ export type MonthPaceBenchmark = {
   deltaPct: number
   deltaPoints: number | null
   outsidePlanAmount: number | null
+  extraordinaryPlanAmount: number | null
+  usedPct: number | null
+  expectedPct: number | null
   sampleSize: number | null
   quality: DataQuality
   scopeLabel: string
   benchmarkLabel: string
   headline: string
   leadingCategory: string | null
+  leadingCategoryStatus: BudgetStatus | null
   points: Array<{ day: number; observed: number | null; benchmark: number | null }>
 }
 
@@ -195,12 +199,38 @@ function signedPercent(value: number): string {
   return `${Math.abs(value)}% ${value > 0 ? 'arriba' : 'abajo'}`
 }
 
+export function sumExtraordinaryPlanSpend(params: {
+  movements: PaceMovement[]
+  selectedMonth: string
+  currency: 'ARS' | 'USD'
+  includedCategories: string[]
+}): number {
+  const includedCategories = new Set(
+    params.includedCategories.map(normalizeBudgetCategory),
+  )
+
+  return params.movements.reduce((sum, movement) => {
+    if (
+      movement.currency !== params.currency ||
+      !movement.date.startsWith(params.selectedMonth) ||
+      !movement.isExtraordinary ||
+      movement.isCardPayment ||
+      movement.amount <= 0 ||
+      !includedCategories.has(normalizeBudgetCategory(movement.category))
+    ) {
+      return sum
+    }
+    return sum + movement.amount
+  }, 0)
+}
+
 function buildPlanBenchmark(params: {
   daily: DailyPaceSeries
   allDaily: DailyPaceSeries
   budget: BudgetSnapshot
+  extraordinaryPlanAmount: number
 }): MonthPaceBenchmark | null {
-  const { daily, allDaily, budget } = params
+  const { daily, allDaily, budget, extraordinaryPlanAmount } = params
   if (!budget.plan || budget.summary.totalBudgeted <= 0) return null
   const observedAmount = currentObserved(daily)
   const expectedPct = Math.round(
@@ -221,9 +251,7 @@ function buildPlanBenchmark(params: {
   const deltaPoints = usedPct - expectedPct
   const outsidePlanAmount = Math.max(0, currentObserved(allDaily) - observedAmount)
   const driver = leadingBudgetItem(budget)
-  const headline = driver && driver.status !== 'on_track'
-    ? `El plan sigue abierto, pero ${driver.category} se adelantó.`
-    : `El mes viene ${signedPercent(deltaPct)} del plan.`
+  const leadingCategory = driver && driver.status !== 'on_track' ? driver : null
 
   return {
     mode: 'plan',
@@ -233,12 +261,16 @@ function buildPlanBenchmark(params: {
     deltaPct,
     deltaPoints,
     outsidePlanAmount,
+    extraordinaryPlanAmount,
+    usedPct,
+    expectedPct,
     sampleSize: null,
     quality: 'ok',
     scopeLabel: `${usedPct}% del plan usado · ${expectedPct}% del mes transcurrido`,
     benchmarkLabel: 'Ritmo esperado del plan',
-    headline,
-    leadingCategory: driver?.category ?? null,
+    headline: `El mes viene ${signedPercent(deltaPct)} del plan.`,
+    leadingCategory: leadingCategory?.category ?? null,
+    leadingCategoryStatus: leadingCategory?.status ?? null,
     points: daily.points.map((point) => ({
       day: point.day,
       observed: point.observed,
@@ -269,6 +301,9 @@ function buildHabitualBenchmark(
     deltaPct,
     deltaPoints: null,
     outsidePlanAmount: null,
+    extraordinaryPlanAmount: null,
+    usedPct: null,
+    expectedPct: null,
     sampleSize: daily.sampleSize,
     quality: daily.quality,
     scopeLabel: `Promedio de ${daily.sampleSize} ${monthWord} · mismo día ${daily.comparisonDay}`,
@@ -278,6 +313,7 @@ function buildHabitualBenchmark(
         : `Promedio ${daily.sampleSize}m a esta altura`,
     headline: `Gastaste ${signedPercent(deltaPct)} de tu ritmo habitual.`,
     leadingCategory: null,
+    leadingCategoryStatus: null,
     points: daily.points.map((item) => ({
       day: item.day,
       observed: item.observed,
@@ -289,13 +325,19 @@ function buildHabitualBenchmark(
 export function buildMonthPaceModel(params: {
   daily: DailyPaceSeries
   planDaily: DailyPaceSeries
+  planExtraordinaryAmount: number
   budget: BudgetSnapshot | null
   comparisonDay: number
   daysInMonth: number
   currency: 'ARS' | 'USD'
 }): MonthPaceModel {
   const plan = params.budget
-    ? buildPlanBenchmark({ daily: params.planDaily, allDaily: params.daily, budget: params.budget })
+    ? buildPlanBenchmark({
+        daily: params.planDaily,
+        allDaily: params.daily,
+        budget: params.budget,
+        extraordinaryPlanAmount: params.planExtraordinaryAmount,
+      })
     : null
   const habitual = buildHabitualBenchmark(params.daily)
   const availableModes: PaceMode[] = [

@@ -35,6 +35,25 @@ function signedMoney(amount: number, currency: 'ARS' | 'USD', hidden: boolean) {
   return `${amount > 0 ? '+' : '−'}${absolute}`
 }
 
+function planHeadline(
+  benchmark: MonthPaceBenchmark,
+  currency: 'ARS' | 'USD',
+  hidden: boolean,
+): string {
+  if (benchmark.deltaAmount === 0) {
+    return 'En las categorías presupuestadas venís en línea con el ritmo esperado.'
+  }
+  return `En las categorías presupuestadas venís ${fmtMoney(Math.abs(benchmark.deltaAmount), currency, hidden)} ${benchmark.deltaAmount > 0 ? 'por encima' : 'por debajo'} del ritmo esperado.`
+}
+
+function categoryExceptionCopy(
+  status: MonthPaceBenchmark['leadingCategoryStatus'],
+): string {
+  if (status === 'over_budget') return 'Ya superó el monto asignado en el presupuesto.'
+  if (status === 'near_limit') return 'Ya consumió gran parte del monto asignado.'
+  return 'Está consumiendo su presupuesto más rápido de lo previsto.'
+}
+
 function xForDay(day: number, daysInMonth: number) {
   return ((day - 1) / Math.max(1, daysInMonth - 1)) * WIDTH
 }
@@ -134,7 +153,7 @@ export function WebMonthPace({
   }
 
   const ariaValue = inspection
-    ? `${dayLabel(selectedMonth, inspection.day)}. Observado ${inspection.observed === null ? 'sin datos todavía' : fmtMoney(inspection.observed, currency, hidden)}. ${active?.benchmarkLabel ?? 'Referencia'} ${inspection.benchmark === null ? 'sin datos' : fmtMoney(inspection.benchmark, currency, hidden)}.`
+    ? `${dayLabel(selectedMonth, inspection.day)}. ${active?.mode === 'plan' ? 'Dentro del plan' : 'Observado'} ${inspection.observed === null ? 'sin datos todavía' : fmtMoney(inspection.observed, currency, hidden)}. ${active?.benchmarkLabel ?? 'Referencia'} ${inspection.benchmark === null ? 'sin datos' : fmtMoney(inspection.benchmark, currency, hidden)}.`
     : 'Usá las flechas para inspeccionar el gráfico por día.'
 
   if (!active || !chart) {
@@ -157,10 +176,10 @@ export function WebMonthPace({
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[.09em] text-text-tertiary">Este mes</p>
-          <h2 className="mt-2 max-w-[760px] text-[clamp(21px,2.2vw,27px)] font-bold leading-tight tracking-[-.04em] text-text-primary">{active.headline}</h2>
+          <h2 className="mt-2 max-w-[760px] text-[clamp(21px,2.2vw,27px)] font-bold leading-tight tracking-[-.04em] text-text-primary">{active.mode === 'plan' ? planHeadline(active, currency, hidden) : active.headline}</h2>
           <p className="mt-2 text-[12px] text-text-secondary">
             {active.mode === 'plan'
-              ? 'Solo incluye compras de las categorías incluidas en tu presupuesto.'
+              ? 'Cuenta la compra al registrarla, incluso con tarjeta. El pago posterior no vuelve a sumarse.'
               : 'Gasto observado. Excluye pagos de tarjeta y extraordinarios.'}
           </p>
         </div>
@@ -184,14 +203,14 @@ export function WebMonthPace({
         <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Dentro del plan' : 'Observado'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.observedAmount, currency, hidden)}</p></div>
         <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Esperado a esta altura' : 'Habitual a esta altura'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.benchmarkAmount, currency, hidden)}</p></div>
         <div><p className="text-[10px] text-text-tertiary">Diferencia</p><p className={`mt-1 text-[17px] font-bold tabular-nums ${active.deltaAmount > 0 ? 'text-warning' : 'text-success'}`}>{signedMoney(active.deltaAmount, currency, hidden)}</p></div>
-        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Fuera del plan' : 'Diferencia relativa'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{active.mode === 'plan' ? fmtMoney(active.outsidePlanAmount ?? 0, currency, hidden) : `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%`}</p></div>
+        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Avance (plan vs. mes)' : 'Diferencia relativa'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{active.mode === 'plan' ? `${active.usedPct ?? 0}% vs. ${active.expectedPct ?? 0}%` : `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%`}</p></div>
       </div>
 
       <div
         ref={chartRef}
         role="slider"
         tabIndex={0}
-        aria-label={`Inspeccionar gasto observado comparado con ${active.benchmarkLabel}`}
+        aria-label={`Inspeccionar ${active.mode === 'plan' ? 'gasto dentro del plan' : 'gasto observado'} comparado con ${active.benchmarkLabel}`}
         aria-valuemin={1}
         aria-valuemax={daysInMonth}
         aria-valuenow={inspection?.day ?? chart.current?.day ?? 1}
@@ -247,9 +266,35 @@ export function WebMonthPace({
       <div className="mt-1 flex justify-between text-[9.5px] text-text-tertiary"><span>1</span><span>7</span><span>14</span><span>Hoy</span><span>{daysInMonth}</span></div>
       <p className="mt-2 text-[9.5px] text-text-tertiary">Pasá el cursor o usá las flechas para inspeccionar cada día.</p>
       <div className="mt-3 flex flex-wrap items-center gap-5 text-[10.5px] text-text-secondary">
-        <span><i className="mr-1.5 inline-block h-0.5 w-4 bg-primary align-middle" />{active.mode === 'plan' ? 'Gasto dentro del plan' : 'Gasto observado'}</span>
+        <span><i className="mr-1.5 inline-block h-0.5 w-4 bg-primary align-middle" />{active.mode === 'plan' ? 'Gasto ordinario dentro del plan' : 'Gasto observado'}</span>
         <span><i className="mr-1.5 inline-block h-px w-4 border-t border-dashed border-text-tertiary align-middle" />{active.benchmarkLabel}</span>
       </div>
+
+      {active.mode === 'plan' && (
+        <div className="mt-5 border-t border-[rgba(33,120,168,.10)]">
+          {active.leadingCategory && active.leadingCategoryStatus && (
+            <button type="button" onClick={onOpenAnalysis} className="flex w-full items-center justify-between gap-4 border-b border-[rgba(33,120,168,.10)] py-3 text-left">
+              <span>
+                <b className="block text-[11.5px] text-text-primary">{active.leadingCategory} necesita atención</b>
+                <small className="mt-1 block text-[9.5px] text-text-tertiary">{categoryExceptionCopy(active.leadingCategoryStatus)}</small>
+              </span>
+              <span className="shrink-0 text-[10px] font-bold text-primary">Ver categoría →</span>
+            </button>
+          )}
+          {(active.outsidePlanAmount ?? 0) > 0 && (
+            <button type="button" onClick={onOpenAnalysis} className="flex w-full items-center justify-between gap-4 border-b border-[rgba(33,120,168,.10)] py-3 text-left">
+              <span className="text-[10.5px] leading-relaxed text-text-secondary">Además registraste <b className="tabular-nums text-text-primary">{fmtMoney(active.outsidePlanAmount ?? 0, currency, hidden)}</b> de gasto ordinario en categorías no incluidas en este presupuesto.</span>
+              <span className="shrink-0 text-[10px] font-bold text-primary">Revisar →</span>
+            </button>
+          )}
+          {(active.extraordinaryPlanAmount ?? 0) > 0 && (
+            <div className="flex items-start justify-between gap-4 border-b border-[rgba(33,120,168,.10)] py-3 text-[10.5px] leading-relaxed text-text-secondary">
+              <span><b className="tabular-nums text-text-primary">{fmtMoney(active.extraordinaryPlanAmount ?? 0, currency, hidden)}</b> de gastos extraordinarios en categorías presupuestadas se muestran aparte y no alteran esta línea.</span>
+            </div>
+          )}
+        </div>
+      )}
+
       <button type="button" onClick={onOpenAnalysis} className="mt-4 text-left text-[10.5px] font-semibold text-text-tertiary underline decoration-[rgba(33,120,168,.25)] underline-offset-4">
         {active.scopeLabel} · ver períodos y metodología
       </button>
