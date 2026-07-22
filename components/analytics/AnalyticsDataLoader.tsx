@@ -27,6 +27,7 @@ import { CATEGORIES } from '@/lib/validation/schemas'
 
 export type AnalyticsApiData = {
   rawExpenses: Expense[]
+  futureInstallments: Expense[]
   paceMovements: PaceMovement[]
   compromisoExpenses: Expense[]
   ingresoMes: number | null

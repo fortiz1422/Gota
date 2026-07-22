@@ -2,7 +2,7 @@ import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoade
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
-import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome, Subscription } from '@/types/database'
 
 const NOW = '2026-07-21T12:00:00.000Z'
 const USER = 'preview-user'
@@ -184,8 +184,33 @@ paceMovements.push({
   isCardPayment: false,
 })
 
+const previewSubscription: Subscription = {
+  id: 'sub-streaming',
+  user_id: USER,
+  description: 'Streaming',
+  category: 'Suscripciones',
+  amount: 18_900,
+  currency: 'ARS',
+  payment_method: 'CREDIT',
+  card_id: 'visa',
+  account_id: null,
+  day_of_month: 24,
+  is_active: true,
+  created_at: NOW,
+  last_reviewed_at: NOW,
+}
+
+const previewInstallment: Expense = {
+  ...expense('installment-3', '2026-07-23', 45_000, 'Notebook', 'Educación', 'CREDIT'),
+  installment_group_id: 'notebook-plan',
+  installment_number: 3,
+  installment_total: 12,
+}
+
 export const WEB_PANEL_PREVIEW_ANALYTICS = {
   paceMovements,
+  subscriptions: [previewSubscription],
+  futureInstallments: [previewInstallment],
   comparisonContext: {
     selectedMonth: '2026-07',
     isCurrentMonth: true,

@@ -155,6 +155,30 @@ describe('buildMonthPaceModel', () => {
     expect(model.plan?.headline).not.toContain('Supermercado')
   })
 
+  it('conserva un decimal para que resumen y línea expresen el mismo delta relativo', () => {
+    const scoped = buildDailyPaceSeries({
+      movements: [movement('2026-07-15', 417.5, { category: 'Supermercado' })],
+      selectedMonth: '2026-07',
+      comparisonDay: 15,
+      daysInMonth: 30,
+      currency: 'ARS',
+      includedCategories: ['Supermercado'],
+    })
+    const model = buildMonthPaceModel({
+      daily: scoped,
+      planDaily: scoped,
+      planExtraordinaryAmount: 0,
+      budget: budget(),
+      comparisonDay: 15,
+      daysInMonth: 30,
+      currency: 'ARS',
+    })
+
+    expect(model.plan?.benchmarkAmount).toBe(500)
+    expect(model.plan?.deltaPct).toBe(-16.5)
+    expect(inspectPacePoint(model.plan!, 15).deltaPct).toBe(-16.5)
+  })
+
   it('compara Plan solo con categorías presupuestadas y separa el gasto no planificado', () => {
     const movements = [
       movement('2026-07-05', 300, { category: 'Supermercado' }),

@@ -81,10 +81,13 @@ interface Props {
 }
 
 export function CategoryIcon({ category, size = 16, container = false }: Props) {
-  const entry = CATEGORY_MAP[category]
-  if (!entry) return null
+  const entry = CATEGORY_MAP[category] ?? {
+    icon: Tag,
+    color: '#4A6070',
+    colorSoft: 'rgba(74,96,112,0.10)',
+  }
 
-  const { icon: Icon, color, colorSoft } = entry
+  const { icon: Icon, color } = entry
 
   if (container) {
     return (

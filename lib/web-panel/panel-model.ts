@@ -132,7 +132,7 @@ export type HorizonDescription = {
 }
 
 export function describeHorizonEvent(
-  event: Pick<HorizonEvent, 'kind' | 'estimated'>,
+  event: Pick<HorizonEvent, 'kind' | 'estimated' | 'paymentMethod'>,
 ): HorizonDescription {
   if (event.kind === 'due') {
     return {
@@ -150,6 +150,20 @@ export function describeHorizonEvent(
     return {
       scope: 'future',
       label: 'El capital vuelve a estar líquido al vencer',
+    }
+  }
+  if (event.kind === 'subscription') {
+    return {
+      scope: 'estimated',
+      label: event.paymentMethod === 'CREDIT'
+        ? 'Generará compromiso en la tarjeta'
+        : 'Débito estimado · todavía no salió de tu caja',
+    }
+  }
+  if (event.kind === 'installment') {
+    return {
+      scope: 'future',
+      label: 'Compromiso programado · no es salida de caja hoy',
     }
   }
   return {

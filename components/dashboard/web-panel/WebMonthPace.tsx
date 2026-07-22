@@ -203,7 +203,7 @@ export function WebMonthPace({
         <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Dentro del plan' : 'Observado'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.observedAmount, currency, hidden)}</p></div>
         <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Esperado a esta altura' : 'Habitual a esta altura'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.benchmarkAmount, currency, hidden)}</p></div>
         <div><p className="text-[10px] text-text-tertiary">Diferencia</p><p className={`mt-1 text-[17px] font-bold tabular-nums ${active.deltaAmount > 0 ? 'text-warning' : 'text-success'}`}>{signedMoney(active.deltaAmount, currency, hidden)}</p></div>
-        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Avance (plan vs. mes)' : 'Diferencia relativa'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{active.mode === 'plan' ? `${active.usedPct ?? 0}% vs. ${active.expectedPct ?? 0}%` : `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%`}</p></div>
+        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Ritmo vs. plan' : 'Diferencia relativa'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{active.mode === 'plan' ? `${Math.abs(active.deltaPct).toLocaleString('es-AR', { maximumFractionDigits: 1 })}% ${active.deltaPct > 0 ? 'por encima' : active.deltaPct < 0 ? 'por debajo' : 'en línea'}` : `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%`}</p></div>
       </div>
 
       <div

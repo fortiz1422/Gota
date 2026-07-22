@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildHorizonEvents } from '@/components/dashboard/desktop/desktop-dashboard-model'
-import type { Card, Instrument, RecurringIncome } from '@/types/database'
+import type { Card, Expense, Instrument, RecurringIncome, Subscription } from '@/types/database'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 
 const card = (id: string, name: string): Card => ({ id, name }) as unknown as Card
@@ -74,5 +74,52 @@ describe('buildHorizonEvents — tarjetas solo con actividad', () => {
     expect(incomes.length).toBeGreaterThanOrEqual(1)
     expect(incomes[0].date).toBe('2026-06-05')
     expect(incomes[0].amount).toBe(800000)
+  })
+
+  it('incluye la próxima suscripción configurada y distingue crédito de débito', () => {
+    const events = buildHorizonEvents({
+      ...base,
+      cards: [],
+      compromisos: null,
+      today: '2026-06-20',
+      subscriptions: [
+        { id: 's1', description: 'Streaming', day_of_month: 25, amount: 19000, currency: 'ARS', payment_method: 'CREDIT', is_active: true } as Subscription,
+        { id: 's2', description: 'Internet', day_of_month: 10, amount: 32000, currency: 'ARS', payment_method: 'DEBIT', is_active: true } as Subscription,
+      ],
+    })
+
+    expect(events.filter(({ kind }) => kind === 'subscription')).toMatchObject([
+      { id: 'subscription-s1', date: '2026-06-25', paymentMethod: 'CREDIT' },
+      { id: 'subscription-s2', date: '2026-07-10', paymentMethod: 'DEBIT' },
+    ])
+  })
+
+  it('muestra solo la próxima fila materializada de cada compra en cuotas', () => {
+    const installment = (id: string, group: string, date: string, number: number) => ({
+      id,
+      installment_group_id: group,
+      installment_number: number,
+      installment_total: 12,
+      date,
+      description: 'Notebook',
+      amount: 45000,
+      currency: 'ARS',
+    }) as Expense
+    const events = buildHorizonEvents({
+      ...base,
+      cards: [],
+      compromisos: null,
+      today: '2026-06-20',
+      futureInstallments: [
+        installment('i4', 'group-1', '2026-07-20', 4),
+        installment('i3', 'group-1', '2026-06-20', 3),
+        installment('i2', 'group-2', '2026-06-24', 2),
+      ],
+    })
+
+    expect(events.filter(({ kind }) => kind === 'installment')).toMatchObject([
+      { id: 'installment-group-1-3', date: '2026-06-20', title: 'Cuota 3/12 · Notebook' },
+      { id: 'installment-group-2-2', date: '2026-06-24' },
+    ])
   })
 })

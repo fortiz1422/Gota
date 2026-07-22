@@ -103,4 +103,15 @@ describe('describeHorizonEvent', () => {
     expect(describeHorizonEvent({ kind: 'income', estimated: true }).scope).toBe('estimated')
     expect(describeHorizonEvent({ kind: 'instrument', estimated: false }).scope).toBe('future')
   })
+
+  it('distingue una suscripción estimada de una cuota ya programada', () => {
+    expect(describeHorizonEvent({ kind: 'subscription', estimated: true, paymentMethod: 'CREDIT' })).toEqual({
+      scope: 'estimated',
+      label: 'Generará compromiso en la tarjeta',
+    })
+    expect(describeHorizonEvent({ kind: 'installment', estimated: false })).toEqual({
+      scope: 'future',
+      label: 'Compromiso programado · no es salida de caja hoy',
+    })
+  })
 })

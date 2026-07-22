@@ -33,6 +33,7 @@ import { WebPanelTopbar } from './WebPanelTopbar'
 import { WebTrustStage } from './WebTrustStage'
 import { WebMonthPace } from './WebMonthPace'
 import { WebHorizon } from './WebHorizon'
+import { WebRecentActivity } from './WebRecentActivity'
 import { WebCalculationDrawer } from './WebCalculationDrawer'
 import type { NavId } from '@/components/dashboard/desktop/desktop-chrome'
 
@@ -208,10 +209,12 @@ export function WebPanelBriefV1({
       activeInstruments: data.activeInstruments,
       compromisos,
       selectedMonth,
+      subscriptions: analyticsData?.subscriptions ?? [],
+      futureInstallments: analyticsData?.futureInstallments ?? [],
     })
       .filter((event) => isWithinRollingHorizon(event.date, todayAR()))
       .slice(0, 5),
-    [compromisos, data.activeInstruments, data.activeRecurring, data.cards, selectedMonth],
+    [analyticsData?.futureInstallments, analyticsData?.subscriptions, compromisos, data.activeInstruments, data.activeRecurring, data.cards, selectedMonth],
   )
   const recentActivity = useMemo(
     () => buildRecentActivityItems({
@@ -331,7 +334,7 @@ export function WebPanelBriefV1({
           </section>
         )}
 
-        <section className="grid gap-10 border-b border-[rgba(33,120,168,.10)] py-10 lg:grid-cols-[minmax(0,1.42fr)_minmax(360px,.72fr)] lg:gap-16">
+        <section className="grid items-start gap-10 border-b border-[rgba(33,120,168,.10)] py-10 lg:grid-cols-[minmax(0,1.42fr)_minmax(380px,.76fr)] lg:gap-14">
           <div>
             {analyticsLoading ? (
               <div className="h-[430px] animate-pulse rounded-[12px] bg-bg-secondary" role="status" aria-label="Cargando ritmo" />
@@ -341,32 +344,27 @@ export function WebPanelBriefV1({
               <WebMonthPace model={paceModel} currency={viewCurrency} hidden={hidden} selectedMonth={selectedMonth} daysInMonth={totalDays} onOpenAnalysis={() => onNav('analisis')} />
             )}
           </div>
-          {historical ? (
-            <aside className="border-t border-[rgba(33,120,168,.10)] pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0"><h2 className="text-lg font-bold">Hitos del período</h2><p className="mt-2 text-xs leading-relaxed text-text-secondary">Los eventos actuales no se proyectan sobre un mes cerrado. Abrí Análisis para revisar compromisos y movimientos de este período.</p><button type="button" onClick={() => onNav('analisis')} className="mt-5 text-xs font-bold text-primary">Revisar cierre →</button></aside>
-          ) : (
-            <WebHorizon events={horizon} currency={viewCurrency} hidden={hidden} onOpenAgenda={() => onNav('analisis')} />
-          )}
+
+          <div className="rounded-[18px] bg-[#F4F8FB] p-5 shadow-[inset_0_0_0_1px_rgba(33,120,168,.06)] lg:p-6">
+            {historical ? (
+              <aside><h2 className="text-lg font-bold">Hitos del período</h2><p className="mt-2 text-xs leading-relaxed text-text-secondary">Los eventos actuales no se proyectan sobre un mes cerrado. Abrí Análisis para revisar compromisos y movimientos de este período.</p><button type="button" onClick={() => onNav('analisis')} className="mt-5 text-xs font-bold text-primary">Revisar cierre →</button></aside>
+            ) : (
+              <WebHorizon events={horizon} currency={viewCurrency} hidden={hidden} onOpenAgenda={() => onNav('analisis')} />
+            )}
+            <WebRecentActivity items={recentActivity} hidden={hidden} onOpenMovements={() => onNav('movimientos')} />
+          </div>
         </section>
 
-        <section className="grid gap-12 py-10 lg:grid-cols-[minmax(0,1fr)_minmax(380px,.8fr)] lg:gap-16">
-          <div>
+        {(signalsQuery.isError || visibleSignals.length > 0) && (
+          <section className="border-b border-[rgba(33,120,168,.10)] py-9">
             <div className="flex items-end justify-between gap-4"><div><h2 className="text-[19px] font-bold tracking-[-.03em]">Para revisar</h2><p className="mt-1 text-[11px] text-text-secondary">Excepciones secundarias. La principal ya fue priorizada arriba.</p></div><button type="button" onClick={openSignals} className="text-[11px] font-bold text-primary">Abrir Señales →</button></div>
-            <div className="mt-4">
-              {signalsQuery.isError ? <p className="border-y border-[rgba(33,120,168,.09)] py-5 text-xs text-text-secondary">No pudimos cargar Señales. El resto del Panel sigue operativo.</p> : visibleSignals.length === 0 ? <p className="border-y border-[rgba(33,120,168,.09)] py-5 text-xs text-text-secondary">No hay excepciones secundarias para mostrar.</p> : visibleSignals.map((signal) => (
+            <div className="mt-4 max-w-[920px]">
+              {signalsQuery.isError ? <p className="border-y border-[rgba(33,120,168,.09)] py-5 text-xs text-text-secondary">No pudimos cargar Señales. El resto del Panel sigue operativo.</p> : visibleSignals.map((signal) => (
                 <button key={signal.version} type="button" onClick={openSignals} className="grid w-full grid-cols-[9px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[rgba(33,120,168,.09)] py-4 text-left"><span className={`h-2 w-2 rounded-full ${signal.severity === 'risk' ? 'bg-danger' : signal.severity === 'watch' ? 'bg-warning' : 'bg-primary'}`} /><span><b className="block text-[12.5px]">{signal.title}</b><small className="mt-1 block text-[10px] text-text-tertiary">{signal.summary}</small></span><span className="text-[10.5px] font-bold text-primary">Ver →</span></button>
               ))}
             </div>
-          </div>
-
-          <div className="lg:border-l lg:border-[rgba(33,120,168,.10)] lg:pl-8">
-            <div className="flex items-end justify-between gap-4"><div><h2 className="text-[19px] font-bold tracking-[-.03em]">Actividad reciente</h2><p className="mt-1 text-[11px] text-text-secondary">Evidencia operativa, no otro resumen.</p></div><button type="button" onClick={() => onNav('movimientos')} className="text-[11px] font-bold text-primary">Ver movimientos →</button></div>
-            <div className="mt-4">
-              {recentActivity.map((item) => (
-                <button key={item.id} type="button" onClick={() => onNav('movimientos')} className="grid w-full grid-cols-[70px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[rgba(33,120,168,.09)] py-3 text-left"><span className="text-[9.5px] text-text-tertiary">{item.dateLabel}</span><span><b className="block truncate text-[12px]">{item.title}</b><small className="text-[9.5px] text-text-tertiary">{item.subtitle}</small></span><b className={`text-[11.5px] tabular-nums ${item.tone === 'positive' ? 'text-success' : ''}`}>{hidden ? '•••' : item.amountLabel}</b></button>
-              ))}
-            </div>
-          </div>
-        </section>
+          </section>
+        )}
       </main>
 
       {signalsSheet}

@@ -246,7 +246,7 @@ function buildPlanBenchmark(params: {
   const deltaAmount = observedAmount - benchmarkAmount
   const deltaPct =
     benchmarkAmount > 0
-      ? Math.round((deltaAmount / benchmarkAmount) * 100)
+      ? Math.round((deltaAmount / benchmarkAmount) * 1_000) / 10
       : 0
   const deltaPoints = usedPct - expectedPct
   const outsidePlanAmount = Math.max(0, currentObserved(allDaily) - observedAmount)

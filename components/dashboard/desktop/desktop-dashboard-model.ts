@@ -2,7 +2,7 @@ import { addMonths } from '@/lib/dates'
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import type { CompromisosData } from '@/lib/analytics/computeCompromisos'
 import type { GoalWithMetrics } from '@/lib/goals/types'
-import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome, Transfer } from '@/types/database'
+import type { Account, Card, Expense, IncomeEntry, Instrument, RecurringIncome, Subscription, Transfer } from '@/types/database'
 
 export type DesktopHeroStats = {
   saldoVivo: number
@@ -30,10 +30,11 @@ export type HorizonEvent = {
   date: string
   title: string
   subtitle: string
-  kind: 'card' | 'due' | 'income' | 'instrument'
+  kind: 'card' | 'due' | 'income' | 'instrument' | 'subscription' | 'installment'
   amount?: number
   currency?: 'ARS' | 'USD'
   estimated?: boolean
+  paymentMethod?: 'DEBIT' | 'CREDIT'
 }
 
 export type RecentActivityItem = {
@@ -43,6 +44,8 @@ export type RecentActivityItem = {
   amountLabel: string
   tone: 'neutral' | 'positive'
   dateLabel: string
+  kind: 'expense' | 'income' | 'transfer'
+  category: string | null
 }
 
 function buildLocalDate(date: string) {
@@ -54,6 +57,20 @@ function addDaysToDateOnly(dateStr: string, days: number): string {
   const d = new Date(`${dateStr.substring(0, 10)}T12:00:00Z`)
   d.setUTCDate(d.getUTCDate() + days)
   return d.toISOString().slice(0, 10)
+}
+
+function dateForMonthDay(month: string, dayOfMonth: number): string {
+  const [year, monthNumber] = month.split('-').map(Number)
+  const lastDay = new Date(year, monthNumber, 0).getDate()
+  return `${month}-${String(Math.min(Math.max(dayOfMonth, 1), lastDay)).padStart(2, '0')}`
+}
+
+function nextMonthlyDate(dayOfMonth: number, today: string): string {
+  const currentMonth = today.slice(0, 7)
+  const currentCandidate = dateForMonthDay(currentMonth, dayOfMonth)
+  return currentCandidate >= today
+    ? currentCandidate
+    : dateForMonthDay(addMonths(currentMonth, 1), dayOfMonth)
 }
 
 function diffInDays(from: string, to: string) {
@@ -211,9 +228,20 @@ export function buildHorizonEvents(params: {
   activeInstruments: Instrument[]
   compromisos: CompromisosData | null
   selectedMonth: string
+  subscriptions?: Subscription[]
+  futureInstallments?: Expense[]
   today?: string
 }): HorizonEvent[] {
-  const { cards, recurringIncomes, activeInstruments, compromisos, selectedMonth, today = todayAR() } = params
+  const {
+    cards,
+    recurringIncomes,
+    activeInstruments,
+    compromisos,
+    selectedMonth,
+    subscriptions = [],
+    futureInstallments = [],
+    today = todayAR(),
+  } = params
   const events: HorizonEvent[] = []
 
   // Tarjetas — solo las que tienen actividad real. Fechas reales del ciclo.
@@ -285,6 +313,52 @@ export function buildHorizonEvents(params: {
     }
   })
 
+  subscriptions
+    .filter(({ is_active }) => is_active)
+    .forEach((subscription) => {
+      events.push({
+        id: `subscription-${subscription.id}`,
+        date: nextMonthlyDate(subscription.day_of_month, today),
+        title: subscription.description,
+        subtitle: 'SUSCRIPCIÓN PROGRAMADA',
+        kind: 'subscription',
+        amount: subscription.amount,
+        currency: subscription.currency,
+        estimated: true,
+        paymentMethod: subscription.payment_method,
+      })
+    })
+
+  const nextInstallmentByGroup = new Map<string, Expense>()
+  futureInstallments
+    .filter((expense) =>
+      Boolean(expense.installment_group_id) &&
+      expense.installment_number !== null &&
+      expense.installment_total !== null &&
+      expense.date >= today,
+    )
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .forEach((expense) => {
+      const groupId = expense.installment_group_id
+      if (groupId && !nextInstallmentByGroup.has(groupId)) {
+        nextInstallmentByGroup.set(groupId, expense)
+      }
+    })
+
+  nextInstallmentByGroup.forEach((expense, groupId) => {
+    events.push({
+      id: `installment-${groupId}-${expense.installment_number}`,
+      date: expense.date,
+      title: `Cuota ${expense.installment_number}/${expense.installment_total} · ${expense.description}`,
+      subtitle: 'CUOTA PROGRAMADA',
+      kind: 'installment',
+      amount: expense.amount,
+      currency: expense.currency,
+      estimated: false,
+      paymentMethod: 'CREDIT',
+    })
+  })
+
   return events.sort((a, b) => a.date.localeCompare(b.date))
 }
 
@@ -338,6 +412,8 @@ export function buildRecentActivityItems(params: {
         amountLabel: `-${formatAmount(expense.amount, expense.currency)}`,
         tone: 'neutral' as const,
         dateLabel: relativeDayLabel(expense.date),
+        kind: 'expense' as const,
+        category: expense.category,
       },
     })),
     ...incomes.map((income) => ({
@@ -350,6 +426,8 @@ export function buildRecentActivityItems(params: {
         amountLabel: `+${formatAmount(income.amount, income.currency)}`,
         tone: 'positive' as const,
         dateLabel: relativeDayLabel(income.date),
+        kind: 'income' as const,
+        category: null,
       },
     })),
     ...transfers.map((transfer) => ({
@@ -362,6 +440,8 @@ export function buildRecentActivityItems(params: {
         amountLabel: formatAmount(transfer.amount_from, transfer.currency_from),
         tone: 'neutral' as const,
         dateLabel: relativeDayLabel(transfer.date),
+        kind: 'transfer' as const,
+        category: null,
       },
     })),
   ]

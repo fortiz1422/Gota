@@ -3,6 +3,8 @@ import type { AnalyticsComparisonContext } from '@/lib/analytics/analytics-overv
 import { countAvailableComparisonMonths } from '@/lib/analytics/analytics-overview'
 import { buildMonthlySeries } from '@/lib/analytics/monthly-series'
 import { addMonths, getCurrentDayOfMonth, getCurrentMonth } from '@/lib/dates'
+import { todayAR } from '@/lib/format'
+import { addDays } from '@/lib/intelligence/evidence'
 import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
 import {
   isApplicableCardPayment,
@@ -40,6 +42,8 @@ export async function GET(request: Request) {
   const endOfMonth = `${addMonths(selectedMonth, 1)}-01`
   const historyStartMonth = addMonths(selectedMonth, -5)
   const historyStartDate = `${historyStartMonth}-01`
+  const today = todayAR()
+  const horizonEnd = addDays(today, 30)
 
   const [{ data: config }, { data: cardsData }] = await Promise.all([
     supabase.from('user_config').select('default_currency').eq('user_id', user.id).single(),
@@ -57,6 +61,7 @@ export async function GET(request: Request) {
 
   const [
     { data: historicalExpensesData },
+    { data: futureInstallmentsData },
     { data: incomeEntries },
     { data: oldestExpense },
     { data: subscriptionsData },
@@ -71,6 +76,15 @@ export async function GET(request: Request) {
       .eq('currency', currency)
       .gte('date', historyStartDate)
       .lt('date', endOfMonth),
+
+    supabase
+      .from('expenses')
+      .select('*')
+      .eq('user_id', user.id)
+      .eq('currency', currency)
+      .not('installment_group_id', 'is', null)
+      .gte('date', today)
+      .lte('date', horizonEnd),
 
     supabase
       .from('income_entries')
@@ -151,6 +165,7 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     rawExpenses,
+    futureInstallments: (futureInstallmentsData ?? []) as Expense[],
     paceMovements: historicalExpenses.map((expense) => ({
       date: expense.date,
       amount: expense.amount,

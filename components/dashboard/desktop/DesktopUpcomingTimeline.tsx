@@ -50,6 +50,24 @@ const KIND_META: Record<
     sign: '+',
     amountColor: '#1A7A42',
   },
+  subscription: {
+    chip: 'Suscripción',
+    chipColor: '#2178A8',
+    chipBg: 'rgba(33,120,168,0.09)',
+    consequence: 'Es un cobro estimado según su calendario configurado.',
+    sign: '',
+    amountCaption: 'estimado',
+    amountColor: '#0D1829',
+  },
+  installment: {
+    chip: 'Cuota',
+    chipColor: '#6D3DB5',
+    chipBg: 'rgba(109,61,181,0.10)',
+    consequence: 'Es una cuota futura ya programada.',
+    sign: '',
+    amountCaption: 'programado',
+    amountColor: '#0D1829',
+  },
 }
 
 function daysFromToday(dateStr: string, today: string): number {
