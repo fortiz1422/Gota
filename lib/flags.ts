@@ -31,6 +31,13 @@ export const FF_SIGNALS_CENTER_V1 =
   process.env.NEXT_PUBLIC_FF_SIGNALS_CENTER_V1 === 'true'
 
 /**
+ * Brief financiero editorial para Gota Web. Apagado por defecto hasta que
+ * pase QA autenticado; rollback exacto = apagar la flag.
+ */
+export const FF_WEB_PANEL_BRIEF_V1 =
+  process.env.NEXT_PUBLIC_FF_WEB_PANEL_BRIEF_V1 === 'true'
+
+/**
  * Workspace navegable de Análisis. Apagado por defecto para conservar el
  * modal Explorar como rollback exacto hasta completar el QA productivo.
  */

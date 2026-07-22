@@ -1,7 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
-  flagEnabled: true,
+  signalsFlagEnabled: true,
+  webPanelFlagEnabled: false,
   captureRouteError: vi.fn(),
   checkRateLimit: vi.fn(),
   createClient: vi.fn(),
@@ -11,7 +12,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('@/lib/flags', () => ({
   get FF_SIGNALS_CENTER_V1() {
-    return mocks.flagEnabled
+    return mocks.signalsFlagEnabled
+  },
+  get FF_WEB_PANEL_BRIEF_V1() {
+    return mocks.webPanelFlagEnabled
   },
 }))
 vi.mock('@/lib/observability/sentry', () => ({
@@ -36,7 +40,8 @@ const model = {
 }
 
 beforeEach(() => {
-  mocks.flagEnabled = true
+  mocks.signalsFlagEnabled = true
+  mocks.webPanelFlagEnabled = false
   mocks.createClient.mockResolvedValue(supabase)
   mocks.getUser.mockResolvedValue({ data: { user: { id: 'user-private' } } })
   mocks.checkRateLimit.mockReturnValue(true)
@@ -53,8 +58,9 @@ async function responseBody(response: Response) {
 }
 
 describe('GET /api/intelligence/signals', () => {
-  it('responde 404 sin autenticar ni cargar datos cuando la flag está apagada', async () => {
-    mocks.flagEnabled = false
+  it('responde 404 sin autenticar ni cargar datos cuando ambas flags están apagadas', async () => {
+    mocks.signalsFlagEnabled = false
+    mocks.webPanelFlagEnabled = false
 
     const response = await GET()
 
@@ -62,6 +68,16 @@ describe('GET /api/intelligence/signals', () => {
     await expect(responseBody(response)).resolves.toEqual({ error: 'Not found' })
     expect(mocks.createClient).not.toHaveBeenCalled()
     expect(mocks.loadIntelligenceSignals).not.toHaveBeenCalled()
+  })
+
+  it('queda disponible para Web cuando el Panel v1 está activo', async () => {
+    mocks.signalsFlagEnabled = false
+    mocks.webPanelFlagEnabled = true
+
+    const response = await GET()
+
+    expect(response.status).toBe(200)
+    expect(mocks.loadIntelligenceSignals).toHaveBeenCalledOnce()
   })
 
   it('responde 401 y no consume rate limit cuando no hay usuario', async () => {

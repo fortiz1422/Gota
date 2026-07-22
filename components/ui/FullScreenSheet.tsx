@@ -38,6 +38,7 @@ interface FullScreenSheetProps {
   triggerRef?: RefObject<HTMLElement | null>
   triggerElement?: HTMLElement | null
   initialFocusRef?: RefObject<HTMLElement | null>
+  surface?: 'modal' | 'drawer'
 }
 
 function getFocusableElements(panel: HTMLElement): HTMLElement[] {
@@ -87,6 +88,7 @@ export function FullScreenSheet({
   triggerRef,
   triggerElement,
   initialFocusRef,
+  surface = 'modal',
 }: FullScreenSheetProps) {
   const mounted = useSyncExternalStore(
     subscribeToHydration,
@@ -202,7 +204,7 @@ export function FullScreenSheet({
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[70] flex items-stretch justify-center sm:items-center sm:px-4 sm:py-[4dvh]"
+      className={`fixed inset-0 z-[70] flex items-stretch ${surface === 'drawer' ? 'justify-end' : 'justify-center sm:items-center sm:px-4 sm:py-[4dvh]'}`}
     >
       <div
         aria-hidden="true"
@@ -217,7 +219,9 @@ export function FullScreenSheet({
         aria-modal="true"
         aria-labelledby={labelledBy}
         tabIndex={-1}
-        className="slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]"
+        className={surface === 'drawer'
+          ? 'slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:max-w-[500px] sm:border-l sm:border-[color:var(--color-border-strong)]'
+          : 'slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]'}
         style={{
           paddingTop: extendIntoTopSafeArea ? 0 : 'env(safe-area-inset-top)',
           paddingBottom: 'env(safe-area-inset-bottom)',

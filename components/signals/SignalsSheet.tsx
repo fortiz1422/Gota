@@ -24,6 +24,7 @@ interface Props {
   onCoverageOpened?: () => void
   onNavigate?: (href: string, signal: SignalOccurrence) => void
   onAsk?: (question: string, signal: SignalOccurrence) => void
+  surface?: 'modal' | 'drawer'
 }
 
 const TABS: Array<{ value: SignalCenterTab; label: string }> = [
@@ -46,6 +47,7 @@ export function SignalsSheet({
   onCoverageOpened,
   onNavigate,
   onAsk,
+  surface = 'modal',
 }: Props) {
   const titleId = useId()
   const tabsId = useId()
@@ -86,6 +88,7 @@ export function SignalsSheet({
       labelledBy={titleId}
       triggerRef={triggerRef}
       extendIntoTopSafeArea
+      surface={surface}
     >
       {detail ? (
         <SignalDetailView

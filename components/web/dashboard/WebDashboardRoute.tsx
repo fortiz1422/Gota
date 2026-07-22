@@ -5,10 +5,12 @@ import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import { DesktopDashboardShell } from '@/components/dashboard/desktop/DesktopDashboardShell'
+import { WebPanelBriefV1 } from '@/components/dashboard/web-panel/WebPanelBriefV1'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
+import { FF_WEB_PANEL_BRIEF_V1 } from '@/lib/flags'
 
 type CotizacionApiData = {
   compra: number
@@ -72,6 +74,28 @@ export function WebDashboardRoute({
       buildCardCycleAmountsMap(analyticsQuery.data.cardCycleAmounts),
     )
   }, [analyticsQuery.data, initialData.isCurrentMonth, selectedMonth])
+
+  if (FF_WEB_PANEL_BRIEF_V1) {
+    return (
+      <WebPanelBriefV1
+        selectedMonth={selectedMonth}
+        viewCurrency={viewCurrency}
+        userEmail={userEmail}
+        data={initialData}
+        analyticsData={analyticsQuery.data}
+        analyticsLoading={analyticsQuery.isLoading}
+        analyticsError={analyticsQuery.isError}
+        budget={budgetQuery.data ?? null}
+        budgetLoading={budgetQuery.isLoading}
+        budgetError={budgetQuery.isError}
+        compromisos={compromisos}
+        quote={initialQuote}
+        onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
+        onOpenSettings={() => router.push('/web/settings')}
+        onNavigate={(href) => router.push(href)}
+      />
+    )
+  }
 
   return (
     <DesktopDashboardShell

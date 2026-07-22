@@ -4,7 +4,11 @@ import { countAvailableComparisonMonths } from '@/lib/analytics/analytics-overvi
 import { buildMonthlySeries } from '@/lib/analytics/monthly-series'
 import { addMonths, getCurrentDayOfMonth, getCurrentMonth } from '@/lib/dates'
 import { isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
-import { isCreditAccruedExpense, isPerceivedExpense } from '@/lib/movement-classification'
+import {
+  isApplicableCardPayment,
+  isCreditAccruedExpense,
+  isPerceivedExpense,
+} from '@/lib/movement-classification'
 import { createClient } from '@/lib/supabase/server'
 import type { Card, CardCycle, CardCycleAmount, Expense, Subscription } from '@/types/database'
 
@@ -147,6 +151,13 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     rawExpenses,
+    paceMovements: historicalExpenses.map((expense) => ({
+      date: expense.date,
+      amount: expense.amount,
+      currency: expense.currency,
+      isExtraordinary: expense.is_extraordinary === true,
+      isCardPayment: isApplicableCardPayment(expense),
+    })),
     compromisoExpenses,
     ingresoMes,
     subscriptions: (subscriptionsData ?? []) as Subscription[],

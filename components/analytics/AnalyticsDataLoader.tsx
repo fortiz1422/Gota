@@ -17,6 +17,7 @@ import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import { FF_ANALYTICS_WORKSPACE_V1 } from '@/lib/flags'
 import type { AnalyticsView } from '@/lib/analytics/analytics-route-state'
+import type { PaceMovement } from '@/lib/web-panel/month-pace'
 import type {
   AnalyticsComparisonContext,
   MonthlySeriesPoint,
@@ -26,6 +27,7 @@ import { CATEGORIES } from '@/lib/validation/schemas'
 
 export type AnalyticsApiData = {
   rawExpenses: Expense[]
+  paceMovements: PaceMovement[]
   compromisoExpenses: Expense[]
   ingresoMes: number | null
   subscriptions: Subscription[]

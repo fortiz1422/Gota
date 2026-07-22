@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { FF_SIGNALS_CENTER_V1 } from '@/lib/flags'
+import { FF_SIGNALS_CENTER_V1, FF_WEB_PANEL_BRIEF_V1 } from '@/lib/flags'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { loadIntelligenceSignals } from '@/lib/server/load-intelligence-signals'
@@ -13,7 +13,7 @@ const ERROR_CONTEXT = {
 const INTERNAL_ERROR = { error: 'No pude cargar tus señales ahora.' } as const
 
 export async function GET() {
-  if (!FF_SIGNALS_CENTER_V1) {
+  if (!FF_SIGNALS_CENTER_V1 && !FF_WEB_PANEL_BRIEF_V1) {
     return NextResponse.json({ error: 'Not found' }, { status: 404 })
   }
 
