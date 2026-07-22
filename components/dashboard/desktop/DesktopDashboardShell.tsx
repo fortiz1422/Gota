@@ -59,6 +59,8 @@ type Props = {
   amountsVisible: boolean
   onOpenSettings: () => void
   onSelectMonth: (month: string) => void
+  initialNav?: NavId
+  onNavChange?: (id: NavId) => void
 }
 
 const ACCOUNT_PALETTE = ['#2178A8', '#1B7E9E', '#1A7A42', '#7D4EC0', '#B84A12', '#A0367A']
@@ -113,14 +115,17 @@ export function DesktopDashboardShell({
   amountsVisible,
   onOpenSettings,
   onSelectMonth,
+  initialNav = 'inicio',
+  onNavChange,
 }: Props) {
   const [hidden, setHidden] = useState(!amountsVisible)
-  const [activeNav, setActiveNav] = useState<NavId>('inicio')
+  const [activeNav, setActiveNav] = useState<NavId>(initialNav)
   const [drill, setDrill] = useState<'fuga' | 'compromisos' | null>(null)
 
   const handleNav = (id: NavId) => {
     setActiveNav(id)
     setDrill(null)
+    onNavChange?.(id)
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 })
   }
 

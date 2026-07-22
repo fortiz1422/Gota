@@ -1,16 +1,18 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
 import { DesktopDashboardShell } from '@/components/dashboard/desktop/DesktopDashboardShell'
+import type { NavId } from '@/components/dashboard/desktop/desktop-chrome'
 import { WebPanelBriefV1 } from '@/components/dashboard/web-panel/WebPanelBriefV1'
 import { computeCompromisos } from '@/lib/analytics/computeCompromisos'
 import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { FF_WEB_PANEL_BRIEF_V1 } from '@/lib/flags'
+import { resolveWebPanelNav } from '@/lib/web-panel/navigation'
 
 type CotizacionApiData = {
   compra: number
@@ -40,6 +42,7 @@ export function WebDashboardRoute({
   initialQuote,
 }: Props) {
   const router = useRouter()
+  const [webNav, setWebNav] = useState<NavId>('inicio')
   const analyticsQuery = useQuery<AnalyticsApiData>({
     queryKey: ['analytics', selectedMonth, viewCurrency, 'web'],
     queryFn: async () => {
@@ -75,7 +78,16 @@ export function WebDashboardRoute({
     )
   }, [analyticsQuery.data, initialData.isCurrentMonth, selectedMonth])
 
-  if (FF_WEB_PANEL_BRIEF_V1) {
+  const openWebHref = (href: string) => {
+    const nav = resolveWebPanelNav(href)
+    if (nav) {
+      setWebNav(nav)
+      return
+    }
+    router.push(href)
+  }
+
+  if (FF_WEB_PANEL_BRIEF_V1 && webNav === 'inicio') {
     return (
       <WebPanelBriefV1
         selectedMonth={selectedMonth}
@@ -90,9 +102,32 @@ export function WebDashboardRoute({
         budgetError={budgetQuery.isError}
         compromisos={compromisos}
         quote={initialQuote}
+        onNav={setWebNav}
         onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
         onOpenSettings={() => router.push('/web/settings')}
-        onNavigate={(href) => router.push(href)}
+        onNavigate={openWebHref}
+      />
+    )
+  }
+
+  if (FF_WEB_PANEL_BRIEF_V1) {
+    return (
+      <DesktopDashboardShell
+        selectedMonth={selectedMonth}
+        viewCurrency={viewCurrency}
+        userEmail={userEmail}
+        data={initialData}
+        analyticsData={analyticsQuery.data}
+        budget={budgetQuery.data ?? null}
+        compromisos={compromisos}
+        heroBreakdown={initialData.heroBreakdown}
+        availableBreakdown={initialData.availableBreakdown}
+        quote={initialQuote}
+        amountsVisible
+        initialNav={webNav}
+        onNavChange={setWebNav}
+        onOpenSettings={() => router.push('/web/settings')}
+        onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
       />
     )
   }

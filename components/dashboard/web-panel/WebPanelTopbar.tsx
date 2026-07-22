@@ -5,15 +5,18 @@ import type { RefObject } from 'react'
 import { Bell, Eye, EyeSlash, Gear, Plus } from '@phosphor-icons/react'
 import { addMonths } from '@/lib/dates'
 import type { SignalBellTone } from '@/lib/intelligence/signal-center'
+import type { NavId } from '@/components/dashboard/desktop/desktop-chrome'
 
 const NAV = [
-  { label: 'Panel', href: '/web' },
-  { label: 'Movimientos', href: '/movimientos' },
-  { label: 'Análisis', href: '/analytics' },
-  { label: 'Planificar', href: '/analytics?view=budget' },
-  { label: 'Compromisos', href: '/analytics?drill=compromisos' },
-  { label: 'Patrimonio', href: '/web/settings' },
-]
+  { id: 'inicio', label: 'Panel' },
+  { id: 'movimientos', label: 'Movimientos' },
+  { id: 'cuentas', label: 'Cuentas' },
+  { id: 'tarjetas', label: 'Tarjetas' },
+  { id: 'presupuestos', label: 'Presupuestos' },
+  { id: 'metas', label: 'Metas' },
+  { id: 'instrumentos', label: 'Instrumentos' },
+  { id: 'analisis', label: 'Análisis' },
+] satisfies Array<{ id: NavId; label: string }>
 
 const DOT: Record<Exclude<SignalBellTone, 'none'>, string> = {
   new: '#1B7E9E',
@@ -38,6 +41,7 @@ export function WebPanelTopbar({
   avatarInitial,
   signalsButtonRef,
   onSelectMonth,
+  onNav,
   onToggleHidden,
   onOpenSignals,
   onOpenSettings,
@@ -49,6 +53,7 @@ export function WebPanelTopbar({
   avatarInitial: string
   signalsButtonRef: RefObject<HTMLButtonElement | null>
   onSelectMonth: (month: string) => void
+  onNav: (id: NavId) => void
   onToggleHidden: () => void
   onOpenSignals: () => void
   onOpenSettings: () => void
@@ -58,18 +63,19 @@ export function WebPanelTopbar({
   return (
     <header className="sticky top-0 z-40 h-[66px] border-b border-[rgba(33,120,168,.10)] bg-white/95 backdrop-blur-xl">
       <div className="mx-auto flex h-full max-w-[1500px] items-center gap-6 px-6 xl:px-10">
-        <Link href="/web" className="shrink-0 text-[23px] font-extrabold tracking-[-.055em] text-primary no-underline">
+        <button type="button" onClick={() => onNav('inicio')} className="shrink-0 border-0 bg-transparent p-0 text-[23px] font-extrabold tracking-[-.055em] text-primary">
           gota<span className="text-[#91BDCF]">.</span>
-        </Link>
+        </button>
         <nav className="hidden h-full min-w-0 items-stretch lg:flex">
-          {NAV.map((item, index) => (
-            <Link
-              key={item.label}
-              href={item.href}
-              className={`relative flex items-center px-2.5 text-[12.5px] font-semibold no-underline transition-colors ${index === 0 ? 'text-text-primary after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:bg-primary' : 'text-text-secondary hover:text-text-primary'}`}
+          {NAV.map((item) => (
+            <button
+              type="button"
+              key={item.id}
+              onClick={() => onNav(item.id)}
+              className={`relative flex items-center border-0 bg-transparent px-2.5 text-[12.5px] font-semibold transition-colors ${item.id === 'inicio' ? 'text-text-primary after:absolute after:inset-x-2.5 after:bottom-0 after:h-0.5 after:bg-primary' : 'text-text-secondary hover:text-text-primary'}`}
             >
               {item.label}
-            </Link>
+            </button>
           ))}
         </nav>
         <div className="flex-1" />

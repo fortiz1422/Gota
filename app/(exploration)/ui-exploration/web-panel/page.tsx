@@ -73,6 +73,7 @@ function WebPanelPreview() {
       initialHidden={!state.amountsVisible}
       initialSignalsOpen={initialOpen === 'signals'}
       initialCalculationOpen={initialOpen === 'calculation'}
+      onNav={() => undefined}
       onSelectMonth={() => undefined}
       onOpenSettings={() => undefined}
       onNavigate={(href) => router.push(href)}

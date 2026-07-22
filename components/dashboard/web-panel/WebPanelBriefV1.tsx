@@ -30,6 +30,7 @@ import { WebTrustStage } from './WebTrustStage'
 import { WebMonthPace } from './WebMonthPace'
 import { WebHorizon } from './WebHorizon'
 import { WebCalculationDrawer } from './WebCalculationDrawer'
+import type { NavId } from '@/components/dashboard/desktop/desktop-chrome'
 
 export type WebPanelQuote = {
   rate: number
@@ -51,6 +52,7 @@ type Props = {
   compromisos: CompromisosData | null
   quote: WebPanelQuote | null
   onSelectMonth: (month: string) => void
+  onNav: (id: NavId) => void
   onOpenSettings: () => void
   onNavigate: (href: string) => void
   signalsModelOverride?: SignalCenterModel
@@ -98,6 +100,7 @@ export function WebPanelBriefV1({
   compromisos,
   quote,
   onSelectMonth,
+  onNav,
   onOpenSettings,
   onNavigate,
   signalsModelOverride,
@@ -246,6 +249,7 @@ export function WebPanelBriefV1({
           avatarInitial={name.charAt(0)}
           signalsButtonRef={signalsButtonRef}
           onSelectMonth={onSelectMonth}
+          onNav={onNav}
           onToggleHidden={() => setHidden((value) => !value)}
           onOpenSignals={openSignals}
           onOpenSettings={onOpenSettings}
@@ -271,6 +275,7 @@ export function WebPanelBriefV1({
         avatarInitial={name.charAt(0)}
         signalsButtonRef={signalsButtonRef}
         onSelectMonth={onSelectMonth}
+        onNav={onNav}
         onToggleHidden={() => setHidden((value) => !value)}
         onOpenSignals={openSignals}
         onOpenSettings={onOpenSettings}
@@ -301,15 +306,15 @@ export function WebPanelBriefV1({
             {analyticsLoading ? (
               <div className="h-[430px] animate-pulse rounded-[12px] bg-bg-secondary" role="status" aria-label="Cargando ritmo" />
             ) : analyticsError ? (
-              <div className="min-h-[280px] py-4"><p className="text-[10px] font-bold uppercase tracking-[.09em] text-text-tertiary">Este mes</p><h2 className="mt-2 text-2xl font-bold tracking-[-.03em]">No pudimos cargar el ritmo.</h2><p className="mt-2 text-sm text-text-secondary">La caja sigue disponible. Reintentá desde Análisis; no lo confundimos con falta de presupuesto.</p><button type="button" onClick={() => onNavigate('/analytics')} className="mt-5 text-xs font-bold text-primary">Abrir Análisis →</button></div>
+              <div className="min-h-[280px] py-4"><p className="text-[10px] font-bold uppercase tracking-[.09em] text-text-tertiary">Este mes</p><h2 className="mt-2 text-2xl font-bold tracking-[-.03em]">No pudimos cargar el ritmo.</h2><p className="mt-2 text-sm text-text-secondary">La caja sigue disponible. Reintentá desde Análisis; no lo confundimos con falta de presupuesto.</p><button type="button" onClick={() => onNav('analisis')} className="mt-5 text-xs font-bold text-primary">Abrir Análisis →</button></div>
             ) : (
-              <WebMonthPace model={paceModel} currency={viewCurrency} hidden={hidden} daysInMonth={totalDays} onOpenAnalysis={() => onNavigate('/analytics')} />
+              <WebMonthPace model={paceModel} currency={viewCurrency} hidden={hidden} daysInMonth={totalDays} onOpenAnalysis={() => onNav('analisis')} />
             )}
           </div>
           {historical ? (
-            <aside className="border-t border-[rgba(33,120,168,.10)] pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0"><h2 className="text-lg font-bold">Hitos del período</h2><p className="mt-2 text-xs leading-relaxed text-text-secondary">Los eventos actuales no se proyectan sobre un mes cerrado. Abrí Análisis para revisar compromisos y movimientos de este período.</p><button type="button" onClick={() => onNavigate(`/analytics?month=${selectedMonth}`)} className="mt-5 text-xs font-bold text-primary">Revisar cierre →</button></aside>
+            <aside className="border-t border-[rgba(33,120,168,.10)] pt-8 lg:border-l lg:border-t-0 lg:pl-8 lg:pt-0"><h2 className="text-lg font-bold">Hitos del período</h2><p className="mt-2 text-xs leading-relaxed text-text-secondary">Los eventos actuales no se proyectan sobre un mes cerrado. Abrí Análisis para revisar compromisos y movimientos de este período.</p><button type="button" onClick={() => onNav('analisis')} className="mt-5 text-xs font-bold text-primary">Revisar cierre →</button></aside>
           ) : (
-            <WebHorizon events={horizon} currency={viewCurrency} hidden={hidden} onOpenAgenda={() => onNavigate('/analytics?drill=compromisos')} />
+            <WebHorizon events={horizon} currency={viewCurrency} hidden={hidden} onOpenAgenda={() => onNav('analisis')} />
           )}
         </section>
 
@@ -324,10 +329,10 @@ export function WebPanelBriefV1({
           </div>
 
           <div className="lg:border-l lg:border-[rgba(33,120,168,.10)] lg:pl-8">
-            <div className="flex items-end justify-between gap-4"><div><h2 className="text-[19px] font-bold tracking-[-.03em]">Actividad reciente</h2><p className="mt-1 text-[11px] text-text-secondary">Evidencia operativa, no otro resumen.</p></div><button type="button" onClick={() => onNavigate('/movimientos')} className="text-[11px] font-bold text-primary">Ver movimientos →</button></div>
+            <div className="flex items-end justify-between gap-4"><div><h2 className="text-[19px] font-bold tracking-[-.03em]">Actividad reciente</h2><p className="mt-1 text-[11px] text-text-secondary">Evidencia operativa, no otro resumen.</p></div><button type="button" onClick={() => onNav('movimientos')} className="text-[11px] font-bold text-primary">Ver movimientos →</button></div>
             <div className="mt-4">
               {recentActivity.map((item) => (
-                <button key={item.id} type="button" onClick={() => onNavigate('/movimientos')} className="grid w-full grid-cols-[70px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[rgba(33,120,168,.09)] py-3 text-left"><span className="text-[9.5px] text-text-tertiary">{item.dateLabel}</span><span><b className="block truncate text-[12px]">{item.title}</b><small className="text-[9.5px] text-text-tertiary">{item.subtitle}</small></span><b className={`text-[11.5px] tabular-nums ${item.tone === 'positive' ? 'text-success' : ''}`}>{hidden ? '•••' : item.amountLabel}</b></button>
+                <button key={item.id} type="button" onClick={() => onNav('movimientos')} className="grid w-full grid-cols-[70px_minmax(0,1fr)_auto] items-center gap-3 border-b border-[rgba(33,120,168,.09)] py-3 text-left"><span className="text-[9.5px] text-text-tertiary">{item.dateLabel}</span><span><b className="block truncate text-[12px]">{item.title}</b><small className="text-[9.5px] text-text-tertiary">{item.subtitle}</small></span><b className={`text-[11.5px] tabular-nums ${item.tone === 'positive' ? 'text-success' : ''}`}>{hidden ? '•••' : item.amountLabel}</b></button>
               ))}
             </div>
           </div>
