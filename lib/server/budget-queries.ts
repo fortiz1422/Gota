@@ -1,5 +1,5 @@
 import { addMonths } from '@/lib/dates'
-import { isPerceivedExpense } from '@/lib/movement-classification'
+import { isCreditAccruedExpense, isPerceivedExpense } from '@/lib/movement-classification'
 import type { createClient } from '@/lib/supabase/server'
 import {
   buildEmptyBudgetSnapshot,
@@ -93,7 +93,7 @@ export async function getBudgetSnapshot(params: {
     Expense,
     'category' | 'amount' | 'payment_method' | 'is_legacy_card_payment'
   >[])) {
-    if (!isPerceivedExpense(expense)) continue
+    if (!isPerceivedExpense(expense) && !isCreditAccruedExpense(expense)) continue
     const key = normalizeBudgetCategory(expense.category)
     spendByCategory.set(key, (spendByCategory.get(key) ?? 0) + expense.amount)
   }

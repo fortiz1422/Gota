@@ -161,15 +161,27 @@ export function WebPanelBriefV1({
     }),
     [analyticsData?.paceMovements, comparisonDay, selectedMonth, totalDays, viewCurrency],
   )
+  const planDailyPace = useMemo(
+    () => buildDailyPaceSeries({
+      movements: analyticsData?.paceMovements ?? [],
+      selectedMonth,
+      comparisonDay,
+      daysInMonth: totalDays,
+      currency: viewCurrency,
+      includedCategories: budget?.items.map(({ category }) => category) ?? [],
+    }),
+    [analyticsData?.paceMovements, budget?.items, comparisonDay, selectedMonth, totalDays, viewCurrency],
+  )
   const paceModel = useMemo(
     () => buildMonthPaceModel({
       daily: dailyPace,
+      planDaily: planDailyPace,
       budget: budgetError || budgetLoading ? null : budget,
       comparisonDay,
       daysInMonth: totalDays,
       currency: viewCurrency,
     }),
-    [budget, budgetError, budgetLoading, comparisonDay, dailyPace, totalDays, viewCurrency],
+    [budget, budgetError, budgetLoading, comparisonDay, dailyPace, planDailyPace, totalDays, viewCurrency],
   )
   const horizon = useMemo(
     () => buildHorizonEvents({

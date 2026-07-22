@@ -1,9 +1,11 @@
+import { normalizeBudgetCategory } from '@/lib/budgets/computeBudgetMetrics'
 import type { BudgetSnapshot, BudgetStatus } from '@/lib/budgets/types'
 import type { DataQuality } from '@/lib/intelligence/types'
 
 export type PaceMovement = {
   date: string
   amount: number
+  category: string
   currency: 'ARS' | 'USD'
   isExtraordinary: boolean
   isCardPayment: boolean
@@ -32,6 +34,7 @@ export type MonthPaceBenchmark = {
   deltaAmount: number
   deltaPct: number
   deltaPoints: number | null
+  outsidePlanAmount: number | null
   sampleSize: number | null
   quality: DataQuality
   scopeLabel: string
@@ -116,11 +119,16 @@ export function buildDailyPaceSeries(params: {
   comparisonDay: number
   daysInMonth: number
   currency: 'ARS' | 'USD'
+  includedCategories?: string[]
 }): DailyPaceSeries {
   const { movements, selectedMonth, daysInMonth, currency } = params
   const comparisonDay = Math.max(1, Math.min(params.comparisonDay, daysInMonth))
+  const includedCategories = params.includedCategories
+    ? new Set(params.includedCategories.map(normalizeBudgetCategory))
+    : null
   const comparable = movements.filter((movement) =>
-    isComparableMovement(movement, currency),
+    isComparableMovement(movement, currency) &&
+    (includedCategories === null || includedCategories.has(normalizeBudgetCategory(movement.category))),
   )
   const observed = cumulativeByDay(
     comparable.filter((movement) => movement.date.startsWith(selectedMonth)),
@@ -189,9 +197,10 @@ function signedPercent(value: number): string {
 
 function buildPlanBenchmark(params: {
   daily: DailyPaceSeries
+  allDaily: DailyPaceSeries
   budget: BudgetSnapshot
 }): MonthPaceBenchmark | null {
-  const { daily, budget } = params
+  const { daily, allDaily, budget } = params
   if (!budget.plan || budget.summary.totalBudgeted <= 0) return null
   const observedAmount = currentObserved(daily)
   const expectedPct = Math.round(
@@ -210,6 +219,7 @@ function buildPlanBenchmark(params: {
       ? Math.round((deltaAmount / benchmarkAmount) * 100)
       : 0
   const deltaPoints = usedPct - expectedPct
+  const outsidePlanAmount = Math.max(0, currentObserved(allDaily) - observedAmount)
   const driver = leadingBudgetItem(budget)
   const headline = driver && driver.status !== 'on_track'
     ? `El plan sigue abierto, pero ${driver.category} se adelantó.`
@@ -222,9 +232,10 @@ function buildPlanBenchmark(params: {
     deltaAmount,
     deltaPct,
     deltaPoints,
+    outsidePlanAmount,
     sampleSize: null,
     quality: 'ok',
-    scopeLabel: `Plan al día ${daily.comparisonDay} · ${expectedPct}% del mes transcurrido`,
+    scopeLabel: `${usedPct}% del plan usado · ${expectedPct}% del mes transcurrido`,
     benchmarkLabel: 'Ritmo esperado del plan',
     headline,
     leadingCategory: driver?.category ?? null,
@@ -257,6 +268,7 @@ function buildHabitualBenchmark(
     deltaAmount,
     deltaPct,
     deltaPoints: null,
+    outsidePlanAmount: null,
     sampleSize: daily.sampleSize,
     quality: daily.quality,
     scopeLabel: `Promedio de ${daily.sampleSize} ${monthWord} · mismo día ${daily.comparisonDay}`,
@@ -276,13 +288,14 @@ function buildHabitualBenchmark(
 
 export function buildMonthPaceModel(params: {
   daily: DailyPaceSeries
+  planDaily: DailyPaceSeries
   budget: BudgetSnapshot | null
   comparisonDay: number
   daysInMonth: number
   currency: 'ARS' | 'USD'
 }): MonthPaceModel {
   const plan = params.budget
-    ? buildPlanBenchmark({ daily: params.daily, budget: params.budget })
+    ? buildPlanBenchmark({ daily: params.planDaily, allDaily: params.daily, budget: params.budget })
     : null
   const habitual = buildHabitualBenchmark(params.daily)
   const availableModes: PaceMode[] = [

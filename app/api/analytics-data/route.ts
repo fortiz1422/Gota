@@ -154,6 +154,7 @@ export async function GET(request: Request) {
     paceMovements: historicalExpenses.map((expense) => ({
       date: expense.date,
       amount: expense.amount,
+      category: expense.category,
       currency: expense.currency,
       isExtraordinary: expense.is_extraordinary === true,
       isCardPayment: isApplicableCardPayment(expense),

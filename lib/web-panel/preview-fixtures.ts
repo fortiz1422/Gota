@@ -164,10 +164,11 @@ export const WEB_PANEL_PREVIEW_DASHBOARD: DashboardApiData = {
 
 const paceMovements: AnalyticsApiData['paceMovements'] = []
 for (const [month, factor] of [['2026-04', 0.88], ['2026-05', 0.96], ['2026-06', 1.02], ['2026-07', 1.12]] as const) {
-  for (const [day, amount] of [[2, 92_000], [5, 130_000], [9, 168_000], [13, 142_000], [17, 128_000], [21, 72_000]] as const) {
+  for (const [day, amount, category] of [[2, 92_000, 'Supermercado'], [5, 130_000, 'Transporte'], [9, 168_000, 'Supermercado'], [13, 142_000, 'Médico'], [17, 128_000, 'Supermercado'], [21, 72_000, 'Transporte']] as const) {
     paceMovements.push({
       date: `${month}-${String(day).padStart(2, '0')}`,
       amount: Math.round(amount * factor),
+      category,
       currency: 'ARS',
       isExtraordinary: false,
       isCardPayment: false,

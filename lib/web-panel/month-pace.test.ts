@@ -12,6 +12,7 @@ function movement(
   return {
     date,
     amount,
+    category: 'Supermercado',
     currency: 'ARS',
     isExtraordinary: false,
     isCardPayment: false,
@@ -111,10 +112,19 @@ describe('buildMonthPaceModel', () => {
     daysInMonth: 30,
     currency: 'ARS',
   })
+  const planDaily = buildDailyPaceSeries({
+    movements: [...history, ...current],
+    selectedMonth: '2026-07',
+    comparisonDay: 15,
+    daysInMonth: 30,
+    currency: 'ARS',
+    includedCategories: ['Supermercado'],
+  })
 
   it('prioriza Plan y expone delta monetario, puntos y principal driver', () => {
     const model = buildMonthPaceModel({
       daily,
+      planDaily,
       budget: budget(),
       comparisonDay: 15,
       daysInMonth: 30,
@@ -128,14 +138,58 @@ describe('buildMonthPaceModel', () => {
       benchmarkAmount: 500,
       deltaAmount: 100,
       deltaPoints: 10,
+      outsidePlanAmount: 0,
       leadingCategory: 'Supermercado',
     })
-    expect(model.plan?.scopeLabel).toContain('día 15')
+    expect(model.plan?.scopeLabel).toContain('50% del mes')
+  })
+
+  it('compara Plan solo con categorías presupuestadas y separa el gasto no planificado', () => {
+    const movements = [
+      movement('2026-07-05', 300, { category: 'Supermercado' }),
+      movement('2026-07-10', 200, { category: 'Médico' }),
+      movement('2026-07-12', 100, { category: 'Supermercado' }),
+    ]
+    const allDaily = buildDailyPaceSeries({
+      movements,
+      selectedMonth: '2026-07',
+      comparisonDay: 15,
+      daysInMonth: 30,
+      currency: 'ARS',
+    })
+    const scopedPlanDaily = buildDailyPaceSeries({
+      movements,
+      selectedMonth: '2026-07',
+      comparisonDay: 15,
+      daysInMonth: 30,
+      currency: 'ARS',
+      includedCategories: ['Supermercado'],
+    })
+
+    const model = buildMonthPaceModel({
+      daily: allDaily,
+      planDaily: scopedPlanDaily,
+      budget: budget(),
+      comparisonDay: 15,
+      daysInMonth: 30,
+      currency: 'ARS',
+    })
+
+    expect(model.plan).toMatchObject({
+      observedAmount: 400,
+      benchmarkAmount: 500,
+      deltaAmount: -100,
+      deltaPoints: -10,
+      outsidePlanAmount: 200,
+    })
+    expect(model.plan?.points.find(({ day }) => day === 15)?.observed).toBe(400)
+    expect(model.habitual).toBeNull()
   })
 
   it('usa Habitual cuando no hay plan y declara muestra comparable', () => {
     const model = buildMonthPaceModel({
       daily,
+      planDaily,
       budget: null,
       comparisonDay: 15,
       daysInMonth: 30,
@@ -163,6 +217,7 @@ describe('buildMonthPaceModel', () => {
     })
     const model = buildMonthPaceModel({
       daily: emptyDaily,
+      planDaily: emptyDaily,
       budget: null,
       comparisonDay: 15,
       daysInMonth: 30,
@@ -186,6 +241,7 @@ describe('inspectPacePoint', () => {
   })
   const plan = buildMonthPaceModel({
     daily,
+    planDaily: daily,
     budget: budget(),
     comparisonDay: 15,
     daysInMonth: 30,

@@ -158,7 +158,11 @@ export function WebMonthPace({
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[.09em] text-text-tertiary">Este mes</p>
           <h2 className="mt-2 max-w-[760px] text-[clamp(21px,2.2vw,27px)] font-bold leading-tight tracking-[-.04em] text-text-primary">{active.headline}</h2>
-          <p className="mt-2 text-[12px] text-text-secondary">Gasto observado. Excluye pagos de tarjeta, transferencias y extraordinarios.</p>
+          <p className="mt-2 text-[12px] text-text-secondary">
+            {active.mode === 'plan'
+              ? 'Solo incluye compras de las categorías incluidas en tu presupuesto.'
+              : 'Gasto observado. Excluye pagos de tarjeta y extraordinarios.'}
+          </p>
         </div>
         {model.availableModes.length > 1 && (
           <div className="flex rounded-[8px] border border-[rgba(33,120,168,.12)] bg-bg-secondary p-[3px]">
@@ -177,10 +181,10 @@ export function WebMonthPace({
       </div>
 
       <div className="mt-6 flex flex-wrap gap-x-9 gap-y-3">
-        <div><p className="text-[10px] text-text-tertiary">Observado</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.observedAmount, currency, hidden)}</p></div>
-        <div><p className="text-[10px] text-text-tertiary">Referencia</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.benchmarkAmount, currency, hidden)}</p></div>
+        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Dentro del plan' : 'Observado'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.observedAmount, currency, hidden)}</p></div>
+        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Esperado a esta altura' : 'Habitual a esta altura'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{fmtMoney(active.benchmarkAmount, currency, hidden)}</p></div>
         <div><p className="text-[10px] text-text-tertiary">Diferencia</p><p className={`mt-1 text-[17px] font-bold tabular-nums ${active.deltaAmount > 0 ? 'text-warning' : 'text-success'}`}>{signedMoney(active.deltaAmount, currency, hidden)}</p></div>
-        <div><p className="text-[10px] text-text-tertiary">Ritmo</p><p className="mt-1 text-[17px] font-bold">{active.deltaPoints === null ? `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%` : `${active.deltaPoints > 0 ? '+' : ''}${active.deltaPoints} pp`}</p></div>
+        <div><p className="text-[10px] text-text-tertiary">{active.mode === 'plan' ? 'Fuera del plan' : 'Diferencia relativa'}</p><p className="mt-1 text-[17px] font-bold tabular-nums">{active.mode === 'plan' ? fmtMoney(active.outsidePlanAmount ?? 0, currency, hidden) : `${active.deltaPct > 0 ? '+' : ''}${active.deltaPct}%`}</p></div>
       </div>
 
       <div
@@ -234,7 +238,7 @@ export function WebMonthPace({
             style={{ left: `${(inspectionX / WIDTH) * 100}%` }}
           >
             <p className="text-[10px] font-bold text-text-primary">{dayLabel(selectedMonth, inspection.day)}</p>
-            <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px]"><span className="text-text-tertiary">Observado</span><b className="tabular-nums text-text-primary">{inspection.observed === null ? 'Sin datos aún' : fmtMoney(inspection.observed, currency, hidden)}</b></div>
+            <div className="mt-2 flex items-center justify-between gap-3 text-[10.5px]"><span className="text-text-tertiary">{active.mode === 'plan' ? 'Dentro del plan' : 'Observado'}</span><b className="tabular-nums text-text-primary">{inspection.observed === null ? 'Sin datos aún' : fmtMoney(inspection.observed, currency, hidden)}</b></div>
             <div className="mt-1.5 flex items-center justify-between gap-3 text-[10.5px]"><span className="text-text-tertiary">{active.mode === 'plan' ? 'Plan' : 'Habitual'}</span><b className="tabular-nums text-text-primary">{inspection.benchmark === null ? 'Sin referencia' : fmtMoney(inspection.benchmark, currency, hidden)}</b></div>
             <div className="mt-2 flex items-center justify-between gap-3 border-t border-[rgba(33,120,168,.10)] pt-2 text-[10.5px]"><span className="text-text-tertiary">Diferencia</span><b className={`tabular-nums ${inspection.deltaAmount !== null && inspection.deltaAmount > 0 ? 'text-warning' : 'text-success'}`}>{inspection.deltaAmount === null ? 'Todavía no aplica' : inspection.deltaPct === null ? signedMoney(inspection.deltaAmount, currency, hidden) : `${signedMoney(inspection.deltaAmount, currency, hidden)} · ${inspection.deltaPct > 0 ? '+' : ''}${inspection.deltaPct.toLocaleString('es-AR', { maximumFractionDigits: 1 })}%`}</b></div>
           </div>
@@ -243,7 +247,7 @@ export function WebMonthPace({
       <div className="mt-1 flex justify-between text-[9.5px] text-text-tertiary"><span>1</span><span>7</span><span>14</span><span>Hoy</span><span>{daysInMonth}</span></div>
       <p className="mt-2 text-[9.5px] text-text-tertiary">Pasá el cursor o usá las flechas para inspeccionar cada día.</p>
       <div className="mt-3 flex flex-wrap items-center gap-5 text-[10.5px] text-text-secondary">
-        <span><i className="mr-1.5 inline-block h-0.5 w-4 bg-primary align-middle" />Gasto observado</span>
+        <span><i className="mr-1.5 inline-block h-0.5 w-4 bg-primary align-middle" />{active.mode === 'plan' ? 'Gasto dentro del plan' : 'Gasto observado'}</span>
         <span><i className="mr-1.5 inline-block h-px w-4 border-t border-dashed border-text-tertiary align-middle" />{active.benchmarkLabel}</span>
       </div>
       <button type="button" onClick={onOpenAnalysis} className="mt-4 text-left text-[10.5px] font-semibold text-text-tertiary underline decoration-[rgba(33,120,168,.25)] underline-offset-4">
