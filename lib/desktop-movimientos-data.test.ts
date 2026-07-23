@@ -56,8 +56,8 @@ describe('fetchAllMovimientosForMonth', () => {
     const result = await fetchAllMovimientosForMonth('2026-06', fetchMock)
 
     expect(fetchMock).toHaveBeenCalledTimes(2)
-    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/movimientos?month=2026-06&page=1&includeYield=false')
-    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/movimientos?month=2026-06&page=2&includeYield=false')
+    expect(fetchMock).toHaveBeenNthCalledWith(1, '/api/movimientos?month=2026-06&page=1')
+    expect(fetchMock).toHaveBeenNthCalledWith(2, '/api/movimientos?month=2026-06&page=2')
     expect(result).toHaveLength(21)
     expect(result.at(-1)).toEqual(page2[0])
   })

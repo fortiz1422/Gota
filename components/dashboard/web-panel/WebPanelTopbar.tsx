@@ -10,7 +10,6 @@ import type { NavId } from '@/components/dashboard/desktop/desktop-chrome'
 const NAV = [
   { id: 'inicio', label: 'Panel' },
   { id: 'movimientos', label: 'Movimientos' },
-  { id: 'cuentas', label: 'Cuentas' },
   { id: 'tarjetas', label: 'Tarjetas' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'metas', label: 'Metas' },
