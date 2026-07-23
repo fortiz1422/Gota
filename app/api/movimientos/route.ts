@@ -1,13 +1,14 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
-import { todayAR, toDateOnly } from '@/lib/format'
+import { todayAR } from '@/lib/format'
 import {
   isCardPayment,
   isCreditAccruedExpense,
   isPerceivedExpense,
 } from '@/lib/movement-classification'
 import { aggregateYieldDailyEntriesForMovements, type YieldMonthlyMovementData } from '@/lib/movimientos-yield'
+import { paginateMovements } from '@/lib/movimientos-pagination'
 import type { Account, Card, Expense, IncomeEntry, Transfer, YieldDailyEntry } from '@/types/database'
 
 const PAGE_SIZE = 20
@@ -21,11 +22,6 @@ type ApiMovement =
   | { kind: 'income'; data: IncomeEntry }
   | { kind: 'transfer'; data: Transfer }
   | { kind: 'yield'; data: YieldMonthlyMovementData }
-
-function getMovementDate(mv: ApiMovement): string {
-  if (mv.kind === 'yield') return toDateOnly(mv.data.date)
-  return toDateOnly(mv.data.date)
-}
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url)
@@ -266,25 +262,12 @@ export async function GET(request: Request) {
   const todayStr = todayAR()
 
   const allMovements: ApiMovement[] = [
-    ...(page === 1 ? yieldMovements : []),
+    ...yieldMovements,
     ...incomeMovements,
     ...transferMovements,
     ...expenseMovements,
-  ].sort((a, b) => {
-    const dateA = getMovementDate(a)
-    const dateB = getMovementDate(b)
-    const aFuture = dateA > todayStr
-    const bFuture = dateB > todayStr
-    if (aFuture !== bFuture) return aFuture ? 1 : -1
-    if (dateB !== dateA) return dateB.localeCompare(dateA)
-    const caA = a.kind !== 'yield' ? a.data.created_at : ''
-    const caB = b.kind !== 'yield' ? b.data.created_at : ''
-    return caB.localeCompare(caA)
-  })
-
-  const total = allMovements.length
-  const offset = (page - 1) * PAGE_SIZE
-  const movements = allMovements.slice(offset, offset + PAGE_SIZE)
+  ]
+  const { movements, total } = paginateMovements(allMovements, page, PAGE_SIZE, todayStr)
 
   const sumCurrency: 'ARS' | 'USD' =
     activeMonedas.length === 1 && activeMonedas[0] === 'USD' ? 'USD' : 'ARS'

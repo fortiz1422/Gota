@@ -28,6 +28,7 @@ interface SmartInputProps {
   onFocusChange?: (focused: boolean) => void
   variant?: 'default' | 'bottom-zone'
   focusSignal?: number
+  previewMode?: 'modal' | 'embedded'
 }
 
 type InputMethod = 'text' | 'voice'
@@ -45,6 +46,7 @@ export function SmartInput({
   onFocusChange,
   variant = 'default',
   focusSignal = 0,
+  previewMode = 'modal',
 }: SmartInputProps) {
   const router = useRouter()
   const [input, setInput] = useState('')
@@ -346,6 +348,7 @@ export function SmartInput({
           accounts={accounts}
           onSave={handleSave}
           onCancel={handleCancel}
+          embedded={previewMode === 'embedded'}
         />
       )}
     </>

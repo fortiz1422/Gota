@@ -23,6 +23,12 @@ import {
   type WebMovementType,
 } from '@/lib/web-movimientos-model'
 import { formatAmount, todayAR } from '@/lib/format'
+import {
+  resolveMovementsResource,
+  resolveSelectedMovementId,
+  type MovementSelection,
+  type MovementsResource,
+} from '@/lib/web-movimientos-resource'
 import type { Account, Card } from '@/types/database'
 
 type AccountBalance = {
@@ -59,8 +65,16 @@ function accountTypeLabel(type: string): string {
   return 'Efectivo'
 }
 
-function signedAmountLabel(row: WebMovementRow, hidden: boolean): string {
+function movementAmountLabel(row: WebMovementRow, hidden: boolean): string {
   if (hidden) return '••••••'
+  if (
+    row.kind === 'transfer' &&
+    row.secondaryAmount !== undefined &&
+    row.secondaryCurrency !== undefined &&
+    (row.currency !== row.secondaryCurrency || row.amount !== row.secondaryAmount)
+  ) {
+    return `${formatAmount(row.amount, row.currency)} → ${formatAmount(row.secondaryAmount, row.secondaryCurrency)}`
+  }
   const prefix = row.tone === 'expense' ? '−' : row.tone === 'income' || row.tone === 'yield' ? '+' : ''
   return `${prefix}${formatAmount(row.amount, row.currency)}`
 }
@@ -87,7 +101,7 @@ function RowIcon({ row }: { row: WebMovementRow }) {
   )
 }
 
-function MovementDetail({ row, hidden, onClose }: { row: WebMovementRow; hidden: boolean; onClose: () => void }) {
+export function MovementDetail({ row, hidden, onClose }: { row: WebMovementRow; hidden: boolean; onClose: () => void }) {
   const source = row.source.data
   const dateLabel = new Date(`${row.date}T12:00:00-03:00`).toLocaleDateString('es-AR', {
     weekday: 'long',
@@ -104,14 +118,14 @@ function MovementDetail({ row, hidden, onClose }: { row: WebMovementRow; hidden:
           : 'Sumado al saldo de la cuenta como rendimiento del instrumento.'
 
   return (
-    <aside data-web-account-context="true" className="web-mov-context rounded-[14px] border border-primary/[0.09] bg-white p-5 shadow-[0_1px_4px_rgba(13,24,41,0.04)]">
+    <aside data-web-account-context="true" data-web-movement-detail="true" aria-label="Detalle del movimiento" className="web-mov-context web-movement-detail rounded-[14px] border border-primary/[0.09] bg-white p-5 shadow-[0_1px_4px_rgba(13,24,41,0.04)]">
       <button type="button" onClick={onClose} className="mb-5 inline-flex items-center gap-1.5 text-[12px] font-semibold text-primary">
         <ArrowLeft size={13} weight="bold" /> Volver a cuentas
       </button>
       <div className="mb-2 text-[10px] font-bold uppercase tracking-[0.09em] text-text-dim">{row.kind === 'expense' ? 'Gasto' : row.kind === 'income' ? 'Ingreso' : row.kind === 'transfer' ? 'Transferencia' : 'Rendimiento'}</div>
       <h2 className="m-0 text-[20px] font-bold tracking-[-0.025em] text-text-primary">{row.title}</h2>
       <div className={`mt-5 text-[28px] font-extrabold tabular-nums tracking-[-0.04em] ${row.tone === 'income' || row.tone === 'yield' ? 'text-success' : 'text-text-primary'}`}>
-        {signedAmountLabel(row, hidden)}
+        {movementAmountLabel(row, hidden)}
       </div>
       <div className="mt-1 capitalize text-[12px] text-text-dim">{dateLabel}</div>
 
@@ -144,13 +158,17 @@ export function WebMovimientosWorkspace({
   today = todayAR(),
   onOpenSettings,
 }: Props) {
-  const [movements, setMovements] = useState<ApiMovement[]>(initialMovements ?? [])
-  const [loading, setLoading] = useState(initialMovements === undefined)
-  const [failed, setFailed] = useState(false)
+  const [reloadVersion, setReloadVersion] = useState(0)
+  const requestKey = `${selectedMonth}:${reloadVersion}`
+  const [resource, setResource] = useState<MovementsResource>({
+    key: initialMovements === undefined ? '' : requestKey,
+    movements: initialMovements ?? [],
+    failed: false,
+  })
   const [type, setType] = useState<WebMovementType>('all')
   const [accountId, setAccountId] = useState<string | null>(null)
   const [query, setQuery] = useState('')
-  const [selectedRowId, setSelectedRowId] = useState<string | null>(null)
+  const [selection, setSelection] = useState<MovementSelection>({ key: requestKey, id: null })
 
   useEffect(() => {
     if (initialMovements !== undefined) return
@@ -158,20 +176,21 @@ export function WebMovimientosWorkspace({
     void fetchAllMovimientosForMonth(selectedMonth)
       .then((next) => {
         if (!cancelled) {
-          setMovements(next)
-          setFailed(false)
+          setResource({ key: requestKey, movements: next, failed: false })
         }
       })
       .catch(() => {
-        if (!cancelled) setFailed(true)
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false)
+        if (!cancelled) setResource({ key: requestKey, movements: [], failed: true })
       })
     return () => {
       cancelled = true
     }
-  }, [initialMovements, selectedMonth])
+  }, [initialMovements, requestKey, selectedMonth])
+
+  const resourceState = initialMovements === undefined
+    ? resolveMovementsResource(resource, requestKey)
+    : { movements: initialMovements, loading: false, failed: false }
+  const { movements, loading, failed } = resourceState
 
   const rows = useMemo(() => buildWebMovementRows(movements, accounts, cards), [accounts, cards, movements])
   const filteredRows = useMemo(
@@ -180,6 +199,7 @@ export function WebMovimientosWorkspace({
   )
   const groups = useMemo(() => groupWebMovementRows(filteredRows, today), [filteredRows, today])
   const activityCounts = useMemo(() => buildAccountActivityCounts(rows), [rows])
+  const selectedRowId = resolveSelectedMovementId(selection, requestKey)
   const selectedRow = rows.find((row) => row.id === selectedRowId) ?? null
   const totalBalance = accountBalances.reduce((sum, account) => sum + account.saldo, 0)
   const selectedAccount = accountId ? accountBalances.find((account) => account.id === accountId) : null
@@ -188,10 +208,14 @@ export function WebMovimientosWorkspace({
     <section data-web-movimientos-workspace="true" className="mx-auto w-full max-w-[1240px]">
       <style>{`
         .web-mov-layout { display:grid; grid-template-columns:minmax(0, 880px) minmax(250px, 280px); gap:24px; align-items:start; }
+        .web-mov-ledger { grid-column:1; grid-row:1; }
+        .web-mov-context { grid-column:2; grid-row:1; }
         @media (max-width: 1100px) {
           .web-mov-layout { grid-template-columns:minmax(0, 1fr); }
           .web-account-rail { order:1; display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:8px; }
-          .web-mov-ledger { order:2; }
+          .web-movement-detail { order:1; }
+          .web-mov-ledger { order:2; grid-column:1; grid-row:auto; }
+          .web-mov-context { grid-column:1; grid-row:auto; }
           .web-mov-context-heading { grid-column:1/-1; }
         }
         @media (max-width: 680px) {
@@ -210,7 +234,14 @@ export function WebMovimientosWorkspace({
           <h1 className="m-0 text-[26px] font-bold tracking-[-0.035em] text-text-primary">Movimientos</h1>
           <p className="mb-0 mt-1.5 text-[13px] text-text-dim">Todo lo que entró, salió o cambió de lugar.</p>
         </div>
-        <HomePlusButton accounts={accounts} cards={cards} currency={viewCurrency} month={selectedMonth} label="Nuevo movimiento" />
+        <HomePlusButton
+          accounts={accounts}
+          cards={cards}
+          currency={viewCurrency}
+          month={selectedMonth}
+          label="Nuevo movimiento"
+          onMovementCreated={() => setReloadVersion((version) => version + 1)}
+        />
       </header>
 
       <div className="web-mov-toolbar mb-5 grid grid-cols-[minmax(220px,1fr)_180px] gap-2 rounded-[12px] border border-primary/[0.09] bg-white p-2 shadow-[0_1px_3px_rgba(13,24,41,0.03)]">
@@ -234,6 +265,10 @@ export function WebMovimientosWorkspace({
       </div>
 
       <div className="web-mov-layout">
+        {selectedRow && (
+          <MovementDetail row={selectedRow} hidden={hidden} onClose={() => setSelection({ key: requestKey, id: null })} />
+        )}
+
         <main data-web-movement-ledger="true" className="web-mov-ledger min-w-0 overflow-hidden rounded-[14px] border border-primary/[0.09] bg-white shadow-[0_1px_4px_rgba(13,24,41,0.04)]">
           <div className="flex items-center justify-between gap-4 border-b border-primary/[0.08] px-5 py-3">
             <div className="min-w-0">
@@ -261,7 +296,7 @@ export function WebMovimientosWorkspace({
                     <button
                       key={row.id}
                       type="button"
-                      onClick={() => setSelectedRowId(row.id)}
+                      onClick={() => setSelection({ key: requestKey, id: row.id })}
                       className={`flex w-full items-center gap-3 border-b border-primary/[0.07] px-5 py-3 text-left transition-colors last:border-b-0 hover:bg-primary/[0.025] ${selected ? 'bg-primary/[0.055]' : 'bg-white'}`}
                     >
                       <RowIcon row={row} />
@@ -269,7 +304,7 @@ export function WebMovimientosWorkspace({
                         <span className="block truncate text-[13px] font-semibold text-text-primary">{row.title}</span>
                         <span className="mt-0.5 block truncate text-[11px] text-text-dim">{row.secondary}</span>
                       </span>
-                      <span className={`shrink-0 text-right text-[13px] font-bold tabular-nums ${row.tone === 'income' || row.tone === 'yield' ? 'text-success' : 'text-text-primary'}`}>{signedAmountLabel(row, hidden)}</span>
+                      <span className={`shrink-0 text-right text-[13px] font-bold tabular-nums ${row.tone === 'income' || row.tone === 'yield' ? 'text-success' : 'text-text-primary'}`}>{movementAmountLabel(row, hidden)}</span>
                       <CaretRight size={13} className="shrink-0 text-text-disabled" />
                     </button>
                   )
@@ -279,9 +314,7 @@ export function WebMovimientosWorkspace({
           )}
         </main>
 
-        {selectedRow ? (
-          <MovementDetail row={selectedRow} hidden={hidden} onClose={() => setSelectedRowId(null)} />
-        ) : (
+        {!selectedRow && (
           <aside data-web-account-context="true" className="web-mov-context web-account-rail rounded-[14px] border border-primary/[0.09] bg-white p-3 shadow-[0_1px_4px_rgba(13,24,41,0.04)]">
             <div className="web-mov-context-heading flex items-center justify-between px-2 pb-2 pt-1">
               <div>

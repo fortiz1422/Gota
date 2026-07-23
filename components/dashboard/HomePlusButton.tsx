@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight, TrendUp } from '@phosphor-icons/react'
+import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight, TrendUp, Receipt } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { IncomeModal } from './IncomeModal'
 import { SubscriptionSheet } from '@/components/subscriptions/SubscriptionSheet'
@@ -9,8 +9,11 @@ import { CuotasEnCursoSheet } from './CuotasEnCursoSheet'
 import { TransferForm } from './TransferForm'
 import { CardPaymentForm } from './CardPaymentForm'
 import { InstrumentForm } from '@/components/instruments/InstrumentForm'
+import { SmartInput } from './SmartInput'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import type { Account, Card } from '@/types/database'
+
+export const HOME_PLUS_EXPENSE_LABEL = 'Gasto común'
 
 interface Props {
   accounts: Account[]
@@ -19,13 +22,18 @@ interface Props {
   month: string
   onBlue?: boolean
   label?: string
+  onMovementCreated?: () => void
 }
 
-type Sheet = null | 'action' | 'income' | 'subscription' | 'cuotas' | 'transfer' | 'pago_tarjeta' | 'instrumento'
+type Sheet = null | 'action' | 'expense' | 'income' | 'subscription' | 'cuotas' | 'transfer' | 'pago_tarjeta' | 'instrumento'
 
-export function HomePlusButton({ accounts, currency, cards, onBlue = false, label }: Props) {
+export function HomePlusButton({ accounts, currency, cards, onBlue = false, label, onMovementCreated }: Props) {
   const [sheet, setSheet] = useState<Sheet>(null)
   const activeCards = cards.filter((card) => !card.archived)
+  const handleSmartExpenseSaved = () => {
+    setSheet(null)
+    onMovementCreated?.()
+  }
 
   return (
     <>
@@ -57,6 +65,19 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
             </button>
           </div>
           <div className="flex flex-col">
+            <button
+              onClick={() => setSheet('expense')}
+              className="flex w-full items-center gap-4 border-b border-border-subtle py-[13px] text-left transition-colors"
+            >
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-warning/10">
+                <Receipt weight="regular" size={18} className="text-warning" />
+              </div>
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{HOME_PLUS_EXPENSE_LABEL}</p>
+                <p className="text-xs text-text-tertiary">Escribí algo como “supermercado 24500”</p>
+              </div>
+            </button>
+
             <button
               onClick={() => setSheet('income')}
               className="flex w-full items-center gap-4 border-b border-border-subtle py-[13px] text-left transition-colors"
@@ -173,11 +194,27 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
         </Modal>
       )}
 
+      {sheet === 'expense' && (
+        <Modal open onClose={() => setSheet(null)}>
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-base font-semibold text-text-primary">Nuevo gasto</h2>
+              <p className="mt-1 text-xs text-text-tertiary">Gota completa los datos y te deja revisarlos antes de guardar.</p>
+            </div>
+            <button onClick={() => setSheet(null)} aria-label="Cerrar" className="rounded-full p-1.5 text-text-disabled hover:bg-bg-tertiary hover:text-text-primary">
+              <X weight="bold" size={16} />
+            </button>
+          </div>
+          <SmartInput cards={cards} accounts={accounts} onAfterSave={handleSmartExpenseSaved} previewMode="embedded" />
+        </Modal>
+      )}
+
       {sheet === 'income' && (
         <IncomeModal
           accounts={accounts}
           defaultCurrency={currency}
           onClose={() => setSheet(null)}
+          onSaved={onMovementCreated}
         />
       )}
 
@@ -193,13 +230,14 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
       {sheet === 'cuotas' && (
         <CuotasEnCursoSheet
           onClose={() => setSheet(null)}
+          onSaved={onMovementCreated}
           currency={currency}
           cards={cards}
         />
       )}
 
       {sheet === 'transfer' && (
-        <TransferForm accounts={accounts} onClose={() => setSheet(null)} />
+        <TransferForm accounts={accounts} onClose={() => setSheet(null)} onSaved={onMovementCreated} />
       )}
 
       {sheet === 'pago_tarjeta' && (
@@ -208,6 +246,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
           cards={cards}
           defaultCurrency={currency}
           onClose={() => setSheet(null)}
+          onSaved={onMovementCreated}
         />
       )}
 
