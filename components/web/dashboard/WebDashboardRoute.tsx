@@ -12,7 +12,7 @@ import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
 import type { BudgetSnapshot } from '@/lib/budgets/types'
 import { FF_WEB_PANEL_BRIEF_V1 } from '@/lib/flags'
-import { resolveWebPanelNav } from '@/lib/web-panel/navigation'
+import { buildWebNavHref, resolveWebPanelNav } from '@/lib/web-panel/navigation'
 
 type CotizacionApiData = {
   compra: number
@@ -32,6 +32,7 @@ type Props = {
   userEmail: string
   initialData: DashboardApiData
   initialQuote: CotizacionApiData | null
+  initialView: NavId
 }
 
 export function WebDashboardRoute({
@@ -40,9 +41,10 @@ export function WebDashboardRoute({
   userEmail,
   initialData,
   initialQuote,
+  initialView,
 }: Props) {
   const router = useRouter()
-  const [webNav, setWebNav] = useState<NavId>('inicio')
+  const [webNav, setWebNav] = useState<NavId>(initialView)
   const analyticsQuery = useQuery<AnalyticsApiData>({
     queryKey: ['analytics', selectedMonth, viewCurrency, 'web'],
     queryFn: async () => {
@@ -78,10 +80,15 @@ export function WebDashboardRoute({
     )
   }, [analyticsQuery.data, initialData.isCurrentMonth, selectedMonth])
 
+  const navigateWeb = (nav: NavId, month = selectedMonth) => {
+    setWebNav(nav)
+    router.push(buildWebNavHref(nav, { month, currency: viewCurrency }))
+  }
+
   const openWebHref = (href: string) => {
     const nav = resolveWebPanelNav(href)
     if (nav) {
-      setWebNav(nav)
+      navigateWeb(nav)
       return
     }
     router.push(href)
@@ -102,8 +109,8 @@ export function WebDashboardRoute({
         budgetError={budgetQuery.isError}
         compromisos={compromisos}
         quote={initialQuote}
-        onNav={setWebNav}
-        onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
+        onNav={navigateWeb}
+        onSelectMonth={(month) => navigateWeb(webNav, month)}
         onOpenSettings={() => router.push('/web/settings')}
         onNavigate={openWebHref}
       />
@@ -125,9 +132,9 @@ export function WebDashboardRoute({
         quote={initialQuote}
         amountsVisible
         initialNav={webNav}
-        onNavChange={setWebNav}
+        onNavChange={navigateWeb}
         onOpenSettings={() => router.push('/web/settings')}
-        onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
+        onSelectMonth={(month) => navigateWeb(webNav, month)}
       />
     )
   }

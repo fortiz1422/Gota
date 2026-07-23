@@ -27,7 +27,7 @@ export async function fetchAllMovimientosForMonth(
 
   while (allMovements.length < total) {
     const response = await fetchImpl(
-      `/api/movimientos?month=${encodeURIComponent(month)}&page=${page}&includeYield=false`,
+      `/api/movimientos?month=${encodeURIComponent(month)}&page=${page}`,
     )
     if (!response.ok) {
       throw new Error(`movimientos fetch failed for month ${month} page ${page}`)

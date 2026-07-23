@@ -149,7 +149,7 @@ export function CuentasModule({
 }) {
   const total = accounts.reduce((s, a) => s + a.saldo, 0)
   return (
-    <ModuleCard title="Liquidez" tag={`${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`} tagTone="muted" action="Ver cuentas" onAction={() => onNav('cuentas')}>
+    <ModuleCard title="Liquidez" tag={`${accounts.length} cuenta${accounts.length !== 1 ? 's' : ''}`} tagTone="muted" action="Ver movimientos" onAction={() => onNav('movimientos')}>
       <div style={{ marginBottom: 6, fontSize: 24, fontWeight: 700, letterSpacing: '-0.025em', color: '#0D1829', fontVariantNumeric: 'tabular-nums' }}>{money(total)}</div>
       <div style={{ fontSize: 12, color: '#90A4B0', marginBottom: 16 }}>Dónde está tu plata hoy</div>
       <div>

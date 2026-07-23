@@ -17,13 +17,12 @@ import { DesktopAttentionPanel } from './DesktopAttentionPanel'
 import { DesktopUpcomingTimeline } from './DesktopUpcomingTimeline'
 import { DesktopCommitmentsPanel } from './DesktopCommitmentsPanel'
 import { DesktopSecondarySummary } from './DesktopSecondarySummary'
+import { WebMovimientosWorkspace } from './WebMovimientosWorkspace'
 import {
   AnalisisView,
   CompromisosView,
-  CuentasView,
   FugaView,
   InstrumentosView,
-  MovimientosView,
   TarjetasView,
 } from './desktop-views'
 import {
@@ -316,9 +315,15 @@ export function DesktopDashboardShell({
           ) : activeNav === 'metas' ? (
             <MetasPage goals={data.goals} money={money} />
           ) : activeNav === 'movimientos' ? (
-            <MovimientosView {...viewProps} />
-          ) : activeNav === 'cuentas' ? (
-            <CuentasView {...viewProps} />
+            <WebMovimientosWorkspace
+              accounts={data.accounts}
+              cards={data.cards}
+              accountBalances={data.accountBalances}
+              selectedMonth={selectedMonth}
+              viewCurrency={viewCurrency}
+              hidden={hidden}
+              onOpenSettings={onOpenSettings}
+            />
           ) : activeNav === 'tarjetas' ? (
             <TarjetasView {...viewProps} />
           ) : activeNav === 'instrumentos' ? (

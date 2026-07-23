@@ -8,7 +8,6 @@ import { BLUE, MAXW } from './desktop-ui'
 export type NavId =
   | 'inicio'
   | 'movimientos'
-  | 'cuentas'
   | 'tarjetas'
   | 'presupuestos'
   | 'metas'
@@ -22,7 +21,6 @@ type CotizacionApiData = {
 const NAV_ITEMS: Array<{ id: NavId; label: string }> = [
   { id: 'inicio', label: 'Panel' },
   { id: 'movimientos', label: 'Movimientos' },
-  { id: 'cuentas', label: 'Cuentas' },
   { id: 'tarjetas', label: 'Tarjetas' },
   { id: 'presupuestos', label: 'Presupuestos' },
   { id: 'metas', label: 'Metas' },
