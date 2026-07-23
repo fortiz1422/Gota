@@ -12,6 +12,7 @@ interface Props {
   accounts: Account[]
   cards: Card[]
   onClose: () => void
+  onSaved?: () => void
   defaultCurrency: Currency
 }
 
@@ -20,7 +21,7 @@ function formatMoneyInput(n: number): string {
   return new Intl.NumberFormat('es-AR', { maximumFractionDigits: 0 }).format(n)
 }
 
-export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: Props) {
+export function CardPaymentForm({ accounts, cards, onClose, onSaved, defaultCurrency }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const activeAccounts = accounts.filter((account) => !account.archived)
@@ -111,6 +112,7 @@ export function CardPaymentForm({ accounts, cards, onClose, defaultCurrency }: P
       queryClient.invalidateQueries({ queryKey: ['analytics'] })
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
+      onSaved?.()
       onClose()
     } catch (submissionError) {
       setError(submissionError instanceof Error ? submissionError.message : 'Error al registrar el pago')

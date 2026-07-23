@@ -12,6 +12,7 @@ interface Props {
   accounts: Account[]
   defaultCurrency: 'ARS' | 'USD'
   onClose: () => void
+  onSaved?: () => void
   prefill?: {
     amount: number
     currency: 'ARS' | 'USD'
@@ -34,7 +35,7 @@ function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number
   return <Bank weight="duotone" size={size} />
 }
 
-export function IncomeModal({ accounts, defaultCurrency, onClose, prefill, recurringIncomeId }: Props) {
+export function IncomeModal({ accounts, defaultCurrency, onClose, onSaved, prefill, recurringIncomeId }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [amount, setAmount] = useState(() => prefill ? String(prefill.amount) : '')
@@ -86,6 +87,7 @@ export function IncomeModal({ accounts, defaultCurrency, onClose, prefill, recur
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
+      onSaved?.()
       onClose()
     } catch {
       alert('Error al registrar ingreso. Intentá de nuevo.')

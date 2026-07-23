@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQuery } from '@tanstack/react-query'
 import type { AnalyticsApiData } from '@/components/analytics/AnalyticsDataLoader'
@@ -44,7 +44,7 @@ export function WebDashboardRoute({
   initialView,
 }: Props) {
   const router = useRouter()
-  const [webNav, setWebNav] = useState<NavId>(initialView)
+  const webNav = initialView
   const analyticsQuery = useQuery<AnalyticsApiData>({
     queryKey: ['analytics', selectedMonth, viewCurrency, 'web'],
     queryFn: async () => {
@@ -81,7 +81,6 @@ export function WebDashboardRoute({
   }, [analyticsQuery.data, initialData.isCurrentMonth, selectedMonth])
 
   const navigateWeb = (nav: NavId, month = selectedMonth) => {
-    setWebNav(nav)
     router.push(buildWebNavHref(nav, { month, currency: viewCurrency }))
   }
 
@@ -152,8 +151,10 @@ export function WebDashboardRoute({
       availableBreakdown={initialData.availableBreakdown}
       quote={initialQuote}
       amountsVisible
-      onOpenSettings={() => router.push('/settings')}
-      onSelectMonth={(month) => router.push(`/web?month=${month}&currency=${viewCurrency}`)}
+      initialNav={webNav}
+      onNavChange={navigateWeb}
+      onOpenSettings={() => router.push('/web/settings')}
+      onSelectMonth={(month) => navigateWeb(webNav, month)}
     />
   )
 }

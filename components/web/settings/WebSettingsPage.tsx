@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Bank,
   CaretRight,
@@ -13,6 +14,7 @@ import {
   Wallet,
 } from '@phosphor-icons/react'
 import { PasskeysPanel } from '@/components/auth/PasskeysPanel'
+import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import type { Account, Card, HeroBalanceMode } from '@/types/database'
 
 type Props = {
@@ -73,10 +75,12 @@ export function WebSettingsPage({
   accounts,
   cards,
 }: Props) {
+  const router = useRouter()
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(initialCurrency)
   const [heroBalanceMode, setHeroBalanceMode] = useState<HeroBalanceMode>(initialHeroBalanceMode)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
   const [configMessage, setConfigMessage] = useState<string | null>(null)
+  const [accountsOpen, setAccountsOpen] = useState(false)
   const hasGoogle = authProviders.includes('google')
   const hasEmailProvider = authProviders.includes('email')
 
@@ -244,6 +248,14 @@ export function WebSettingsPage({
             description="Base operativa de la lectura de caja y saldo vivo."
           >
             <div className="space-y-3">
+              <button
+                type="button"
+                onClick={() => setAccountsOpen(true)}
+                className="flex w-full items-center justify-between rounded-2xl bg-primary-soft px-4 py-3 text-left text-[14px] font-semibold text-primary transition-colors hover:bg-primary/10"
+              >
+                Administrar cuentas
+                <CaretRight size={14} weight="bold" />
+              </button>
               {accounts.map((account) => (
                 <div key={account.id} className="flex items-center justify-between gap-4 rounded-2xl border border-border-subtle px-4 py-4">
                   <div className="flex min-w-0 items-center gap-3">
@@ -294,6 +306,11 @@ export function WebSettingsPage({
           </SectionFrame>
         </div>
       </div>
+      <CuentasSubSheet
+        open={accountsOpen}
+        onClose={() => setAccountsOpen(false)}
+        onChanged={() => router.refresh()}
+      />
     </div>
   )
 }

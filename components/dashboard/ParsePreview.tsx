@@ -31,6 +31,7 @@ interface ParsePreviewProps {
   accounts: Account[]
   onSave: () => void
   onCancel: () => void
+  embedded?: boolean
 }
 
 type SourceKey = string
@@ -81,7 +82,7 @@ function fromDateInput(dateStr: string): string {
   return dateInputToISO(dateStr)
 }
 
-export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParsePreviewProps) {
+export function ParsePreview({ data, cards, accounts, onSave, onCancel, embedded = false }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
     date: toDateInput(data.date),
@@ -202,8 +203,8 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
     onCancel()
   }
 
-  return (
-    <Modal open onClose={handleCancel}>
+  const content = (
+    <div data-parse-preview-inline={embedded ? 'true' : undefined}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
       <h2 className="text-lg font-semibold text-text-primary">Confirmar gasto</h2>
@@ -469,6 +470,9 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel }: ParseP
           Cancelar
         </button>
       </div>
-    </Modal>
+    </div>
   )
+
+  if (embedded) return content
+  return <Modal open onClose={handleCancel}>{content}</Modal>
 }

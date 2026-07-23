@@ -10,11 +10,12 @@ import type { Account, AccountType } from '@/types/database'
 interface Props {
   open: boolean
   onClose: () => void
+  onChanged?: () => void
 }
 
 const TYPE_LABEL: Record<string, string> = { bank: 'Banco', digital: 'Digital', cash: 'Efectivo' }
 
-export function CuentasSubSheet({ open, onClose }: Props) {
+export function CuentasSubSheet({ open, onClose, onChanged }: Props) {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [editing, setEditing] = useState<Account | null | undefined>(undefined)
   const [creatingType, setCreatingType] = useState<AccountType>('bank')
@@ -43,10 +44,12 @@ export function CuentasSubSheet({ open, onClose }: Props) {
       }
       return [...prev, saved]
     })
+    onChanged?.()
   }
 
   const handleDeleted = (id: string) => {
     setAccounts((prev) => prev.filter((a) => a.id !== id))
+    onChanged?.()
   }
 
   return (

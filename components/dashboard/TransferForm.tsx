@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bank, Wallet, DeviceMobileSpeaker } from '@phosphor-icons/react'
+
 import { Modal } from '@/components/ui/Modal'
 import { todayAR } from '@/lib/format'
 import type { Account } from '@/types/database'
@@ -11,13 +11,9 @@ import type { Account } from '@/types/database'
 interface Props {
   accounts: Account[]
   onClose: () => void
+  onSaved?: () => void
 }
 
-function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number }) {
-  if (type === 'cash') return <Wallet weight="duotone" size={size} />
-  if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
-  return <Bank weight="duotone" size={size} />
-}
 
 /** "1234.56" → "1.234,56" */
 function toAR(raw: string): string {
@@ -36,7 +32,7 @@ function fromAR(display: string): string {
   return clean
 }
 
-export function TransferForm({ accounts, onClose }: Props) {
+export function TransferForm({ accounts, onClose, onSaved }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const activeAccounts = accounts.filter((a) => !a.archived)
@@ -159,6 +155,7 @@ export function TransferForm({ accounts, onClose }: Props) {
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
+      onSaved?.()
       onClose()
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error al guardar')

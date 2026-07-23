@@ -10,11 +10,12 @@ import type { Card } from '@/types/database'
 
 interface Props {
   onClose: () => void
+  onSaved?: () => void
   currency: 'ARS' | 'USD'
   cards: Card[]
 }
 
-export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }: Props) {
+export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency, cards }: Props) {
   const router = useRouter()
   const activeCards = cards.filter((c) => !c.archived)
 
@@ -63,6 +64,7 @@ export function CuotasEnCursoSheet({ onClose, currency: defaultCurrency, cards }
       })
       if (!res.ok) throw new Error()
       router.refresh()
+      onSaved?.()
       onClose()
     } catch {
       alert('Error al guardar. Intentá de nuevo.')
