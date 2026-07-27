@@ -23,6 +23,7 @@ import {
   Tag,
   CreditCard,
   Television,
+  AirplaneTilt,
   PawPrint,
   Baby,
 } from '@phosphor-icons/react'
@@ -67,6 +68,7 @@ const CATEGORY_MAP: Record<string, { icon: Icon } & CategoryColors> = {
   'Regalos':                   { icon: Gift,            color: '#A0367A', colorSoft: 'rgba(160,54,122,0.10)' },
   'Transferencias Familiares': { icon: Users,           color: '#4A6070', colorSoft: 'rgba(74,96,112,0.10)' },
   'Entretenimiento':           { icon: Television,      color: '#7D4EC0', colorSoft: 'rgba(125,78,192,0.10)' },
+  'Vacaciones':                { icon: AirplaneTilt,    color: '#167C80', colorSoft: 'rgba(22,124,128,0.10)' },
   'Mascotas':                  { icon: PawPrint,        color: '#AD6F0D', colorSoft: 'rgba(173,111,13,0.10)' },
   'Hijos':                     { icon: Baby,            color: '#2178A8', colorSoft: 'rgba(33,120,168,0.10)' },
   'Otros':                     { icon: Tag,             color: '#4A6070', colorSoft: 'rgba(74,96,112,0.10)' },

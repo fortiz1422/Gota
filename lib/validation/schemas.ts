@@ -21,6 +21,7 @@ export const CATEGORIES = [
   'Regalos',
   'Transferencias Familiares',
   'Entretenimiento',
+  'Vacaciones',
   'Mascotas',
   'Hijos',
   'Cargos Bancarios',
