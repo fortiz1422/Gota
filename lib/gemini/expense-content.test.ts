@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { CATEGORIES } from '@/lib/validation/schemas'
 import { buildExpenseContentParts } from './expense-content'
 import { createExpensePrompt } from './prompts'
 
@@ -11,6 +12,13 @@ describe('createExpensePrompt', () => {
     expect(prompt).toContain('Audio adjunto: no')
     expect(prompt).toContain('Si hay imagen')
     expect(prompt).toContain('Si el input termina con un numero standalone')
+  })
+
+  it('ofrece Vacaciones como categoría canónica al parser', () => {
+    const prompt = createExpensePrompt({ input: 'hotel 150000' })
+
+    expect(CATEGORIES).toContain('Vacaciones')
+    expect(prompt).toContain('Entretenimiento, Vacaciones, Mascotas')
   })
 
   it('activa instrucciones de vision cuando hay captura adjunta', () => {
