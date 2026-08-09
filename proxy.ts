@@ -3,6 +3,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 export async function proxy(request: NextRequest) {
+  const pathname = request.nextUrl.pathname
+  const isPublicPath =
+    pathname === '/landing' ||
+    pathname.startsWith('/landing/') ||
+    pathname === '/privacy' ||
+    pathname.startsWith('/privacy/')
+
   let response = NextResponse.next({
     request: { headers: request.headers },
   })
@@ -45,6 +52,7 @@ export async function proxy(request: NextRequest) {
   // Excluir /auth/callback para que el intercambio de código OAuth pueda ejecutarse
   if (
     !user &&
+    !isPublicPath &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth/') &&
     !request.nextUrl.pathname.startsWith('/share-target')
