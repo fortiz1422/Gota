@@ -95,8 +95,8 @@ export default function LandingPage() {
       </header>
 
       <section className="relative px-5 pb-20 pt-16 sm:px-8 sm:pb-28 sm:pt-24">
-        <div className="absolute left-1/2 top-[-280px] h-[640px] w-[900px] -translate-x-1/2 rounded-full bg-[radial-gradient(circle,rgba(91,168,204,0.18),rgba(255,255,255,0)_66%)]" />
-        <div className="relative mx-auto grid max-w-[1180px] items-center gap-14 lg:grid-cols-[1.02fr_0.98fr]">
+        <div className="absolute left-1/2 top-[-320px] h-[560px] w-[760px] -translate-x-1/2 rounded-full bg-primary/8 blur-3xl" />
+        <div className="relative mx-auto grid max-w-[1180px] items-center gap-14 lg:grid-cols-[1.08fr_0.92fr]">
           <div>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3.5 py-2 text-xs font-semibold text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
@@ -130,43 +130,23 @@ export default function LandingPage() {
             </p>
           </div>
 
-          <div className="relative mx-auto w-full max-w-[520px]">
-            <div className="absolute -inset-8 rounded-[44px] bg-primary/8 blur-3xl" />
-            <div className="relative rounded-[32px] border border-white/80 bg-[linear-gradient(145deg,#1B7E9E_0%,#1B6A93_100%)] p-3 shadow-[0_30px_80px_rgba(13,24,41,0.22)]">
-              <div className="rounded-[24px] bg-white p-5 sm:p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary">Saldo Vivo</p>
-                    <p className="mt-2 text-[34px] font-extrabold tracking-[-0.04em] text-text-primary sm:text-[42px]">$ 1.200.000</p>
-                  </div>
-                  <div className="flex h-11 w-11 items-center justify-center rounded-full bg-primary/10 text-primary">
-                    <Wallet size={23} weight="duotone" />
-                  </div>
-                </div>
-                <div className="mt-5 flex gap-2 text-xs font-semibold">
-                  <span className="rounded-full bg-bg-tertiary px-3 py-1.5 text-text-secondary">ARS $1.050.000</span>
-                  <span className="rounded-full bg-bg-tertiary px-3 py-1.5 text-text-secondary">USD 150</span>
-                </div>
-                <div className="my-5 h-px bg-separator" />
-                <div className="flex items-center justify-between gap-4">
-                  <div>
-                    <p className="text-sm font-semibold text-text-secondary">Disponible real</p>
-                    <p className="mt-1 text-xs leading-5 text-text-tertiary">Ya descuenta deuda y consumos en tarjeta.</p>
-                  </div>
-                  <p className="whitespace-nowrap text-xl font-extrabold tracking-[-0.03em]">$ 730.000</p>
-                </div>
-                <div className="mt-5 rounded-2xl border border-primary/10 bg-bg-secondary p-3.5">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">SmartInput</p>
-                  <div className="mt-2 flex items-center gap-2 rounded-xl border border-border-strong bg-white px-3.5 py-3 text-sm text-text-secondary shadow-sm">
-                    <MagicWand size={17} className="shrink-0 text-primary" />
-                    Gasté $10.000 en la panadería ayer
-                  </div>
-                </div>
-              </div>
+          <div className="relative mx-auto flex w-full max-w-[470px] justify-center lg:justify-end">
+            <div className="absolute bottom-[12%] right-0 top-[9%] hidden w-[78%] rounded-card-lg bg-primary sm:block" />
+            <div className="absolute bottom-[8%] right-[6%] top-[15%] hidden w-[72%] rounded-card-lg border border-primary/10 bg-primary/10 sm:block" />
+            <div className="relative w-[min(100%,330px)] overflow-hidden rounded-[30px] border border-white bg-white p-1.5 shadow-[0_24px_56px_rgba(13,24,41,0.2)]">
+              <Image
+                src="/landing/gota-home-demo.png"
+                alt="Home mobile de GOTA con Saldo Vivo, Disponible Real, últimos movimientos y carga rápida"
+                width={393}
+                height={852}
+                priority
+                sizes="(max-width: 640px) calc(100vw - 40px), 330px"
+                className="h-auto w-full rounded-[24px]"
+              />
             </div>
-            <div className="absolute -bottom-7 -left-4 rounded-2xl border border-white bg-white/95 p-3.5 shadow-lg backdrop-blur sm:-left-12">
-              <p className="text-[11px] font-semibold text-text-tertiary">Próximo vencimiento</p>
-              <p className="mt-1 text-sm font-bold text-text-primary">Visa · 18 ago</p>
+            <div className="absolute -bottom-5 left-0 hidden rounded-card border border-border-subtle bg-white px-4 py-3 shadow-md sm:block">
+              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Producto real</p>
+              <p className="mt-1 text-xs text-text-secondary">Datos de ejemplo</p>
             </div>
           </div>
         </div>
@@ -189,7 +169,7 @@ export default function LandingPage() {
               ))}
             </div>
             <ArrowRight size={24} weight="bold" className="mx-auto rotate-90 text-primary md:rotate-0" />
-            <div className="rounded-[26px] bg-primary p-7 text-left text-white shadow-[0_18px_40px_rgba(33,120,168,0.18)]">
+            <div className="rounded-card-lg bg-primary p-7 text-left text-white shadow-md">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-white/65">Una sola lectura</p>
               <p className="mt-3 text-lg font-semibold text-white/80">Saldo Vivo</p>
               <p className="mt-1 text-4xl font-extrabold tracking-[-0.04em]">$ 1.200.000</p>
@@ -201,22 +181,22 @@ export default function LandingPage() {
 
       <section id="como-funciona" className="px-5 py-20 sm:px-8 sm:py-28">
         <div className="mx-auto max-w-[1080px]">
-          <div className="max-w-[720px]">
+          <div className="max-w-[760px]">
             <SectionTag>El modelo de GOTA</SectionTag>
-            <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">De lo que tenés a lo que podés usar.</h2>
-            <p className="mt-5 text-lg leading-8 text-text-secondary">Una lectura simple, construida sobre los movimientos que vos registrás.</p>
+            <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">Tres pilares para entender tu plata.</h2>
+            <p className="mt-5 text-lg leading-8 text-text-secondary">Cargar sin fricción, reunir lo que tenés y entender qué sigue disponible.</p>
           </div>
-          <div className="mt-12 overflow-hidden rounded-[28px] border border-border-subtle bg-bg-secondary p-5 sm:p-8">
+          <div className="mt-12 overflow-hidden rounded-card-lg border border-border-subtle bg-bg-secondary p-5 sm:p-8">
             <div className="grid gap-4 lg:grid-cols-3">
               {[
-                { step: '01', icon: Wallet, title: 'Saldo Vivo', text: 'Todo tu dinero líquido, consolidado.', value: '$ 1.200.000' },
-                { step: '02', icon: CreditCard, title: 'Tarjetas', text: 'Consumos registrados que todavía no salieron de tus cuentas.', value: '− $ 470.000' },
-                { step: '03', icon: Check, title: 'Disponible Real', text: 'Una lectura más honesta de tu capacidad de gasto.', value: '$ 730.000' },
+                { step: '01', icon: MagicWand, title: 'Carga sin fricción', text: 'Escribí el movimiento como te salga, revisá la propuesta y guardá.', value: 'En segundos' },
+                { step: '02', icon: Wallet, title: 'Saldo Vivo', text: 'Tu dinero líquido entre cuentas, reunido sin perder el detalle.', value: '$ 1.248.900' },
+                { step: '03', icon: Check, title: 'Disponible Real', text: 'Lo que queda después de contemplar deuda y consumos registrados.', value: '$ 612.400' },
               ].map((item, index) => (
-                <div key={item.title} className={`relative rounded-[22px] border p-6 ${index === 2 ? 'border-primary bg-primary text-white' : 'border-border-subtle bg-white'}`}>
+                <div key={item.title} className={`relative rounded-card-lg border p-6 ${index === 2 ? 'border-primary bg-primary text-white' : 'border-border-subtle bg-white'}`}>
                   <div className="flex items-center justify-between">
                     <span className={`text-xs font-bold tracking-[0.14em] ${index === 2 ? 'text-white/60' : 'text-text-tertiary'}`}>{item.step}</span>
-                    <item.icon size={23} weight="duotone" className={index === 2 ? 'text-white' : 'text-primary'} />
+                    <item.icon size={23} weight="regular" className={index === 2 ? 'text-white' : 'text-primary'} />
                   </div>
                   <h3 className="mt-8 text-lg font-bold">{item.title}</h3>
                   <p className={`mt-2 min-h-12 text-sm leading-6 ${index === 2 ? 'text-white/75' : 'text-text-secondary'}`}>{item.text}</p>
@@ -225,7 +205,7 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
-          <p className="mt-8 text-center text-xl font-bold tracking-[-0.02em]">No solo cuánto tenés. <span className="text-primary">Cuánto podés usar.</span></p>
+          <p className="mt-8 text-center text-xl font-bold tracking-[-0.02em]">Cargás fácil. Ves lo que tenés. <span className="text-primary">Entendés lo que podés usar.</span></p>
         </div>
       </section>
 
@@ -269,9 +249,9 @@ export default function LandingPage() {
               { icon: Bank, title: 'Toda tu plata reunida', text: 'Bancos, billeteras, efectivo, pesos y dólares sin perder el detalle.' },
               { icon: ChartLineUp, title: 'Análisis para decidir', text: 'Entendé el estado del mes, hábitos, fugas silenciosas, presupuestos y metas.' },
             ].map((item) => (
-              <article key={item.title} className="rounded-[24px] border border-border-subtle bg-bg-secondary p-6 transition-transform hover:-translate-y-1">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                  <item.icon size={25} weight="duotone" />
+              <article key={item.title} className="rounded-card-lg border border-border-subtle bg-bg-secondary p-6">
+                <div className="flex h-11 w-11 items-center justify-center rounded-card bg-primary/10 text-primary">
+                  <item.icon size={23} weight="regular" />
                 </div>
                 <h3 className="mt-7 text-xl font-bold tracking-[-0.02em]">{item.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-text-secondary">{item.text}</p>
@@ -282,9 +262,9 @@ export default function LandingPage() {
       </section>
 
       <section id="privacidad" className="border-y border-border-subtle bg-bg-secondary px-5 py-20 sm:px-8">
-        <div className="mx-auto grid max-w-[980px] gap-8 rounded-[28px] border border-border-subtle bg-white p-7 shadow-sm md:grid-cols-[auto_1fr] md:p-10">
+        <div className="mx-auto grid max-w-[980px] gap-8 rounded-card-lg border border-border-subtle bg-white p-7 shadow-sm md:grid-cols-[auto_1fr] md:p-10">
           <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-            <LockKey size={28} weight="duotone" />
+            <LockKey size={28} weight="regular" />
           </div>
           <div>
             <SectionTag>Confianza y privacidad</SectionTag>
@@ -318,7 +298,7 @@ export default function LandingPage() {
       </section>
 
       <section className="px-5 pb-10 sm:px-8">
-        <div className="mx-auto max-w-[1080px] overflow-hidden rounded-[32px] bg-[linear-gradient(135deg,#2178A8_0%,#1B6A93_100%)] px-6 py-14 text-center text-white sm:px-12 sm:py-18">
+        <div className="mx-auto max-w-[1080px] overflow-hidden rounded-card-lg bg-primary px-6 py-14 text-center text-white sm:px-12 sm:py-18">
           <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">Tu plata puede sentirse más clara.</h2>
           <p className="mx-auto mt-5 max-w-[650px] text-lg leading-8 text-white/72">Empezá con una cuenta, registrá tus movimientos y construí una foto financiera que puedas sostener en el tiempo.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
