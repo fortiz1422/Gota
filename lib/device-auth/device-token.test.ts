@@ -15,6 +15,7 @@ describe('authorizeDeviceToken', () => {
         tokenHash,
         scopes: ['dashboard:read'],
         revokedAt: null,
+        expiresAt: null,
       }
     })
 
@@ -28,5 +29,22 @@ describe('authorizeDeviceToken', () => {
       },
     })
     expect(JSON.stringify(result)).not.toContain(tokenHash)
+  })
+
+  it('rechaza un token vencido aunque conserve el scope', async () => {
+    const rawToken = 'gota_dev_expired_token_for_unit_test'
+    const tokenHash = hashDeviceToken(rawToken)
+
+    const result = await authorizeDeviceToken(`Bearer ${rawToken}`, async () => ({
+      id: 'device-expired',
+      userId: 'user-1',
+      label: 'ESP32 escritorio',
+      tokenHash,
+      scopes: ['dashboard:read'],
+      revokedAt: null,
+      expiresAt: '2026-01-01T00:00:00.000Z',
+    }))
+
+    expect(result).toEqual({ kind: 'unauthorized' })
   })
 })

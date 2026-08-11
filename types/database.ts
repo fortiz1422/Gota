@@ -17,6 +17,7 @@ export type Database = {
           token_hash: string
           scopes: string[]
           created_at: string
+          expires_at: string | null
           last_seen_at: string | null
           revoked_at: string | null
           revoked_reason: string | null
@@ -28,6 +29,7 @@ export type Database = {
           token_hash: string
           scopes?: string[]
           created_at?: string
+          expires_at: string
           last_seen_at?: string | null
           revoked_at?: string | null
           revoked_reason?: string | null
@@ -35,6 +37,7 @@ export type Database = {
         Update: {
           label?: string
           scopes?: string[]
+          expires_at?: string
           last_seen_at?: string | null
           revoked_at?: string | null
           revoked_reason?: string | null

@@ -21,6 +21,7 @@ CREATE TABLE device_access_tokens (
   token_hash TEXT NOT NULL UNIQUE CHECK (char_length(token_hash) = 64),
   scopes TEXT[] NOT NULL DEFAULT ARRAY['dashboard:read']::TEXT[],
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expires_at TIMESTAMPTZ NOT NULL,
   last_seen_at TIMESTAMPTZ,
   revoked_at TIMESTAMPTZ,
   revoked_reason TEXT

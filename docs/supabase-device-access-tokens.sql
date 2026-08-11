@@ -9,6 +9,7 @@ create table if not exists public.device_access_tokens (
   token_hash text not null unique check (char_length(token_hash) = 64),
   scopes text[] not null default array['dashboard:read']::text[],
   created_at timestamptz not null default now(),
+  expires_at timestamptz not null,
   last_seen_at timestamptz,
   revoked_at timestamptz,
   revoked_reason text

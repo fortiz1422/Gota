@@ -13,7 +13,7 @@ async function findActiveDeviceToken(tokenHash: string): Promise<DeviceTokenReco
   const admin = createAdminClient()
   const { data, error } = await admin
     .from('device_access_tokens')
-    .select('id, user_id, label, token_hash, scopes, revoked_at')
+    .select('id, user_id, label, token_hash, scopes, revoked_at, expires_at')
     .eq('token_hash', tokenHash)
     .is('revoked_at', null)
     .maybeSingle()
@@ -28,6 +28,7 @@ async function findActiveDeviceToken(tokenHash: string): Promise<DeviceTokenReco
     tokenHash: data.token_hash,
     scopes: data.scopes,
     revokedAt: data.revoked_at,
+    expiresAt: data.expires_at,
   }
 }
 
@@ -48,6 +49,7 @@ export async function GET(request: Request) {
         supabase: admin,
         userId: device.userId,
         month,
+        currency: dashboard.viewCurrency,
         dashboard,
       })
       return buildDeviceSnapshot({ dashboard, financialSnapshot })

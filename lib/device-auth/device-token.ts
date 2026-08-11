@@ -9,6 +9,7 @@ export type DeviceTokenRecord = {
   tokenHash: string
   scopes: string[]
   revokedAt: string | null
+  expiresAt: string | null
 }
 
 export type AuthorizedDevice = Pick<DeviceTokenRecord, 'id' | 'userId' | 'label' | 'scopes'>
@@ -37,7 +38,13 @@ export async function authorizeDeviceToken(
   if (!rawToken) return { kind: 'unauthorized' }
 
   const record = await findDeviceToken(hashDeviceToken(rawToken))
-  if (!record || record.revokedAt || !record.scopes.includes(REQUIRED_SCOPE)) {
+  const expiresAt = record?.expiresAt ? new Date(record.expiresAt).getTime() : null
+  if (
+    !record ||
+    record.revokedAt ||
+    !record.scopes.includes(REQUIRED_SCOPE) ||
+    (expiresAt !== null && (!Number.isFinite(expiresAt) || expiresAt <= Date.now()))
+  ) {
     return { kind: 'unauthorized' }
   }
 
