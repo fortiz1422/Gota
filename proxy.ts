@@ -2,6 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
+/**
+ * The ESP32 cannot carry a browser session. This exact read-only route has
+ * independent bearer-token auth in its route handler; no other API is public.
+ */
+export function isDeviceSnapshotPath(pathname: string): boolean {
+  return pathname === '/api/device/v1/snapshot'
+}
+
 export async function proxy(request: NextRequest) {
   const pathname = request.nextUrl.pathname
   const isPublicPath =
@@ -53,6 +61,7 @@ export async function proxy(request: NextRequest) {
   if (
     !user &&
     !isPublicPath &&
+    !isDeviceSnapshotPath(pathname) &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth/') &&
     !request.nextUrl.pathname.startsWith('/share-target')
