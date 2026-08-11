@@ -9,6 +9,38 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      device_access_tokens: {
+        Row: {
+          id: string
+          user_id: string
+          label: string
+          token_hash: string
+          scopes: string[]
+          created_at: string
+          last_seen_at: string | null
+          revoked_at: string | null
+          revoked_reason: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          label: string
+          token_hash: string
+          scopes?: string[]
+          created_at?: string
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+        }
+        Update: {
+          label?: string
+          scopes?: string[]
+          last_seen_at?: string | null
+          revoked_at?: string | null
+          revoked_reason?: string | null
+        }
+        Relationships: []
+      }
       product_events: {
         Row: {
           id: string

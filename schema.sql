@@ -11,6 +11,28 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pg_stat_statements";
 
 -- ============================================
+-- DEVICE ACCESS TOKENS (ESP32 read-only surface)
+-- ============================================
+
+CREATE TABLE device_access_tokens (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+  label TEXT NOT NULL CHECK (char_length(label) BETWEEN 1 AND 120),
+  token_hash TEXT NOT NULL UNIQUE CHECK (char_length(token_hash) = 64),
+  scopes TEXT[] NOT NULL DEFAULT ARRAY['dashboard:read']::TEXT[],
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ,
+  revoked_at TIMESTAMPTZ,
+  revoked_reason TEXT
+);
+
+CREATE INDEX idx_device_access_tokens_active_hash
+  ON device_access_tokens (token_hash)
+  WHERE revoked_at IS NULL;
+
+ALTER TABLE device_access_tokens ENABLE ROW LEVEL SECURITY;
+
+-- ============================================
 -- EXPENSES TABLE
 -- ============================================
 
