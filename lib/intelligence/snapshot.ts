@@ -446,10 +446,19 @@ export async function fetchExpenseRows(options: {
  * Carga el snapshot desde Supabase reusando las queries existentes
  * (readDashboardData, getBudgetSnapshot) + histórico de movimientos.
  */
+export function resolveSnapshotCurrency(params: {
+  requestedCurrency?: Currency
+  dashboardCurrency?: Currency
+}): Currency {
+  return params.requestedCurrency ?? params.dashboardCurrency ?? 'ARS'
+}
+
 export async function loadFinancialSnapshot(params: {
   supabase: SupabaseClient
   userId: string
   month?: string
+  /** Fuerza la moneda de la superficie consumidora cuando difiere del default del usuario. */
+  currency?: Currency
   /** Dashboard ya resuelto: evita repetir sus queries (guía §19). */
   dashboard?: Awaited<ReturnType<typeof readDashboardData>>
 }): Promise<FinancialSnapshot> {
@@ -461,8 +470,11 @@ export async function loadFinancialSnapshot(params: {
   const futureHorizonDate = `${addMonths(month, FUTURE_INSTALLMENT_MONTHS + 1)}-01`
 
   let currency: Currency
-  if (params.dashboard) {
-    currency = params.dashboard.currency
+  if (params.dashboard || params.currency) {
+    currency = resolveSnapshotCurrency({
+      requestedCurrency: params.currency,
+      dashboardCurrency: params.dashboard?.currency,
+    })
   } else {
     const { data: config } = await supabase
       .from('user_config')
