@@ -78,17 +78,14 @@ export default function LandingPage() {
           </nav>
 
           <div className="flex items-center gap-2.5">
+            <span className="hidden text-xs font-semibold uppercase tracking-[0.12em] text-text-tertiary sm:inline">
+              Próximamente
+            </span>
             <Link
               href="/login"
-              className="hidden rounded-xl px-3.5 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-bg-secondary sm:block"
+              className="rounded-xl border border-border-strong bg-white px-3.5 py-2.5 text-sm font-semibold text-text-secondary transition-colors hover:bg-bg-secondary"
             >
               Ingresar
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-xl bg-primary px-4 py-2.5 text-sm font-bold text-white shadow-[0_8px_20px_rgba(33,120,168,0.2)] transition-transform hover:-translate-y-0.5"
-            >
-              Sumarme a la beta
             </Link>
           </div>
         </div>
@@ -100,7 +97,7 @@ export default function LandingPage() {
           <div>
             <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-primary/15 bg-primary/5 px-3.5 py-2 text-xs font-semibold text-primary">
               <span className="h-1.5 w-1.5 rounded-full bg-primary" />
-              Finanzas personales, sin fricción
+              Próximamente
             </div>
             <h1 className="max-w-[720px] text-[46px] font-extrabold leading-[0.98] tracking-[-0.055em] sm:text-[64px] lg:text-[72px]">
               GOTA,
@@ -111,29 +108,28 @@ export default function LandingPage() {
               Registrá movimientos en segundos, reuní tus cuentas, billeteras y tarjetas, y entendé cuánto podés usar realmente.
             </p>
             <div className="mt-9 flex flex-col gap-3 sm:flex-row">
-              <Link
-                href="/login"
-                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(33,120,168,0.24)] transition-transform hover:-translate-y-0.5"
-              >
-                Sumarme a la beta
-                <ArrowRight size={17} weight="bold" />
-              </Link>
               <a
                 href="#como-funciona"
-                className="inline-flex items-center justify-center rounded-xl border border-border-strong bg-white px-5 py-3.5 text-sm font-bold text-text-primary transition-colors hover:bg-bg-secondary"
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-primary px-5 py-3.5 text-sm font-bold text-white shadow-[0_12px_30px_rgba(33,120,168,0.24)] transition-transform hover:-translate-y-0.5"
               >
                 Ver cómo funciona
+                <ArrowRight size={17} weight="bold" />
               </a>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-xl border border-border-strong bg-white px-5 py-3.5 text-sm font-bold text-text-primary transition-colors hover:bg-bg-secondary"
+              >
+                Ingresar
+              </Link>
             </div>
             <p className="mt-5 text-sm text-text-tertiary">
-              Para quienes manejan su plata en más de un lugar.
+              GOTA estará disponible próximamente.
             </p>
           </div>
 
-          <div className="relative mx-auto flex w-full max-w-[470px] justify-center lg:justify-end">
-            <div className="absolute bottom-[12%] right-0 top-[9%] hidden w-[78%] rounded-card-lg bg-primary sm:block" />
-            <div className="absolute bottom-[8%] right-[6%] top-[15%] hidden w-[72%] rounded-card-lg border border-primary/10 bg-primary/10 sm:block" />
-            <div className="relative w-[min(100%,330px)] overflow-hidden rounded-[30px] border border-white bg-white p-1.5 shadow-[0_24px_56px_rgba(13,24,41,0.2)]">
+          <figure className="relative mx-auto flex w-full max-w-[470px] flex-col items-center lg:items-end">
+            <div className="absolute left-1/2 top-1/2 h-[76%] w-[76%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/8 blur-3xl lg:left-[66%]" />
+            <div className="relative w-[min(100%,340px)] overflow-hidden rounded-[30px] border border-border-subtle bg-white p-1.5 shadow-[0_28px_70px_rgba(13,24,41,0.14)]">
               <Image
                 src="/landing/gota-home-demo.png"
                 alt="Home mobile de GOTA con Saldo Vivo, Disponible Real, últimos movimientos y carga rápida"
@@ -144,11 +140,12 @@ export default function LandingPage() {
                 className="h-auto w-full rounded-[24px]"
               />
             </div>
-            <div className="absolute -bottom-5 left-0 hidden rounded-card border border-border-subtle bg-white px-4 py-3 shadow-md sm:block">
-              <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-primary">Producto real</p>
-              <p className="mt-1 text-xs text-text-secondary">Datos de ejemplo</p>
-            </div>
-          </div>
+            <figcaption className="relative mt-4 flex items-center gap-2 text-xs text-text-tertiary">
+              <span className="font-bold uppercase tracking-[0.12em] text-primary">Producto real</span>
+              <span aria-hidden="true">·</span>
+              <span>Datos de ejemplo</span>
+            </figcaption>
+          </figure>
         </div>
       </section>
 
@@ -283,6 +280,7 @@ export default function LandingPage() {
           </div>
           <div className="mt-10 divide-y divide-border-subtle border-y border-border-subtle">
             {[
+              ['¿Cuándo estará disponible GOTA?', 'Próximamente. Todavía no abrimos el acceso general.'],
               ['¿GOTA se conecta con mis bancos?', 'No. Hoy vos cargás y controlás la información; GOTA no solicita tus claves bancarias.'],
               ['¿Puedo usar pesos y dólares?', 'Sí. Podés registrar cuentas y movimientos en ARS y USD y conservar una foto consolidada.'],
               ['¿Qué diferencia hay entre Saldo Vivo y Disponible Real?', 'Saldo Vivo reúne tu dinero líquido. Disponible Real descuenta deuda y consumos registrados en tarjetas.'],
@@ -300,13 +298,13 @@ export default function LandingPage() {
       <section className="px-5 pb-10 sm:px-8">
         <div className="mx-auto max-w-[1080px] overflow-hidden rounded-card-lg bg-primary px-6 py-14 text-center text-white sm:px-12 sm:py-18">
           <h2 className="text-3xl font-extrabold tracking-[-0.04em] sm:text-5xl">Tu plata puede sentirse más clara.</h2>
-          <p className="mx-auto mt-5 max-w-[650px] text-lg leading-8 text-white/72">Empezá con una cuenta, registrá tus movimientos y construí una foto financiera que puedas sostener en el tiempo.</p>
+          <p className="mx-auto mt-5 max-w-[650px] text-lg leading-8 text-white/72">GOTA estará disponible próximamente. Mientras tanto, podés conocer cómo reúne y explica tu plata.</p>
           <div className="mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
-            <Link href="/login" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-primary shadow-lg">
-              Sumarme a la beta
+            <a href="#como-funciona" className="inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3.5 text-sm font-bold text-primary shadow-lg">
+              Ver cómo funciona
               <ArrowRight size={17} weight="bold" />
-            </Link>
-            <Link href="/login" className="px-5 py-3.5 text-sm font-semibold text-white/80 hover:text-white">Ya tengo cuenta · Ingresar</Link>
+            </a>
+            <Link href="/login" className="px-5 py-3.5 text-sm font-semibold text-white/80 hover:text-white">Ingresar</Link>
           </div>
         </div>
       </section>
