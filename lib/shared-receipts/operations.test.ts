@@ -62,7 +62,10 @@ describe('shared receipt inbox operations', () => {
 
 describe('private shared receipt analysis', () => {
   it('downloads a private owner object, sanitizes Gemini output and persists a proposal without finance writes', async () => {
-    const saveProposal = vi.fn(async (_userId: string, _receiptId: string, _proposal: unknown) => undefined)
+    const saveProposal = vi.fn(async (...args: [string, string, unknown]) => {
+      expect(args[0]).toBe('user-1')
+      expect(args[1]).toBe(receipt.id)
+    })
     const response = await analyzeSharedReceipt('user-1', receipt.id, {
       claimOwned: async () => receipt,
       downloadObject: async () => new Uint8Array([1, 2, 3]),
@@ -117,12 +120,21 @@ describe('atomic shared purchase confirmation', () => {
     installments: 1,
   }
 
-  it('rejects non-purchases, extra user_id, unsupported installments and invalid canonical fields before the RPC', async () => {
+  it('accepts canonical installment counts from 1 through 60', async () => {
+    const confirmAtomic = vi.fn(async () => ({ outcome: 'confirmed' as const, expense_id: 'expense-1' }))
+    for (const installments of [1, 2, 60]) {
+      expect((await confirmSharedPurchase('user-1', receipt.id, { ...validBody, installments }, { confirmAtomic })).status).toBe(201)
+    }
+    expect(confirmAtomic).toHaveBeenCalledTimes(3)
+  })
+
+  it('rejects non-purchases, extra user_id, out-of-range installments and invalid canonical fields before the RPC', async () => {
     const confirmAtomic = vi.fn()
     for (const body of [
       { ...validBody, transaction_type: 'income' },
       { ...validBody, user_id: 'attacker' },
-      { ...validBody, installments: 3 },
+      { ...validBody, installments: 0 },
+      { ...validBody, installments: 61 },
       { ...validBody, currency: 'EUR' },
       { ...validBody, date: 'not-a-date' },
     ]) {
@@ -132,19 +144,49 @@ describe('atomic shared purchase confirmation', () => {
   })
 
   it('passes owner identity and a stable payload hash to the single atomic RPC and returns replay', async () => {
-    const confirmAtomic = vi.fn(async (
-      _userId: string,
-      _receiptId: string,
-      _payload: unknown,
-      _payloadHash: string,
-    ) => ({ outcome: 'replay' as const, expense_id: 'expense-1' }))
+    const confirmAtomic = vi.fn(async (...args: [string, string, unknown, string]) => {
+      expect(args[0]).toBe('user-1')
+      expect(args[1]).toBe(receipt.id)
+      return { outcome: 'replay' as const, expense_id: 'expense-1' }
+    })
     const first = await confirmSharedPurchase('user-1', receipt.id, validBody, { confirmAtomic })
     const second = await confirmSharedPurchase('user-1', receipt.id, { ...validBody }, { confirmAtomic })
 
     expect(first).toEqual({ status: 200, body: { outcome: 'replay', expense_id: 'expense-1' } })
+    expect(second).toEqual(first)
     expect(confirmAtomic.mock.calls[0][0]).toBe('user-1')
     expect(confirmAtomic.mock.calls[0][1]).toBe(receipt.id)
     expect(confirmAtomic.mock.calls[0][3]).toMatch(/^[a-f0-9]{64}$/)
     expect(confirmAtomic.mock.calls[0][3]).toBe(confirmAtomic.mock.calls[1][3])
+  })
+
+  it('clears the owner-scoped storage path then removes the confirmed private blob best-effort', async () => {
+    const calls: string[] = []
+    const response = await confirmSharedPurchase('user-1', receipt.id, validBody, {
+      confirmAtomic: async () => ({ outcome: 'confirmed', expense_id: 'expense-1', storage_path: receipt.storage_path }),
+      clearStoragePath: async (userId, receiptId, path) => {
+        calls.push(`clear:${userId}:${receiptId}:${path}`)
+        return true
+      },
+      removeObject: async (path) => {
+        calls.push(`remove:${path}`)
+        throw new Error('storage unavailable')
+      },
+    })
+    expect(response.status).toBe(201)
+    expect(calls).toEqual([
+      `clear:user-1:${receipt.id}:${receipt.storage_path}`,
+      `remove:${receipt.storage_path}`,
+    ])
+  })
+
+  it('does not remove a blob when the owner-scoped storage path could not be cleared', async () => {
+    const removeObject = vi.fn(async () => undefined)
+    await confirmSharedPurchase('user-1', receipt.id, validBody, {
+      confirmAtomic: async () => ({ outcome: 'confirmed', expense_id: 'expense-1', storage_path: receipt.storage_path }),
+      clearStoragePath: async () => false,
+      removeObject,
+    })
+    expect(removeObject).not.toHaveBeenCalled()
   })
 })

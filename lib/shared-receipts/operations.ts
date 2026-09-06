@@ -111,7 +111,7 @@ export const ConfirmSharedPurchaseSchema = z
     account_id: z.uuid().nullable(),
     card_id: z.uuid().nullable(),
     date: z.iso.date(),
-    installments: z.literal(1).default(1),
+    installments: z.number().int().min(1).max(60).default(1),
   })
   .strict()
   .superRefine((value, context) => {
@@ -142,12 +142,27 @@ export async function confirmSharedPurchase(
       receiptId: string,
       payload: ConfirmSharedPurchase,
       payloadHash: string,
-    ) => Promise<{ outcome: 'confirmed' | 'replay'; expense_id: string }>
+    ) => Promise<{ outcome: 'confirmed' | 'replay'; expense_id: string; storage_path?: string | null }>
+    clearStoragePath?: (userId: string, receiptId: string, path: string) => Promise<boolean>
+    removeObject?: (path: string) => Promise<void>
   },
 ): Promise<ServiceResponse> {
   if (!userId) return { status: 401, body: { error: 'Unauthorized' } }
   const parsed = ConfirmSharedPurchaseSchema.safeParse(input)
   if (!parsed.success) return { status: 400, body: { error: 'Invalid purchase confirmation' } }
   const result = await deps.confirmAtomic(userId, receiptId, parsed.data, stablePayloadHash(parsed.data))
-  return { status: result.outcome === 'confirmed' ? 201 : 200, body: result }
+  if (result.storage_path && deps.clearStoragePath && deps.removeObject) {
+    const cleared = await deps.clearStoragePath(userId, receiptId, result.storage_path)
+    if (cleared) {
+      try {
+        await deps.removeObject(result.storage_path)
+      } catch {
+        // Confirmation is durable; storage deletion remains best-effort.
+      }
+    }
+  }
+  return {
+    status: result.outcome === 'confirmed' ? 201 : 200,
+    body: { outcome: result.outcome, expense_id: result.expense_id },
+  }
 }

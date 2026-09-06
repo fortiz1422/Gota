@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { cleanupSharedReceiptsForAccount } from '@/lib/shared-receipts/lifecycle'
+
+const RECEIPT_BUCKET = 'shared-receipts-private'
 
 type DeleteResult = {
   error: { code?: string; message: string } | null
@@ -61,6 +64,37 @@ export async function DELETE() {
     const subscriptionIds = getIds(subscriptions)
     const expenseIds = getIds(expenses)
     const accountIds = getIds(accounts)
+
+    await cleanupSharedReceiptsForAccount(userId, {
+      listObjects: async (ownerId) => {
+        const paths: string[] = []
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await admin.storage.from(RECEIPT_BUCKET).list(ownerId, {
+            limit: 1000,
+            offset,
+          })
+          if (error) {
+            if (error.message.toLowerCase().includes('bucket not found')) return []
+            throw error
+          }
+          for (const object of data ?? []) paths.push(`${ownerId}/${object.name}`)
+          if (!data || data.length < 1000) break
+        }
+        return paths
+      },
+      removeObjects: async (paths) => {
+        for (let index = 0; index < paths.length; index += 1000) {
+          const { error } = await admin.storage.from(RECEIPT_BUCKET).remove(paths.slice(index, index + 1000))
+          if (error) throw error
+        }
+      },
+      deleteReceipts: async (ownerId) => {
+        await runDelete('shared_receipts', () => admin.from('shared_receipts').delete().eq('user_id', ownerId), { allowMissingTable: true })
+      },
+      deleteDeviceTokens: async (ownerId) => {
+        await runDelete('device_access_tokens', () => admin.from('device_access_tokens').delete().eq('user_id', ownerId), { allowMissingTable: true })
+      },
+    })
 
     await runDelete('product_events', () =>
       admin.from('product_events').delete().eq('user_id', userId),

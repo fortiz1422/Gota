@@ -8,11 +8,13 @@ import type { Json } from '@/types/database'
 const BUCKET = 'shared-receipts-private'
 type Params = { params: Promise<{ id: string }> }
 
-export async function POST(_request: Request, { params }: Params) {
+export async function POST(request: Request, { params }: Params) {
   const { id } = await params
   const session = await createClient()
   const { data: { user } } = await session.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
+  const retry = new URL(request.url).searchParams.get('retry') === 'true'
+  const claimStatuses: Array<'received' | 'parse_failed'> = retry ? ['parse_failed'] : ['received']
   const admin = createAdminClient()
   const result = await analyzeSharedReceipt(user.id, id, {
     claimOwned: async (ownerId, receiptId) => {
@@ -21,7 +23,7 @@ export async function POST(_request: Request, { params }: Params) {
         .update({ status: 'parsing', parse_error_code: null, updated_at: new Date().toISOString() })
         .eq('id', receiptId)
         .eq('user_id', ownerId)
-        .in('status', ['received', 'needs_review', 'parse_failed'])
+        .in('status', claimStatuses)
         .select('id,user_id,status,storage_path,mime_type,parsed_payload,created_at')
         .maybeSingle()
       if (error) throw error

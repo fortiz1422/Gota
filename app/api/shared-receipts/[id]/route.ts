@@ -9,6 +9,7 @@ import {
 
 const BUCKET = 'shared-receipts-private'
 type Params = { params: Promise<{ id: string }> }
+const NO_STORE = { 'Cache-Control': 'private, no-store' }
 
 async function authenticatedUserId() {
   const session = await createClient()
@@ -19,7 +20,7 @@ async function authenticatedUserId() {
 export async function GET(_request: Request, { params }: Params) {
   const { id } = await params
   const userId = await authenticatedUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE })
   const admin = createAdminClient()
   const result = await getSharedReceipt(userId, id, {
     findOwned: async (ownerId, receiptId) => {
@@ -38,32 +39,41 @@ export async function GET(_request: Request, { params }: Params) {
       return data.signedUrl
     },
   })
-  return NextResponse.json(result.body, { status: result.status, headers: result.headers })
+  return NextResponse.json(result.body, { status: result.status, headers: { ...NO_STORE, ...result.headers } })
 }
 
 export async function DELETE(_request: Request, { params }: Params) {
   const { id } = await params
   const userId = await authenticatedUserId()
-  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!userId) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: NO_STORE })
   const admin = createAdminClient()
   const result = await dismissSharedReceipt(userId, id, {
     dismissOwned: async (ownerId, receiptId) => {
-      const { data, error } = await admin
+      const { data: existing, error: findError } = await admin
         .from('shared_receipts')
-        .update({ status: 'dismissed', dismissed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .select('id,user_id,status,storage_path,mime_type,parsed_payload,created_at')
         .eq('id', receiptId)
         .eq('user_id', ownerId)
         .in('status', ['received', 'parsing', 'needs_review', 'parse_failed'])
-        .select('id,user_id,status,storage_path,mime_type,parsed_payload,created_at')
+        .maybeSingle()
+      if (findError) throw findError
+      if (!existing) return null
+      const { data, error } = await admin
+        .from('shared_receipts')
+        .update({ status: 'dismissed', storage_path: null, dismissed_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+        .eq('id', receiptId)
+        .eq('user_id', ownerId)
+        .eq('status', existing.status)
+        .select('id')
         .maybeSingle()
       if (error) throw error
-      return data as unknown as SharedReceiptRecord | null
+      return data ? existing as unknown as SharedReceiptRecord : null
     },
     removeObject: async (path) => {
       const { error } = await admin.storage.from(BUCKET).remove([path])
       if (error) throw error
     },
   })
-  if (result.status === 204) return new NextResponse(null, { status: 204 })
-  return NextResponse.json(result.body, { status: result.status })
+  if (result.status === 204) return new NextResponse(null, { status: 204, headers: NO_STORE })
+  return NextResponse.json(result.body, { status: result.status, headers: NO_STORE })
 }

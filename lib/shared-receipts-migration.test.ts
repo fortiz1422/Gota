@@ -49,11 +49,37 @@ describe('shared receipts migration', () => {
     expect(sql).toContain('confirmation_payload_hash = p_payload_hash')
   })
 
-  it('defines idempotent replay and explicitly constrains v1 to one canonical purchase', () => {
+  it('defines idempotent replay and canonical 1..60 installment rows with cycle assignments', () => {
     const sql = readFileSync(sqlPath, 'utf8').toLowerCase()
     expect(sql).toContain("v_receipt.status = 'confirmed'")
     expect(sql).toContain('v_receipt.confirmation_payload_hash = p_payload_hash')
-    expect(sql).toContain("coalesce((p_payload->>'installments')::integer, 1) <> 1")
-    expect(sql).toContain('v1 intentionally confirms one expense row')
+    expect(sql).toMatch(/v_installments[^;]+between 1 and 60/)
+    expect(sql).toContain('v_installment_group_id')
+    expect(sql).toContain('installment_number')
+    expect(sql).toContain('installment_total')
+    expect(sql).toContain('card_cycle_id')
+    expect(sql).toContain('on conflict (card_id, period_month) do nothing')
+    expect(sql).toMatch(/for v_index in 0\.\.v_installments - 1 loop/)
+  })
+
+  it('keeps confirmation replay duplicate-free, conflicts on changed payload, and rolls back as one function transaction', () => {
+    const sql = readFileSync(sqlPath, 'utf8').toLowerCase()
+    expect(sql).toContain('expenses_shared_receipt_installment_unique')
+    expect(sql).toContain("return query select 'replay'::text")
+    expect(sql).toContain("raise exception 'confirmation conflict'")
+    expect(sql).not.toMatch(/http|net\.http|pg_net/)
+    expect(sql).toMatch(/insert into public\.expenses[\s\S]+update public\.shared_receipts/)
+  })
+
+  it('defines a concurrent-safe persistent device-window rate limiter with service-role-only ACL', () => {
+    const sql = readFileSync(sqlPath, 'utf8').toLowerCase()
+    expect(sql).toContain('create table if not exists public.shared_receipt_rate_limits')
+    expect(sql).toContain('primary key (device_id, window_started_at)')
+    expect(sql).toContain('create or replace function public.consume_shared_receipt_rate_limit')
+    expect(sql).toContain('on conflict (device_id, window_started_at) do update')
+    expect(sql).toMatch(/where public\.shared_receipt_rate_limits\.request_count < p_limit/)
+    expect(sql).toContain('delete from public.shared_receipt_rate_limits')
+    expect(sql).toContain('revoke all on function public.consume_shared_receipt_rate_limit(uuid, integer, integer) from public, anon, authenticated')
+    expect(sql).toContain('grant execute on function public.consume_shared_receipt_rate_limit(uuid, integer, integer) to service_role')
   })
 })

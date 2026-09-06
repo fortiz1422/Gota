@@ -117,3 +117,28 @@ describe('Analysis workspace product analytics events', () => {
     ).toEqual({})
   })
 })
+
+describe('Shared receipt product analytics events', () => {
+  it.each(['shared_receipt_analyzed', 'shared_receipt_confirmed'])(
+    'accepts %s as a registered product event',
+    (eventName) => expect(isProductEventName(eventName)).toBe(true),
+  )
+
+  it('keeps only closed-enum operational dimensions', () => {
+    expect(sanitizeEventProperties({
+      outcome: 'confirmed', installments_bucket: 'multiple', payment_method: 'CREDIT',
+      receipt_id: 'private-id', amount: 999, merchant: 'Private merchant',
+      filename: 'private.jpg', reference: 'private reference', token: 'secret',
+    }, 'shared_receipt_confirmed')).toEqual({
+      outcome: 'confirmed', installments_bucket: 'multiple', payment_method: 'CREDIT',
+    })
+  })
+
+  it('drops hostile values from allowed keys', () => {
+    expect(sanitizeEventProperties({
+      outcome: 'confirmed private-id',
+      installments_bucket: '3 cuotas $999',
+      payment_method: 'CREDIT Visa 4242',
+    }, 'shared_receipt_confirmed')).toEqual({})
+  })
+})

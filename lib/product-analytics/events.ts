@@ -46,6 +46,8 @@ export const PRODUCT_EVENT_NAMES = [
   'signals_coverage_opened',
   'signals_action_clicked',
   'analysis_section_selected',
+  'shared_receipt_analyzed',
+  'shared_receipt_confirmed',
 ] as const
 
 export type ProductEventName = (typeof PRODUCT_EVENT_NAMES)[number]
@@ -54,6 +56,7 @@ export type ProductEventProperties = Record<string, ProductEventValue>
 
 type SignalsProductEventName = Extract<ProductEventName, `signals_${string}`>
 type AnalysisProductEventName = Extract<ProductEventName, `analysis_${string}`>
+type SharedReceiptProductEventName = Extract<ProductEventName, `shared_receipt_${string}`>
 
 const SIGNAL_EVENT_PROPERTY_ALLOWLIST: Record<
   SignalsProductEventName,
@@ -71,6 +74,11 @@ const ANALYSIS_EVENT_PROPERTY_ALLOWLIST: Record<
   readonly string[]
 > = {
   analysis_section_selected: ['section', 'source'],
+}
+
+const SHARED_RECEIPT_EVENT_PROPERTY_ALLOWLIST: Record<SharedReceiptProductEventName, readonly string[]> = {
+  shared_receipt_analyzed: ['outcome', 'retry'],
+  shared_receipt_confirmed: ['outcome', 'installments_bucket', 'payment_method'],
 }
 
 const SIGNAL_KINDS = [
@@ -139,6 +147,18 @@ const ANALYSIS_EVENT_PROPERTY_VALUES: Record<
   },
 }
 
+const SHARED_RECEIPT_EVENT_PROPERTY_VALUES: Record<
+  SharedReceiptProductEventName,
+  Record<string, readonly ProductEventValue[]>
+> = {
+  shared_receipt_analyzed: { outcome: ['succeeded', 'failed'], retry: [true, false] },
+  shared_receipt_confirmed: {
+    outcome: ['confirmed', 'replay'],
+    installments_bucket: ['one', 'multiple'],
+    payment_method: ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT'],
+  },
+}
+
 const SENSITIVE_KEY_PATTERNS = [
   /amount/i,
   /balance/i,
@@ -181,8 +201,14 @@ export function sanitizeEventProperties(
   const analysisValues = eventName?.startsWith('analysis_')
     ? ANALYSIS_EVENT_PROPERTY_VALUES[eventName as AnalysisProductEventName]
     : undefined
-  const strictAllowlist = signalAllowlist ?? analysisAllowlist
-  const strictValues = signalValues ?? analysisValues
+  const sharedReceiptAllowlist = eventName?.startsWith('shared_receipt_')
+    ? SHARED_RECEIPT_EVENT_PROPERTY_ALLOWLIST[eventName as SharedReceiptProductEventName]
+    : undefined
+  const sharedReceiptValues = eventName?.startsWith('shared_receipt_')
+    ? SHARED_RECEIPT_EVENT_PROPERTY_VALUES[eventName as SharedReceiptProductEventName]
+    : undefined
+  const strictAllowlist = signalAllowlist ?? analysisAllowlist ?? sharedReceiptAllowlist
+  const strictValues = signalValues ?? analysisValues ?? sharedReceiptValues
 
   const safeEntries = Object.entries(properties)
     .filter(([key]) => !strictAllowlist || strictAllowlist.includes(key))
