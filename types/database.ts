@@ -1117,6 +1117,14 @@ export type Database = {
           expense_id: string
         }[]
       }
+      consume_shared_receipt_rate_limit: {
+        Args: {
+          p_device_id: string
+          p_limit?: number
+          p_window_seconds?: number
+        }
+        Returns: boolean
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

@@ -53,6 +53,18 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStoreHeaders })
     }
 
+    const { data: rateLimitAllowed, error: rateLimitError } = await admin.rpc(
+      'consume_shared_receipt_rate_limit',
+      { p_device_id: authorization.device.id, p_limit: 20, p_window_seconds: 600 },
+    )
+    if (rateLimitError) throw rateLimitError
+    if (rateLimitAllowed !== true) {
+      return NextResponse.json(
+        { error: 'rate_limited' },
+        { status: 429, headers: { ...noStoreHeaders, 'Retry-After': '600' } },
+      )
+    }
+
     const contentType = request.headers.get('content-type') ?? ''
     if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
       return NextResponse.json(
