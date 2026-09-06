@@ -5,7 +5,7 @@ import { cleanupExpiredSharedReceipts } from '@/lib/shared-receipts/lifecycle'
 const BUCKET = 'shared-receipts-private'
 const NO_STORE = { 'Cache-Control': 'private, no-store' }
 
-export async function POST(request: Request) {
+export async function GET(request: Request) {
   const secret = process.env.CRON_SECRET
   if (!secret) return NextResponse.json({ error: 'Cron unavailable' }, { status: 503, headers: NO_STORE })
   if (request.headers.get('authorization') !== `Bearer ${secret}`) {

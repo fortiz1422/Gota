@@ -33,4 +33,20 @@ describe('shared receipt backend gates', () => {
     expect(source).toContain("{ error: 'rate_limited' }")
     expect(source).toContain("'Retry-After': '600'")
   })
+
+  it('exposes authenticated cleanup through the scheduled Vercel GET contract', () => {
+    const cronRoute = readFileSync(
+      new URL('../../app/api/cron/shared-receipts/route.ts', import.meta.url),
+      'utf8',
+    )
+    const vercel = JSON.parse(
+      readFileSync(new URL('../../vercel.json', import.meta.url), 'utf8'),
+    ) as { crons: Array<{ path: string; schedule: string }> }
+    expect(cronRoute).toContain('export async function GET(request: Request)')
+    expect(cronRoute).toContain('process.env.CRON_SECRET')
+    expect(vercel.crons).toContainEqual({
+      path: '/api/cron/shared-receipts',
+      schedule: '17 3 * * *',
+    })
+  })
 })
