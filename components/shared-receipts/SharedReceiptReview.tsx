@@ -12,6 +12,7 @@ import {
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
   invalidateAfterSharedReceiptConfirmation,
+  matchReceiptCard,
   parseConfirmResult,
   parsePurchaseProposal,
   restoreStoredPurchaseProposal,
@@ -116,14 +117,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       }
       const parsed = parsePurchaseProposal(await response.json())
       if (parsed.supported) {
-        const matchingCards = parsed.proposal.card_last_four
-          ? cards.filter((card) => card.last_four === parsed.proposal.card_last_four)
-          : []
+        const matchingCard = parsed.proposal.payment_method === 'CREDIT'
+          ? matchReceiptCard(cards, parsed.proposal.card_last_four, parsed.proposal.card_brand)
+          : null
         setAnalysis({
           supported: true,
           proposal: {
             ...parsed.proposal,
-            card_id: matchingCards.length === 1 ? matchingCards[0].id : parsed.proposal.card_id,
+            card_id: matchingCard?.id ?? parsed.proposal.card_id,
           },
         })
       } else {

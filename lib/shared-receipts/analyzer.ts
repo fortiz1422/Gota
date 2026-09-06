@@ -16,7 +16,7 @@ export function createUniversalReceiptPrompt(): string {
   return `Analiza la imagen como evidencia financiera, sin asumir que es un gasto.
 Clasifica transaction_type como exactamente uno de: purchase, income, own_transfer, third_party_transfer, card_payment, refund, yield, unknown.
 Devuelve SOLO JSON con estas claves:
-{"transaction_type":"unknown","amount":null,"currency":null,"occurred_at":null,"merchant_or_counterparty":null,"payment_rail":null,"account_hint":null,"card_last_four":null,"installments":null,"reference":null,"category_suggestion":null,"confidence":0,"warnings":[],"evidence":[]}
+{"transaction_type":"unknown","amount":null,"currency":null,"occurred_at":null,"merchant_or_counterparty":null,"payment_rail":null,"account_hint":null,"card_last_four":null,"card_brand":null,"installments":null,"reference":null,"category_suggestion":null,"confidence":0,"warnings":[],"evidence":[]}
 Reglas:
 - amount es positivo y currency usa ISO 4217 (ARS/USD cuando corresponda).
 - Respeta el formato monetario argentino: el punto separa miles y la coma separa decimales. Por ejemplo, $4.100 significa 4100 ARS y $30.240,78 significa 30240.78 ARS.
@@ -27,6 +27,7 @@ Reglas:
 - La frase "A su cuenta" debajo del destinatario se refiere a la cuenta de ese destinatario. Si emisor y destinatario son personas diferentes, clasifica third_party_transfer, no own_transfer.
 - payment_rail: cash, card, debit_card, credit_card, bank_transfer, wallet, unknown o null.
 - card_last_four contiene solo los ultimos 4 digitos. Nunca devuelvas tarjeta completa, CBU/CVU, CUIT/CUIL ni secretos.
+- card_brand contiene la marca visible de la tarjeta, por ejemplo Visa, Mastercard o American Express; usa null si no aparece explícitamente.
 - category_suggestion debe ser una categoria canonica de Gota o null.
 - evidence contiene fragmentos visuales breves que justifican campos, sin identificadores sensibles completos.
 - Si la evidencia no alcanza, usa null, transaction_type unknown cuando corresponda, baja confidence y agrega insufficient_evidence a warnings.`

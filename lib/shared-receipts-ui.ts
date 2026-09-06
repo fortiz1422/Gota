@@ -63,6 +63,7 @@ export interface PurchaseProposal {
   installments: number
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_last_four: string | null
+  card_brand: string | null
   is_want: boolean | null
 }
 
@@ -204,23 +205,53 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
       installments: Math.max(1, Number(raw.installments) || 1),
       payment_method: paymentMethod,
       card_last_four: typeof raw.card_last_four === 'string' ? raw.card_last_four : null,
+      card_brand: typeof raw.card_brand === 'string' ? raw.card_brand.trim() || null : null,
       is_want: null,
     },
   }
 }
 
+type ReceiptCardCandidate = {
+  id: string
+  name: string
+  last_four?: string | null
+  archived?: boolean
+}
+
+function normalizeCardLabel(value: string): string {
+  return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+}
+
+export function matchReceiptCard(
+  cards: ReceiptCardCandidate[],
+  lastFour: string | null,
+  brand: string | null,
+): ReceiptCardCandidate | null {
+  const availableCards = cards.filter((card) => !card.archived)
+  if (lastFour) {
+    const suffixMatches = availableCards.filter((card) => card.last_four === lastFour)
+    if (suffixMatches.length === 1) return suffixMatches[0]
+  }
+  if (!brand) return null
+  const normalizedBrand = normalizeCardLabel(brand.trim())
+  if (!normalizedBrand) return null
+  const brandMatches = availableCards.filter((card) => normalizeCardLabel(card.name).includes(normalizedBrand))
+  return brandMatches.length === 1 ? brandMatches[0] : null
+}
+
 export function restoreStoredPurchaseProposal(
   receipt: SharedReceiptSummary,
-  cards: Array<{ id: string; last_four?: string | null }>,
+  cards: ReceiptCardCandidate[],
 ): ParsedPurchaseProposal | null {
   if (receipt.status !== 'needs_review' || !receipt.parsed_payload) return null
   const parsed = parsePurchaseProposal(receipt.parsed_payload)
-  if (!parsed.supported || !parsed.proposal.card_last_four) return parsed
-  const matchingCards = cards.filter((card) => card.last_four === parsed.proposal.card_last_four)
-  if (matchingCards.length !== 1) return parsed
+  if (!parsed.supported) return parsed
+  if (parsed.proposal.payment_method !== 'CREDIT') return parsed
+  const matchingCard = matchReceiptCard(cards, parsed.proposal.card_last_four, parsed.proposal.card_brand)
+  if (!matchingCard) return parsed
   return {
     supported: true,
-    proposal: { ...parsed.proposal, card_id: matchingCards[0].id },
+    proposal: { ...parsed.proposal, card_id: matchingCard.id },
   }
 }
 
@@ -238,7 +269,7 @@ export interface ConfirmPurchaseForm {
   user_id?: unknown
 }
 
-export type ConfirmPurchasePayload = Omit<PurchaseProposal, 'card_last_four'>
+export type ConfirmPurchasePayload = Omit<PurchaseProposal, 'card_last_four' | 'card_brand'>
 
 export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): ConfirmPurchasePayload {
   const amount = typeof form.amount === 'number' ? form.amount : Number(form.amount)
