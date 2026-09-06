@@ -31,6 +31,7 @@ export interface SharedReceiptSummary {
   filename?: string | null
   content_type?: string | null
   duplicate?: boolean
+  parsed_payload?: unknown
 }
 
 export interface PurchaseProposal {
@@ -172,6 +173,21 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
       card_last_four: typeof raw.card_last_four === 'string' ? raw.card_last_four : null,
       is_want: null,
     },
+  }
+}
+
+export function restoreStoredPurchaseProposal(
+  receipt: SharedReceiptSummary,
+  cards: Array<{ id: string; last_four?: string | null }>,
+): ParsedPurchaseProposal | null {
+  if (receipt.status !== 'needs_review' || !receipt.parsed_payload) return null
+  const parsed = parsePurchaseProposal(receipt.parsed_payload)
+  if (!parsed.supported || !parsed.proposal.card_last_four) return parsed
+  const matchingCards = cards.filter((card) => card.last_four === parsed.proposal.card_last_four)
+  if (matchingCards.length !== 1) return parsed
+  return {
+    supported: true,
+    proposal: { ...parsed.proposal, card_id: matchingCards[0].id },
   }
 }
 

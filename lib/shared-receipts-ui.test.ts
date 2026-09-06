@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   SHARED_RECEIPT_ROUTES,
   buildSharedReceiptDeviceCreatePayload,
@@ -11,6 +12,7 @@ import {
   normalizeReceiptsResponse,
   parseConfirmResult,
   parsePurchaseProposal,
+  restoreStoredPurchaseProposal,
   validateCardLastFour,
 } from './shared-receipts-ui'
 
@@ -113,6 +115,41 @@ describe('iOS Shortcut receipt UI contract', () => {
       supported: true,
       proposal: { category: '' },
     })
+  })
+
+  it('restores an already analyzed proposal instead of requesting analysis again', () => {
+    const receipt = {
+      id: 'r1',
+      status: 'needs_review',
+      created_at: '2026-09-06T00:00:00Z',
+      parsed_payload: {
+        transaction_type: 'purchase',
+        merchant_or_counterparty: 'Café',
+        amount: 2500,
+        occurred_at: '2026-09-06T12:30:00-03:00',
+        currency: 'ARS',
+        category_suggestion: 'Restaurantes',
+        payment_rail: 'credit_card',
+        card_last_four: '0862',
+        installments: 1,
+      },
+    }
+
+    expect(restoreStoredPurchaseProposal(receipt, [
+      { id: 'card-1', last_four: '0862' },
+    ])).toMatchObject({
+      supported: true,
+      proposal: { description: 'Café', card_id: 'card-1' },
+    })
+    expect(restoreStoredPurchaseProposal({ ...receipt, status: 'received' }, [])).toBeNull()
+
+    const review = readFileSync(
+      new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(review).toContain('setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))')
+    expect(review).toContain('onCancel={() => window.history.back()}')
+    expect(review).not.toContain('onCancel={() => setAnalysis(null)}')
   })
 
   it('builds a purchase-only confirm payload and never sends client user_id', () => {
