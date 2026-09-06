@@ -56,7 +56,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setError(null)
     try {
       const [receiptResponse, accountsResponse, cardsResponse, inboxResponse] = await Promise.all([
-        fetch(SHARED_RECEIPT_ROUTES.detail(receiptId), { cache: 'no-store' }),
+        fetch(SHARED_RECEIPT_ROUTES.apiDetail(receiptId), { cache: 'no-store' }),
         fetch('/api/accounts', { cache: 'no-store' }),
         fetch('/api/cards', { cache: 'no-store' }),
         fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' }),
@@ -80,7 +80,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         const detailedQueue = await Promise.all(summaries.map(async (summary) => {
           if (summary.id === loadedReceipt?.id) return loadedReceipt
           try {
-            const response = await fetch(SHARED_RECEIPT_ROUTES.detail(summary.id), { cache: 'no-store' })
+            const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(summary.id), { cache: 'no-store' })
             if (!response.ok) return summary
             return normalizeReceiptResponse(await response.json()) ?? summary
           } catch {
@@ -177,7 +177,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         <CheckCircle size={42} weight="duotone" className="mx-auto text-success" />
         <h1 className="mt-3 text-xl font-bold text-text-primary">{dismissed ? 'Comprobante descartado' : done?.duplicate ? 'Esta compra ya estaba confirmada' : 'Compra confirmada'}</h1>
         <p className="mt-2 text-sm leading-6 text-text-secondary">{dismissed ? 'No se creó ningún movimiento.' : done?.duplicate ? 'No duplicamos el movimiento existente.' : 'El movimiento se creó con los datos que revisaste.'}</p>
-        <Link href={nextReceiptId ? SHARED_RECEIPT_ROUTES.detail(nextReceiptId) : '/'} className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">{nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'}</Link>
+        <Link href={nextReceiptId ? SHARED_RECEIPT_ROUTES.review(nextReceiptId) : '/'} className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">{nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'}</Link>
       </section>
     </main>
   )
@@ -204,7 +204,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
             const label = parsed?.supported ? parsed.proposal.description : `Comprobante ${index + 1}`
             return <Link
               key={receipt.id}
-              href={SHARED_RECEIPT_ROUTES.detail(receipt.id)}
+              href={SHARED_RECEIPT_ROUTES.review(receipt.id)}
               aria-current={current ? 'page' : undefined}
               className={`w-28 shrink-0 overflow-hidden rounded-input border text-left ${current ? 'border-primary bg-primary/5' : 'border-border-subtle bg-bg-secondary'}`}
             >

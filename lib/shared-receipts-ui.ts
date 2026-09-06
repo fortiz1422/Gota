@@ -2,7 +2,8 @@ export const SHARED_RECEIPT_ROUTES = {
   devices: '/api/shared-receipt-devices',
   device: (id: string) => `/api/shared-receipt-devices/${encodeURIComponent(id)}`,
   inbox: '/api/shared-receipts?status=needs_review',
-  detail: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}`,
+  apiDetail: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}`,
+  review: (id: string) => `/shared-receipts/${encodeURIComponent(id)}`,
   analyze: (id: string, retry = false) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze${retry ? '?retry=true' : ''}`,
   confirm: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}/confirm`,
   dismiss: (id: string) => ({
