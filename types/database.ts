@@ -52,7 +52,7 @@ export type Database = {
           id: string
           user_id: string
           ingest_device_id: string | null
-          status: 'uploaded' | 'parsing' | 'ready' | 'failed' | 'confirming' | 'confirmed' | 'ignored' | 'expired'
+          status: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
           source_kind: 'ios_shortcut' | 'web_share_target'
           source_app_hint: string | null
           original_filename: string | null
@@ -69,13 +69,13 @@ export type Database = {
           updated_at: string
           expires_at: string
           confirmed_at: string | null
-          ignored_at: string | null
+          dismissed_at: string | null
         }
         Insert: {
           id?: string
           user_id: string
           ingest_device_id?: string | null
-          status?: 'uploaded' | 'parsing' | 'ready' | 'failed' | 'confirming' | 'confirmed' | 'ignored' | 'expired'
+          status?: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
           source_kind?: 'ios_shortcut' | 'web_share_target'
           source_app_hint?: string | null
           original_filename?: string | null
@@ -92,10 +92,10 @@ export type Database = {
           updated_at?: string
           expires_at?: string
           confirmed_at?: string | null
-          ignored_at?: string | null
+          dismissed_at?: string | null
         }
         Update: {
-          status?: 'uploaded' | 'parsing' | 'ready' | 'failed' | 'confirming' | 'confirmed' | 'ignored' | 'expired'
+          status?: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
           source_app_hint?: string | null
           storage_path?: string | null
           parsed_payload?: Json | null
@@ -106,7 +106,7 @@ export type Database = {
           updated_at?: string
           expires_at?: string
           confirmed_at?: string | null
-          ignored_at?: string | null
+          dismissed_at?: string | null
         }
         Relationships: []
       }
@@ -1103,6 +1103,18 @@ export type Database = {
           id: string
           description: string
           created_at: string
+        }[]
+      }
+      confirm_shared_receipt_purchase: {
+        Args: {
+          p_user_id: string
+          p_receipt_id: string
+          p_payload: Json
+          p_payload_hash: string
+        }
+        Returns: {
+          outcome: 'confirmed' | 'replay'
+          expense_id: string
         }[]
       }
     }
