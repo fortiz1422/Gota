@@ -9,6 +9,7 @@ import {
   normalizeReceiptResponse,
   parseConfirmResult,
   parsePurchaseProposal,
+  restoreStoredPurchaseProposal,
   type ParsedPurchaseProposal,
   type SharedReceiptSummary,
 } from '@/lib/shared-receipts-ui'
@@ -41,15 +42,19 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         fetch('/api/cards', { cache: 'no-store' }),
       ])
       if (!receiptResponse.ok) throw new Error(await responseError(receiptResponse, 'No pudimos cargar el comprobante.'))
-      setReceipt(normalizeReceiptResponse(await receiptResponse.json()))
+      const loadedReceipt = normalizeReceiptResponse(await receiptResponse.json())
+      setReceipt(loadedReceipt)
       if (accountsResponse.ok) {
         const data = await accountsResponse.json()
         setAccounts(Array.isArray(data) ? data.filter((item: Account) => !item.archived) : [])
       }
+      let loadedCards: Card[] = []
       if (cardsResponse.ok) {
         const data = await cardsResponse.json()
-        setCards(Array.isArray(data) ? data : [])
+        loadedCards = Array.isArray(data) ? data : []
+        setCards(loadedCards)
       }
+      if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
     } finally {
@@ -163,7 +168,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           accounts={accounts}
           onConfirm={confirmPurchase}
           onSave={() => undefined}
-          onCancel={() => setAnalysis(null)}
+          onCancel={() => window.history.back()}
           embedded
         />
       </section>}
