@@ -21,15 +21,16 @@ describe('shared receipt backend gates', () => {
     expect(source).not.toContain("select('id,status,source_kind,source_app_hint,original_filename,mime_type,byte_size,parsed_payload")
   })
 
-  it('consumes the persistent per-device upload limit before parsing the multipart body', () => {
+  it('consumes the persistent per-device upload limit before parsing the request body', () => {
     const source = readFileSync(
       new URL('../../app/api/shortcut/v1/receipts/route.ts', import.meta.url),
       'utf8',
     )
     const rateLimitCall = source.indexOf("'consume_shared_receipt_rate_limit'")
-    const formParsing = source.indexOf('request.formData()')
+    const requestParsing = source.indexOf('parseShortcutReceiptRequest(request)')
     expect(rateLimitCall).toBeGreaterThan(0)
-    expect(rateLimitCall).toBeLessThan(formParsing)
+    expect(requestParsing).toBeGreaterThan(0)
+    expect(rateLimitCall).toBeLessThan(requestParsing)
     expect(source).toContain("{ error: 'rate_limited' }")
     expect(source).toContain("'Retry-After': '600'")
   })
