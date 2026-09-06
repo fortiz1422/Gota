@@ -206,7 +206,7 @@ begin
   end if;
 
   if v_receipt.status <> 'needs_review'
-     or coalesce(v_receipt.parsed_payload->>'transaction_type', '') <> 'purchase' then
+     or coalesce(v_receipt.parsed_payload->>'transaction_type', '') not in ('purchase', 'third_party_transfer') then
     raise exception 'receipt is not confirmable' using errcode = '55000';
   end if;
   v_installments := coalesce((p_payload->>'installments')::integer, 1);

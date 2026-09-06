@@ -40,7 +40,7 @@ describe('shared receipts migration', () => {
     expect(sql).toContain('create or replace function public.confirm_shared_receipt_purchase')
     expect(sql).toMatch(/from public\.shared_receipts[\s\S]+for update/)
     expect(sql).toContain('v_receipt.user_id <> p_user_id')
-    expect(sql).toMatch(/v_receipt\.parsed_payload->>'transaction_type'[\s\S]+<> 'purchase'/)
+    expect(sql).toMatch(/v_receipt\.parsed_payload->>'transaction_type'[\s\S]+not in \('purchase', 'third_party_transfer'\)/)
     expect(sql).toMatch(/from public\.accounts[\s\S]+for update/)
     expect(sql).toMatch(/from public\.cards[\s\S]+for update/)
     expect(sql).toContain('insert into public.expenses')
