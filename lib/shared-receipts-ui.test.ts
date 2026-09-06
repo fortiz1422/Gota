@@ -25,6 +25,7 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(SHARED_RECEIPT_ROUTES.inbox).toBe('/api/shared-receipts?status=needs_review')
     expect(SHARED_RECEIPT_ROUTES.detail('receipt/1')).toBe('/api/shared-receipts/receipt%2F1')
     expect(SHARED_RECEIPT_ROUTES.analyze('receipt-1')).toBe('/api/shared-receipts/receipt-1/analyze')
+    expect(SHARED_RECEIPT_ROUTES.analyze('receipt-1', true)).toBe('/api/shared-receipts/receipt-1/analyze?retry=true')
     expect(SHARED_RECEIPT_ROUTES.confirm('receipt-1')).toBe('/api/shared-receipts/receipt-1/confirm')
     expect(SHARED_RECEIPT_ROUTES.dismiss('receipt-1')).toEqual({
       url: '/api/shared-receipts/receipt-1',
@@ -96,6 +97,21 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(parsePurchaseProposal({ transaction_type: 'own_transfer' })).toEqual({
       supported: false,
       reason: 'Este tipo de comprobante todavía no se puede confirmar automáticamente.',
+    })
+  })
+
+  it('keeps a purchase editable when Gemini cannot map a category', () => {
+    expect(parsePurchaseProposal({
+      transaction_type: 'purchase',
+      merchant_or_counterparty: 'Comercio',
+      amount: 2500,
+      occurred_at: '2026-09-06T12:30:00-03:00',
+      currency: 'ARS',
+      category_suggestion: null,
+      payment_rail: 'wallet',
+    })).toMatchObject({
+      supported: true,
+      proposal: { category: '' },
     })
   })
 
