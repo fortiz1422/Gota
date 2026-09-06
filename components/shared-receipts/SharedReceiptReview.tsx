@@ -7,7 +7,9 @@ import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle } from '@phosphor
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import {
   SHARED_RECEIPT_ROUTES,
+  getNextPendingReceiptId,
   normalizeReceiptResponse,
+  normalizeReceiptsResponse,
   invalidateAfterSharedReceiptConfirmation,
   parseConfirmResult,
   parsePurchaseProposal,
@@ -34,6 +36,17 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
   const [dismissed, setDismissed] = useState(false)
+  const [nextReceiptId, setNextReceiptId] = useState<string | null>(null)
+
+  const loadNextReceiptId = async (): Promise<string | null> => {
+    try {
+      const response = await fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' })
+      if (!response.ok) return null
+      return getNextPendingReceiptId(normalizeReceiptsResponse(await response.json()), receiptId)
+    } catch {
+      return null
+    }
+  }
 
   const load = useCallback(async () => {
     setLoading(true)
@@ -113,6 +126,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
     const result = parseConfirmResult(await response.json())
     await invalidateAfterSharedReceiptConfirmation(queryClient)
+    setNextReceiptId(await loadNextReceiptId())
     setDone(result)
   }
 
@@ -124,6 +138,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     try {
       const response = await fetch(contract.url, { method: contract.method })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos descartar el comprobante.'))
+      await queryClient.invalidateQueries({ queryKey: ['shared-receipts'] })
+      setNextReceiptId(await loadNextReceiptId())
       setDismissed(true)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos descartar el comprobante.')
@@ -141,7 +157,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         <CheckCircle size={42} weight="duotone" className="mx-auto text-success" />
         <h1 className="mt-3 text-xl font-bold text-text-primary">{dismissed ? 'Comprobante descartado' : done?.duplicate ? 'Esta compra ya estaba confirmada' : 'Compra confirmada'}</h1>
         <p className="mt-2 text-sm leading-6 text-text-secondary">{dismissed ? 'No se creó ningún movimiento.' : done?.duplicate ? 'No duplicamos el movimiento existente.' : 'El movimiento se creó con los datos que revisaste.'}</p>
-        <Link href="/" className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">Volver al Home</Link>
+        <Link href={nextReceiptId ? SHARED_RECEIPT_ROUTES.detail(nextReceiptId) : '/'} className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">{nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'}</Link>
       </section>
     </main>
   )

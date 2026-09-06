@@ -6,6 +6,7 @@ import {
   buildCardLastFourPayload,
   buildConfirmPurchasePayload,
   extractCreatedDevice,
+  getNextPendingReceiptId,
   getShortcutInstallState,
   normalizeDevicesResponse,
   normalizeReceiptResponse,
@@ -46,6 +47,23 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(normalizeReceiptResponse({ receipt })).toEqual(receipt)
     expect(normalizeReceiptResponse({ receipts: [receipt] })).toEqual(receipt)
     expect(normalizeReceiptResponse({ nope: true })).toBeNull()
+  })
+
+  it('selects another pending receipt for a chained review flow', () => {
+    const receipts = [
+      { id: 'current', status: 'needs_review', created_at: '2026-09-06T18:06:00Z' },
+      { id: 'next', status: 'received', created_at: '2026-09-06T18:05:00Z' },
+    ]
+    expect(getNextPendingReceiptId(receipts, 'current')).toBe('next')
+    expect(getNextPendingReceiptId(receipts, 'next')).toBe('current')
+    expect(getNextPendingReceiptId([receipts[0]], 'current')).toBeNull()
+
+    const review = readFileSync(
+      new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(review).toContain("nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'")
+    expect(review).toContain('SHARED_RECEIPT_ROUTES.detail(nextReceiptId)')
   })
 
   it('normalizes the backend device label and last-seen fields', () => {
