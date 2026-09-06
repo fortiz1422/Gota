@@ -3,11 +3,14 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * The ESP32 cannot carry a browser session. This exact read-only route has
- * independent bearer-token auth in its route handler; no other API is public.
+ * These exact device routes have independent bearer-token auth in their route
+ * handlers; no other API is public.
  */
 export function isDeviceSnapshotPath(pathname: string): boolean {
-  return pathname === '/api/device/v1/snapshot'
+  return (
+    pathname === '/api/device/v1/snapshot' ||
+    pathname === '/api/shortcut/v1/receipts'
+  )
 }
 
 export async function proxy(request: NextRequest) {
