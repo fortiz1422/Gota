@@ -21,6 +21,7 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
+import { SharedReceiptsInboxCard } from '@/components/shared-receipts/SharedReceiptsInboxCard'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
@@ -647,6 +648,7 @@ export function DashboardShell({
               onOpenComposer={promptFirstExpense}
               onOpenPreview={openSharedReceiptPreview}
             />
+            <SharedReceiptsInboxCard />
 
             {/* Disponible real card */}
             <div className="card-s5 p-4">

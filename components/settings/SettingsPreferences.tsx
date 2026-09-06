@@ -7,6 +7,8 @@ import { AccountsSection } from '@/components/settings/AccountsSection'
 import { CardsSection } from '@/components/settings/CardsSection'
 import { HeroBalanceModePreference } from '@/components/settings/HeroBalanceModePreference'
 import { SubscriptionsPreference } from '@/components/settings/SubscriptionsPreference'
+import { SharedReceiptDevicesPanel } from '@/components/settings/SharedReceiptDevicesPanel'
+import { SharedReceiptsInboxCard } from '@/components/shared-receipts/SharedReceiptsInboxCard'
 import { addMonths } from '@/lib/dates'
 import { getProfilePreferenceVisibility } from '@/lib/settings/profile-preference-visibility'
 import type { Account, Card, HeroBalanceMode } from '@/types/database'
@@ -82,6 +84,13 @@ export function SettingsPreferences({
         {preferenceVisibility.subscriptions && (
           <SubscriptionsPreference defaultCurrency={currency} />
         )}
+        <section className="mt-4">
+          <p className="mb-2 type-label text-text-label">Integraciones</p>
+          <div className="space-y-3">
+            <SharedReceiptDevicesPanel />
+            <SharedReceiptsInboxCard alwaysShow />
+          </div>
+        </section>
       </div>
     </div>
   )

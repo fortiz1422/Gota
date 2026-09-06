@@ -592,6 +592,7 @@ export type Database = {
           id: string
           user_id: string
           name: string
+          last_four?: string | null
           closing_day: number | null
           due_day: number
           account_id: string | null
@@ -604,6 +605,7 @@ export type Database = {
           id?: string
           user_id: string
           name: string
+          last_four?: string | null
           closing_day?: number | null
           due_day?: number
           account_id?: string | null
@@ -614,6 +616,7 @@ export type Database = {
         }
         Update: {
           name?: string
+          last_four?: string | null
           closing_day?: number | null
           due_day?: number
           account_id?: string | null
