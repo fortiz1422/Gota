@@ -48,7 +48,7 @@
     {
       "order": 6,
       "action": "Get Contents of URL",
-      "url": "https://<dominio-de-gota>/api/shared-receipts",
+      "url": "https://<dominio-de-gota>/api/shortcut/v1/receipts",
       "method": "POST",
       "headers": {
         "Authorization": "Bearer {{import_question.receipt_import_token}}"
@@ -57,7 +57,7 @@
         "type": "Form",
         "fields": [
           {
-            "name": "receipt",
+            "name": "file",
             "type": "File",
             "value": "Converted Image"
           }

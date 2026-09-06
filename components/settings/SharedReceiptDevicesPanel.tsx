@@ -32,7 +32,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
   const [createdDevice, setCreatedDevice] = useState<SharedReceiptDevice | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const install = getShortcutInstallState(process.env.NEXT_PUBLIC_GOTA_SHORTCUT_URL)
+  const install = getShortcutInstallState(process.env.NEXT_PUBLIC_IOS_SHORTCUT_INSTALL_URL)
 
   const loadDevices = useCallback(async () => {
     setLoading(true)

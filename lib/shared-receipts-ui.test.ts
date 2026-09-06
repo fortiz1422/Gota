@@ -57,12 +57,25 @@ describe('iOS Shortcut receipt UI contract', () => {
     })
   })
 
-  it('accepts purchase proposals and rejects unsupported receipt types', () => {
-    expect(parsePurchaseProposal({ type: 'purchase', description: 'Café', amount: 2500, date: '2026-09-06', currency: 'ARS', category: 'Restaurantes', installments: 1 })).toMatchObject({
+  it('accepts the universal backend proposal contract and rejects unsupported receipt types', () => {
+    expect(parsePurchaseProposal({
+      transaction_type: 'purchase',
+      merchant_or_counterparty: 'Café',
+      amount: 2500,
+      occurred_at: '2026-09-06T12:30:00-03:00',
+      currency: 'ARS',
+      category_suggestion: 'Restaurantes',
+      payment_rail: 'credit_card',
+      card_last_four: '0862',
+      installments: 2,
+    })).toMatchObject({
       supported: true,
-      proposal: { description: 'Café', amount: 2500, installments: 1 },
+      proposal: {
+        description: 'Café', amount: 2500, date: '2026-09-06', installments: 2,
+        payment_method: 'CREDIT', card_last_four: '0862',
+      },
     })
-    expect(parsePurchaseProposal({ type: 'transfer', description: 'Movimiento' })).toEqual({
+    expect(parsePurchaseProposal({ transaction_type: 'own_transfer' })).toEqual({
       supported: false,
       reason: 'Este tipo de comprobante todavía no se puede confirmar automáticamente.',
     })
@@ -79,8 +92,11 @@ describe('iOS Shortcut receipt UI contract', () => {
       account_id: 'account-1',
       card_id: '',
       installments: '2',
+      payment_method: 'DEBIT',
+      is_want: null,
     })
     expect(payload).toEqual({
+      transaction_type: 'purchase',
       description: 'Café',
       amount: 2500.5,
       date: '2026-09-06',
@@ -89,6 +105,8 @@ describe('iOS Shortcut receipt UI contract', () => {
       account_id: 'account-1',
       card_id: null,
       installments: 2,
+      payment_method: 'DEBIT',
+      is_want: null,
     })
     expect(payload).not.toHaveProperty('user_id')
   })

@@ -72,6 +72,9 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       const parsed = parsePurchaseProposal(await response.json())
       setAnalysis(parsed)
       if (parsed.supported) {
+        const matchingCards = parsed.proposal.card_last_four
+          ? cards.filter((card) => card.last_four === parsed.proposal.card_last_four)
+          : []
         setForm({
           description: parsed.proposal.description,
           amount: String(parsed.proposal.amount),
@@ -79,8 +82,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           currency: parsed.proposal.currency,
           category: parsed.proposal.category,
           account_id: parsed.proposal.account_id,
-          card_id: parsed.proposal.card_id,
+          card_id: matchingCards.length === 1 ? matchingCards[0].id : parsed.proposal.card_id,
           installments: String(parsed.proposal.installments),
+          payment_method: parsed.proposal.payment_method,
+          is_want: parsed.proposal.is_want,
         })
       }
     } catch (reason) {
@@ -173,8 +178,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           </div>
           <label className="block text-xs font-semibold text-text-secondary">Fecha<input type="date" value={form.date} onChange={(event) => setField('date', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
           <label className="block text-xs font-semibold text-text-secondary">Categoría<select value={form.category} onChange={(event) => setField('category', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary">{CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          <label className="block text-xs font-semibold text-text-secondary">Cuenta<select value={form.account_id ?? ''} onChange={(event) => setField('account_id', event.target.value || null)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin cuenta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-          <label className="block text-xs font-semibold text-text-secondary">Tarjeta<select value={form.card_id ?? ''} onChange={(event) => setField('card_id', event.target.value || null)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin tarjeta</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}{card.last_four ? ` •••• ${card.last_four}` : ''}</option>)}</select></label>
+          <label className="block text-xs font-semibold text-text-secondary">Cuenta<select value={form.account_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, account_id: event.target.value || null, ...(event.target.value ? { card_id: null, payment_method: 'DEBIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin cuenta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
+          <label className="block text-xs font-semibold text-text-secondary">Tarjeta<select value={form.card_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, card_id: event.target.value || null, ...(event.target.value ? { account_id: null, payment_method: 'CREDIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin tarjeta</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}{card.last_four ? ` •••• ${card.last_four}` : ''}</option>)}</select></label>
           <label className="block text-xs font-semibold text-text-secondary">Cuotas<input type="number" min="1" step="1" value={form.installments} onChange={(event) => setField('installments', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
         </div>
         <button type="button" onClick={() => void confirmPurchase()} disabled={confirming} className="mt-5 min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{confirming ? 'Confirmando…' : 'Confirmar compra'}</button>

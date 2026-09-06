@@ -30,6 +30,7 @@ export interface SharedReceiptSummary {
 }
 
 export interface PurchaseProposal {
+  transaction_type: 'purchase'
   description: string
   amount: number
   date: string
@@ -38,6 +39,9 @@ export interface PurchaseProposal {
   account_id: string | null
   card_id: string | null
   installments: number
+  payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
+  card_last_four: string | null
+  is_want: boolean | null
 }
 
 export type ParsedPurchaseProposal =
@@ -109,7 +113,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
   const envelope = asRecord(value)
   const raw = asRecord(envelope?.proposal) ?? envelope ?? {}
-  const type = raw.type ?? raw.kind ?? raw.movement_type
+  const type = raw.transaction_type
   if (type !== 'purchase') {
     return {
       supported: false,
@@ -118,21 +122,35 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
   }
 
   const amount = typeof raw.amount === 'number' ? raw.amount : Number(raw.amount)
-  if (!raw.description || !Number.isFinite(amount) || !raw.date || !raw.currency || !raw.category) {
+  const description = typeof raw.merchant_or_counterparty === 'string'
+    ? raw.merchant_or_counterparty.trim()
+    : ''
+  const occurredAt = typeof raw.occurred_at === 'string' ? raw.occurred_at : ''
+  const category = typeof raw.category_suggestion === 'string' ? raw.category_suggestion : ''
+  if (!description || !Number.isFinite(amount) || !occurredAt || !raw.currency || !category) {
     return { supported: false, reason: 'La propuesta está incompleta. Volvé a analizar el comprobante.' }
   }
+
+  const paymentMethod = raw.payment_rail === 'credit_card' ? 'CREDIT'
+    : raw.payment_rail === 'debit_card' ? 'DEBIT'
+      : raw.payment_rail === 'bank_transfer' ? 'TRANSFER'
+        : raw.payment_rail === 'cash' ? 'CASH' : 'DEBIT'
 
   return {
     supported: true,
     proposal: {
-      description: String(raw.description),
+      transaction_type: 'purchase',
+      description,
       amount,
-      date: String(raw.date),
+      date: occurredAt.slice(0, 10),
       currency: raw.currency === 'USD' ? 'USD' : 'ARS',
-      category: String(raw.category),
-      account_id: typeof raw.account_id === 'string' ? raw.account_id : null,
-      card_id: typeof raw.card_id === 'string' ? raw.card_id : null,
+      category,
+      account_id: null,
+      card_id: null,
       installments: Math.max(1, Number(raw.installments) || 1),
+      payment_method: paymentMethod,
+      card_last_four: typeof raw.card_last_four === 'string' ? raw.card_last_four : null,
+      is_want: null,
     },
   }
 }
@@ -146,10 +164,14 @@ export interface ConfirmPurchaseForm {
   account_id?: string | null
   card_id?: string | null
   installments: string | number
+  payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
+  is_want: boolean | null
   user_id?: unknown
 }
 
-export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): PurchaseProposal {
+export type ConfirmPurchasePayload = Omit<PurchaseProposal, 'card_last_four'>
+
+export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): ConfirmPurchasePayload {
   const amount = typeof form.amount === 'number' ? form.amount : Number(form.amount)
   const installments = typeof form.installments === 'number' ? form.installments : Number(form.installments)
   if (!form.description.trim() || !Number.isFinite(amount) || amount <= 0 || !form.date || !form.category) {
@@ -159,6 +181,7 @@ export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): Purchase
     throw new Error('Las cuotas deben ser un número entero mayor a cero.')
   }
   return {
+    transaction_type: 'purchase',
     description: form.description.trim(),
     amount,
     date: form.date,
@@ -167,6 +190,8 @@ export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): Purchase
     account_id: form.account_id || null,
     card_id: form.card_id || null,
     installments,
+    payment_method: form.payment_method,
+    is_want: form.is_want,
   }
 }
 

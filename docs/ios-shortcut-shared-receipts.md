@@ -36,12 +36,12 @@ Agregar estas acciones, en este orden:
    - Formato: `JPEG`.
    - Preservar metadatos: desactivado.
 6. **Obtener contenido de URL**:
-   - URL: `https://<dominio-de-gota>/api/shared-receipts` (el publicador reemplaza solo el origen por el dominio HTTPS de producción).
+   - URL: `https://<dominio-de-gota>/api/shortcut/v1/receipts` (el publicador reemplaza solo el origen por el dominio HTTPS de producción).
    - Método: `POST`.
    - Headers:
      - `Authorization`: `Bearer ` seguido de la variable de la **Pregunta de importación** `Token de importación`.
    - Cuerpo de la solicitud: `Formulario`.
-   - Campo de formulario: clave `receipt`, tipo `Archivo`, valor `Imagen convertida`.
+   - Campo de formulario: clave `file`, tipo `Archivo`, valor `Imagen convertida`.
 7. **Obtener diccionario de la entrada** usando la respuesta de la acción anterior.
 8. **Obtener valor del diccionario** para la clave `status`.
 9. Resolver la respuesta con acciones **Si**:
@@ -73,9 +73,9 @@ El backend que implemente el upload debe devolver JSON aun en errores controlado
 - [ ] Reconstruir en Apple Shortcuts siguiendo exactamente el manifiesto versionado.
 - [ ] Confirmar “Mostrar en hoja para compartir” y entrada limitada a **Imágenes**.
 - [ ] Confirmar conversión a **JPEG** antes del upload.
-- [ ] Confirmar método **POST**, cuerpo **Formulario**, campo de archivo exacto `receipt`.
+- [ ] Confirmar método **POST**, cuerpo **Formulario**, campo de archivo exacto `file`.
 - [ ] Confirmar header `Authorization: Bearer <Pregunta de importación>` sin token real embebido.
-- [ ] Reemplazar `<dominio-de-gota>` por el dominio HTTPS de producción, sin cambiar `/api/shared-receipts`.
+- [ ] Reemplazar `<dominio-de-gota>` por el dominio HTTPS de producción, sin cambiar `/api/shortcut/v1/receipts`.
 - [ ] Probar imagen válida y comprobar `accepted`.
 - [ ] Reenviar la misma imagen y comprobar `duplicate`.
 - [ ] Probar token revocado y comprobar el mensaje de `401`.
@@ -83,5 +83,5 @@ El backend que implemente el upload debe devolver JSON aun en errores controlado
 - [ ] Confirmar que ninguna prueba crea un movimiento sin revisión y confirmación en Gota.
 - [ ] Compartir el Shortcut desde un dispositivo Apple y publicar el enlace de iCloud.
 - [ ] Instalar desde el enlace en un segundo dispositivo y verificar que aparece la Pregunta de importación.
-- [ ] Configurar `NEXT_PUBLIC_GOTA_SHORTCUT_URL` con el enlace final y generar un nuevo build; mientras esté ausente, la UI debe decir `Plantilla todavía no publicada`.
+- [ ] Configurar `NEXT_PUBLIC_IOS_SHORTCUT_INSTALL_URL` con el enlace final y generar un nuevo build; mientras esté ausente, la UI debe decir `Plantilla todavía no publicada`.
 - [ ] Revocar los tokens de prueba y borrar capturas o portapapeles que pudieran contenerlos.
