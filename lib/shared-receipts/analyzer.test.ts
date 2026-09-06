@@ -9,6 +9,12 @@ describe('universal shared receipt analyzer', () => {
     }
     expect(prompt).toContain('insufficient_evidence')
     expect(prompt).toContain('card_last_four')
+    expect(prompt).toContain('$4.100 significa 4100 ARS')
+    expect(prompt).toContain('$30.240,78 significa 30240.78 ARS')
+    expect(prompt).toContain('"Para <nombre>" identifica al destinatario')
+    expect(prompt).toContain('"Transferencia de <nombre>" identifica al emisor')
+    expect(prompt).toContain('"Pagaste a <nombre>" es una compra')
+    expect(prompt).toContain('si muestra una cuenta bancaria y no muestra ninguna tarjeta, payment_rail debe ser bank_transfer')
   })
 
   it('uses receipt inline data and strips markdown fences from Gemini JSON', async () => {

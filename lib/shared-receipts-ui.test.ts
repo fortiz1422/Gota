@@ -78,7 +78,7 @@ describe('iOS Shortcut receipt UI contract', () => {
     })
   })
 
-  it('accepts the universal backend proposal contract and rejects unsupported receipt types', () => {
+  it('accepts purchases and outgoing third-party transfers as editable expenses', () => {
     expect(parsePurchaseProposal({
       transaction_type: 'purchase',
       merchant_or_counterparty: 'Café',
@@ -94,6 +94,21 @@ describe('iOS Shortcut receipt UI contract', () => {
       proposal: {
         description: 'Café', amount: 2500, date: '2026-09-06', installments: 2,
         payment_method: 'CREDIT', card_last_four: '0862',
+      },
+    })
+    expect(parsePurchaseProposal({
+      transaction_type: 'third_party_transfer',
+      merchant_or_counterparty: 'Alex Salvador',
+      amount: 4100,
+      occurred_at: '2026-09-06T11:58:00-03:00',
+      currency: 'ARS',
+      category_suggestion: null,
+      payment_rail: 'bank_transfer',
+    })).toMatchObject({
+      supported: true,
+      proposal: {
+        description: 'Alex Salvador', amount: 4100, date: '2026-09-06',
+        category: '', payment_method: 'TRANSFER',
       },
     })
     expect(parsePurchaseProposal({ transaction_type: 'own_transfer' })).toEqual({

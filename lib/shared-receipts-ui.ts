@@ -150,7 +150,7 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
   const envelope = asRecord(value)
   const raw = asRecord(envelope?.proposal) ?? envelope ?? {}
   const type = raw.transaction_type
-  if (type !== 'purchase') {
+  if (type !== 'purchase' && type !== 'third_party_transfer') {
     return {
       supported: false,
       reason: 'Este tipo de comprobante todavía no se puede confirmar automáticamente.',
@@ -167,7 +167,8 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
     return { supported: false, reason: 'La propuesta está incompleta. Volvé a analizar el comprobante.' }
   }
 
-  const paymentMethod = raw.payment_rail === 'credit_card' ? 'CREDIT'
+  const paymentMethod = type === 'third_party_transfer' ? 'TRANSFER'
+    : raw.payment_rail === 'credit_card' ? 'CREDIT'
     : raw.payment_rail === 'debit_card' ? 'DEBIT'
       : raw.payment_rail === 'bank_transfer' ? 'TRANSFER'
         : raw.payment_rail === 'cash' ? 'CASH' : 'DEBIT'
