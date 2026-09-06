@@ -9,6 +9,7 @@ import {
   getNextPendingReceiptId,
   getReceiptQueuePosition,
   getShortcutInstallState,
+  matchReceiptCard,
   normalizeDevicesResponse,
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
@@ -178,10 +179,19 @@ describe('iOS Shortcut receipt UI contract', () => {
     }
 
     expect(restoreStoredPurchaseProposal(receipt, [
-      { id: 'card-1', last_four: '0862' },
+      { id: 'card-1', name: 'Visa Galicia', last_four: '0862' },
     ])).toMatchObject({
       supported: true,
       proposal: { description: 'Café', card_id: 'card-1' },
+    })
+    expect(restoreStoredPurchaseProposal({
+      ...receipt,
+      parsed_payload: { ...receipt.parsed_payload, card_last_four: null, card_brand: 'Visa' },
+    }, [
+      { id: 'card-1', name: 'Visa Galicia', last_four: '0862', archived: false },
+    ])).toMatchObject({
+      supported: true,
+      proposal: { card_id: 'card-1' },
     })
     expect(restoreStoredPurchaseProposal({ ...receipt, status: 'received' }, [])).toBeNull()
 
@@ -192,6 +202,22 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))')
     expect(review).toContain('onCancel={() => window.history.back()}')
     expect(review).not.toContain('onCancel={() => setAnalysis(null)}')
+  })
+
+  it('selects a unique available card by suffix first or visible brand second', () => {
+    const cards = [
+      { id: 'visa-1', name: 'Visa Galicia', last_four: '1111', archived: false },
+      { id: 'master-1', name: 'Mastercard BBVA', last_four: '2222', archived: false },
+      { id: 'visa-old', name: 'Visa anterior', last_four: '3333', archived: true },
+    ]
+
+    expect(matchReceiptCard(cards, '2222', 'Visa')?.id).toBe('master-1')
+    expect(matchReceiptCard(cards, null, 'Visa')?.id).toBe('visa-1')
+    expect(matchReceiptCard([
+      ...cards,
+      { id: 'visa-2', name: 'Visa Nación', last_four: '4444', archived: false },
+    ], null, 'Visa')).toBeNull()
+    expect(matchReceiptCard(cards, null, null)).toBeNull()
   })
 
   it('builds a purchase-only confirm payload and never sends client user_id', () => {
