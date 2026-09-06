@@ -40,11 +40,24 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(normalizeReceiptResponse({ nope: true })).toBeNull()
   })
 
+  it('normalizes the backend device label and last-seen fields', () => {
+    expect(normalizeDevicesResponse({ devices: [{
+      id: 'd1', label: 'Mi iPhone', created_at: '2026-09-06T00:00:00Z',
+      last_seen_at: '2026-09-06T01:00:00Z',
+    }] })).toEqual([{
+      id: 'd1', name: 'Mi iPhone', created_at: '2026-09-06T00:00:00Z',
+      last_used_at: '2026-09-06T01:00:00Z',
+    }])
+  })
+
   it('extracts the one-time secret only from a creation response', () => {
     const device = { id: 'd1', name: 'Mi iPhone', created_at: '2026-09-06T00:00:00Z' }
     expect(extractCreatedDevice({ device, token: 'gota_secret' })).toEqual({ device, token: 'gota_secret' })
     expect(extractCreatedDevice({ ...device, secret: 'gota_secret_2' })).toEqual({ device, token: 'gota_secret_2' })
     expect(() => extractCreatedDevice({ device })).toThrow('La API no devolvió el token de única visualización.')
+    expect(extractCreatedDevice({ device: { id: 'd2', label: 'iPhone nuevo', created_at: '2026-09-06T00:00:00Z' }, token: 'gota_secret_3' })).toMatchObject({
+      device: { id: 'd2', name: 'iPhone nuevo' }, token: 'gota_secret_3',
+    })
   })
 
   it('shows an honest unavailable state when the public iCloud URL is absent', () => {

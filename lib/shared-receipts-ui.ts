@@ -57,28 +57,44 @@ function unwrapArray<T>(value: unknown, key: string): T[] {
   return []
 }
 
+function normalizeDevice(value: unknown): SharedReceiptDevice | null {
+  const raw = asRecord(value)
+  if (!raw) return null
+  const id = typeof raw.id === 'string' ? raw.id : ''
+  const name = typeof raw.name === 'string'
+    ? raw.name
+    : typeof raw.label === 'string' ? raw.label : ''
+  const createdAt = typeof raw.created_at === 'string' ? raw.created_at : ''
+  if (!id || !name || !createdAt) return null
+  return {
+    id,
+    name,
+    created_at: createdAt,
+    ...(typeof raw.expires_at === 'string' ? { expires_at: raw.expires_at } : {}),
+    ...(typeof raw.revoked_at === 'string' ? { revoked_at: raw.revoked_at } : {}),
+    ...(typeof raw.last_used_at === 'string'
+      ? { last_used_at: raw.last_used_at }
+      : typeof raw.last_seen_at === 'string' ? { last_used_at: raw.last_seen_at } : {}),
+  }
+}
+
 export function normalizeDevicesResponse(value: unknown): SharedReceiptDevice[] {
-  return unwrapArray<SharedReceiptDevice>(value, 'devices')
+  return unwrapArray<unknown>(value, 'devices')
+    .map(normalizeDevice)
+    .filter((device): device is SharedReceiptDevice => device !== null)
 }
 
 export function extractCreatedDevice(value: unknown): { device: SharedReceiptDevice; token: string } {
   const response = asRecord(value) ?? {}
   const nestedDevice = asRecord(response.device)
   const rawDevice = nestedDevice ?? response
-  const device: SharedReceiptDevice = {
-    id: String(rawDevice.id ?? ''),
-    name: String(rawDevice.name ?? ''),
-    created_at: String(rawDevice.created_at ?? ''),
-    ...(typeof rawDevice.expires_at === 'string' ? { expires_at: rawDevice.expires_at } : {}),
-    ...(typeof rawDevice.revoked_at === 'string' ? { revoked_at: rawDevice.revoked_at } : {}),
-    ...(typeof rawDevice.last_used_at === 'string' ? { last_used_at: rawDevice.last_used_at } : {}),
-  }
+  const device = normalizeDevice(rawDevice)
   const token = typeof response.token === 'string'
     ? response.token
     : typeof response.secret === 'string'
       ? response.secret
       : null
-  if (!device.id || !device.name || !token) {
+  if (!device || !token) {
     throw new Error('La API no devolvió el token de única visualización.')
   }
   return { device, token }
