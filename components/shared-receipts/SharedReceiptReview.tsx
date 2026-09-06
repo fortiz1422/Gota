@@ -3,14 +3,12 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle } from '@phosphor-icons/react'
-import { CATEGORIES } from '@/lib/validation/schemas'
+import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import {
   SHARED_RECEIPT_ROUTES,
-  buildConfirmPurchasePayload,
   normalizeReceiptResponse,
   parseConfirmResult,
   parsePurchaseProposal,
-  type ConfirmPurchaseForm,
   type ParsedPurchaseProposal,
   type SharedReceiptSummary,
 } from '@/lib/shared-receipts-ui'
@@ -27,10 +25,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
-  const [confirming, setConfirming] = useState(false)
   const [dismissing, setDismissing] = useState(false)
   const [analysis, setAnalysis] = useState<ParsedPurchaseProposal | null>(null)
-  const [form, setForm] = useState<ConfirmPurchaseForm | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
   const [dismissed, setDismissed] = useState(false)
@@ -78,23 +74,19 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         throw new Error(await responseError(response, 'No pudimos analizar el comprobante.'))
       }
       const parsed = parsePurchaseProposal(await response.json())
-      setAnalysis(parsed)
       if (parsed.supported) {
         const matchingCards = parsed.proposal.card_last_four
           ? cards.filter((card) => card.last_four === parsed.proposal.card_last_four)
           : []
-        setForm({
-          description: parsed.proposal.description,
-          amount: String(parsed.proposal.amount),
-          date: parsed.proposal.date,
-          currency: parsed.proposal.currency,
-          category: parsed.proposal.category,
-          account_id: parsed.proposal.account_id,
-          card_id: matchingCards.length === 1 ? matchingCards[0].id : parsed.proposal.card_id,
-          installments: String(parsed.proposal.installments),
-          payment_method: parsed.proposal.payment_method,
-          is_want: parsed.proposal.is_want,
+        setAnalysis({
+          supported: true,
+          proposal: {
+            ...parsed.proposal,
+            card_id: matchingCards.length === 1 ? matchingCards[0].id : parsed.proposal.card_id,
+          },
         })
+      } else {
+        setAnalysis(parsed)
       }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos analizar el comprobante.')
@@ -103,24 +95,15 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     }
   }
 
-  const confirmPurchase = async () => {
-    if (!form) return
-    setConfirming(true)
+  const confirmPurchase = async (payload: ParsePreviewConfirmPayload) => {
     setError(null)
-    try {
-      const payload = buildConfirmPurchasePayload(form)
-      const response = await fetch(SHARED_RECEIPT_ROUTES.confirm(receiptId), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-      if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
-      setDone(parseConfirmResult(await response.json()))
-    } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No pudimos confirmar la compra.')
-    } finally {
-      setConfirming(false)
-    }
+    const response = await fetch(SHARED_RECEIPT_ROUTES.confirm(receiptId), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
+    setDone(parseConfirmResult(await response.json()))
   }
 
   const dismiss = async () => {
@@ -139,9 +122,6 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     }
   }
 
-  const setField = <K extends keyof ConfirmPurchaseForm>(key: K, value: ConfirmPurchaseForm[K]) => {
-    setForm((current) => current ? { ...current, [key]: value } : current)
-  }
 
   if (loading) return <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe"><p className="py-12 text-center text-sm text-text-tertiary">Cargando comprobante…</p></main>
 
@@ -176,21 +156,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
-      {analysis?.supported && form && <section className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-5">
-        <h2 className="text-lg font-bold text-text-primary">Propuesta de compra</h2>
-        <div className="mt-4 space-y-4">
-          <label className="block text-xs font-semibold text-text-secondary">Descripción<input value={form.description} onChange={(event) => setField('description', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
-          <div className="grid grid-cols-2 gap-3">
-            <label className="block text-xs font-semibold text-text-secondary">Monto<input inputMode="decimal" value={form.amount} onChange={(event) => setField('amount', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
-            <label className="block text-xs font-semibold text-text-secondary">Moneda<select value={form.currency} onChange={(event) => setField('currency', event.target.value as 'ARS' | 'USD')} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="ARS">ARS</option><option value="USD">USD</option></select></label>
-          </div>
-          <label className="block text-xs font-semibold text-text-secondary">Fecha<input type="date" value={form.date} onChange={(event) => setField('date', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
-          <label className="block text-xs font-semibold text-text-secondary">Categoría<select value={form.category} onChange={(event) => setField('category', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Elegí una categoría</option>{CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-          <label className="block text-xs font-semibold text-text-secondary">Cuenta<select value={form.account_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, account_id: event.target.value || null, ...(event.target.value ? { card_id: null, payment_method: 'DEBIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin cuenta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
-          <label className="block text-xs font-semibold text-text-secondary">Tarjeta<select value={form.card_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, card_id: event.target.value || null, ...(event.target.value ? { account_id: null, payment_method: 'CREDIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin tarjeta</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}{card.last_four ? ` •••• ${card.last_four}` : ''}</option>)}</select></label>
-          <label className="block text-xs font-semibold text-text-secondary">Cuotas<input type="number" min="1" step="1" value={form.installments} onChange={(event) => setField('installments', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
-        </div>
-        <button type="button" onClick={() => void confirmPurchase()} disabled={confirming} className="mt-5 min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{confirming ? 'Confirmando…' : 'Confirmar compra'}</button>
+      {analysis?.supported && <section className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-5">
+        <ParsePreview
+          data={analysis.proposal}
+          cards={cards}
+          accounts={accounts}
+          onConfirm={confirmPurchase}
+          onSave={() => undefined}
+          onCancel={() => setAnalysis(null)}
+          embedded
+        />
       </section>}
 
       {error && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
