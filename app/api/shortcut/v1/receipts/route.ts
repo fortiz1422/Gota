@@ -4,16 +4,13 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createReceiptIngestHandler, type ReceiptUpload } from '@/lib/shortcut-receipts/ingest'
 import { authorizeDeviceToken, type DeviceTokenRecord } from '@/lib/device-auth/device-token'
 import { isShortcutReceiptsEnabled } from '@/lib/shortcut-receipts/feature'
+import { parseShortcutReceiptRequest } from '@/lib/shortcut-receipts/request'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
 
 const BUCKET = 'shared-receipts-private'
 const noStoreHeaders = { 'Cache-Control': 'no-store', Pragma: 'no-cache' }
-
-function isUpload(value: FormDataEntryValue): value is File {
-  return typeof value !== 'string'
-}
 
 export async function POST(request: Request) {
   if (!isShortcutReceiptsEnabled(process.env.SHORTCUT_RECEIPTS_ENABLED)) {
@@ -65,24 +62,12 @@ export async function POST(request: Request) {
       )
     }
 
-    const contentType = request.headers.get('content-type') ?? ''
-    if (!contentType.toLowerCase().startsWith('multipart/form-data')) {
+    const parsedRequest = await parseShortcutReceiptRequest(request)
+    if (!parsedRequest.ok) {
       return NextResponse.json(
-        { error: 'unsupported_media_type' },
-        { status: 415, headers: noStoreHeaders },
+        { error: parsedRequest.error },
+        { status: parsedRequest.status, headers: noStoreHeaders },
       )
-    }
-
-    let form: FormData
-    try {
-      form = await request.formData()
-    } catch {
-      return NextResponse.json({ error: 'invalid_request' }, { status: 400, headers: noStoreHeaders })
-    }
-    const uploads = Array.from(form.values()).filter(isUpload)
-    const file = form.get('file')
-    if (uploads.length !== 1 || !file || !isUpload(file)) {
-      return NextResponse.json({ error: 'one_file_required' }, { status: 400, headers: noStoreHeaders })
     }
 
     const handler = createReceiptIngestHandler({
@@ -120,11 +105,10 @@ export async function POST(request: Request) {
       newId: randomUUID,
     })
 
-    const sourceAppHint = form.get('source_app_hint')
     const result = await handler({
       authorization: request.headers.get('authorization'),
-      file: file as ReceiptUpload,
-      sourceAppHint: typeof sourceAppHint === 'string' ? sourceAppHint : null,
+      file: parsedRequest.file as ReceiptUpload,
+      sourceAppHint: parsedRequest.sourceAppHint,
     })
     return NextResponse.json(result.body, {
       status: result.status,
