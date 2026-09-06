@@ -34,7 +34,7 @@ export interface ParsePreviewConfirmPayload {
   category: string
   description: string
   is_want: boolean | null
-  payment_method: 'CASH' | 'DEBIT' | 'CREDIT'
+  payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   account_id: string | null
   card_id: string | null
   date: string
@@ -66,11 +66,13 @@ function getDefaultSource(data: ParsedData, accounts: Account[]): SourceKey {
 function derivePaymentMethod(
   source: SourceKey,
   accounts: Account[],
-): 'CASH' | 'DEBIT' | 'CREDIT' {
+  preferredPaymentMethod: ParsedData['payment_method'],
+): 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT' {
   if (source === 'credit') return 'CREDIT'
   if (source === 'cash') return 'CASH'
   const account = accounts.find((candidate) => candidate.id === source)
-  return account?.type === 'cash' ? 'CASH' : 'DEBIT'
+  if (account?.type === 'cash') return 'CASH'
+  return preferredPaymentMethod === 'TRANSFER' ? 'TRANSFER' : 'DEBIT'
 }
 
 function deriveAccountId(source: SourceKey, accounts: Account[]): string | null {
@@ -87,7 +89,7 @@ export function buildParsePreviewConfirmPayload(
   accounts: Account[],
   installments: number,
 ): ParsePreviewConfirmPayload {
-  const paymentMethod = derivePaymentMethod(source, accounts)
+  const paymentMethod = derivePaymentMethod(source, accounts, data.payment_method)
   return {
     transaction_type: 'purchase',
     amount: data.amount,
@@ -202,7 +204,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
       } else {
         const payload: Record<string, unknown> = {
           ...form,
-          payment_method: derivePaymentMethod(source, accounts),
+          payment_method: derivePaymentMethod(source, accounts, form.payment_method),
           account_id: deriveAccountId(source, accounts),
           is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
           date: fromDateInput(form.date),
@@ -219,7 +221,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
         if (!res.ok) throw new Error('Error al guardar')
       }
 
-      const paymentMethod = derivePaymentMethod(source, accounts)
+      const paymentMethod = derivePaymentMethod(source, accounts, form.payment_method)
       trackEvent('parsepreview_confirmed', {
         currency: form.currency,
         has_installments: installments > 1,
@@ -240,7 +242,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
   const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
 
   const handleCancel = () => {
-    const paymentMethod = derivePaymentMethod(source, accounts)
+    const paymentMethod = derivePaymentMethod(source, accounts, form.payment_method)
     trackEvent('parsepreview_cancelled', {
       currency: form.currency,
       has_installments: installments > 1,

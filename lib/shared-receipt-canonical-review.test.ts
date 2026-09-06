@@ -56,6 +56,17 @@ describe('shared receipt canonical expense review', () => {
       card_id: 'card-1',
       installments: 3,
     })
+
+    expect(buildParsePreviewConfirmPayload(
+      { ...purchase, payment_method: 'TRANSFER' },
+      'account-1',
+      [bank],
+      1,
+    )).toMatchObject({
+      payment_method: 'TRANSFER',
+      account_id: 'account-1',
+      card_id: null,
+    })
   })
 
   it('shows card and installments only when credit is the selected source', () => {

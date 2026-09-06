@@ -23,6 +23,7 @@ Reglas:
 - occurred_at es ISO 8601 con offset; no inventes fecha, monto, moneda ni contraparte.
 - En comprobantes MODO, "Para <nombre>" identifica al destinatario y "Transferencia de <nombre>" identifica al emisor. merchant_or_counterparty debe ser el destinatario de una transferencia saliente, no el emisor.
 - En comprobantes MODO, "Pagaste a <nombre>" es una compra (purchase); ese nombre es merchant_or_counterparty. Determina el medio por la fuente visible: si muestra una cuenta bancaria y no muestra ninguna tarjeta, payment_rail debe ser bank_transfer; solo usa debit_card o credit_card cuando la tarjeta esté explícitamente visible.
+- merchant_or_counterparty debe contener el nombre visible del comercio, local o destinatario que permita reconocer el movimiento. No uses "MODO", el banco, un CUIT/CBU ni un número de operación como contraparte.
 - La frase "A su cuenta" debajo del destinatario se refiere a la cuenta de ese destinatario. Si emisor y destinatario son personas diferentes, clasifica third_party_transfer, no own_transfer.
 - payment_rail: cash, card, debit_card, credit_card, bank_transfer, wallet, unknown o null.
 - card_last_four contiene solo los ultimos 4 digitos. Nunca devuelvas tarjeta completa, CBU/CVU, CUIT/CUIL ni secretos.

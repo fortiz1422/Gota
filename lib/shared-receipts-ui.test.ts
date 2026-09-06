@@ -7,6 +7,7 @@ import {
   buildConfirmPurchasePayload,
   extractCreatedDevice,
   getNextPendingReceiptId,
+  getReceiptQueuePosition,
   getShortcutInstallState,
   normalizeDevicesResponse,
   normalizeReceiptResponse,
@@ -57,6 +58,8 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(getNextPendingReceiptId(receipts, 'current')).toBe('next')
     expect(getNextPendingReceiptId(receipts, 'next')).toBe('current')
     expect(getNextPendingReceiptId([receipts[0]], 'current')).toBeNull()
+    expect(getReceiptQueuePosition(receipts, 'current')).toEqual({ current: 1, total: 2 })
+    expect(getReceiptQueuePosition(receipts, 'next')).toEqual({ current: 2, total: 2 })
 
     const review = readFileSync(
       new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
@@ -64,6 +67,9 @@ describe('iOS Shortcut receipt UI contract', () => {
     )
     expect(review).toContain("nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'")
     expect(review).toContain('SHARED_RECEIPT_ROUTES.detail(nextReceiptId)')
+    expect(review).toContain('Comprobantes pendientes')
+    expect(review).toContain('receipt.image_url')
+    expect(review).toContain('de {queuePosition.total}')
   })
 
   it('normalizes the backend device label and last-seen fields', () => {

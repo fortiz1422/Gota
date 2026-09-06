@@ -8,6 +8,7 @@ import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dash
 import {
   SHARED_RECEIPT_ROUTES,
   getNextPendingReceiptId,
+  getReceiptQueuePosition,
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
   invalidateAfterSharedReceiptConfirmation,
@@ -37,6 +38,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
   const [dismissed, setDismissed] = useState(false)
   const [nextReceiptId, setNextReceiptId] = useState<string | null>(null)
+  const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
+  const queuePosition = getReceiptQueuePosition(queue, receiptId)
 
   const loadNextReceiptId = async (): Promise<string | null> => {
     try {
@@ -52,10 +55,11 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const [receiptResponse, accountsResponse, cardsResponse] = await Promise.all([
+      const [receiptResponse, accountsResponse, cardsResponse, inboxResponse] = await Promise.all([
         fetch(SHARED_RECEIPT_ROUTES.detail(receiptId), { cache: 'no-store' }),
         fetch('/api/accounts', { cache: 'no-store' }),
         fetch('/api/cards', { cache: 'no-store' }),
+        fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' }),
       ])
       if (!receiptResponse.ok) throw new Error(await responseError(receiptResponse, 'No pudimos cargar el comprobante.'))
       const loadedReceipt = normalizeReceiptResponse(await receiptResponse.json())
@@ -71,6 +75,22 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         setCards(loadedCards)
       }
       if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
+      if (inboxResponse.ok) {
+        const summaries = normalizeReceiptsResponse(await inboxResponse.json())
+        const detailedQueue = await Promise.all(summaries.map(async (summary) => {
+          if (summary.id === loadedReceipt?.id) return loadedReceipt
+          try {
+            const response = await fetch(SHARED_RECEIPT_ROUTES.detail(summary.id), { cache: 'no-store' })
+            if (!response.ok) return summary
+            return normalizeReceiptResponse(await response.json()) ?? summary
+          } catch {
+            return summary
+          }
+        }))
+        setQueue(detailedQueue)
+      } else if (loadedReceipt) {
+        setQueue([loadedReceipt])
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
     } finally {
@@ -172,6 +192,33 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   return (
     <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe pb-tab-bar">
       <header className="flex items-center justify-between py-4"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} />Bandeja</Link><Receipt size={22} className="text-primary" /></header>
+      {queue.length > 1 && <section aria-label="Comprobantes pendientes" className="mb-4">
+        <div className="mb-2 flex items-center justify-between px-1">
+          <p className="text-xs font-semibold text-text-primary">Comprobantes pendientes</p>
+          <p className="text-xs tabular-nums text-text-tertiary">{queuePosition.current} de {queuePosition.total}</p>
+        </div>
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {queue.map((receipt, index) => {
+            const current = receipt.id === receiptId
+            const parsed = receipt.parsed_payload ? parsePurchaseProposal(receipt.parsed_payload) : null
+            const label = parsed?.supported ? parsed.proposal.description : `Comprobante ${index + 1}`
+            return <Link
+              key={receipt.id}
+              href={SHARED_RECEIPT_ROUTES.detail(receipt.id)}
+              aria-current={current ? 'page' : undefined}
+              className={`w-28 shrink-0 overflow-hidden rounded-input border text-left ${current ? 'border-primary bg-primary/5' : 'border-border-subtle bg-bg-secondary'}`}
+            >
+              {receipt.image_url
+                ? <div role="img" aria-label={`Vista previa de ${label}`} className="h-20 bg-bg-tertiary bg-cover bg-center" style={{ backgroundImage: `url(${receipt.image_url})` }} />
+                : <div className="flex h-20 items-center justify-center bg-bg-tertiary"><Receipt size={24} className="text-text-disabled" /></div>}
+              <div className="p-2">
+                <p className="truncate text-[11px] font-semibold text-text-primary">{label}</p>
+                <p className="mt-0.5 text-[10px] text-text-tertiary">{current ? analyzing ? 'Analizando…' : 'Revisando' : receipt.status === 'needs_review' ? 'Analizado' : 'Pendiente'}</p>
+              </div>
+            </Link>
+          })}
+        </div>
+      </section>}
       <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
         <p className="type-label text-primary">Revisión pendiente</p>
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>

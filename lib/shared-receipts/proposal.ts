@@ -44,16 +44,20 @@ export function parseReceiptProposal(input: unknown): ReceiptProposal {
   return ReceiptProposalSchema.parse(input)
 }
 
-const SENSITIVE_PATTERNS = [
+const FINANCIAL_ID_PATTERNS = [
   /\b(?:\d[ -]?){12,19}\b/g, // Full payment card numbers.
   /\b\d{22}\b/g, // CBU/CVU.
   /\b\d{2}-?\d{8}-?\d\b/g, // CUIT/CUIL.
-  /\b[A-Z0-9]{16,}\b/gi, // Long operation/reference identifiers.
 ]
 
-function redactSensitiveText(value: string | null): string | null {
+const LONG_REFERENCE_PATTERN = /\b[A-Z0-9]{16,}\b/gi
+
+function redactSensitiveText(value: string | null, redactLongReferences = true): string | null {
   if (value === null) return null
-  return SENSITIVE_PATTERNS.reduce(
+  const patterns = redactLongReferences
+    ? [...FINANCIAL_ID_PATTERNS, LONG_REFERENCE_PATTERN]
+    : FINANCIAL_ID_PATTERNS
+  return patterns.reduce(
     (sanitized, pattern) => sanitized.replace(pattern, '[REDACTED]'),
     value,
   )
@@ -62,7 +66,8 @@ function redactSensitiveText(value: string | null): string | null {
 export function sanitizeReceiptProposal(proposal: ReceiptProposal): ReceiptProposal {
   return {
     ...proposal,
-    merchant_or_counterparty: redactSensitiveText(proposal.merchant_or_counterparty),
+    // Long alphanumeric labels can be legitimate MODO merchant names.
+    merchant_or_counterparty: redactSensitiveText(proposal.merchant_or_counterparty, false),
     account_hint: redactSensitiveText(proposal.account_hint),
     reference: redactSensitiveText(proposal.reference),
     warnings: proposal.warnings.map((value) => redactSensitiveText(value) ?? ''),

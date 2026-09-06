@@ -47,6 +47,7 @@ export interface SharedReceiptSummary {
   content_type?: string | null
   duplicate?: boolean
   parsed_payload?: unknown
+  image_url?: string | null
 }
 
 export interface PurchaseProposal {
@@ -129,6 +130,14 @@ export function getNextPendingReceiptId(
   currentReceiptId: string,
 ): string | null {
   return receipts.find((receipt) => receipt.id !== currentReceiptId)?.id ?? null
+}
+
+export function getReceiptQueuePosition(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+): { current: number; total: number } {
+  const index = receipts.findIndex((receipt) => receipt.id === currentReceiptId)
+  return { current: index >= 0 ? index + 1 : 1, total: receipts.length }
 }
 
 export function normalizeReceiptResponse(value: unknown): SharedReceiptSummary | null {
