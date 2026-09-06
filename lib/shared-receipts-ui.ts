@@ -20,6 +20,10 @@ export interface SharedReceiptDevice {
   last_used_at?: string | null
 }
 
+export function buildSharedReceiptDeviceCreatePayload(name: string): { label: string } {
+  return { label: name.trim() }
+}
+
 export interface SharedReceiptSummary {
   id: string
   status: string
