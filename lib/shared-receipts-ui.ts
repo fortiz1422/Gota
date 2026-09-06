@@ -11,6 +11,21 @@ export const SHARED_RECEIPT_ROUTES = {
   }),
 } as const
 
+type SharedReceiptCacheInvalidator = {
+  invalidateQueries: (filters: { queryKey: string[] }) => Promise<unknown>
+}
+
+export async function invalidateAfterSharedReceiptConfirmation(
+  queryClient: SharedReceiptCacheInvalidator,
+): Promise<void> {
+  await Promise.allSettled([
+    queryClient.invalidateQueries({ queryKey: ['dashboard'] }),
+    queryClient.invalidateQueries({ queryKey: ['account-breakdown'] }),
+    queryClient.invalidateQueries({ queryKey: ['analytics'] }),
+    queryClient.invalidateQueries({ queryKey: ['shared-receipts'] }),
+  ])
+}
+
 export interface SharedReceiptDevice {
   id: string
   name: string

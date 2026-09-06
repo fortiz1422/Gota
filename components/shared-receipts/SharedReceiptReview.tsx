@@ -1,12 +1,14 @@
 'use client'
 
 import Link from 'next/link'
+import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle } from '@phosphor-icons/react'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import {
   SHARED_RECEIPT_ROUTES,
   normalizeReceiptResponse,
+  invalidateAfterSharedReceiptConfirmation,
   parseConfirmResult,
   parsePurchaseProposal,
   restoreStoredPurchaseProposal,
@@ -21,6 +23,7 @@ async function responseError(response: Response, fallback: string): Promise<stri
 }
 
 export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
+  const queryClient = useQueryClient()
   const [receipt, setReceipt] = useState<SharedReceiptSummary | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -108,7 +111,9 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       body: JSON.stringify(payload),
     })
     if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
-    setDone(parseConfirmResult(await response.json()))
+    const result = parseConfirmResult(await response.json())
+    await invalidateAfterSharedReceiptConfirmation(queryClient)
+    setDone(result)
   }
 
   const dismiss = async () => {

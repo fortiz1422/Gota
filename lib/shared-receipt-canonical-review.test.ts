@@ -8,6 +8,7 @@ import {
   type ParsedExpensePreviewData,
 } from '@/components/dashboard/ParsePreview'
 import type { Account, Card } from '@/types/database'
+import { invalidateAfterSharedReceiptConfirmation } from '@/lib/shared-receipts-ui'
 
 const bank = {
   id: 'account-1',
@@ -95,5 +96,27 @@ describe('shared receipt canonical expense review', () => {
     expect(source).toContain('onConfirm={confirmPurchase}')
     expect(source).not.toContain('>Cuenta<select')
     expect(source).not.toContain('>Tarjeta<select')
+  })
+
+  it('invalidates every cached financial surface after confirmation', async () => {
+    const invalidated: unknown[][] = []
+    await invalidateAfterSharedReceiptConfirmation({
+      invalidateQueries: async ({ queryKey }) => {
+        invalidated.push(queryKey)
+      },
+    })
+
+    expect(invalidated).toEqual([
+      ['dashboard'],
+      ['account-breakdown'],
+      ['analytics'],
+      ['shared-receipts'],
+    ])
+
+    const source = readFileSync(
+      new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
+      'utf8',
+    )
+    expect(source).toContain('await invalidateAfterSharedReceiptConfirmation(queryClient)')
   })
 })
