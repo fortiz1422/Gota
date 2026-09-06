@@ -124,6 +124,13 @@ export function normalizeReceiptsResponse(value: unknown): SharedReceiptSummary[
   return unwrapArray<SharedReceiptSummary>(value, 'receipts')
 }
 
+export function getNextPendingReceiptId(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+): string | null {
+  return receipts.find((receipt) => receipt.id !== currentReceiptId)?.id ?? null
+}
+
 export function normalizeReceiptResponse(value: unknown): SharedReceiptSummary | null {
   const envelope = asRecord(value)
   const receipt = asRecord(envelope?.receipt) ?? normalizeReceiptsResponse(value)[0] ?? envelope
