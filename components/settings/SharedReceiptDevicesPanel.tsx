@@ -5,6 +5,7 @@ import { CaretRight, Copy, DeviceMobile, Link as LinkIcon, Plus, Trash, X } from
 import { Modal } from '@/components/ui/Modal'
 import {
   SHARED_RECEIPT_ROUTES,
+  buildSharedReceiptDeviceCreatePayload,
   extractCreatedDevice,
   getShortcutInstallState,
   normalizeDevicesResponse,
@@ -62,7 +63,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
     const response = await fetch(SHARED_RECEIPT_ROUTES.devices, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: deviceName.trim() }),
+      body: JSON.stringify(buildSharedReceiptDeviceCreatePayload(deviceName)),
     })
     if (!response.ok) throw new Error(await errorMessage(response, 'No pudimos crear la credencial.'))
     return extractCreatedDevice(await response.json())

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   SHARED_RECEIPT_ROUTES,
+  buildSharedReceiptDeviceCreatePayload,
   buildCardLastFourPayload,
   buildConfirmPurchasePayload,
   extractCreatedDevice,
@@ -14,6 +15,10 @@ import {
 } from './shared-receipts-ui'
 
 describe('iOS Shortcut receipt UI contract', () => {
+  it('uses the backend label field when creating a device', () => {
+    expect(buildSharedReceiptDeviceCreatePayload('  Mi iPhone  ')).toEqual({ label: 'Mi iPhone' })
+  })
+
   it('documents the authenticated device and receipt routes without inventing a dismiss endpoint', () => {
     expect(SHARED_RECEIPT_ROUTES.devices).toBe('/api/shared-receipt-devices')
     expect(SHARED_RECEIPT_ROUTES.device('device-1')).toBe('/api/shared-receipt-devices/device-1')
