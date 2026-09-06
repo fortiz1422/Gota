@@ -11,7 +11,7 @@ import type { Account, Card } from '@/types/database'
 
 type Duplicate = { id: string; description: string; created_at: string }
 
-interface ParsedData {
+export interface ParsedExpensePreviewData {
   amount: number
   currency: 'ARS' | 'USD'
   category: string
@@ -25,12 +25,29 @@ interface ParsedData {
   date: string
 }
 
+type ParsedData = ParsedExpensePreviewData
+
+export interface ParsePreviewConfirmPayload {
+  transaction_type: 'purchase'
+  amount: number
+  currency: 'ARS' | 'USD'
+  category: string
+  description: string
+  is_want: boolean | null
+  payment_method: 'CASH' | 'DEBIT' | 'CREDIT'
+  account_id: string | null
+  card_id: string | null
+  date: string
+  installments: number
+}
+
 interface ParsePreviewProps {
   data: ParsedData
   cards: Card[]
   accounts: Account[]
   onSave: () => void
   onCancel: () => void
+  onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<void>
   embedded?: boolean
 }
 
@@ -64,6 +81,28 @@ function deriveAccountId(source: SourceKey, accounts: Account[]): string | null 
   return source
 }
 
+export function buildParsePreviewConfirmPayload(
+  data: ParsedExpensePreviewData,
+  source: SourceKey,
+  accounts: Account[],
+  installments: number,
+): ParsePreviewConfirmPayload {
+  const paymentMethod = derivePaymentMethod(source, accounts)
+  return {
+    transaction_type: 'purchase',
+    amount: data.amount,
+    currency: data.currency,
+    category: data.category,
+    description: data.description.trim(),
+    is_want: data.is_want,
+    payment_method: paymentMethod,
+    account_id: deriveAccountId(source, accounts),
+    card_id: paymentMethod === 'CREDIT' ? data.card_id : null,
+    date: data.date,
+    installments,
+  }
+}
+
 function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number }) {
   if (type === 'cash') return <Wallet weight="duotone" size={size} />
   if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
@@ -82,7 +121,7 @@ function fromDateInput(dateStr: string): string {
   return dateInputToISO(dateStr)
 }
 
-export function ParsePreview({ data, cards, accounts, onSave, onCancel, embedded = false }: ParsePreviewProps) {
+export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfirm, embedded = false }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
     date: toDateInput(data.date),
@@ -126,6 +165,10 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, embedded
 
   const handleSave = async () => {
     setSaveError(null)
+    if (!form.category) {
+      setSaveError('Elegí una categoría.')
+      return
+    }
     if (needsCard && !form.card_id) {
       setCardError(true)
       return
@@ -154,23 +197,27 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, embedded
 
     setIsSaving(true)
     try {
-      const payload: Record<string, unknown> = {
-        ...form,
-        payment_method: derivePaymentMethod(source, accounts),
-        account_id: deriveAccountId(source, accounts),
-        is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
-        date: fromDateInput(form.date),
+      if (onConfirm) {
+        await onConfirm(buildParsePreviewConfirmPayload(form, source, accounts, installments))
+      } else {
+        const payload: Record<string, unknown> = {
+          ...form,
+          payment_method: derivePaymentMethod(source, accounts),
+          account_id: deriveAccountId(source, accounts),
+          is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
+          date: fromDateInput(form.date),
+        }
+
+        if (installments > 1) payload.installments = installments
+
+        const res = await fetch('/api/expenses', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        })
+
+        if (!res.ok) throw new Error('Error al guardar')
       }
-
-      if (installments > 1) payload.installments = installments
-
-      const res = await fetch('/api/expenses', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!res.ok) throw new Error('Error al guardar')
 
       const paymentMethod = derivePaymentMethod(source, accounts)
       trackEvent('parsepreview_confirmed', {
@@ -377,6 +424,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, embedded
             }}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           >
+            <option value="">Elegí una categoría</option>
             {CATEGORIES.map((category) => (
               <option key={category} value={category}>
                 {category}
