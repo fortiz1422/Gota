@@ -288,6 +288,21 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
 
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+            Descripción
+          </label>
+          <input
+            type="text"
+            name="description"
+            value={form.description}
+            maxLength={100}
+            onChange={(e) => set('description', e.target.value)}
+            placeholder="Ej. Panadería"
+            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none placeholder:text-text-disabled"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             De donde sale
           </label>
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">

@@ -76,6 +76,9 @@ describe('shared receipt canonical expense review', () => {
     }))
 
     expect(debitHtml).toContain('De donde sale')
+    expect(debitHtml).toContain('Descripción')
+    expect(debitHtml).toContain('name="description"')
+    expect(debitHtml).toContain('value="Compra"')
     expect(debitHtml).not.toContain('Selecciona una tarjeta')
     expect(debitHtml).not.toContain('Cuotas')
     expect(creditHtml).toContain('Selecciona una tarjeta')
