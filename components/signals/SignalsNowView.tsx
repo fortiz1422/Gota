@@ -1,8 +1,9 @@
 'use client'
 
-import { ArrowClockwise, CaretRight, CheckCircle, CircleNotch } from '@phosphor-icons/react'
+import { ArrowClockwise, CaretRight, CheckCircle, CircleNotch, Receipt } from '@phosphor-icons/react'
 import type { DataQuality } from '@/lib/intelligence/types'
 import type { SignalCoverage, SignalOccurrence } from '@/lib/intelligence/signal-center'
+import type { SharedReceiptSummary } from '@/lib/shared-receipts-ui'
 import {
   DATA_QUALITY_COPY,
   maskSignalOccurrence,
@@ -20,6 +21,8 @@ interface Props {
   isHistoricalContext?: boolean
   onRetry?: () => void
   onSelectSignal: (signal: SignalOccurrence) => void
+  pendingReceipts?: SharedReceiptSummary[]
+  onSelectReceipt?: (receipt: SharedReceiptSummary) => void
 }
 
 export function SignalsNowView({
@@ -32,6 +35,8 @@ export function SignalsNowView({
   isHistoricalContext = false,
   onRetry,
   onSelectSignal,
+  pendingReceipts = [],
+  onSelectReceipt,
 }: Props) {
   if (loading) {
     return (
@@ -44,7 +49,7 @@ export function SignalsNowView({
     )
   }
 
-  if (error) {
+  if (error && pendingReceipts.length === 0) {
     return (
       <div role="alert" className="mx-5 mt-6 rounded-[18px] border border-danger/15 bg-danger-soft p-5">
         <p className="font-bold text-text-primary">No pudimos cargar tus señales</p>
@@ -59,7 +64,7 @@ export function SignalsNowView({
   }
 
 
-  if (signals.length === 0) {
+  if (signals.length === 0 && pendingReceipts.length === 0) {
     const emptyState = resolveSignalsEmptyState({ coverage, dataQuality })
     return <EmptyState {...emptyState} />
   }
@@ -71,7 +76,25 @@ export function SignalsNowView({
           Estas son Señales de hoy. El mes histórico sigue visible detrás.
         </p>
       )}
-      <p className="mb-3 text-xs font-medium text-text-tertiary">{DATA_QUALITY_COPY[dataQuality]}</p>
+      {pendingReceipts.length > 0 && (
+        <button
+          type="button"
+          onClick={() => onSelectReceipt?.(pendingReceipts[0])}
+          className="card-s5 mb-3 flex w-full items-start gap-3 p-4 text-left transition-transform active:scale-[0.99]"
+        >
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
+            <Receipt size={19} aria-hidden="true" />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-[15px] font-bold leading-snug text-text-primary">
+              {pendingReceipts.length} {pendingReceipts.length === 1 ? 'comprobante pendiente' : 'comprobantes pendientes'}
+            </span>
+            <span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">Revisar propuesta</span>
+          </span>
+          <CaretRight size={16} className="mt-2 shrink-0 text-text-tertiary" aria-hidden="true" />
+        </button>
+      )}
+      {signals.length > 0 && <p className="mb-3 text-xs font-medium text-text-tertiary">{DATA_QUALITY_COPY[dataQuality]}</p>}
       <div className="space-y-3">
         {signals.map((rawSignal) => {
           const signal = maskSignalOccurrence(rawSignal, amountsVisible)

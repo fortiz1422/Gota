@@ -4,6 +4,7 @@ import { useEffect, useId, useRef, useState, type RefObject, type KeyboardEvent 
 import { X } from '@phosphor-icons/react'
 import { FullScreenSheet } from '@/components/ui/FullScreenSheet'
 import type { SignalCenterModel, SignalOccurrence } from '@/lib/intelligence/signal-center'
+import type { SharedReceiptSummary } from '@/lib/shared-receipts-ui'
 import { nextSignalTab, type SignalCenterTab } from '@/lib/intelligence/signal-center-display'
 import { SignalDetailView } from './SignalDetailView'
 import { SignalsCoverageView } from './SignalsCoverageView'
@@ -24,6 +25,8 @@ interface Props {
   onCoverageOpened?: () => void
   onNavigate?: (href: string, signal: SignalOccurrence) => void
   onAsk?: (question: string, signal: SignalOccurrence) => void
+  pendingReceipts?: SharedReceiptSummary[]
+  onReceiptSelected?: (receipt: SharedReceiptSummary) => void
   surface?: 'modal' | 'drawer'
 }
 
@@ -47,6 +50,8 @@ export function SignalsSheet({
   onCoverageOpened,
   onNavigate,
   onAsk,
+  pendingReceipts = [],
+  onReceiptSelected,
   surface = 'modal',
 }: Props) {
   const titleId = useId()
@@ -175,6 +180,11 @@ export function SignalsSheet({
                 onSelectSignal={(signal) => {
                   setDetail(signal)
                   onSignalOpened?.(signal)
+                }}
+                pendingReceipts={pendingReceipts}
+                onSelectReceipt={(receipt) => {
+                  closeSheet()
+                  onReceiptSelected?.(receipt)
                 }}
               />
             ) : loading ? (

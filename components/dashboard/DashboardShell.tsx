@@ -21,7 +21,6 @@ import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
-import { SharedReceiptsInboxCard } from '@/components/shared-receipts/SharedReceiptsInboxCard'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
@@ -50,6 +49,11 @@ import {
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
+import {
+  normalizeReceiptsResponse,
+  SHARED_RECEIPT_ROUTES,
+  type SharedReceiptSummary,
+} from '@/lib/shared-receipts-ui'
 import { formatAmount } from '@/lib/format'
 import { buildAnalyticsHref } from '@/lib/analytics/analytics-route-state'
 import type { DashboardApiData } from '@/lib/server/dashboard-queries'
@@ -228,6 +232,18 @@ export function DashboardShell({
     signalsQuery.data?.signals ?? [],
     readSignalVersions,
   )
+  const sharedReceiptsQuery = useQuery<SharedReceiptSummary[]>({
+    queryKey: ['shared-receipts', 'needs-review'],
+    queryFn: async () => {
+      const response = await fetch(SHARED_RECEIPT_ROUTES.inbox)
+      if (!response.ok) throw new Error('shared receipts fetch failed')
+      return normalizeReceiptsResponse(await response.json())
+    },
+    enabled: FF_SIGNALS_CENTER_V1,
+    staleTime: 30_000,
+  })
+  const pendingReceipts = sharedReceiptsQuery.data ?? []
+  const notificationTone = signalsTone === 'none' && pendingReceipts.length > 0 ? 'watch' : signalsTone
 
   useEffect(() => {
     if (dashboardLoadedTrackedRef.current || !data) return
@@ -495,7 +511,7 @@ export function DashboardShell({
     setSharedReceiptPreviewOpen(false)
   }
 
-  const hasUnreadSignals = signalsTone !== 'none'
+  const hasUnreadSignals = notificationTone !== 'none'
   const signalsError =
     signalsQuery.error instanceof Error
       ? signalsQuery.error.message
@@ -547,6 +563,10 @@ export function DashboardShell({
     requestAssistantOpen({ question })
   }
 
+  const openSharedReceiptFromSignals = (receipt: SharedReceiptSummary) => {
+    router.push(`/shared-receipts/${encodeURIComponent(receipt.id)}`)
+  }
+
   return (
     <div className="min-h-app bg-bg-primary">
       {/* ── BLUE ZONE ── */}
@@ -557,7 +577,7 @@ export function DashboardShell({
             {FF_SIGNALS_CENTER_V1 ? (
               <SignalsBellButton
                 ref={signalsBellRef}
-                tone={signalsTone}
+                tone={notificationTone}
                 onClick={openSignals}
               />
             ) : (
@@ -648,8 +668,6 @@ export function DashboardShell({
               onOpenComposer={promptFirstExpense}
               onOpenPreview={openSharedReceiptPreview}
             />
-            <SharedReceiptsInboxCard />
-
             {/* Disponible real card */}
             <div className="card-s5 p-4">
               <div className="flex items-start gap-3">
@@ -812,7 +830,7 @@ export function DashboardShell({
           open={signalsOpen}
           onClose={() => setSignalsOpen(false)}
           model={signalsQuery.data ?? null}
-          loading={signalsQuery.isPending}
+          loading={signalsQuery.isPending && pendingReceipts.length === 0}
           error={signalsError}
           amountsVisible={amountsVisible}
           isHistoricalContext={!isCurrentMonth}
@@ -828,6 +846,8 @@ export function DashboardShell({
           }
           onNavigate={navigateFromSignal}
           onAsk={askFromSignal}
+          pendingReceipts={pendingReceipts}
+          onReceiptSelected={openSharedReceiptFromSignals}
         />
       )}
 
