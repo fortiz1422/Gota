@@ -126,7 +126,7 @@ describe('receipt ingestion persistence', () => {
     const result = await ingest({}, deps)
 
     expect(result.status).toBe(500)
-    expect(deps.remove).toHaveBeenCalledWith('user-1/receipt-1.png')
+    expect(deps.remove).toHaveBeenCalledWith('user-1/device-1/receipt-1.png')
   })
 
   it('accepts one valid image without accepting a user id', async () => {
@@ -137,14 +137,14 @@ describe('receipt ingestion persistence', () => {
       status: 201,
       body: { status: 'accepted', receipt_id: 'receipt-1' },
     })
-    expect(deps.upload).toHaveBeenCalledWith('user-1/receipt-1.png', expect.any(Uint8Array), 'image/png')
+    expect(deps.upload).toHaveBeenCalledWith('user-1/device-1/receipt-1.png', expect.any(Uint8Array), 'image/png')
     expect(deps.insert).toHaveBeenCalledWith(expect.objectContaining({
       id: 'receipt-1',
       user_id: 'user-1',
       ingest_device_id: 'device-1',
       status: 'received',
       content_sha256: expect.stringMatching(/^[a-f0-9]{64}$/),
-      storage_path: 'user-1/receipt-1.png',
+      storage_path: 'user-1/device-1/receipt-1.png',
       source_app_hint: 'Atajos',
     }))
   })

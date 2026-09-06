@@ -142,7 +142,7 @@ export function createReceiptIngestHandler(dependencies: ReceiptIngestDependenci
     }
 
     const receiptId = dependencies.newId()
-    const storagePath = `${userId}/${receiptId}.${extensionFor(detectedMime)}`
+    const storagePath = `${userId}/${authorization.device.id}/${receiptId}.${extensionFor(detectedMime)}`
     try {
       await dependencies.upload(storagePath, bytes, detectedMime)
     } catch {

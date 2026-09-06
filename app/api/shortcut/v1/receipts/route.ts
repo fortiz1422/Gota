@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createReceiptIngestHandler, type ReceiptUpload } from '@/lib/shortcut-receipts/ingest'
 import { authorizeDeviceToken, type DeviceTokenRecord } from '@/lib/device-auth/device-token'
+import { isShortcutReceiptsEnabled } from '@/lib/shortcut-receipts/feature'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -15,6 +16,10 @@ function isUpload(value: FormDataEntryValue): value is File {
 }
 
 export async function POST(request: Request) {
+  if (!isShortcutReceiptsEnabled(process.env.SHORTCUT_RECEIPTS_ENABLED)) {
+    return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStoreHeaders })
+  }
+
   try {
     const admin = createAdminClient()
     let resolvedToken: DeviceTokenRecord | null = null
