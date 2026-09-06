@@ -35,7 +35,10 @@ async function findActiveDeviceToken(tokenHash: string): Promise<DeviceTokenReco
 export async function GET(request: Request) {
   const response = await createDeviceSnapshotResponse({
     authorization: request.headers.get('authorization'),
-    authorize: (authorization) => authorizeDeviceToken(authorization, findActiveDeviceToken),
+    authorize: (authorization) =>
+      authorizeDeviceToken(authorization, 'dashboard:read', (_prefix, hash) =>
+        findActiveDeviceToken(hash),
+      ),
     loadSnapshot: async (device) => {
       const admin = createAdminClient()
       const month = getCurrentMonth()

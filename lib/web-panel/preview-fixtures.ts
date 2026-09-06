@@ -51,6 +51,7 @@ function expense(id: string, date: string, amount: number, description: string, 
     installment_group_id: null,
     installment_number: null,
     installment_total: null,
+    source_shared_receipt_id: null,
   }
 }
 
@@ -67,6 +68,7 @@ const visa: Card = {
   closing_day: 25,
   due_day: 22,
   account_id: 'galicia',
+  last_four: null,
   archived: false,
   created_at: NOW,
   updated_at: NOW,

@@ -6,6 +6,7 @@ import { Check, CaretDown, CreditCard, Plus, X } from '@phosphor-icons/react'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { Modal } from '@/components/ui/Modal'
 import { addMonths } from '@/lib/dates'
+import { buildCardLastFourPayload, validateCardLastFour } from '@/lib/shared-receipts-ui'
 import type { Account, Card } from '@/types/database'
 
 function closingInfo(closingDay: number, month: string): { diff: number; label: string } {
@@ -93,6 +94,70 @@ function AccountSelect({
   )
 }
 
+function LastFourField({
+  cardId,
+  value,
+  onSave,
+}: {
+  cardId: string
+  value: string | null | undefined
+  onSave: (lastFour: string | null) => Promise<boolean>
+}) {
+  const [draft, setDraft] = useState(value ?? '')
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  const handleSave = async () => {
+    const validation = validateCardLastFour(draft)
+    if (!validation.valid) {
+      setError(validation.message)
+      return
+    }
+    setSaving(true)
+    setError(null)
+    const didSave = await onSave(validation.value)
+    setSaving(false)
+    if (didSave) {
+      setDraft(validation.value ?? '')
+      setSaved(true)
+      setTimeout(() => setSaved(false), 1500)
+    }
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3">
+        <label htmlFor={`card-last-four-${cardId}`} className="shrink-0 text-xs text-text-secondary">
+          Últimos 4
+        </label>
+        <div className="flex items-center gap-1.5">
+          <input
+            id={`card-last-four-${cardId}`}
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            value={draft}
+            onChange={(event) => {
+              setDraft(event.target.value)
+              setError(null)
+              setSaved(false)
+            }}
+            placeholder="1234"
+            aria-invalid={Boolean(error)}
+            className="w-20 rounded-input border border-border-ocean bg-bg-secondary px-2 py-1 text-center text-xs text-text-primary focus:outline-none focus:ring-1 focus:ring-primary"
+          />
+          <button type="button" onClick={() => void handleSave()} disabled={saving} className="rounded-button px-2 py-1 text-[11px] font-semibold text-primary disabled:opacity-50">
+            {saving ? 'Guardando…' : 'Guardar'}
+          </button>
+          {saved && <Check size={11} weight="bold" className="shrink-0 text-success" />}
+        </div>
+      </div>
+      {error && <p role="alert" className="mt-1 text-right text-[11px] text-danger">{error}</p>}
+    </div>
+  )
+}
+
 function CardEmptyState({ onAdd }: { onAdd: () => void }) {
   return (
     <section className="rounded-card border border-dashed border-primary/20 bg-bg-secondary p-5">
@@ -135,17 +200,19 @@ function AddCardModal({
 }: {
   open: boolean
   onClose: () => void
-  onAdd: (name: string) => Promise<void>
+  onAdd: (name: string, lastFour: string | null) => Promise<void>
 }) {
   const [name, setName] = useState('')
+  const [lastFour, setLastFour] = useState('')
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (open) {
       setName('')
-      setError(false)
+      setLastFour('')
+      setError(null)
       setTimeout(() => inputRef.current?.focus(), 150)
     }
   }, [open])
@@ -153,13 +220,18 @@ function AddCardModal({
   const handleSubmit = async () => {
     const trimmed = name.trim()
     if (!trimmed) return
+    const lastFourResult = validateCardLastFour(lastFour)
+    if (!lastFourResult.valid) {
+      setError(lastFourResult.message)
+      return
+    }
     setSaving(true)
-    setError(false)
+    setError(null)
     try {
-      await onAdd(trimmed)
+      await onAdd(trimmed, buildCardLastFourPayload(lastFour).last_four)
       onClose()
     } catch {
-      setError(true)
+      setError('Error al agregar tarjeta. Intentá de nuevo.')
     } finally {
       setSaving(false)
     }
@@ -190,8 +262,25 @@ function AddCardModal({
           className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary placeholder:text-text-tertiary focus:border-primary focus:outline-none"
         />
 
+        <div>
+          <label htmlFor="new-card-last-four" className="text-xs font-semibold text-text-secondary">
+            Últimos 4 dígitos <span className="font-normal text-text-tertiary">(opcional)</span>
+          </label>
+          <input
+            id="new-card-last-four"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={4}
+            value={lastFour}
+            onChange={(event) => setLastFour(event.target.value)}
+            placeholder="1234"
+            className="mt-1 w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary"
+          />
+          <p className="mt-1 text-[11px] text-text-tertiary">Solo guardamos el sufijo para reconocerla: •••• 1234.</p>
+        </div>
+
         {error && (
-          <p className="text-xs text-danger">Error al agregar tarjeta. Intentá de nuevo.</p>
+          <p className="text-xs text-danger">{error}</p>
         )}
 
         <button
@@ -221,11 +310,11 @@ export function CardsSection({
   const [addOpen, setAddOpen] = useState(false)
   const [deleting, setDeleting] = useState(false)
 
-  const handleAddCard = async (name: string) => {
+  const handleAddCard = async (name: string, lastFour: string | null) => {
     const res = await fetch('/api/cards', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name }),
+      body: JSON.stringify({ name, last_four: lastFour }),
     })
     if (!res.ok) throw new Error()
     const newCard: Card = await res.json()
@@ -233,7 +322,7 @@ export function CardsSection({
     router.refresh()
   }
 
-  const updateCard = async (id: string, patch: Partial<Pick<Card, 'closing_day' | 'due_day' | 'account_id'>>) => {
+  const updateCard = async (id: string, patch: Partial<Pick<Card, 'closing_day' | 'due_day' | 'account_id' | 'last_four'>>): Promise<boolean> => {
     try {
       const res = await fetch(`/api/cards/${id}`, {
         method: 'PATCH',
@@ -243,8 +332,10 @@ export function CardsSection({
       if (!res.ok) throw new Error()
       const updated: Card = await res.json()
       setCards((prev) => prev.map((c) => (c.id === id ? updated : c)))
+      return true
     } catch {
       alert('Error al guardar cambios.')
+      return false
     }
   }
 
@@ -301,7 +392,7 @@ export function CardsSection({
                         </span>
                         <span className="text-[11px] text-text-tertiary">
                           {accountName ? `${accountName} · ` : ''}
-                          {info ? info.label : 'Sin ciclo configurado'}
+                          {card.last_four ? `•••• ${card.last_four} · ` : ''}{info ? info.label : 'Sin ciclo configurado'}
                         </span>
                       </div>
 
@@ -335,7 +426,7 @@ export function CardsSection({
                           <DateField
                             day={card.closing_day}
                             forMonth={month}
-                            onSave={(day) => updateCard(card.id, { closing_day: day })}
+                            onSave={async (day) => { await updateCard(card.id, { closing_day: day }) }}
                           />
                         </div>
                         <div className="flex items-center justify-between gap-3">
@@ -343,7 +434,7 @@ export function CardsSection({
                           <DateField
                             day={card.due_day}
                             forMonth={addMonths(month, 1)}
-                            onSave={(day) => updateCard(card.id, { due_day: day ?? 10 })}
+                            onSave={async (day) => { await updateCard(card.id, { due_day: day ?? 10 }) }}
                           />
                         </div>
                         {accounts.length > 0 && (
@@ -352,10 +443,16 @@ export function CardsSection({
                             <AccountSelect
                               value={card.account_id}
                               accounts={accounts}
-                              onChange={(accountId) => updateCard(card.id, { account_id: accountId })}
+                              onChange={(accountId) => { void updateCard(card.id, { account_id: accountId }) }}
                             />
                           </div>
                         )}
+                        <LastFourField
+                          key={`${card.id}-${card.last_four ?? ''}`}
+                          cardId={card.id}
+                          value={card.last_four}
+                          onSave={(lastFour) => updateCard(card.id, buildCardLastFourPayload(lastFour ?? ''))}
+                        />
                         <div className="border-t border-border-subtle pt-2">
                           <button
                             onClick={() => deleteCard(card.id)}

@@ -10,6 +10,7 @@ function makeCard(overrides: Partial<Card> = {}): Card {
     closing_day: 30,
     due_day: 13,
     account_id: null,
+    last_four: null,
     archived: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',
@@ -59,6 +60,7 @@ function makeExpense(overrides: Partial<Expense> = {}): Expense {
     installment_group_id: null,
     installment_number: null,
     installment_total: null,
+    source_shared_receipt_id: null,
     ...overrides,
   }
 }

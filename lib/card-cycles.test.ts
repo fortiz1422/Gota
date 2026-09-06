@@ -15,6 +15,7 @@ function makeCard(overrides: Partial<Card>): Card {
     closing_day: 12,
     due_day: 17,
     account_id: null,
+    last_four: null,
     archived: false,
     created_at: '2026-01-01T00:00:00Z',
     updated_at: '2026-01-01T00:00:00Z',

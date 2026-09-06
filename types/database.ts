@@ -15,6 +15,7 @@ export type Database = {
           user_id: string
           label: string
           token_hash: string
+          token_prefix: string | null
           scopes: string[]
           created_at: string
           expires_at: string | null
@@ -27,6 +28,7 @@ export type Database = {
           user_id: string
           label: string
           token_hash: string
+          token_prefix?: string | null
           scopes?: string[]
           created_at?: string
           expires_at: string
@@ -36,11 +38,75 @@ export type Database = {
         }
         Update: {
           label?: string
+          token_prefix?: string | null
           scopes?: string[]
           expires_at?: string
           last_seen_at?: string | null
           revoked_at?: string | null
           revoked_reason?: string | null
+        }
+        Relationships: []
+      }
+      shared_receipts: {
+        Row: {
+          id: string
+          user_id: string
+          ingest_device_id: string | null
+          status: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
+          source_kind: 'ios_shortcut' | 'web_share_target'
+          source_app_hint: string | null
+          original_filename: string | null
+          mime_type: 'image/jpeg' | 'image/png' | 'image/webp'
+          byte_size: number
+          content_sha256: string
+          storage_path: string | null
+          parsed_payload: Json | null
+          parser_version: string | null
+          parse_error_code: string | null
+          confirmation_payload_hash: string | null
+          matched_expense_id: string | null
+          created_at: string
+          updated_at: string
+          expires_at: string
+          confirmed_at: string | null
+          dismissed_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          ingest_device_id?: string | null
+          status?: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
+          source_kind?: 'ios_shortcut' | 'web_share_target'
+          source_app_hint?: string | null
+          original_filename?: string | null
+          mime_type: 'image/jpeg' | 'image/png' | 'image/webp'
+          byte_size: number
+          content_sha256: string
+          storage_path?: string | null
+          parsed_payload?: Json | null
+          parser_version?: string | null
+          parse_error_code?: string | null
+          confirmation_payload_hash?: string | null
+          matched_expense_id?: string | null
+          created_at?: string
+          updated_at?: string
+          expires_at?: string
+          confirmed_at?: string | null
+          dismissed_at?: string | null
+        }
+        Update: {
+          status?: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
+          source_app_hint?: string | null
+          storage_path?: string | null
+          parsed_payload?: Json | null
+          parser_version?: string | null
+          parse_error_code?: string | null
+          confirmation_payload_hash?: string | null
+          matched_expense_id?: string | null
+          updated_at?: string
+          expires_at?: string
+          confirmed_at?: string | null
+          dismissed_at?: string | null
         }
         Relationships: []
       }
@@ -307,6 +373,7 @@ export type Database = {
           installment_group_id: string | null
           installment_number: number | null
           installment_total: number | null
+          source_shared_receipt_id: string | null
         }
         Insert: {
           id?: string
@@ -330,6 +397,7 @@ export type Database = {
           installment_group_id?: string | null
           installment_number?: number | null
           installment_total?: number | null
+          source_shared_receipt_id?: string | null
         }
         Update: {
           id?: string
@@ -353,6 +421,7 @@ export type Database = {
           installment_group_id?: string | null
           installment_number?: number | null
           installment_total?: number | null
+          source_shared_receipt_id?: string | null
         }
         Relationships: []
       }
@@ -526,6 +595,7 @@ export type Database = {
           closing_day: number | null
           due_day: number
           account_id: string | null
+          last_four: string | null
           archived: boolean
           created_at: string
           updated_at: string
@@ -537,6 +607,7 @@ export type Database = {
           closing_day?: number | null
           due_day?: number
           account_id?: string | null
+          last_four?: string | null
           archived?: boolean
           created_at?: string
           updated_at?: string
@@ -546,6 +617,7 @@ export type Database = {
           closing_day?: number | null
           due_day?: number
           account_id?: string | null
+          last_four?: string | null
           archived?: boolean
         }
         Relationships: []
@@ -1032,6 +1104,26 @@ export type Database = {
           description: string
           created_at: string
         }[]
+      }
+      confirm_shared_receipt_purchase: {
+        Args: {
+          p_user_id: string
+          p_receipt_id: string
+          p_payload: Json
+          p_payload_hash: string
+        }
+        Returns: {
+          outcome: 'confirmed' | 'replay'
+          expense_id: string
+        }[]
+      }
+      consume_shared_receipt_rate_limit: {
+        Args: {
+          p_device_id: string
+          p_limit?: number
+          p_window_seconds?: number
+        }
+        Returns: boolean
       }
     }
     Enums: Record<string, never>

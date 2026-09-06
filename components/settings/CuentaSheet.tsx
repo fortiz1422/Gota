@@ -12,6 +12,7 @@ import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl
 import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
 import { SubscriptionsSubSheet } from '@/components/settings/SubscriptionsSubSheet'
 import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
+import { SharedReceiptDevicesPanel } from '@/components/settings/SharedReceiptDevicesPanel'
 import { createClient } from '@/lib/supabase/client'
 import { updatePassword } from '@/lib/auth'
 import type { HeroBalanceMode } from '@/types/database'
@@ -281,6 +282,15 @@ export function CuentaSheet({
                 )}
                 <CaretRight size={12} className="text-text-dim" />
               </button>
+            </div>
+          </div>
+
+          <div>
+            <p className="px-1 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-text-label">
+              Integraciones
+            </p>
+            <div className="card-s5 overflow-hidden">
+              <SharedReceiptDevicesPanel compact />
             </div>
           </div>
 

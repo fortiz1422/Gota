@@ -1,0 +1,89 @@
+{
+  "name": "Compartir con Gota",
+  "artifact_type": "unsigned_shortcut_recipe",
+  "signed_shortcut_generated": false,
+  "platform_requirement": "Rebuild and sign with Apple Shortcuts on iPhone, iPad, or Mac",
+  "share_sheet": {
+    "enabled": true,
+    "accepted_types": ["Images"]
+  },
+  "import_questions": [
+    {
+      "id": "receipt_import_token",
+      "prompt": "Pegá el token de importación que te mostró Gota",
+      "secret": true,
+      "repository_value": null
+    }
+  ],
+  "actions": [
+    {
+      "order": 1,
+      "action": "If",
+      "condition": "Shortcut Input has no value",
+      "then": ["Show Alert: No hay una imagen", "Stop This Shortcut"]
+    },
+    {
+      "order": 2,
+      "action": "Get Item from List",
+      "input": "Shortcut Input",
+      "item": "First Item"
+    },
+    {
+      "order": 3,
+      "action": "Get Details of Images",
+      "detail": "File Type"
+    },
+    {
+      "order": 4,
+      "action": "If",
+      "condition": "File Type does not begin with image/",
+      "then": ["Show Alert: Formato no compatible", "Stop This Shortcut"]
+    },
+    {
+      "order": 5,
+      "action": "Convert Image",
+      "format": "JPEG",
+      "preserve_metadata": false
+    },
+    {
+      "order": 6,
+      "action": "Get Contents of URL",
+      "url": "https://<dominio-de-gota>/api/shortcut/v1/receipts",
+      "method": "POST",
+      "headers": {
+        "Authorization": "Bearer {{import_question.receipt_import_token}}"
+      },
+      "request_body": {
+        "type": "Form",
+        "fields": [
+          {
+            "name": "file",
+            "type": "File",
+            "value": "Converted Image"
+          }
+        ]
+      }
+    },
+    {
+      "order": 7,
+      "action": "Get Dictionary from Input",
+      "input": "Contents of URL"
+    },
+    {
+      "order": 8,
+      "action": "Get Dictionary Value",
+      "key": "status"
+    },
+    {
+      "order": 9,
+      "action": "If branches",
+      "branches": {
+        "accepted": "Show Notification: Comprobante recibido. Abrí Gota para revisarlo.",
+        "duplicate": "Show Notification: Ese comprobante ya había sido recibido. Abrí Gota para revisarlo.",
+        "unauthorized_or_401": "Show Alert: Token inválido o vencido. Creá uno nuevo en Gota > Integraciones.",
+        "too_large_or_413": "Show Alert: La imagen supera el límite permitido. Recortala o reducí su tamaño e intentá de nuevo.",
+        "otherwise": "Show Alert: No pudimos enviar el comprobante. Intentá de nuevo."
+      }
+    }
+  ]
+}
