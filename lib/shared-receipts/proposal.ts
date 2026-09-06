@@ -13,6 +13,7 @@ export const RECEIPT_TRANSACTION_TYPES = [
 ] as const
 
 const nullableText = z.string().trim().max(160).nullable().default(null)
+const canonicalCategories = new Set<string>(CATEGORIES)
 
 export const ReceiptProposalSchema = z.object({
   transaction_type: z.enum(RECEIPT_TRANSACTION_TYPES),
@@ -28,7 +29,10 @@ export const ReceiptProposalSchema = z.object({
   card_last_four: z.string().regex(/^\d{4}$/).nullable().default(null),
   installments: z.number().int().min(1).max(72).nullable().default(null),
   reference: nullableText,
-  category_suggestion: z.enum(CATEGORIES).nullable().default(null),
+  category_suggestion: z.preprocess(
+    (value) => typeof value === 'string' && !canonicalCategories.has(value) ? null : value,
+    z.enum(CATEGORIES).nullable().default(null),
+  ),
   confidence: z.number().min(0).max(1).default(0),
   warnings: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
   evidence: z.array(z.string().trim().min(1).max(240)).max(20).default([]),

@@ -3,7 +3,7 @@ export const SHARED_RECEIPT_ROUTES = {
   device: (id: string) => `/api/shared-receipt-devices/${encodeURIComponent(id)}`,
   inbox: '/api/shared-receipts?status=needs_review',
   detail: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}`,
-  analyze: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze`,
+  analyze: (id: string, retry = false) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze${retry ? '?retry=true' : ''}`,
   confirm: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}/confirm`,
   dismiss: (id: string) => ({
     url: `/api/shared-receipts/${encodeURIComponent(id)}`,
@@ -147,7 +147,7 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
     : ''
   const occurredAt = typeof raw.occurred_at === 'string' ? raw.occurred_at : ''
   const category = typeof raw.category_suggestion === 'string' ? raw.category_suggestion : ''
-  if (!description || !Number.isFinite(amount) || !occurredAt || !raw.currency || !category) {
+  if (!description || !Number.isFinite(amount) || !occurredAt || !raw.currency) {
     return { supported: false, reason: 'La propuesta está incompleta. Volvé a analizar el comprobante.' }
   }
 

@@ -42,6 +42,21 @@ describe('shared receipt proposal', () => {
     expect(() => parseReceiptProposal({ transaction_type: 'purchase', confidence: 2 })).toThrow()
   })
 
+  it('drops a non-canonical category suggestion without rejecting the evidence', () => {
+    const proposal = parseReceiptProposal({
+      transaction_type: 'purchase',
+      amount: 1250,
+      currency: 'ARS',
+      occurred_at: '2026-09-06T10:44:00-03:00',
+      merchant_or_counterparty: 'Comercio',
+      category_suggestion: 'Compras',
+      confidence: 0.9,
+    })
+
+    expect(proposal.category_suggestion).toBeNull()
+    expect(proposal.amount).toBe(1250)
+  })
+
   it('redacts full card, CBU, CUIT and long references from persisted free text', () => {
     const proposal = sanitizeReceiptProposal(
       parseReceiptProposal({

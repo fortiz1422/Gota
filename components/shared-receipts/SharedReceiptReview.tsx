@@ -67,8 +67,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setAnalyzing(true)
     setError(null)
     try {
-      const response = await fetch(SHARED_RECEIPT_ROUTES.analyze(receiptId), { method: 'POST' })
-      if (!response.ok) throw new Error(await responseError(response, 'No pudimos analizar el comprobante.'))
+      const response = await fetch(
+        SHARED_RECEIPT_ROUTES.analyze(receiptId, receipt?.status === 'parse_failed'),
+        { method: 'POST' },
+      )
+      if (!response.ok) {
+        if (response.status === 422) {
+          setReceipt((current) => current ? { ...current, status: 'parse_failed' } : current)
+        }
+        throw new Error(await responseError(response, 'No pudimos analizar el comprobante.'))
+      }
       const parsed = parsePurchaseProposal(await response.json())
       setAnalysis(parsed)
       if (parsed.supported) {
@@ -163,7 +171,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>
         <p className="mt-2 text-sm leading-6 text-text-secondary">El análisis solo prepara una propuesta editable. No habrá cambios financieros hasta que confirmes.</p>
         <div className="mt-4 rounded-input bg-bg-tertiary p-3 text-xs text-text-tertiary"><p>{receipt.filename || 'Imagen enviada desde iPhone'}</p><p className="mt-1">Recibido {new Date(receipt.created_at).toLocaleString('es-AR')}</p></div>
-        {!analysis && <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : 'Analizar comprobante'}</button>}
+        {!analysis && <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : receipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Analizar comprobante'}</button>}
       </section>
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
@@ -177,7 +185,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
             <label className="block text-xs font-semibold text-text-secondary">Moneda<select value={form.currency} onChange={(event) => setField('currency', event.target.value as 'ARS' | 'USD')} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="ARS">ARS</option><option value="USD">USD</option></select></label>
           </div>
           <label className="block text-xs font-semibold text-text-secondary">Fecha<input type="date" value={form.date} onChange={(event) => setField('date', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
-          <label className="block text-xs font-semibold text-text-secondary">Categoría<select value={form.category} onChange={(event) => setField('category', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary">{CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+          <label className="block text-xs font-semibold text-text-secondary">Categoría<select value={form.category} onChange={(event) => setField('category', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Elegí una categoría</option>{CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
           <label className="block text-xs font-semibold text-text-secondary">Cuenta<select value={form.account_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, account_id: event.target.value || null, ...(event.target.value ? { card_id: null, payment_method: 'DEBIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin cuenta</option>{accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select></label>
           <label className="block text-xs font-semibold text-text-secondary">Tarjeta<select value={form.card_id ?? ''} onChange={(event) => setForm((current) => current ? { ...current, card_id: event.target.value || null, ...(event.target.value ? { account_id: null, payment_method: 'CREDIT' as const } : {}) } : current)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary"><option value="">Sin tarjeta</option>{cards.map((card) => <option key={card.id} value={card.id}>{card.name}{card.last_four ? ` •••• ${card.last_four}` : ''}</option>)}</select></label>
           <label className="block text-xs font-semibold text-text-secondary">Cuotas<input type="number" min="1" step="1" value={form.installments} onChange={(event) => setField('installments', event.target.value)} className="mt-1 w-full rounded-input border border-border-ocean bg-white px-3 py-2.5 text-sm text-text-primary" /></label>
