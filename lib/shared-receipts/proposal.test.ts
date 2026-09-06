@@ -85,4 +85,20 @@ describe('shared receipt proposal', () => {
     expect(proposal.card_last_four).toBe('4242')
     expect(serialized).toContain('[REDACTED]')
   })
+
+  it('preserves a long alphanumeric merchant name for an identifiable description', () => {
+    const proposal = sanitizeReceiptProposal(parseReceiptProposal({
+      transaction_type: 'purchase',
+      amount: 19_308.35,
+      currency: 'ARS',
+      occurred_at: '2026-09-06T18:15:00-03:00',
+      merchant_or_counterparty: 'MERCADOCENTRALONLINE',
+      payment_rail: 'bank_transfer',
+      reference: 'ABCDEF1234567890XYZ',
+      confidence: 0.9,
+    }))
+
+    expect(proposal.merchant_or_counterparty).toBe('MERCADOCENTRALONLINE')
+    expect(proposal.reference).toBe('[REDACTED]')
+  })
 })

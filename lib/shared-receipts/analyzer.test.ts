@@ -15,6 +15,7 @@ describe('universal shared receipt analyzer', () => {
     expect(prompt).toContain('"Transferencia de <nombre>" identifica al emisor')
     expect(prompt).toContain('"Pagaste a <nombre>" es una compra')
     expect(prompt).toContain('si muestra una cuenta bancaria y no muestra ninguna tarjeta, payment_rail debe ser bank_transfer')
+    expect(prompt).toContain('nombre visible del comercio, local o destinatario')
   })
 
   it('uses receipt inline data and strips markdown fences from Gemini JSON', async () => {
