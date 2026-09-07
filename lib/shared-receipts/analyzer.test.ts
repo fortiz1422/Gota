@@ -10,6 +10,8 @@ describe('universal shared receipt analyzer', () => {
     expect(prompt).toContain('insufficient_evidence')
     expect(prompt).toContain('card_last_four')
     expect(prompt).toContain('card_brand')
+    expect(prompt).toContain('card_issuer')
+    expect(prompt).toContain('banco o emisor visible')
     expect(prompt).toContain('$4.100 significa 4100 ARS')
     expect(prompt).toContain('$30.240,78 significa 30240.78 ARS')
     expect(prompt).toContain('"Para <nombre>" identifica al destinatario')

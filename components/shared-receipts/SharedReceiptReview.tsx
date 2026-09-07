@@ -80,7 +80,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
-        const detailedQueue = await Promise.all(summaries.map(async (summary) => {
+        setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))
+        void Promise.all(summaries.map(async (summary) => {
           if (summary.id === loadedReceipt?.id) return loadedReceipt
           try {
             const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(summary.id), { cache: 'no-store' })
@@ -89,8 +90,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           } catch {
             return summary
           }
-        }))
-        setQueue(detailedQueue)
+        })).then(setQueue)
       } else if (loadedReceipt) {
         setQueue([loadedReceipt])
       }
@@ -120,7 +120,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       const parsed = parsePurchaseProposal(await response.json())
       if (parsed.supported) {
         const matchingCard = parsed.proposal.payment_method === 'CREDIT'
-          ? matchReceiptCard(cards, parsed.proposal.card_last_four, parsed.proposal.card_brand)
+          ? matchReceiptCard(cards, parsed.proposal.card_brand, parsed.proposal.card_issuer)
           : null
         setAnalysis({
           supported: true,
@@ -148,9 +148,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     })
     if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
     const result = parseConfirmResult(await response.json())
-    await invalidateAfterSharedReceiptConfirmation(queryClient)
-    setNextReceiptId(await loadNextReceiptId())
+    setNextReceiptId(getNextPendingReceiptId(queue, receiptId))
     setDone(result)
+    void invalidateAfterSharedReceiptConfirmation(queryClient)
+    void loadNextReceiptId().then(setNextReceiptId)
   }
 
   const dismiss = async () => {
@@ -161,9 +162,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     try {
       const response = await fetch(contract.url, { method: contract.method })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos descartar el comprobante.'))
-      await queryClient.invalidateQueries({ queryKey: ['shared-receipts'] })
-      setNextReceiptId(await loadNextReceiptId())
+      setNextReceiptId(getNextPendingReceiptId(queue, receiptId))
       setDismissed(true)
+      void queryClient.invalidateQueries({ queryKey: ['shared-receipts'] })
+      void loadNextReceiptId().then(setNextReceiptId)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos descartar el comprobante.')
     } finally {

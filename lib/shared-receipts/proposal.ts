@@ -28,6 +28,7 @@ export const ReceiptProposalSchema = z.object({
   account_hint: nullableText,
   card_last_four: z.string().regex(/^\d{4}$/).nullable().default(null),
   card_brand: z.string().trim().min(1).max(40).nullable().default(null),
+  card_issuer: z.string().trim().min(1).max(80).nullable().default(null),
   installments: z.number().int().min(1).max(72).nullable().default(null),
   reference: nullableText,
   category_suggestion: z.preprocess(

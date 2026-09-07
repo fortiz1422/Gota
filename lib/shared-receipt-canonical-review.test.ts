@@ -128,6 +128,6 @@ describe('shared receipt canonical expense review', () => {
       new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
       'utf8',
     )
-    expect(source).toContain('await invalidateAfterSharedReceiptConfirmation(queryClient)')
+    expect(source).toContain('void invalidateAfterSharedReceiptConfirmation(queryClient)')
   })
 })

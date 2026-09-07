@@ -64,6 +64,7 @@ export interface PurchaseProposal {
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_last_four: string | null
   card_brand: string | null
+  card_issuer: string | null
   is_want: boolean | null
 }
 
@@ -206,6 +207,7 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
       payment_method: paymentMethod,
       card_last_four: typeof raw.card_last_four === 'string' ? raw.card_last_four : null,
       card_brand: typeof raw.card_brand === 'string' ? raw.card_brand.trim() || null : null,
+      card_issuer: typeof raw.card_issuer === 'string' ? raw.card_issuer.trim() || null : null,
       is_want: null,
     },
   }
@@ -222,21 +224,41 @@ function normalizeCardLabel(value: string): string {
   return value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
 }
 
+function canonicalCardBrand(value: string): string {
+  const normalized = normalizeCardLabel(value)
+  if (normalized.includes('master')) return 'master'
+  if (normalized.includes('visa')) return 'visa'
+  if (normalized.includes('american express') || normalized.includes('amex')) return 'amex'
+  return normalized.trim()
+}
+
+function canonicalCardIssuer(value: string): string {
+  const normalized = normalizeCardLabel(value)
+  if (normalized.includes('banco nacion') || normalized.includes('banco de la nacion') || /(^|\s)bna(\s|$)/.test(normalized)) return 'bna'
+  if (normalized.includes('bbva') || normalized.includes('banco frances')) return 'bbva'
+  return normalized.trim()
+}
+
 export function matchReceiptCard(
   cards: ReceiptCardCandidate[],
-  lastFour: string | null,
   brand: string | null,
+  issuer: string | null,
 ): ReceiptCardCandidate | null {
-  const availableCards = cards.filter((card) => !card.archived)
-  if (lastFour) {
-    const suffixMatches = availableCards.filter((card) => card.last_four === lastFour)
-    if (suffixMatches.length === 1) return suffixMatches[0]
-  }
   if (!brand) return null
-  const normalizedBrand = normalizeCardLabel(brand.trim())
+  const normalizedBrand = canonicalCardBrand(brand)
   if (!normalizedBrand) return null
-  const brandMatches = availableCards.filter((card) => normalizeCardLabel(card.name).includes(normalizedBrand))
-  return brandMatches.length === 1 ? brandMatches[0] : null
+
+  const brandMatches = cards.filter((card) => (
+    !card.archived && canonicalCardBrand(card.name).includes(normalizedBrand)
+  ))
+  if (!issuer) return brandMatches.length === 1 ? brandMatches[0] : null
+
+  const normalizedIssuer = canonicalCardIssuer(issuer)
+  if (!normalizedIssuer) return null
+  const issuerMatches = brandMatches.filter((card) => (
+    canonicalCardIssuer(card.name).includes(normalizedIssuer)
+  ))
+  return issuerMatches.length === 1 ? issuerMatches[0] : null
 }
 
 export function restoreStoredPurchaseProposal(
@@ -247,7 +269,7 @@ export function restoreStoredPurchaseProposal(
   const parsed = parsePurchaseProposal(receipt.parsed_payload)
   if (!parsed.supported) return parsed
   if (parsed.proposal.payment_method !== 'CREDIT') return parsed
-  const matchingCard = matchReceiptCard(cards, parsed.proposal.card_last_four, parsed.proposal.card_brand)
+  const matchingCard = matchReceiptCard(cards, parsed.proposal.card_brand, parsed.proposal.card_issuer)
   if (!matchingCard) return parsed
   return {
     supported: true,
@@ -269,7 +291,7 @@ export interface ConfirmPurchaseForm {
   user_id?: unknown
 }
 
-export type ConfirmPurchasePayload = Omit<PurchaseProposal, 'card_last_four' | 'card_brand'>
+export type ConfirmPurchasePayload = Omit<PurchaseProposal, 'card_last_four' | 'card_brand' | 'card_issuer'>
 
 export function buildConfirmPurchasePayload(form: ConfirmPurchaseForm): ConfirmPurchasePayload {
   const amount = typeof form.amount === 'number' ? form.amount : Number(form.amount)
