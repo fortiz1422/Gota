@@ -1,0 +1,43 @@
+/* Only /settings owns this module. Shared controls keep their behavior and Web styling. */
+.page { min-height: 100dvh; background: var(--color-bg-primary); }
+.content { max-width: 448px; margin: 0 auto; padding: 0 20px calc(100px + env(safe-area-inset-bottom)); }
+.header { margin: 0 -20px 28px; padding: calc(24px + env(safe-area-inset-top)) 24px 28px; border-radius: 0 0 var(--radius-card-lg) var(--radius-card-lg); color: white; }
+.eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .12em; }
+.header h1 { margin-top: 8px; font-size: 28px; font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
+.intro { margin-top: 8px; font-size: 13px; line-height: 1.6; }
+.group { margin-top: 28px; min-width: 0; }
+.group h2 { color: var(--color-text-primary); font-size: 17px; font-weight: 700; letter-spacing: -.02em; line-height: 1.4; }
+.description { margin: 4px 0 14px; color: var(--color-text-secondary); font-size: 13px; line-height: 1.5; }
+.reading { padding: 16px; border: 1px solid var(--color-border-strong); border-radius: var(--radius-card); background: var(--color-bg-primary); }
+.reading > div + div { margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border-subtle); }
+.reading > div > p { font-size: 12px; letter-spacing: 0; text-transform: none; font-weight: 500; color: var(--color-text-secondary); }
+.reading > div > button { padding: 4px 0; border: 0 !important; background: transparent !important; backdrop-filter: none !important; }
+.reading > div > button > div { min-width: 0; }
+.reading > div > button > span { white-space: normal; max-width: 84px; text-align: right; }
+.reading button { min-height: 44px; }
+.period { padding: 12px 14px 6px; border-radius: var(--radius-card) var(--radius-card) 0 0; background: var(--color-bg-secondary); border: 1px solid var(--color-border-strong); border-bottom: 0; }
+.periodLabel { font-size: 12px; font-weight: 600; color: var(--color-text-primary); }
+.periodHint { margin-top: 3px; font-size: 11px; color: var(--color-text-secondary); }
+.monthControl { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 4px; }
+.monthControl button { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; border-radius: var(--radius-button); color: var(--color-primary); }
+.monthControl button:disabled { opacity: .3; }
+.monthControl span { text-align: center; font-size: 13px; font-weight: 600; color: var(--color-text-primary); }
+.financialRows { border: 1px solid var(--color-border-strong); border-radius: 0 0 var(--radius-card) var(--radius-card); overflow: hidden; }
+.financialRows > div { border: 0 !important; border-radius: 0; background: var(--color-bg-primary) !important; backdrop-filter: none !important; }
+.financialRows > div + div { border-top: 1px solid var(--color-border-subtle) !important; }
+.financialRows > div > button { min-height: 60px; }
+.financialRows button { min-height: 44px; }
+.financialRows input, .financialRows select { min-height: 44px; max-width: 100%; }
+.subscription { margin-top: 14px; }
+.subscription > div > p { display: none; } /* The button already names subscriptions. */
+.subscription > div > button { border: 1px solid var(--color-border-strong) !important; background: var(--color-bg-primary) !important; backdrop-filter: none !important; }
+.entry > button { background: var(--color-bg-primary); border-color: var(--color-border-strong); border-radius: var(--radius-card); padding: 14px 16px; }
+.inbox { margin-top: 12px; }
+.inbox > section { background: var(--color-bg-secondary); border-color: var(--color-border-strong); }
+.account { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--color-border-strong); }
+.account > div { background: var(--color-bg-primary) !important; border: 0 !important; padding: 0; backdrop-filter: none !important; }
+.account p { overflow-wrap: anywhere; }
+.account button, .account a { min-height: 44px; }
+.account a { display: flex; align-items: center; }
+.preferences button:focus-visible, .account button:focus-visible, .account a:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
+.preferences button:disabled { cursor: not-allowed; }
