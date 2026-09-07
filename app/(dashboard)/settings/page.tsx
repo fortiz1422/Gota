@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import { AccountSection } from '@/components/settings/AccountSection'
+import styles from '@/components/settings/MobileSettings.module.css'
 import { SettingsPreferences } from '@/components/settings/SettingsPreferences'
 import { getCurrentMonth } from '@/lib/dates'
 import { FF_SIGNALS_CENTER_V1 } from '@/lib/flags'
@@ -45,8 +46,8 @@ export default async function SettingsPage() {
   const accounts = accountsData ?? []
 
   return (
-    <div className="min-h-screen bg-bg-primary">
-      <div className="mx-auto max-w-md px-5 pt-safe pb-tab-bar">
+    <div className={styles.page}>
+      <div className={styles.content}>
         <SettingsPreferences
           currentMonth={currentMonth}
           currency={currency}
@@ -57,8 +58,9 @@ export default async function SettingsPage() {
         />
 
         {/* Cuenta */}
-        <section className="mt-10">
-          <p className="mb-4 type-label text-text-label">Cuenta</p>
+        <section className={`${styles.group} ${styles.account}`} aria-labelledby="settings-access-title">
+          <h2 id="settings-access-title">Acceso y seguridad</h2>
+          <p className={styles.description}>Tu cuenta, tus formas de entrar y tus datos.</p>
           <AccountSection
             email={user.email ?? ''}
             isAnonymous={user.is_anonymous === true}
