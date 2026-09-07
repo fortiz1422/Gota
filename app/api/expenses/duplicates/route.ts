@@ -10,23 +10,34 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url)
   const amount = Number(searchParams.get('amount'))
-  const category = searchParams.get('category') ?? ''
+  const currency = searchParams.get('currency') ?? ''
   const date = searchParams.get('date') ?? ''
 
-  if (!amount || !category || !date) {
-    return NextResponse.json({ duplicates: [] })
+  if (!Number.isFinite(amount) || amount <= 0 || !['ARS', 'USD'].includes(currency) || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    return NextResponse.json({ error: 'Invalid duplicate check input' }, { status: 400 })
   }
 
-  const { data, error } = await supabase.rpc('detect_duplicate_expenses', {
-    p_user_id: user.id,
-    p_amount: amount,
-    p_category: category,
-    p_date: date,
-  })
+  const start = new Date(`${date}T00:00:00.000Z`)
+  const end = new Date(start)
+  end.setUTCDate(end.getUTCDate() + 1)
+  if (Number.isNaN(start.getTime())) {
+    return NextResponse.json({ error: 'Invalid duplicate check input' }, { status: 400 })
+  }
+
+  const { data, error } = await supabase
+    .from('expenses')
+    .select('id, description, created_at')
+    .eq('user_id', user.id)
+    .eq('amount', amount)
+    .eq('currency', currency)
+    .gte('date', start.toISOString())
+    .lt('date', end.toISOString())
+    .order('created_at', { ascending: false })
+    .limit(5)
 
   if (error) {
     console.error('Duplicate check error:', error)
-    return NextResponse.json({ duplicates: [] })
+    return NextResponse.json({ error: 'Duplicate check failed' }, { status: 500 })
   }
 
   return NextResponse.json({ duplicates: data ?? [] })

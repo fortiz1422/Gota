@@ -6,10 +6,12 @@ import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { dateInputToISO, formatDate, todayAR } from '@/lib/format'
+import {
+  fetchPossibleExpenseDuplicates,
+  type PossibleExpenseDuplicate,
+} from '@/lib/expense-duplicates'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
-
-type Duplicate = { id: string; description: string; created_at: string }
 
 export interface ParsedExpensePreviewData {
   amount: number
@@ -139,7 +141,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
   const [saveError, setSaveError] = useState<string | null>(null)
   const [cardError, setCardError] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
-  const [foundDuplicates, setFoundDuplicates] = useState<Duplicate[]>([])
+  const [foundDuplicates, setFoundDuplicates] = useState<PossibleExpenseDuplicate[]>([])
 
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
   const isCredit = source === 'credit' || isPagoTarjetas
@@ -153,7 +155,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
     setForm((prev) => ({ ...prev, [key]: value }))
     setSaveError(null)
     if (key === 'card_id') setCardError(false)
-    if (key === 'amount' || key === 'category' || key === 'date') {
+    if (key === 'amount' || key === 'currency' || key === 'category' || key === 'date') {
       setDuplicatesChecked(false)
       setFoundDuplicates([])
     }
@@ -179,19 +181,17 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
     if (!duplicatesChecked) {
       setIsChecking(true)
       try {
-        const params = new URLSearchParams({
-          amount: String(form.amount),
-          category: form.category,
+        const duplicates = await fetchPossibleExpenseDuplicates({
+          amount: form.amount,
+          currency: form.currency,
           date: form.date,
         })
-        const res = await fetch(`/api/expenses/duplicates?${params}`)
-        const duplicateData = await res.json()
-        const duplicates: Duplicate[] = duplicateData.duplicates ?? []
         setFoundDuplicates(duplicates)
         setDuplicatesChecked(true)
         if (duplicates.length > 0) return
       } catch {
-        setDuplicatesChecked(true)
+        setSaveError('No pudimos verificar si el gasto ya existe. Intentá de nuevo.')
+        return
       } finally {
         setIsChecking(false)
       }
