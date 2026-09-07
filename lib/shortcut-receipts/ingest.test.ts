@@ -103,12 +103,19 @@ describe('receipt image validation', () => {
 })
 
 describe('receipt ingestion persistence', () => {
-  it('returns an owner-scoped duplicate without uploading', async () => {
-    const findDuplicate = vi.fn(async () => ({ id: 'existing-1', status: 'received' as const }))
+  it('explains when a duplicate was already confirmed', async () => {
+    const findDuplicate = vi.fn(async () => ({ id: 'existing-1', status: 'confirmed' as never }))
     const deps = dependencies({ findDuplicate })
     const result = await ingest({}, deps)
 
-    expect(result).toMatchObject({ status: 200, body: { status: 'duplicate', receipt_id: 'existing-1' } })
+    expect(result).toMatchObject({
+      status: 200,
+      body: {
+        status: 'duplicate',
+        receipt_id: 'existing-1',
+        message: 'Este comprobante ya estaba cargado y confirmado en Gota.',
+      },
+    })
     expect(findDuplicate).toHaveBeenCalledWith('user-1', expect.stringMatching(/^[a-f0-9]{64}$/))
     expect(deps.upload).not.toHaveBeenCalled()
   })
@@ -135,7 +142,11 @@ describe('receipt ingestion persistence', () => {
 
     expect(result).toMatchObject({
       status: 201,
-      body: { status: 'accepted', receipt_id: 'receipt-1' },
+      body: {
+        status: 'accepted',
+        receipt_id: 'receipt-1',
+        message: 'Comprobante recibido. Ya está disponible en Gota.',
+      },
     })
     expect(deps.upload).toHaveBeenCalledWith('user-1/device-1/receipt-1.png', expect.any(Uint8Array), 'image/png')
     expect(deps.insert).toHaveBeenCalledWith(expect.objectContaining({

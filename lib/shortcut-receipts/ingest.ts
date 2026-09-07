@@ -3,6 +3,7 @@ import {
   authorizeDeviceToken,
   type FindDeviceToken,
 } from '@/lib/device-auth/device-token'
+import { withShortcutReceiptMessage } from './response'
 
 export const MAX_RECEIPT_BYTES = 10 * 1024 * 1024
 
@@ -12,7 +13,7 @@ const allowedMimeTypes = ['image/jpeg', 'image/png', 'image/webp'] as const
 type AllowedMimeType = (typeof allowedMimeTypes)[number]
 type ReceiptStatus = 'received'
 
-type ReceiptSummary = { id: string; status: ReceiptStatus }
+type ReceiptSummary = { id: string; status: string }
 
 export type ReceiptUpload = {
   name: string
@@ -57,7 +58,14 @@ type IngestInput = {
 }
 
 function result(status: number, body: unknown): HandlerResult {
-  return { status, body, headers: noStoreHeaders }
+  return { status, body: withShortcutReceiptMessage(body), headers: noStoreHeaders }
+}
+
+function duplicateMessage(status: string): string {
+  if (status === 'confirmed') {
+    return 'Este comprobante ya estaba cargado y confirmado en Gota.'
+  }
+  return 'Este comprobante ya estaba cargado en Gota.'
 }
 
 function startsWith(bytes: Uint8Array, signature: number[]): boolean {
@@ -138,7 +146,11 @@ export function createReceiptIngestHandler(dependencies: ReceiptIngestDependenci
     const contentSha256 = createHash('sha256').update(bytes).digest('hex')
     const duplicate = await dependencies.findDuplicate(userId, contentSha256)
     if (duplicate) {
-      return result(200, { status: 'duplicate', receipt_id: duplicate.id })
+      return result(200, {
+        status: 'duplicate',
+        receipt_id: duplicate.id,
+        message: duplicateMessage(duplicate.status),
+      })
     }
 
     const receiptId = dependencies.newId()
@@ -163,7 +175,11 @@ export function createReceiptIngestHandler(dependencies: ReceiptIngestDependenci
         content_sha256: contentSha256,
         storage_path: storagePath,
       })
-      return result(201, { status: 'accepted', receipt_id: receipt.id })
+      return result(201, {
+        status: 'accepted',
+        receipt_id: receipt.id,
+        message: 'Comprobante recibido. Ya está disponible en Gota.',
+      })
     } catch {
       try {
         await dependencies.remove(storagePath)
@@ -172,7 +188,11 @@ export function createReceiptIngestHandler(dependencies: ReceiptIngestDependenci
       }
       const racedDuplicate = await dependencies.findDuplicate(userId, contentSha256)
       if (racedDuplicate) {
-        return result(200, { status: 'duplicate', receipt_id: racedDuplicate.id })
+        return result(200, {
+          status: 'duplicate',
+          receipt_id: racedDuplicate.id,
+          message: duplicateMessage(racedDuplicate.status),
+        })
       }
       return result(500, { error: 'ingest_failed' })
     }

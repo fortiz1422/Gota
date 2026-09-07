@@ -5,6 +5,7 @@ import { createReceiptIngestHandler, type ReceiptUpload } from '@/lib/shortcut-r
 import { authorizeDeviceToken, type DeviceTokenRecord } from '@/lib/device-auth/device-token'
 import { isShortcutReceiptsEnabled } from '@/lib/shortcut-receipts/feature'
 import { parseShortcutReceiptRequest } from '@/lib/shortcut-receipts/request'
+import { withShortcutReceiptMessage } from '@/lib/shortcut-receipts/response'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
@@ -14,7 +15,7 @@ const noStoreHeaders = { 'Cache-Control': 'no-store', Pragma: 'no-cache' }
 
 export async function POST(request: Request) {
   if (!isShortcutReceiptsEnabled(process.env.SHORTCUT_RECEIPTS_ENABLED)) {
-    return NextResponse.json({ error: 'not_found' }, { status: 404, headers: noStoreHeaders })
+    return NextResponse.json(withShortcutReceiptMessage({ error: 'not_found' }), { status: 404, headers: noStoreHeaders })
   }
 
   try {
@@ -47,7 +48,7 @@ export async function POST(request: Request) {
       },
     )
     if (authorization.kind !== 'authorized' || !resolvedToken) {
-      return NextResponse.json({ error: 'unauthorized' }, { status: 401, headers: noStoreHeaders })
+      return NextResponse.json(withShortcutReceiptMessage({ error: 'unauthorized' }), { status: 401, headers: noStoreHeaders })
     }
 
     const { data: rateLimitAllowed, error: rateLimitError } = await admin.rpc(
@@ -57,7 +58,7 @@ export async function POST(request: Request) {
     if (rateLimitError) throw rateLimitError
     if (rateLimitAllowed !== true) {
       return NextResponse.json(
-        { error: 'rate_limited' },
+        withShortcutReceiptMessage({ error: 'rate_limited' }),
         { status: 429, headers: { ...noStoreHeaders, 'Retry-After': '600' } },
       )
     }
@@ -65,7 +66,7 @@ export async function POST(request: Request) {
     const parsedRequest = await parseShortcutReceiptRequest(request)
     if (!parsedRequest.ok) {
       return NextResponse.json(
-        { error: parsedRequest.error },
+        withShortcutReceiptMessage({ error: parsedRequest.error }),
         { status: parsedRequest.status, headers: noStoreHeaders },
       )
     }
@@ -75,12 +76,12 @@ export async function POST(request: Request) {
       async findDuplicate(userId, contentSha256) {
         const { data, error } = await admin
           .from('shared_receipts')
-          .select('id')
+          .select('id,status')
           .eq('user_id', userId)
           .eq('content_sha256', contentSha256)
           .maybeSingle()
         if (error) throw error
-        return data ? { id: data.id, status: 'received' as const } : null
+        return data ? { id: data.id, status: data.status } : null
       },
       async upload(path, bytes, mimeType) {
         const { error } = await admin.storage.from(BUCKET).upload(path, bytes, {
@@ -115,6 +116,6 @@ export async function POST(request: Request) {
       headers: result.headers,
     })
   } catch {
-    return NextResponse.json({ error: 'ingest_failed' }, { status: 500, headers: noStoreHeaders })
+    return NextResponse.json(withShortcutReceiptMessage({ error: 'ingest_failed' }), { status: 500, headers: noStoreHeaders })
   }
 }
