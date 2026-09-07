@@ -69,6 +69,7 @@ describe('shared receipt proposal', () => {
         account_hint: 'CBU 2850590940090418135201',
         card_last_four: '4242',
         card_brand: 'Visa',
+        card_issuer: 'Banco Nación',
         installments: 1,
         reference: 'Operacion 123456789012345678901234',
         category_suggestion: 'Alimentos',
@@ -85,6 +86,7 @@ describe('shared receipt proposal', () => {
     expect(serialized).not.toContain('123456789012345678901234')
     expect(proposal.card_last_four).toBe('4242')
     expect(proposal.card_brand).toBe('Visa')
+    expect(proposal.card_issuer).toBe('Banco Nación')
     expect(serialized).toContain('[REDACTED]')
   })
 

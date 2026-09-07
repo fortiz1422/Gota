@@ -178,12 +178,14 @@ describe('iOS Shortcut receipt UI contract', () => {
         category_suggestion: 'Restaurantes',
         payment_rail: 'credit_card',
         card_last_four: '0862',
+        card_brand: 'Visa',
+        card_issuer: 'Galicia',
         installments: 1,
       },
     }
 
     expect(restoreStoredPurchaseProposal(receipt, [
-      { id: 'card-1', name: 'Visa Galicia', last_four: '0862' },
+      { id: 'card-1', name: 'Visa Galicia', last_four: null },
     ])).toMatchObject({
       supported: true,
       proposal: { description: 'Café', card_id: 'card-1' },
@@ -204,24 +206,27 @@ describe('iOS Shortcut receipt UI contract', () => {
       'utf8',
     )
     expect(review).toContain('setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))')
+    expect(review).toContain('setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))')
+    expect(review).toContain('void Promise.all(summaries.map(async (summary) => {')
+    expect(review).not.toContain('const detailedQueue = await Promise.all')
+    expect(review.indexOf('setDone(result)')).toBeLessThan(review.indexOf('void invalidateAfterSharedReceiptConfirmation(queryClient)'))
     expect(review).toContain('onCancel={() => window.history.back()}')
     expect(review).not.toContain('onCancel={() => setAnalysis(null)}')
   })
 
-  it('selects a unique available card by suffix first or visible brand second', () => {
+  it('selects a unique available card by bank and brand without using the suffix', () => {
     const cards = [
-      { id: 'visa-1', name: 'Visa Galicia', last_four: '1111', archived: false },
-      { id: 'master-1', name: 'Mastercard BBVA', last_four: '2222', archived: false },
-      { id: 'visa-old', name: 'Visa anterior', last_four: '3333', archived: true },
+      { id: 'visa-bbva', name: 'BBVA VISA', last_four: null, archived: false },
+      { id: 'master-bbva', name: 'BBVA MÁSTER', last_four: null, archived: false },
+      { id: 'master-bna', name: 'BNA MASTER', last_four: null, archived: false },
+      { id: 'master-old', name: 'BNA MASTER anterior', last_four: null, archived: true },
     ]
 
-    expect(matchReceiptCard(cards, '2222', 'Visa')?.id).toBe('master-1')
-    expect(matchReceiptCard(cards, null, 'Visa')?.id).toBe('visa-1')
-    expect(matchReceiptCard([
-      ...cards,
-      { id: 'visa-2', name: 'Visa Nación', last_four: '4444', archived: false },
-    ], null, 'Visa')).toBeNull()
-    expect(matchReceiptCard(cards, null, null)).toBeNull()
+    expect(matchReceiptCard(cards, 'Mastercard', 'Banco Nación')?.id).toBe('master-bna')
+    expect(matchReceiptCard(cards, 'Mastercard', 'BBVA')?.id).toBe('master-bbva')
+    expect(matchReceiptCard(cards, 'Visa', null)?.id).toBe('visa-bbva')
+    expect(matchReceiptCard(cards, 'Mastercard', null)).toBeNull()
+    expect(matchReceiptCard(cards, null, 'Banco Nación')).toBeNull()
   })
 
   it('builds a purchase-only confirm payload and never sends client user_id', () => {
