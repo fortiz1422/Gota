@@ -21,6 +21,13 @@ describe('createExpensePrompt', () => {
     expect(prompt).toContain('Entretenimiento, Vacaciones, Mascotas')
   })
 
+  it('categoriza semanticamente sin exigir repetir el nombre de la categoria', () => {
+    const prompt = createExpensePrompt({ input: 'compre ibuprofeno 5900' })
+
+    expect(prompt).toContain('Inferi la categoria por el significado y el contexto')
+    expect(prompt).toContain('medicamentos o una compra en farmacia')
+  })
+
   it('activa instrucciones de vision cuando hay captura adjunta', () => {
     const prompt = createExpensePrompt({ hasReceiptImage: true })
 

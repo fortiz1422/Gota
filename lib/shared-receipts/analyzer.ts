@@ -1,5 +1,6 @@
 import { buildReceiptInlineData } from '@/lib/gemini/receipt-inline-data'
 import { geminiModel } from '@/lib/gemini/client'
+import { createExpenseCategoryGuidance } from '@/lib/gemini/category-guidance'
 import { parseReceiptProposal, type ReceiptProposal } from './proposal'
 
 interface GeminiGenerator {
@@ -28,7 +29,8 @@ Reglas:
 - payment_rail: cash, card, debit_card, credit_card, bank_transfer, wallet, unknown o null.
 - card_last_four contiene solo los ultimos 4 digitos. Nunca devuelvas tarjeta completa, CBU/CVU, CUIT/CUIL ni secretos.
 - card_brand contiene la marca visible de la tarjeta, por ejemplo Visa, Mastercard o American Express; usa null si no aparece explícitamente.
-- category_suggestion debe ser una categoria canonica de Gota o null.
+${createExpenseCategoryGuidance({ allowNull: true })}
+- Devuelve la eleccion en category_suggestion.
 - evidence contiene fragmentos visuales breves que justifican campos, sin identificadores sensibles completos.
 - Si la evidencia no alcanza, usa null, transaction_type unknown cuando corresponda, baja confidence y agrega insufficient_evidence a warnings.`
 }
