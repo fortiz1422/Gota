@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
-import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle } from '@phosphor-icons/react'
+import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle, X } from '@phosphor-icons/react'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
+import { Modal } from '@/components/ui/Modal'
 import {
   SHARED_RECEIPT_ROUTES,
   getNextPendingReceiptId,
@@ -40,6 +41,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [dismissed, setDismissed] = useState(false)
   const [nextReceiptId, setNextReceiptId] = useState<string | null>(null)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
+  const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
   const queuePosition = getReceiptQueuePosition(queue, receiptId)
 
   const loadNextReceiptId = async (): Promise<string | null> => {
@@ -203,20 +205,28 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
             const current = receipt.id === receiptId
             const parsed = receipt.parsed_payload ? parsePurchaseProposal(receipt.parsed_payload) : null
             const label = parsed?.supported ? parsed.proposal.description : `Comprobante ${index + 1}`
-            return <Link
+            return <div
               key={receipt.id}
-              href={SHARED_RECEIPT_ROUTES.review(receipt.id)}
-              aria-current={current ? 'page' : undefined}
               className={`w-28 shrink-0 overflow-hidden rounded-input border text-left ${current ? 'border-primary bg-primary/5' : 'border-border-subtle bg-bg-secondary'}`}
             >
               {receipt.image_url
-                ? <div role="img" aria-label={`Vista previa de ${label}`} className="h-20 bg-bg-tertiary bg-cover bg-center" style={{ backgroundImage: `url(${receipt.image_url})` }} />
+                ? <button
+                    type="button"
+                    aria-label={`Ampliar comprobante ${index + 1}`}
+                    onClick={() => setPreviewReceipt(receipt)}
+                    className="block h-20 w-full bg-bg-tertiary bg-cover bg-center"
+                    style={{ backgroundImage: `url(${receipt.image_url})` }}
+                  />
                 : <div className="flex h-20 items-center justify-center bg-bg-tertiary"><Receipt size={24} className="text-text-disabled" /></div>}
-              <div className="p-2">
+              <Link
+                href={SHARED_RECEIPT_ROUTES.review(receipt.id)}
+                aria-current={current ? 'page' : undefined}
+                className="block p-2"
+              >
                 <p className="truncate text-[11px] font-semibold text-text-primary">{label}</p>
                 <p className="mt-0.5 text-[10px] text-text-tertiary">{current ? analyzing ? 'Analizando…' : 'Revisando' : receipt.status === 'needs_review' ? 'Analizado' : 'Pendiente'}</p>
-              </div>
-            </Link>
+              </Link>
+            </div>
           })}
         </div>
       </section>}
@@ -244,6 +254,26 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
       {error && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <button type="button" onClick={() => void dismiss()} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
+
+      {previewReceipt?.image_url && <Modal open onClose={() => setPreviewReceipt(null)}>
+        <section role="dialog" aria-modal="true" aria-labelledby="receipt-image-preview-title">
+          <div className="flex items-center justify-between gap-3">
+            <h2 id="receipt-image-preview-title" className="text-base font-bold text-text-primary">Vista completa del comprobante</h2>
+            <button type="button" aria-label="Cerrar vista" onClick={() => setPreviewReceipt(null)} className="flex size-10 items-center justify-center rounded-full text-text-secondary hover:bg-bg-tertiary"><X size={20} /></button>
+          </div>
+          <div className="mt-4 flex max-h-[62dvh] items-center justify-center overflow-hidden rounded-input bg-bg-tertiary">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={previewReceipt.image_url} alt="Comprobante ampliado" className="max-h-[62dvh] w-full object-contain" />
+          </div>
+          <Link
+            href={SHARED_RECEIPT_ROUTES.review(previewReceipt.id)}
+            onClick={() => setPreviewReceipt(null)}
+            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white"
+          >
+            Revisar este comprobante
+          </Link>
+        </section>
+      </Modal>}
     </main>
   )
 }

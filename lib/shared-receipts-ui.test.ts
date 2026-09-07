@@ -73,6 +73,10 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).not.toContain('href={SHARED_RECEIPT_ROUTES.apiDetail')
     expect(review).toContain('Comprobantes pendientes')
     expect(review).toContain('receipt.image_url')
+    expect(review).toContain('Ampliar comprobante')
+    expect(review).toContain('Vista completa del comprobante')
+    expect(review).toContain('Revisar este comprobante')
+    expect(review).toContain('setPreviewReceipt(receipt)')
     expect(review).toContain('de {queuePosition.total}')
   })
 
