@@ -1,4 +1,5 @@
 import { todayAR } from '@/lib/format'
+import { createExpenseCategoryGuidance } from '@/lib/gemini/category-guidance'
 
 interface CreateExpensePromptOptions {
   input?: string
@@ -23,8 +24,7 @@ ${inputLine}
 ${imageLine}
 ${audioLine}
 
-Categorias validas (elegi la mas apropiada):
-Supermercado, Alimentos, Restaurantes, Delivery, Kiosco y Varios, Casa/Mantenimiento, Muebles y Hogar, Servicios del Hogar, Auto/Combustible, Auto/Mantenimiento, Transporte, Salud, Farmacia, Educacion, Ropa e Indumentaria, Cuidado Personal, Suscripciones, Regalos, Transferencias Familiares, Entretenimiento, Vacaciones, Mascotas, Hijos, Otros, Pago de Tarjetas
+${createExpenseCategoryGuidance({ allowNull: false })}
 
 MONTO - formato y slang argentino:
 - Punto como separador de miles, coma como decimal: "1.500" = 1500, "1.500,50" = 1500.5
