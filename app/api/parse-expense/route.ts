@@ -11,6 +11,8 @@ import { todayAR } from '@/lib/format'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
+import { enrichParsedExpensePreview } from '@/lib/counterparty-aliases/preview'
+import { resolveSavedCounterparty } from '@/lib/counterparty-aliases/server'
 
 export async function POST(request: Request) {
   const supabase = await createClient()
@@ -83,8 +85,17 @@ export async function POST(request: Request) {
     const parsed = JSON.parse(text)
     const rescued = input ? applyTextInputAmountFallback(input, parsed) : parsed
     const validated = ParsedExpenseSchema.parse(rescued)
+    if (!validated.is_valid) return NextResponse.json(validated)
 
-    return NextResponse.json(validated)
+    // Alias memory is optional until the additive migration is installed.
+    // Parser output remains the evidence source; metadata is added separately.
+    let match = null
+    try {
+      match = await resolveSavedCounterparty(supabase, user.id, validated.description)
+    } catch {
+      // Existing financial parsing must keep working when alias reads fail.
+    }
+    return NextResponse.json(enrichParsedExpensePreview(validated, match))
   } catch (error) {
     captureRouteError(error, {
       route: 'POST /api/parse-expense',
@@ -100,7 +111,15 @@ export async function POST(request: Request) {
     }
 
     if (input && !receiptInlineData && !voiceInlineData) {
-      return NextResponse.json(parseTextExpenseFallback(input, todayAR()))
+      const fallback = parseTextExpenseFallback(input, todayAR())
+      if (!fallback.is_valid) return NextResponse.json(fallback)
+      let match = null
+      try {
+        match = await resolveSavedCounterparty(supabase, user.id, fallback.description)
+      } catch {
+        // Alias memory is optional; local parsing must remain available.
+      }
+      return NextResponse.json(enrichParsedExpensePreview(fallback, match))
     }
 
     return NextResponse.json({

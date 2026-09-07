@@ -58,7 +58,15 @@ describe('shared receipt canonical expense review', () => {
     })
 
     expect(buildParsePreviewConfirmPayload(
-      { ...purchase, payment_method: 'TRANSFER' },
+      {
+        ...purchase,
+        payment_method: 'TRANSFER',
+        detected_alias: 'BEL MARFER',
+        alias_match: {
+          alias_id: 'a1', profile_id: 'p1', alias_value: 'BEL MARFER', normalized_value: 'bel marfer',
+          display_name: 'Belmar', default_category: 'Supermercado',
+        },
+      },
       'account-1',
       [bank],
       1,
@@ -67,6 +75,23 @@ describe('shared receipt canonical expense review', () => {
       account_id: 'account-1',
       card_id: null,
     })
+    expect(buildParsePreviewConfirmPayload({ ...purchase, detected_alias: 'BEL MARFER' }, 'account-1', [bank], 1))
+      .not.toHaveProperty('detected_alias')
+  })
+
+  it('offers explicit remember UI only for a safe detected alias and defaults it off', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: { ...purchase, detected_alias: 'BEL MARFER' }, cards: [card], accounts: [bank],
+      onSave: () => undefined, onCancel: () => undefined, embedded: true,
+    }))
+    const unsafeHtml = renderToStaticMarkup(createElement(ParsePreview, {
+      data: { ...purchase, detected_alias: '---' }, cards: [card], accounts: [bank],
+      onSave: () => undefined, onCancel: () => undefined, embedded: true,
+    }))
+    expect(html).toContain('Recordar este comercio para próximas veces')
+    expect(html).toContain('BEL MARFER')
+    expect(html).not.toContain('checked=""')
+    expect(unsafeHtml).not.toContain('Recordar este comercio para próximas veces')
   })
 
   it('shows card and installments only when credit is the selected source', () => {

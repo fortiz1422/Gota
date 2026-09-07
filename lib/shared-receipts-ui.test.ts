@@ -149,6 +149,27 @@ describe('iOS Shortcut receipt UI contract', () => {
     })
   })
 
+  it('applies alias preview overrides while preserving alias metadata for review', () => {
+    expect(parsePurchaseProposal({
+      proposal: {
+        transaction_type: 'purchase', merchant_or_counterparty: 'BEL MARFER', amount: 2500,
+        occurred_at: '2026-09-06T12:30:00-03:00', currency: 'ARS', category_suggestion: 'Alimentos',
+      },
+      detected_alias: 'BEL MARFER',
+      alias_match: {
+        alias_id: 'a1', profile_id: 'p1', alias_value: 'BEL MARFER', normalized_value: 'bel marfer',
+        display_name: 'Belmar', default_category: 'Supermercado',
+      },
+      preview_overrides: { description: 'Belmar', category: 'Supermercado' },
+    })).toMatchObject({
+      supported: true,
+      proposal: {
+        description: 'Belmar', category: 'Supermercado', detected_alias: 'BEL MARFER',
+        alias_match: { profile_id: 'p1', display_name: 'Belmar' },
+      },
+    })
+  })
+
   it('keeps a purchase editable when Gemini cannot map a category', () => {
     expect(parsePurchaseProposal({
       transaction_type: 'purchase',
@@ -209,7 +230,10 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))')
     expect(review).toContain('void Promise.all(summaries.map(async (summary) => {')
     expect(review).not.toContain('const detailedQueue = await Promise.all')
-    expect(review.indexOf('setDone(result)')).toBeLessThan(review.indexOf('void invalidateAfterSharedReceiptConfirmation(queryClient)'))
+    expect(review).toContain('return result')
+    expect(review).toContain('setAliasSaveFailed(outcome?.aliasSaved === false)')
+    expect(review).toContain('setDone(result)')
+    expect(review).toContain('onSave={completePurchase}')
     expect(review).toContain('onCancel={() => window.history.back()}')
     expect(review).not.toContain('onCancel={() => setAnalysis(null)}')
   })

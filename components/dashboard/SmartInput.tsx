@@ -7,19 +7,9 @@ import { InlineError } from '@/components/ui/InlineError'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
-import { ParsePreview } from './ParsePreview'
+import { ParsePreview, type ParsedExpensePreviewData } from './ParsePreview'
 
-interface ParsedData {
-  amount: number
-  currency: 'ARS' | 'USD'
-  category: string
-  description: string
-  is_want: boolean | null
-  payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
-  card_id: string | null
-  installments?: number | null
-  date: string
-}
+type ParsedData = ParsedExpensePreviewData
 
 interface SmartInputProps {
   cards: Card[]
@@ -203,11 +193,13 @@ export function SmartInput({
     })
   }
 
-  const handleSave = () => {
+  const handleSave = (outcome?: { aliasSaved: boolean | null }) => {
     setParsed(null)
     setInput('')
     setParseError(null)
-    setStatusMessage('Guardado')
+    setStatusMessage(outcome?.aliasSaved === false
+      ? 'Guardado. No pudimos recordar el comercio.'
+      : 'Guardado')
     if (statusTimeoutRef.current !== null) {
       window.clearTimeout(statusTimeoutRef.current)
     }
