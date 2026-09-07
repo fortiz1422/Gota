@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { enrichSharedReceiptPreview } from '@/lib/counterparty-aliases/preview'
+import { resolveSavedCounterparty } from '@/lib/counterparty-aliases/server'
 import {
   dismissSharedReceipt,
   getSharedReceipt,
@@ -39,6 +41,26 @@ export async function GET(_request: Request, { params }: Params) {
       return data.signedUrl
     },
   })
+  const body = result.body as { receipt?: Record<string, unknown> }
+  const receipt = body.receipt
+  if (result.status === 200 && receipt) {
+    const parsedPayload = receipt.parsed_payload
+    const merchant = parsedPayload && typeof parsedPayload === 'object'
+      ? (parsedPayload as Record<string, unknown>).merchant_or_counterparty
+      : null
+    let match = null
+    if (typeof merchant === 'string') {
+      try {
+        match = await resolveSavedCounterparty(admin, userId, merchant)
+      } catch {
+        // Alias memory is additive; receipt review must remain available.
+      }
+    }
+    return NextResponse.json({
+      ...body,
+      receipt: { ...receipt, ...enrichSharedReceiptPreview(parsedPayload, match) },
+    }, { status: result.status, headers: { ...NO_STORE, ...result.headers } })
+  }
   return NextResponse.json(result.body, { status: result.status, headers: { ...NO_STORE, ...result.headers } })
 }
 

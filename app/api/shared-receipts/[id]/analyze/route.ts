@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
+import { enrichSharedReceiptPreview } from '@/lib/counterparty-aliases/preview'
+import { resolveSavedCounterparty } from '@/lib/counterparty-aliases/server'
 import { generateUniversalReceiptProposal } from '@/lib/shared-receipts/analyzer'
 import { analyzeSharedReceipt, type SharedReceiptRecord } from '@/lib/shared-receipts/operations'
 import type { Json } from '@/types/database'
@@ -55,5 +57,24 @@ export async function POST(request: Request, { params }: Params) {
       if (error) throw error
     },
   })
+  if (result.status === 200) {
+    const body = result.body as { proposal?: Record<string, unknown> }
+    const proposal = body.proposal
+    if (proposal) {
+      const merchant = proposal.merchant_or_counterparty
+      let match = null
+      if (typeof merchant === 'string') {
+        try {
+          match = await resolveSavedCounterparty(admin, user.id, merchant)
+        } catch {
+          // Alias memory is additive; analysis must remain available without its tables.
+        }
+      }
+      return NextResponse.json({
+        ...body,
+        ...enrichSharedReceiptPreview(proposal, match),
+      }, { status: result.status, headers: { 'Cache-Control': 'private, no-store' } })
+    }
+  }
   return NextResponse.json(result.body, { status: result.status, headers: { 'Cache-Control': 'private, no-store' } })
 }

@@ -1,3 +1,5 @@
+import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
+
 export const SHARED_RECEIPT_ROUTES = {
   devices: '/api/shared-receipt-devices',
   device: (id: string) => `/api/shared-receipt-devices/${encodeURIComponent(id)}`,
@@ -49,6 +51,9 @@ export interface SharedReceiptSummary {
   duplicate?: boolean
   parsed_payload?: unknown
   image_url?: string | null
+  detected_alias?: string | null
+  alias_match?: CounterpartyAliasMatch | null
+  preview_overrides?: { description?: string; category?: string | null } | null
 }
 
 export interface PurchaseProposal {
@@ -66,6 +71,8 @@ export interface PurchaseProposal {
   card_brand: string | null
   card_issuer: string | null
   is_want: boolean | null
+  detected_alias?: string | null
+  alias_match?: CounterpartyAliasMatch | null
 }
 
 export type ParsedPurchaseProposal =
@@ -167,7 +174,8 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 
 export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
   const envelope = asRecord(value)
-  const raw = asRecord(envelope?.proposal) ?? envelope ?? {}
+  const raw = asRecord(envelope?.proposal) ?? asRecord(envelope?.parsed_payload) ?? envelope ?? {}
+  const overrides = asRecord(envelope?.preview_overrides)
   const type = raw.transaction_type
   if (type !== 'purchase' && type !== 'third_party_transfer') {
     return {
@@ -177,11 +185,16 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
   }
 
   const amount = typeof raw.amount === 'number' ? raw.amount : Number(raw.amount)
-  const description = typeof raw.merchant_or_counterparty === 'string'
+  const parserDescription = typeof raw.merchant_or_counterparty === 'string'
     ? raw.merchant_or_counterparty.trim()
     : ''
+  const description = typeof overrides?.description === 'string' && overrides.description.trim()
+    ? overrides.description.trim()
+    : parserDescription
   const occurredAt = typeof raw.occurred_at === 'string' ? raw.occurred_at : ''
-  const category = typeof raw.category_suggestion === 'string' ? raw.category_suggestion : ''
+  const category = typeof overrides?.category === 'string' && overrides.category
+    ? overrides.category
+    : typeof raw.category_suggestion === 'string' ? raw.category_suggestion : ''
   if (!description || !Number.isFinite(amount) || !occurredAt || !raw.currency) {
     return { supported: false, reason: 'La propuesta está incompleta. Volvé a analizar el comprobante.' }
   }
@@ -209,6 +222,10 @@ export function parsePurchaseProposal(value: unknown): ParsedPurchaseProposal {
       card_brand: typeof raw.card_brand === 'string' ? raw.card_brand.trim() || null : null,
       card_issuer: typeof raw.card_issuer === 'string' ? raw.card_issuer.trim() || null : null,
       is_want: null,
+      detected_alias: typeof envelope?.detected_alias === 'string'
+        ? envelope.detected_alias
+        : parserDescription || null,
+      alias_match: asRecord(envelope?.alias_match) as unknown as CounterpartyAliasMatch | null,
     },
   }
 }
@@ -266,7 +283,7 @@ export function restoreStoredPurchaseProposal(
   cards: ReceiptCardCandidate[],
 ): ParsedPurchaseProposal | null {
   if (receipt.status !== 'needs_review' || !receipt.parsed_payload) return null
-  const parsed = parsePurchaseProposal(receipt.parsed_payload)
+  const parsed = parsePurchaseProposal(receipt)
   if (!parsed.supported) return parsed
   if (parsed.proposal.payment_method !== 'CREDIT') return parsed
   const matchingCard = matchReceiptCard(cards, parsed.proposal.card_brand, parsed.proposal.card_issuer)

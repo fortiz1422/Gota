@@ -1,0 +1,37 @@
+import { describe, expect, it } from 'vitest'
+import { enrichParsedExpensePreview, enrichSharedReceiptPreview } from './preview'
+
+const match = {
+  alias_id: 'a1', profile_id: 'p1', alias_value: 'BEL MARFER', normalized_value: 'bel marfer',
+  display_name: 'Belmar', default_category: 'Supermercado' as const,
+}
+
+describe('alias preview integrations', () => {
+  it('prefills a manual parse without confirming it', () => {
+    expect(enrichParsedExpensePreview({
+      is_valid: true, description: 'BEL MARFER', category: 'Alimentos', amount: 1,
+    }, match)).toMatchObject({
+      description: 'Belmar', category: 'Supermercado', alias_match: match, auto_confirmed: false,
+      detected_alias: 'BEL MARFER',
+    })
+  })
+
+  it('keeps shared parser evidence immutable and returns match metadata separately', () => {
+    const parsedPayload = {
+      transaction_type: 'purchase', merchant_or_counterparty: 'BEL MARFER',
+      category_suggestion: 'Alimentos', evidence: ['texto original'],
+    }
+    const result = enrichSharedReceiptPreview(parsedPayload, match)
+    expect(parsedPayload).toEqual({
+      transaction_type: 'purchase', merchant_or_counterparty: 'BEL MARFER',
+      category_suggestion: 'Alimentos', evidence: ['texto original'],
+    })
+    expect(result).toEqual({
+      parsed_payload: parsedPayload,
+      alias_match: match,
+      preview_overrides: { description: 'Belmar', category: 'Supermercado' },
+      detected_alias: 'BEL MARFER',
+      auto_confirmed: false,
+    })
+  })
+})

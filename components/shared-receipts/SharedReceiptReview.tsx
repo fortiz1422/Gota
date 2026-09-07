@@ -38,6 +38,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [analysis, setAnalysis] = useState<ParsedPurchaseProposal | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
+  const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
   const [dismissed, setDismissed] = useState(false)
   const [nextReceiptId, setNextReceiptId] = useState<string | null>(null)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
@@ -149,9 +150,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
     const result = parseConfirmResult(await response.json())
     setNextReceiptId(getNextPendingReceiptId(queue, receiptId))
-    setDone(result)
     void invalidateAfterSharedReceiptConfirmation(queryClient)
     void loadNextReceiptId().then(setNextReceiptId)
+    return result
+  }
+
+  const completePurchase = (outcome?: { aliasSaved: boolean | null; financialResult?: unknown }) => {
+    const result = outcome?.financialResult as { duplicate: boolean; expenseId: string | null } | undefined
+    if (!result) return
+    setAliasSaveFailed(outcome?.aliasSaved === false)
+    setDone(result)
   }
 
   const dismiss = async () => {
@@ -182,6 +190,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         <CheckCircle size={42} weight="duotone" className="mx-auto text-success" />
         <h1 className="mt-3 text-xl font-bold text-text-primary">{dismissed ? 'Comprobante descartado' : done?.duplicate ? 'Esta compra ya estaba confirmada' : 'Compra confirmada'}</h1>
         <p className="mt-2 text-sm leading-6 text-text-secondary">{dismissed ? 'No se creó ningún movimiento.' : done?.duplicate ? 'No duplicamos el movimiento existente.' : 'El movimiento se creó con los datos que revisaste.'}</p>
+        {aliasSaveFailed && <p role="status" className="mt-3 rounded-input bg-warning/10 px-3 py-2 text-sm text-warning">El gasto se guardó, pero no pudimos recordar el comercio.</p>}
         <Link href={nextReceiptId ? SHARED_RECEIPT_ROUTES.review(nextReceiptId) : '/'} className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">{nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'}</Link>
       </section>
     </main>
@@ -248,8 +257,9 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           cards={cards}
           accounts={accounts}
           onConfirm={confirmPurchase}
-          onSave={() => undefined}
+          onSave={completePurchase}
           onCancel={() => window.history.back()}
+          aliasSource="receipt"
           embedded
         />
       </section>}

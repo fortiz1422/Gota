@@ -9,6 +9,60 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      counterparty_profiles: {
+        Row: {
+          id: string
+          user_id: string
+          display_name: string
+          default_category: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          display_name: string
+          default_category?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          display_name?: string
+          default_category?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      counterparty_aliases: {
+        Row: {
+          id: string
+          user_id: string
+          profile_id: string
+          alias_value: string
+          normalized_value: string
+          source: 'manual' | 'receipt' | 'parser'
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          profile_id: string
+          alias_value: string
+          normalized_value: string
+          source: 'manual' | 'receipt' | 'parser'
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          profile_id?: string
+          alias_value?: string
+          normalized_value?: string
+          source?: 'manual' | 'receipt' | 'parser'
+          updated_at?: string
+        }
+        Relationships: []
+      }
       device_access_tokens: {
         Row: {
           id: string
@@ -1229,6 +1283,8 @@ export type SubscriptionInsertion = {
   inserted_at: string
 }
 
+export type CounterpartyProfile = Database['public']['Tables']['counterparty_profiles']['Row']
+export type CounterpartyAlias = Database['public']['Tables']['counterparty_aliases']['Row']
 export type Card       = Database['public']['Tables']['cards']['Row']
 export type CardInsert = Database['public']['Tables']['cards']['Insert']
 export type CardUpdate = Database['public']['Tables']['cards']['Update']

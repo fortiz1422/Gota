@@ -11,6 +11,8 @@ import {
   type PossibleExpenseDuplicate,
 } from '@/lib/expense-duplicates'
 import { trackEvent } from '@/lib/product-analytics/client'
+import { normalizeCounterpartyAlias } from '@/lib/counterparty-aliases/normalize'
+import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import type { Account, Card } from '@/types/database'
 
 export interface ParsedExpensePreviewData {
@@ -25,6 +27,8 @@ export interface ParsedExpensePreviewData {
   card_id: string | null
   installments?: number | null
   date: string
+  detected_alias?: string | null
+  alias_match?: CounterpartyAliasMatch | null
 }
 
 type ParsedData = ParsedExpensePreviewData
@@ -47,10 +51,27 @@ interface ParsePreviewProps {
   data: ParsedData
   cards: Card[]
   accounts: Account[]
-  onSave: () => void
+  onSave: (outcome?: { aliasSaved: boolean | null; financialResult?: unknown }) => void
   onCancel: () => void
-  onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<void>
+  onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<unknown>
   embedded?: boolean
+  aliasSource?: 'receipt' | 'parser'
+}
+
+type CounterpartyProfileOption = {
+  id: string
+  display_name: string
+  default_category: string | null
+}
+
+function safeDetectedAlias(value: string | null | undefined): string | null {
+  if (!value) return null
+  try {
+    normalizeCounterpartyAlias(value)
+    return value.trim()
+  } catch {
+    return null
+  }
 }
 
 type SourceKey = string
@@ -125,7 +146,9 @@ function fromDateInput(dateStr: string): string {
   return dateInputToISO(dateStr)
 }
 
-export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfirm, embedded = false }: ParsePreviewProps) {
+export function ParsePreview({
+  data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser',
+}: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
     date: toDateInput(data.date),
@@ -142,6 +165,13 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
   const [cardError, setCardError] = useState(false)
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [foundDuplicates, setFoundDuplicates] = useState<PossibleExpenseDuplicate[]>([])
+  const detectedAlias = safeDetectedAlias(data.detected_alias)
+  const [remember, setRemember] = useState(false)
+  const [profileMode, setProfileMode] = useState<'new' | 'existing'>(data.alias_match ? 'existing' : 'new')
+  const [profileId, setProfileId] = useState(data.alias_match?.profile_id ?? '')
+  const [profiles, setProfiles] = useState<CounterpartyProfileOption[]>([])
+  const [profilesLoading, setProfilesLoading] = useState(false)
+  const [profilesError, setProfilesError] = useState<string | null>(null)
 
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
   const isCredit = source === 'credit' || isPagoTarjetas
@@ -165,6 +195,54 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
     setSource(key)
     if (key !== 'credit') set('card_id', null)
     setCardError(false)
+  }
+
+  const handleRememberChange = async (checked: boolean) => {
+    setRemember(checked)
+    setProfilesError(null)
+    if (!checked || profiles.length > 0) return
+    setProfilesLoading(true)
+    try {
+      const response = await fetch('/api/counterparty-profiles', { cache: 'no-store' })
+      if (!response.ok) throw new Error('profiles_unavailable')
+      const body = await response.json() as { profiles?: CounterpartyProfileOption[] }
+      setProfiles(Array.isArray(body.profiles) ? body.profiles : [])
+    } catch {
+      setProfilesError('No pudimos cargar tus comercios guardados. Podés crear uno nuevo.')
+      setProfileMode('new')
+    } finally {
+      setProfilesLoading(false)
+    }
+  }
+
+  const saveAliasMemory = async (): Promise<void> => {
+    if (!detectedAlias) return
+    let targetProfileId = profileId
+    if (profileMode === 'new') {
+      const profileResponse = await fetch('/api/counterparty-profiles', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ display_name: form.description.trim(), default_category: form.category }),
+      })
+      if (!profileResponse.ok) throw new Error('profile_create_failed')
+      const profile = await profileResponse.json() as { id?: string }
+      if (!profile.id) throw new Error('profile_create_failed')
+      targetProfileId = profile.id
+    }
+    if (!targetProfileId) throw new Error('profile_required')
+    if (data.alias_match) {
+      if (data.alias_match.profile_id === targetProfileId) return
+      const response = await fetch(`/api/counterparty-aliases/${encodeURIComponent(data.alias_match.alias_id)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile_id: targetProfileId }),
+      })
+      if (!response.ok) throw new Error('alias_reassign_failed')
+      return
+    }
+    const response = await fetch(`/api/counterparty-profiles/${encodeURIComponent(targetProfileId)}/aliases`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ alias_value: detectedAlias, source: aliasSource }),
+    })
+    if (!response.ok) throw new Error('alias_create_failed')
   }
 
   const handleSave = async () => {
@@ -199,13 +277,22 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
 
     setIsSaving(true)
     try {
+      let financialResult: unknown
       if (onConfirm) {
-        await onConfirm(buildParsePreviewConfirmPayload(form, source, accounts, installments))
+        financialResult = await onConfirm(buildParsePreviewConfirmPayload(form, source, accounts, installments))
       } else {
+        const paymentMethod = derivePaymentMethod(source, accounts, form.payment_method)
         const payload: Record<string, unknown> = {
-          ...form,
-          payment_method: derivePaymentMethod(source, accounts, form.payment_method),
+          amount: form.amount,
+          currency: form.currency,
+          category: form.category,
+          description: form.description.trim(),
+          is_want: form.is_want,
+          is_recurring: form.is_recurring,
+          is_extraordinary: form.is_extraordinary,
+          payment_method: paymentMethod,
           account_id: deriveAccountId(source, accounts),
+          card_id: paymentMethod === 'CREDIT' ? form.card_id : null,
           is_legacy_card_payment: form.category === 'Pago de Tarjetas' ? false : null,
           date: fromDateInput(form.date),
         }
@@ -219,6 +306,17 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
         })
 
         if (!res.ok) throw new Error('Error al guardar')
+        financialResult = await res.json().catch(() => null)
+      }
+
+      let aliasSaved: boolean | null = null
+      if (remember && detectedAlias) {
+        try {
+          await saveAliasMemory()
+          aliasSaved = true
+        } catch {
+          aliasSaved = false
+        }
       }
 
       const paymentMethod = derivePaymentMethod(source, accounts, form.payment_method)
@@ -228,7 +326,7 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
         is_credit: paymentMethod === 'CREDIT',
         payment_method: paymentMethod,
       })
-      onSave()
+      onSave({ aliasSaved, financialResult })
     } catch {
       setSaveError('No se pudo guardar el gasto. Intenta de nuevo.')
     } finally {
@@ -493,6 +591,52 @@ export function ParsePreview({ data, cards, accounts, onSave, onCancel, onConfir
           </div>
         )}
       </div>
+
+      {detectedAlias && (
+        <section className="mt-5 rounded-input border border-border-subtle bg-primary/[0.03] p-3">
+          <label className="flex cursor-pointer items-start gap-3 text-sm text-text-primary">
+            <input
+              type="checkbox"
+              checked={remember}
+              onChange={(event) => void handleRememberChange(event.target.checked)}
+              className="mt-0.5 rounded border-border-ocean text-primary focus:ring-primary"
+            />
+            <span>
+              <span className="block font-medium">Recordar este comercio para próximas veces</span>
+              <span className="mt-1 block text-xs text-text-tertiary">Alias detectado: {detectedAlias}</span>
+            </span>
+          </label>
+          {remember && (
+            <div className="mt-3 space-y-2 pl-7">
+              <label className="flex items-center gap-2 text-xs text-text-secondary">
+                <input type="radio" checked={profileMode === 'new'} onChange={() => setProfileMode('new')} />
+                Crear perfil con la descripción y categoría finales
+              </label>
+              <label className="flex items-center gap-2 text-xs text-text-secondary">
+                <input
+                  type="radio"
+                  checked={profileMode === 'existing'}
+                  disabled={profilesLoading || profiles.length === 0}
+                  onChange={() => setProfileMode('existing')}
+                />
+                Vincular a un perfil existente
+              </label>
+              {profileMode === 'existing' && (
+                <select
+                  value={profileId}
+                  onChange={(event) => setProfileId(event.target.value)}
+                  className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2 text-xs text-text-primary"
+                >
+                  <option value="">Elegí un comercio</option>
+                  {profiles.map((profile) => <option key={profile.id} value={profile.id}>{profile.display_name}</option>)}
+                </select>
+              )}
+              {profilesLoading && <p className="text-xs text-text-tertiary">Cargando comercios…</p>}
+              {profilesError && <p className="text-xs text-warning">{profilesError}</p>}
+            </div>
+          )}
+        </section>
+      )}
 
       {duplicatesChecked && foundDuplicates.length > 0 && (
         <div className="mt-5 rounded-input bg-warning/10 p-3">
