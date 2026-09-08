@@ -45,12 +45,12 @@ describe('counterparty alias resolution', () => {
     await expect(resolveCounterpartyAlias('user-1', 'Bel Marfe', { findExact })).resolves.toBeNull()
   })
 
-  it('suggests one existing profile when the detected wording is a whole-phrase subset', async () => {
+  it('suggests one existing profile across a safe joined-word variation', async () => {
     const existing = {
       ...match,
-      alias_value: 'Alejandro La Briola',
-      normalized_value: 'alejandro la briola',
-      display_name: 'Alejandro La Briola',
+      alias_value: 'Alejandro Labriola',
+      normalized_value: 'alejandro labriola',
+      display_name: 'Alejandro Labriola',
       default_category: 'Alimentos' as const,
     }
     await expect(resolveCounterpartyAlias('user-1', 'La briola', {
