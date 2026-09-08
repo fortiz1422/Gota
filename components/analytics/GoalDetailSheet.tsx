@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
@@ -42,6 +42,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
   const [editOpen, setEditOpen] = useState(false)
   const [linkTransferOpen, setLinkTransferOpen] = useState(false)
   const [editingContribution, setEditingContribution] = useState<GoalContribution | null>(null)
+  const editTriggerRef = useRef<HTMLButtonElement>(null)
 
   const { data: detail, isLoading: isDetailLoading } = useQuery<GoalDetail>({
     queryKey: ['goal-detail', goal?.id],
@@ -90,6 +91,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           </div>
           <div className="flex shrink-0 items-center gap-2">
             <button
+              ref={editTriggerRef}
               type="button"
               onClick={() => setEditOpen(true)}
               className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary-soft"
@@ -274,6 +276,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
         open={editOpen}
         goal={displayGoal}
         onClose={() => setEditOpen(false)}
+        triggerRef={editTriggerRef}
         onSaved={async () => {
           await invalidateAll()
         }}
