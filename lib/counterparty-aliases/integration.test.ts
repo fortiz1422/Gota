@@ -7,11 +7,11 @@ const match = {
 }
 
 describe('alias preview integrations', () => {
-  it('prefills a manual parse without confirming it', () => {
+  it('preserves the detected description while prefilling the matched profile category without confirming', () => {
     expect(enrichParsedExpensePreview({
       is_valid: true, description: 'BEL MARFER', category: 'Alimentos', amount: 1,
     }, match)).toMatchObject({
-      description: 'Belmar', category: 'Supermercado', alias_match: match, auto_confirmed: false,
+      description: 'BEL MARFER', category: 'Supermercado', alias_match: match, auto_confirmed: false,
       detected_alias: 'BEL MARFER',
     })
   })
