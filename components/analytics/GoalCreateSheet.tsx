@@ -1,7 +1,10 @@
-'use client'
+"use client"
 
-import { useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
+import { useId, useRef, useState, type ReactNode } from 'react'
+import { CalendarBlank, CurrencyCircleDollar, NotePencil, Sparkle } from '@phosphor-icons/react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { InlineError } from '@/components/ui/InlineError'
+import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import { todayAR } from '@/lib/format'
 
 interface Props {
@@ -10,7 +13,22 @@ interface Props {
   onCreated: () => void
 }
 
+function OptionalLabel({ children }: { children: ReactNode }) {
+  return (
+    <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
+      {children} <span className="normal-case font-normal">(opcional)</span>
+    </label>
+  )
+}
+
 export function GoalCreateSheet({ open, onClose, onCreated }: Props) {
+  const nameId = useId()
+  const targetAmountId = useId()
+  const targetDateId = useId()
+  const startingAmountId = useId()
+  const plannedMonthlyId = useId()
+  const notesId = useId()
+  const nameInputRef = useRef<HTMLInputElement>(null)
   const [name, setName] = useState('')
   const [emoji, setEmoji] = useState('')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>('ARS')
@@ -79,148 +97,184 @@ export function GoalCreateSheet({ open, onClose, onCreated }: Props) {
 
   if (!open) return null
 
+  const currencySymbol = currency === 'ARS' ? '$' : 'US$'
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <h2 className="text-[17px] font-semibold text-text-primary">Nueva meta</h2>
-      <p className="mt-1 text-[12px] text-text-tertiary">
-        Las metas no apartan dinero. El progreso avanza con aportes que registrás.
-      </p>
+    <TaskSurface
+      open={open}
+      onClose={handleClose}
+      eyebrow="PLANIFICAR"
+      title="Nueva meta"
+      description="Definí a dónde querés llegar. Gota registra el progreso sin mover tu plata."
+      initialFocusRef={nameInputRef}
+      footer={(
+        <>
+          <InlineError message={error} className="mb-3" />
+          <button
+            type="button"
+            onClick={() => { void handleSave() }}
+            disabled={isSaving}
+            className="min-h-12 w-full rounded-button bg-primary px-4 type-body-lg text-white transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            {isSaving ? 'Creando meta…' : 'Crear meta'}
+          </button>
+          <button
+            type="button"
+            onClick={handleClose}
+            disabled={isSaving}
+            className="mt-1 min-h-11 w-full type-body text-text-tertiary disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+        </>
+      )}
+    >
+      <section className="card-s5 px-4 pb-5 pt-4" aria-labelledby={`${nameId}-section`}>
+        <p id={`${nameId}-section`} className="type-micro text-primary">META</p>
 
-      <div className="mt-5 space-y-3">
-        {/* Nombre + emoji */}
-        <div className="flex gap-2">
+        <div className="mt-4 flex gap-2">
+          <label className="sr-only" htmlFor={`${nameId}-emoji`}>Símbolo</label>
           <input
+            id={`${nameId}-emoji`}
             type="text"
             placeholder="✦"
             value={emoji}
-            onChange={(e) => setEmoji(e.target.value)}
+            onChange={(event) => setEmoji(event.target.value)}
             maxLength={4}
-            className="w-14 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-center text-[18px] focus:border-primary focus:outline-none"
+            className="h-14 w-14 shrink-0 rounded-input border border-border-subtle bg-bg-tertiary px-2 text-center text-[20px]"
           />
-          <input
-            type="text"
-            placeholder="Nombre de la meta"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            maxLength={100}
-            className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        {/* Moneda */}
-        <div className="flex gap-2">
-          {(['ARS', 'USD'] as const).map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setCurrency(c)}
-              className="flex-1 rounded-input border py-3 text-[13px] font-semibold transition-colors"
-              style={{
-                background: currency === c ? 'var(--color-primary)' : 'var(--color-bg-tertiary)',
-                color: currency === c ? '#fff' : 'var(--color-text-secondary)',
-                borderColor: currency === c ? 'var(--color-primary)' : 'transparent',
+          <div className="min-w-0 flex-1">
+            <label className="sr-only" htmlFor={nameId}>Nombre de la meta</label>
+            <input
+              ref={nameInputRef}
+              id={nameId}
+              type="text"
+              placeholder="Ej. Viaje a Japón"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value)
+                if (error) setError(null)
               }}
-            >
-              {c}
-            </button>
-          ))}
+              maxLength={100}
+              className="h-14 w-full rounded-input border border-border-subtle bg-bg-tertiary px-4 type-body-lg text-text-primary placeholder:text-text-muted"
+            />
+          </div>
         </div>
 
-        {/* Monto objetivo */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
+        <div className="mt-5">
+          <label htmlFor={targetAmountId} className="mb-2 block type-meta font-semibold text-text-secondary">
             Monto objetivo
           </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            placeholder="0"
-            value={targetAmount}
-            onChange={(e) => setTargetAmount(e.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-          />
+          <div className="flex min-h-[62px] items-center rounded-input border border-border-subtle bg-bg-primary px-4 focus-within:border-primary">
+            <span className="mr-2 type-amount text-text-secondary">{currencySymbol}</span>
+            <input
+              id={targetAmountId}
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={formatArDecimal(targetAmount)}
+              onChange={(event) => {
+                setTargetAmount(parseArDecimalInput(event.target.value))
+                if (error) setError(null)
+              }}
+              className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary outline-none placeholder:text-text-muted focus:ring-0 focus-visible:outline-none"
+            />
+          </div>
         </div>
 
-        {/* Fecha objetivo (opcional) */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Fecha objetivo <span className="normal-case font-normal">(opcional)</span>
-          </label>
-          <input
-            type="date"
-            value={targetDate}
-            min={todayAR()}
-            onChange={(e) => setTargetDate(e.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary focus:border-primary focus:outline-none"
-          />
-        </div>
+        <fieldset className="mt-4">
+          <legend className="mb-2 type-meta font-semibold text-text-secondary">Moneda</legend>
+          <div className="grid grid-cols-2 gap-1 rounded-input bg-bg-tertiary p-1">
+            {(['ARS', 'USD'] as const).map((option) => {
+              const selected = currency === option
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  aria-pressed={selected}
+                  onClick={() => setCurrency(option)}
+                  className={`min-h-11 rounded-button type-body transition-colors ${selected ? 'bg-bg-primary text-primary shadow-sm' : 'text-text-secondary'}`}
+                >
+                  {option}
+                </button>
+              )
+            })}
+          </div>
+        </fieldset>
+      </section>
 
-        {/* Monto inicial (opcional) */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Ya tenés ahorrado <span className="normal-case font-normal">(opcional)</span>
-          </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            placeholder="0"
-            value={startingAmount}
-            onChange={(e) => setStartingAmount(e.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-          />
-        </div>
+      <section className="mt-6" aria-labelledby={`${targetDateId}-section`}>
+        <p id={`${targetDateId}-section`} className="mb-3 type-micro text-text-secondary">PLAN</p>
+        <div className="border-y border-border-subtle">
+          <div className="py-3">
+            <OptionalLabel>Fecha objetivo</OptionalLabel>
+            <div className="flex min-h-12 items-center gap-3 rounded-input bg-bg-tertiary px-4">
+              <CalendarBlank size={18} weight="light" className="shrink-0 text-primary" />
+              <input
+                id={targetDateId}
+                type="date"
+                value={targetDate}
+                min={todayAR()}
+                onChange={(event) => setTargetDate(event.target.value)}
+                aria-label="Fecha objetivo opcional"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 type-body text-text-primary outline-none focus:ring-0"
+              />
+            </div>
+          </div>
 
-        {/* Aporte mensual planeado (opcional) */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Aporte mensual planeado <span className="normal-case font-normal">(opcional)</span>
-          </label>
-          <input
-            type="number"
-            inputMode="decimal"
-            placeholder="0"
-            value={plannedMonthly}
-            onChange={(e) => setPlannedMonthly(e.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
-          />
-        </div>
+          <div className="border-t border-border-subtle py-3">
+            <OptionalLabel>Ya tenés ahorrado</OptionalLabel>
+            <div className="flex min-h-12 items-center gap-3 rounded-input bg-bg-tertiary px-4 focus-within:ring-1 focus-within:ring-primary">
+              <CurrencyCircleDollar size={18} weight="light" className="shrink-0 text-primary" />
+              <span className="type-body text-text-secondary">{currencySymbol}</span>
+              <input
+                id={startingAmountId}
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={formatArDecimal(startingAmount)}
+                onChange={(event) => setStartingAmount(parseArDecimalInput(event.target.value))}
+                aria-label="Monto ya ahorrado opcional"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-right type-body text-text-primary outline-none placeholder:text-text-muted focus:ring-0 focus-visible:outline-none"
+              />
+            </div>
+          </div>
 
-        {/* Notas (opcional) */}
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Nota <span className="normal-case font-normal">(opcional)</span>
-          </label>
+          <div className="border-t border-border-subtle py-3">
+            <OptionalLabel>Aporte mensual planeado</OptionalLabel>
+            <div className="flex min-h-12 items-center gap-3 rounded-input bg-bg-tertiary px-4 focus-within:ring-1 focus-within:ring-primary">
+              <Sparkle size={18} weight="light" className="shrink-0 text-primary" />
+              <span className="type-body text-text-secondary">{currencySymbol}</span>
+              <input
+                id={plannedMonthlyId}
+                type="text"
+                inputMode="decimal"
+                placeholder="0"
+                value={formatArDecimal(plannedMonthly)}
+                onChange={(event) => setPlannedMonthly(parseArDecimalInput(event.target.value))}
+                aria-label="Aporte mensual planeado opcional"
+                className="min-w-0 flex-1 border-0 bg-transparent p-0 text-right type-body text-text-primary outline-none placeholder:text-text-muted focus:ring-0 focus-visible:outline-none"
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="mt-6" aria-labelledby={`${notesId}-section`}>
+        <p id={`${notesId}-section`} className="mb-3 type-micro text-text-secondary">CONTEXTO</p>
+        <label htmlFor={notesId} className="sr-only">Nota opcional</label>
+        <div className="flex items-start gap-3 rounded-input border border-border-subtle bg-bg-tertiary px-4 py-3 focus-within:border-primary">
+          <NotePencil size={18} weight="light" className="mt-0.5 shrink-0 text-primary" />
           <textarea
-            placeholder="Ej: Pasajes + estadía"
+            id={notesId}
+            placeholder="Ej. Pasajes y estadía"
             value={notes}
-            onChange={(e) => setNotes(e.target.value)}
+            onChange={(event) => setNotes(event.target.value)}
             maxLength={500}
             rows={2}
-            className="w-full resize-none rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
+            className="min-w-0 flex-1 resize-none border-0 bg-transparent p-0 type-body text-text-primary outline-none placeholder:text-text-muted focus:ring-0 focus-visible:outline-none"
           />
         </div>
-      </div>
-
-      {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
-
-      <div className="mt-6 flex gap-2">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-primary"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex-1 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
-        >
-          {isSaving ? 'Creando...' : 'Crear meta'}
-        </button>
-      </div>
-    </Modal>
+      </section>
+    </TaskSurface>
   )
 }
