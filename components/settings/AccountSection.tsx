@@ -2,6 +2,9 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
+import { CaretRight, EnvelopeSimple, Fingerprint, LockKey, ShieldCheck, SignOut, UserCircle } from '@phosphor-icons/react'
+import styles from './MobileSettings.module.css'
+import { SettingsDetail } from './SettingsDetail'
 import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
@@ -108,93 +111,58 @@ export function AccountSection({
 
   return (
     <>
-      <div
-        className="space-y-3 rounded-card p-4"
-        style={{
-          background: 'rgba(255,255,255,0.38)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          border: '1px solid rgba(255,255,255,0.70)',
-        }}
-      >
-        <p className="rounded-input bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary">
-          {emailLabel}
-        </p>
-
-        {!isAnonymous && email && (
-          <div className="rounded-input bg-bg-tertiary px-3 py-3">
-            <p className="text-sm font-medium text-text-primary">Acceso</p>
-            <p className="mt-1 text-xs text-text-tertiary">
-              {hasEmailProvider
-                ? 'Ya podés entrar con mail y contraseña. También podés cambiarla o pedir un mail de restablecimiento.'
-                : hasGoogle
-                  ? 'Entraste con Google. Podés agregar una contraseña a esta misma cuenta sin duplicar usuario ni perder datos.'
-                  : 'Podés crear una contraseña para entrar con mail.'}
-            </p>
-
-            <div className="mt-3">
+      <section className={styles.group} aria-labelledby="settings-access-title">
+        <h2 id="settings-access-title">Acceso y seguridad</h2>
+        <p className={styles.description}>Administrá cómo entrás a tu cuenta.</p>
+        <div className={styles.rowGroup}>
+          <div className={styles.identity}>
+            <UserCircle size={20} weight="light" />
+            <div><span className={styles.rowTitle}>Tu cuenta</span><span className={styles.rowDescription}>{emailLabel}</span></div>
+          </div>
+          {!isAnonymous && email && <>
+            <button type="button" className={styles.row} onClick={() => {
+              setPasswordSuccess(null)
+              resetPasswordForm()
+              setPasswordModalOpen(true)
+            }}>
+              <LockKey size={20} weight="light" />
+              <span className={styles.rowBody}><span className={styles.rowTitle}>{accessLabel}</span><span className={styles.rowDescription}>{hasEmailProvider ? 'Acceso con mail y contraseña' : hasGoogle ? 'Sumá una contraseña a tu acceso con Google' : 'Entrá también con tu mail'}</span></span>
+              <CaretRight size={16} weight="light" />
+            </button>
+            <SettingsDetail title="Passkeys" description="Biometría, PIN o llavero del dispositivo" icon={<Fingerprint size={20} weight="light" />}>
               <PasskeysPanel variant="mobile" />
-            </div>
-
-            <div className="mt-3 flex flex-col gap-2">
-              <button
-                onClick={() => {
-                  setPasswordSuccess(null)
-                  resetPasswordForm()
-                  setPasswordModalOpen(true)
-                }}
-                className="w-full rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-primary/5"
-              >
-                {accessLabel}
-              </button>
-
-              {hasEmailProvider && (
-                <button
-                  onClick={handleSendReset}
-                  disabled={isSendingReset}
-                  className="w-full rounded-button py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-primary/5 disabled:opacity-50"
-                >
-                  {isSendingReset ? 'Enviando...' : 'Enviar mail de restablecimiento'}
-                </button>
-              )}
-            </div>
-
-            {resetMessage && (
-              <p className="mt-2 text-xs text-success">{resetMessage}</p>
-            )}
-          </div>
-        )}
-
-        {isAnonymous && (
-          <div className="rounded-input bg-bg-tertiary px-3 py-3">
-            <p className="text-sm font-medium text-text-primary">Modo exploracion</p>
-            <p className="mt-1 text-xs text-text-tertiary">
-              Para guardar esta cuenta sin perder datos, seguí usando el flujo de vinculacion desde el banner inferior. Después vas a poder sumar una passkey desde esta sección.
-            </p>
-          </div>
-        )}
-
-        <div className="rounded-input bg-bg-tertiary px-3 py-2.5">
-          <Link
-            href="/privacy"
-            className="block text-sm font-medium text-text-primary transition-colors hover:text-primary"
-          >
-            Privacidad y datos
-          </Link>
-          <p className="mt-1 text-xs text-text-tertiary">
-            SmartInput usa IA para interpretar el texto que escribis y proponer un gasto editable.
-          </p>
+            </SettingsDetail>
+            {hasEmailProvider && <button type="button" onClick={handleSendReset} disabled={isSendingReset} className={styles.row}>
+              <EnvelopeSimple size={20} weight="light" />
+              <span className={styles.rowBody}><span className={styles.rowTitle}>{isSendingReset ? 'Enviando...' : 'Enviar mail de restablecimiento'}</span><span className={styles.rowDescription}>Recibí un enlace para redefinir tu contraseña</span></span>
+            </button>}
+          </>}
+          {isAnonymous && <div className={styles.disclosureBody}>
+            <p className={styles.rowTitle}>Modo exploracion</p>
+            <p className={styles.rowDescription}>Para guardar esta cuenta sin perder datos, seguí usando el flujo de vinculacion desde el banner inferior. Después vas a poder sumar una passkey desde esta sección.</p>
+          </div>}
         </div>
+        {resetMessage && <p role="status" className="mt-2 text-xs text-success">{resetMessage}</p>}
+        {!passwordModalOpen && <InlineError message={passwordError} />}
+      </section>
 
-        <button
-          onClick={handleLogout}
-          disabled={isLoggingOut}
-          className="w-full rounded-button py-2.5 text-sm font-medium text-text-primary transition-colors hover:bg-primary/5 disabled:opacity-50"
-        >
-          {isLoggingOut ? 'Cerrando...' : 'Cerrar sesion'}
+      <section className={styles.group} aria-labelledby="settings-privacy-title">
+        <h2 id="settings-privacy-title">Privacidad y datos</h2>
+        <p className={styles.description}>Información sobre el uso y la eliminación de tus datos.</p>
+        <div className={styles.rowGroup}>
+          <Link href="/privacy" className={styles.row}>
+            <ShieldCheck size={20} weight="light" />
+            <span className={styles.rowBody}><span className={styles.rowTitle}>Cómo se usan tus datos</span><span className={styles.rowDescription}>Privacidad e inteligencia artificial en Gota</span></span>
+            <CaretRight size={16} weight="light" />
+          </Link>
+          <div className={styles.deleteRow}><DeleteAccountControl /></div>
+        </div>
+      </section>
+      <div className={styles.sessionActions}>
+        <button type="button" onClick={handleLogout} disabled={isLoggingOut} className={styles.row}>
+          <SignOut size={20} weight="light" />
+          <span className={styles.rowTitle}>{isLoggingOut ? 'Cerrando...' : 'Cerrar sesión'}</span>
         </button>
-
-        <DeleteAccountControl />
       </div>
 
       <Modal

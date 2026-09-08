@@ -58,15 +58,13 @@ export default async function SettingsPage() {
         />
 
         {/* Cuenta */}
-        <section className={`${styles.group} ${styles.account}`} aria-labelledby="settings-access-title">
-          <h2 id="settings-access-title">Acceso y seguridad</h2>
-          <p className={styles.description}>Tu cuenta, tus formas de entrar y tus datos.</p>
+        <div className={styles.account}>
           <AccountSection
             email={user.email ?? ''}
             isAnonymous={user.is_anonymous === true}
             authProviders={authProviders}
           />
-        </section>
+        </div>
       </div>
     </div>
   )

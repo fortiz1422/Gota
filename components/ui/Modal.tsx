@@ -1,6 +1,8 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useContext, useEffect, useId, useRef } from 'react'
+import { FullScreenSheet } from './FullScreenSheet'
+import { NestedSettingsModalContext } from './NestedSettingsModalContext'
 import { createPortal } from 'react-dom'
 
 interface ModalProps {
@@ -9,7 +11,23 @@ interface ModalProps {
   children: React.ReactNode
 }
 
-export function Modal({ open, onClose, children }: ModalProps) {
+export function Modal(props: ModalProps) {
+  const nested = useContext(NestedSettingsModalContext)
+  const id = useId()
+  const initialFocusRef = useRef<HTMLInputElement | null>(null)
+  if (!nested) return <LegacyModal {...props} />
+  return <FullScreenSheet open={props.open} onClose={props.onClose} labelledBy={id} initialFocusRef={initialFocusRef}>
+    <div className="p-6" ref={(node) => { initialFocusRef.current = node?.querySelector<HTMLInputElement>('input:not([disabled]):not([type="hidden"])') ?? null }}>
+      <div className="mb-4 flex items-center justify-between gap-4">
+        <h2 id={id} className="text-base font-semibold">Editar datos</h2>
+        <button type="button" onClick={props.onClose} className="min-h-11 px-3 text-sm text-primary">Volver</button>
+      </div>
+      {props.children}
+    </div>
+  </FullScreenSheet>
+}
+
+function LegacyModal({ open, onClose, children }: ModalProps) {
   const overlayRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 
