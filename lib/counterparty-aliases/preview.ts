@@ -36,7 +36,7 @@ export function enrichSharedReceiptPreview<T>(
     parsed_payload: parsedPayload,
     alias_match: match,
     preview_overrides: match ? {
-      description: match.display_name,
+      description: detectedAlias ?? match.display_name,
       category: match.default_category,
     } : null,
     detected_alias: detectedAlias,

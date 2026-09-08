@@ -64,7 +64,7 @@ describe('shared receipt canonical expense review', () => {
         detected_alias: 'BEL MARFER',
         alias_match: {
           alias_id: 'a1', profile_id: 'p1', alias_value: 'BEL MARFER', normalized_value: 'bel marfer',
-          display_name: 'Belmar', default_category: 'Supermercado',
+          display_name: 'Belmar', default_category: 'Supermercado', match_type: 'exact',
         },
       },
       'account-1',
@@ -92,6 +92,28 @@ describe('shared receipt canonical expense review', () => {
     expect(html).toContain('BEL MARFER')
     expect(html).not.toContain('checked=""')
     expect(unsafeHtml).not.toContain('Recordar este comercio para próximas veces')
+  })
+
+  it('shows a suggested existing profile and its usual category separately from detected text', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: {
+        ...purchase,
+        description: 'La briola',
+        category: 'Alimentos',
+        detected_alias: 'La briola',
+        alias_match: {
+          alias_id: 'a1', profile_id: 'p1', alias_value: 'Alejandro La Briola',
+          normalized_value: 'alejandro la briola', display_name: 'Alejandro La Briola',
+          default_category: 'Alimentos', match_type: 'suggestion',
+        },
+      },
+      cards: [card], accounts: [bank], onSave: () => undefined, onCancel: () => undefined,
+      embedded: true,
+    }))
+
+    expect(html).toContain('Sugerencia:')
+    expect(html).toContain('Alejandro La Briola · Alimentos')
+    expect(html).toContain('Texto detectado: La briola')
   })
 
   it('shows card and installments only when credit is the selected source', () => {

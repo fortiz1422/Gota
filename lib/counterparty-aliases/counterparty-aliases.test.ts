@@ -30,15 +30,43 @@ describe('counterparty alias resolution', () => {
     normalized_value: 'bel marfer',
     display_name: 'Belmar',
     default_category: 'Supermercado' as const,
+    match_type: 'exact' as const,
   }
 
-  it('returns only an exact normalized match scoped to the requested user', async () => {
+  it('prioritizes an exact normalized match scoped to the requested user', async () => {
     const findExact = vi.fn(async (userId: string, normalized: string) =>
       userId === 'user-1' && normalized === 'bel marfer' ? match : null,
     )
-    await expect(resolveCounterpartyAlias('user-1', 'Bel Márfer!', { findExact })).resolves.toEqual(match)
+    await expect(resolveCounterpartyAlias('user-1', 'Bel Márfer!', { findExact })).resolves.toEqual({
+      ...match,
+      match_type: 'exact',
+    })
     await expect(resolveCounterpartyAlias('user-2', 'Bel Márfer!', { findExact })).resolves.toBeNull()
     await expect(resolveCounterpartyAlias('user-1', 'Bel Marfe', { findExact })).resolves.toBeNull()
+  })
+
+  it('suggests one existing profile when the detected wording is a whole-phrase subset', async () => {
+    const existing = {
+      ...match,
+      alias_value: 'Alejandro La Briola',
+      normalized_value: 'alejandro la briola',
+      display_name: 'Alejandro La Briola',
+      default_category: 'Alimentos' as const,
+    }
+    await expect(resolveCounterpartyAlias('user-1', 'La briola', {
+      findExact: async () => null,
+      findCandidates: async () => [existing],
+    })).resolves.toEqual({ ...existing, match_type: 'suggestion' })
+  })
+
+  it('fails closed when a partial wording points to more than one profile', async () => {
+    await expect(resolveCounterpartyAlias('user-1', 'La briola', {
+      findExact: async () => null,
+      findCandidates: async () => [
+        { ...match, profile_id: 'profile-1', normalized_value: 'alejandro la briola' },
+        { ...match, alias_id: 'alias-2', profile_id: 'profile-2', normalized_value: 'panaderia la briola' },
+      ],
+    })).resolves.toBeNull()
   })
 
   it('uses explicit edit, then alias, then parser suggestion without auto-confirming', () => {
@@ -50,7 +78,7 @@ describe('counterparty alias resolution', () => {
 
     expect(applyCounterpartyResolution({
       parser: { description: 'BEL MARFER', category: 'Alimentos' }, match,
-    })).toMatchObject({ description: 'Belmar', category: 'Supermercado', confirmed: false, alias_match: match })
+    })).toMatchObject({ description: 'BEL MARFER', category: 'Supermercado', confirmed: false, alias_match: match })
 
     expect(applyCounterpartyResolution({
       parser: { description: 'Sin match', category: 'Alimentos' }, match: null,
