@@ -8,11 +8,14 @@ interface Props {
   title: string
   summary?: string
   defaultExpanded?: boolean
+  standalone?: boolean
   children: React.ReactNode
 }
 
-export function CollapsibleSection({ icon, title, summary, defaultExpanded = false, children }: Props) {
+export function CollapsibleSection({ icon, title, summary, defaultExpanded = false, standalone = false, children }: Props) {
   const [expanded, setExpanded] = useState(defaultExpanded)
+
+  if (standalone) return <div className="py-4">{children}</div>
 
   return (
     <div

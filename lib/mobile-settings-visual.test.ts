@@ -16,7 +16,7 @@ describe('Mobile settings composition', () => {
     expect(html).toContain(enabled ? '>Perfil</h1>' : '>Configuración</h1>')
     expect(html.includes('Modo de cálculo')).toBe(enabled)
     expect(html.includes('Administrar suscripciones')).toBe(enabled)
-    for (const label of ['Moneda predeterminada', 'Cuentas', 'Tarjetas', 'Alias de comercios', 'Compartir con Gota', 'Comprobantes']) {
+    for (const label of ['Moneda predeterminada', 'Cuentas', 'Tarjetas', 'Alias de comercios', 'Compartir con Gota']) {
       expect(html).toContain(label)
     }
   })
@@ -25,13 +25,13 @@ describe('Mobile settings composition', () => {
     expect(html).toContain('aria-labelledby="settings-reading-title"')
     expect(html).toContain('aria-labelledby="settings-finances-title"')
     const finance = html.slice(html.indexOf('aria-labelledby="settings-finances-title"'))
-    expect(finance).toContain('Mes anterior')
-    expect(finance).toContain('Mes siguiente')
+    expect(finance).not.toContain('Mes anterior')
+    expect(finance).not.toContain('Mes siguiente')
     const reading = html.slice(html.indexOf('aria-labelledby="settings-reading-title"'), html.indexOf('aria-labelledby="settings-finances-title"'))
     expect(reading).toContain('Moneda predeterminada')
     expect(reading).not.toContain('Mes anterior')
     expect(html).toContain('Alias de comercios')
     expect(html).toContain('Compartir con Gota')
-    expect(html).toContain('Comprobantes')
+    expect(html).not.toContain('Comprobantes')
   })
 })

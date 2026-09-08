@@ -297,9 +297,11 @@ function AddCardModal({
 
 export function CardsSection({
   cards: initialCards,
+  standalone = false,
   month,
   accounts,
 }: {
+  standalone?: boolean
   cards: Card[]
   month: string
   accounts: Account[]
@@ -361,7 +363,7 @@ export function CardsSection({
 
   return (
     <>
-      <CollapsibleSection
+      <CollapsibleSection standalone={standalone}
         icon={<CreditCard weight="duotone" size={18} className="text-text-primary icon-duotone" />}
         title="Tarjetas"
         summary={summary}

@@ -8,11 +8,12 @@ import { AccountBottomSheet } from '@/components/settings/AccountBottomSheet'
 import type { Account, AccountPeriodBalance } from '@/types/database'
 
 interface Props {
+  standalone?: boolean
   initialAccounts: Account[]
   month: string // YYYY-MM
 }
 
-export function AccountsSection({ initialAccounts, month }: Props) {
+export function AccountsSection({ initialAccounts, month, standalone = false }: Props) {
   const router = useRouter()
   const [accounts, setAccounts] = useState<Account[]>(initialAccounts)
   const [editing, setEditing] = useState<Account | null | undefined>(undefined) // undefined = closed, null = new
@@ -62,7 +63,7 @@ export function AccountsSection({ initialAccounts, month }: Props) {
 
   return (
     <>
-      <CollapsibleSection icon={<Bank weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Cuentas" summary={summary}>
+      <CollapsibleSection standalone={standalone} icon={<Bank weight="duotone" size={18} className="text-text-primary icon-duotone" />} title="Cuentas" summary={summary}>
         <div>
           {active.length === 0 && (
             <p className="text-xs text-text-disabled py-1">Sin cuentas.</p>

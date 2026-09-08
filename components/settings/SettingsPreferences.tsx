@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { Bank, CreditCard, CaretLeft, CaretRight } from '@phosphor-icons/react'
 import { CurrencySection } from '@/components/settings/CurrencySection'
 import { AccountsSection } from '@/components/settings/AccountsSection'
 import { CardsSection } from '@/components/settings/CardsSection'
@@ -9,9 +9,9 @@ import { HeroBalanceModePreference } from '@/components/settings/HeroBalanceMode
 import { SubscriptionsPreference } from '@/components/settings/SubscriptionsPreference'
 import { SharedReceiptDevicesPanel } from '@/components/settings/SharedReceiptDevicesPanel'
 import { CounterpartyAliasesPanel } from '@/components/settings/CounterpartyAliasesPanel'
-import { SharedReceiptsInboxCard } from '@/components/shared-receipts/SharedReceiptsInboxCard'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import styles from './MobileSettings.module.css'
+import { SettingsDetail } from './SettingsDetail'
 import { addMonths } from '@/lib/dates'
 import { getProfilePreferenceVisibility } from '@/lib/settings/profile-preference-visibility'
 import type { Account, Card, HeroBalanceMode } from '@/types/database'
@@ -69,6 +69,8 @@ export function SettingsPreferences({
       <section className={styles.group} aria-labelledby="settings-finances-title">
         <h2 id="settings-finances-title">Cuentas y tarjetas</h2>
         <p className={styles.description}>Administrá tus medios de pago y sus datos.</p>
+        <div className={styles.rowGroup}>
+          <SettingsDetail title="Cuentas" description="Administrá tus cuentas y saldos por período" icon={<Bank size={20} weight="light" />}>
         <div className={styles.period}>
           <div>
             <p className={styles.periodLabel}>Período de consulta</p>
@@ -86,9 +88,28 @@ export function SettingsPreferences({
             </button>
           </div>
         </div>
-        <div className={styles.financialRows}>
-          <AccountsSection initialAccounts={accounts} month={month} />
-          <CardsSection cards={cards} month={month} accounts={bankDigitalAccounts} />
+            <AccountsSection initialAccounts={accounts} month={month} standalone />
+          </SettingsDetail>
+          <SettingsDetail title="Tarjetas" description="Administrá tus tarjetas y fechas de cierre" icon={<CreditCard size={20} weight="light" />}>
+        <div className={styles.period}>
+          <div>
+            <p className={styles.periodLabel}>Período de consulta</p>
+            <p className={styles.periodHint}>Saldos y fechas de cuentas y tarjetas</p>
+          </div>
+          <div className={styles.monthControl}>
+            <button type="button" onClick={() => setMonth((m) => addMonths(m, -1))}
+              disabled={month <= minMonth} aria-label="Mes anterior">
+              <CaretLeft weight="light" size={18} />
+            </button>
+            <span aria-live="polite" aria-atomic="true">{getMonthLabel(month)}</span>
+            <button type="button" onClick={() => setMonth((m) => addMonths(m, 1))}
+              disabled={month >= maxMonth} aria-label="Mes siguiente">
+              <CaretRight weight="light" size={18} />
+            </button>
+          </div>
+        </div>
+            <CardsSection cards={cards} month={month} accounts={bankDigitalAccounts} standalone />
+          </SettingsDetail>
         </div>
         {preferenceVisibility.subscriptions && (
           <div className={styles.subscription}><SubscriptionsPreference defaultCurrency={currency} /></div>
@@ -105,7 +126,6 @@ export function SettingsPreferences({
         <h2 id="settings-integrations-title">Integraciones</h2>
         <p className={styles.description}>Conectá la carga con tu día a día.</p>
         <div className={styles.entry}><SharedReceiptDevicesPanel /></div>
-        <div className={styles.inbox}><SharedReceiptsInboxCard alwaysShow /></div>
       </section>
     </div>
   )
