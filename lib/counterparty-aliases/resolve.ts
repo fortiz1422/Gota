@@ -14,12 +14,16 @@ export interface CounterpartyAliasMatch extends CounterpartyAliasCandidate {
   match_type: 'exact' | 'suggestion'
 }
 
-function isWholePhraseVariant(detected: string, saved: string): boolean {
+function isNormalizedWordingVariant(detected: string, saved: string): boolean {
   if (detected === saved) return false
   const shorter = detected.length < saved.length ? detected : saved
   const longer = detected.length < saved.length ? saved : detected
   if (shorter.length < 5) return false
-  return ` ${longer} `.includes(` ${shorter} `)
+  if (` ${longer} `.includes(` ${shorter} `)) return true
+
+  const compactShorter = shorter.replaceAll(' ', '')
+  const compactLonger = longer.replaceAll(' ', '')
+  return compactShorter.length >= 6 && compactLonger.includes(compactShorter)
 }
 
 export async function resolveCounterpartyAlias(
@@ -41,7 +45,7 @@ export async function resolveCounterpartyAlias(
   if (!deps.findCandidates) return null
 
   const candidates = (await deps.findCandidates(userId))
-    .filter((candidate) => isWholePhraseVariant(normalizedValue, candidate.normalized_value))
+    .filter((candidate) => isNormalizedWordingVariant(normalizedValue, candidate.normalized_value))
   const profileIds = new Set(candidates.map((candidate) => candidate.profile_id))
   if (profileIds.size !== 1) return null
 
