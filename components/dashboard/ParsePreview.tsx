@@ -229,7 +229,7 @@ export function ParsePreview({
       targetProfileId = profile.id
     }
     if (!targetProfileId) throw new Error('profile_required')
-    if (data.alias_match) {
+    if (data.alias_match?.match_type === 'exact') {
       if (data.alias_match.profile_id === targetProfileId) return
       const response = await fetch(`/api/counterparty-aliases/${encodeURIComponent(data.alias_match.alias_id)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
@@ -603,7 +603,16 @@ export function ParsePreview({
             />
             <span>
               <span className="block font-medium">Recordar este comercio para próximas veces</span>
-              <span className="mt-1 block text-xs text-text-tertiary">Alias detectado: {detectedAlias}</span>
+              {data.alias_match ? (
+                <span className="mt-1 block text-xs text-text-tertiary">
+                  {data.alias_match.match_type === 'suggestion' ? 'Sugerencia' : 'Comercio reconocido'}:{' '}
+                  {data.alias_match.display_name}
+                  {data.alias_match.default_category ? ` · ${data.alias_match.default_category}` : ''}
+                  <span className="block">Texto detectado: {detectedAlias}</span>
+                </span>
+              ) : (
+                <span className="mt-1 block text-xs text-text-tertiary">Texto detectado: {detectedAlias}</span>
+              )}
             </span>
           </label>
           {remember && (
