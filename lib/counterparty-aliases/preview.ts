@@ -14,7 +14,7 @@ export function enrichParsedExpensePreview<T extends Record<string, unknown>>(
   const detectedAlias = typeof parsed.description === 'string' ? parsed.description : null
   return {
     ...parsed,
-    description: match?.display_name ?? parsed.description,
+    description: parsed.description,
     category: match?.default_category ?? parsed.category,
     detected_alias: detectedAlias,
     alias_match: match,
