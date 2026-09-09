@@ -94,7 +94,7 @@ export function AccountsSection({ initialAccounts, month, standalone = false, on
   const summary = active.length === 0 ? 'Sin cuentas' : `${active.length} cuenta${active.length === 1 ? '' : 's'}`
 
   const content = (
-    <div>
+    <div className={standalone ? 'flex min-h-full flex-col' : undefined}>
       {accountBalancesError ? (
         <div className="mb-4 flex items-center justify-between gap-3 rounded-input bg-warning/10 px-3 py-2.5">
           <p className="text-xs leading-5 text-text-secondary">No pudimos cargar los saldos de este período.</p>
@@ -135,9 +135,11 @@ export function AccountsSection({ initialAccounts, month, standalone = false, on
         </ul>
       )}
 
-      <button type="button" onClick={(event) => openTypeChoice(event.currentTarget)} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-primary text-sm font-semibold text-white">
-        <Plus size={16} /> Agregar cuenta
-      </button>
+      <div className={standalone ? 'mt-auto pt-4' : 'mt-4'}>
+        <button type="button" onClick={(event) => openTypeChoice(event.currentTarget)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-primary text-sm font-semibold text-white">
+          <Plus size={16} /> Agregar cuenta
+        </button>
+      </div>
     </div>
   )
 
