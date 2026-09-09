@@ -15,6 +15,15 @@ describe('Account edit white pilot', () => {
     expect(taskSurface).toContain('data-task-intro')
   })
 
+  it('extends compact task footers through the iPhone bottom safe area', () => {
+    const taskSurface = read('../components/ui/TaskSurface.tsx')
+    const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
+
+    expect(fullScreenSheet).toContain('extendIntoBottomSafeArea?: boolean')
+    expect(taskSurface).toContain('extendIntoBottomSafeArea={compact}')
+    expect(taskSurface).toContain("compact ? 'pb-[calc(env(safe-area-inset-bottom)+20px)]' : 'pb-5'")
+  })
+
   it('groups account edit controls into white semantic sections without tertiary field wells', () => {
     const source = read('../components/settings/AccountBottomSheet.tsx')
 
