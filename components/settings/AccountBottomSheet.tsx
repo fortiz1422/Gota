@@ -6,6 +6,7 @@ import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { InlineError } from '@/components/ui/InlineError'
 import { Toggle } from '@/components/ui/Toggle'
+import { formatArDecimal, parseArDecimalInput, parseArSignedDecimalInput } from '@/lib/ar-input'
 import { FF_YIELD } from '@/lib/flags'
 import type { Account, AccountType } from '@/types/database'
 
@@ -209,7 +210,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const legacyInputClass =
     'w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none'
   const editInputClass =
-    'w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none placeholder:text-text-disabled focus:border-primary focus:ring-0'
+    'w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none placeholder:text-text-disabled focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0'
   const inputClass = isNew ? legacyInputClass : editInputClass
 
   return (
@@ -277,22 +278,22 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
               <label className="space-y-1">
                 <span className={isNew ? 'text-[10px] text-text-disabled' : 'text-[10px] font-semibold uppercase tracking-wider text-text-tertiary'}>ARS</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   placeholder="0"
-                  value={openingArs}
-                  onChange={(e) => setOpeningArs(e.target.value)}
+                  value={formatArDecimal(openingArs)}
+                  onChange={(e) => setOpeningArs(parseArSignedDecimalInput(e.target.value))}
                   className={inputClass}
                 />
               </label>
               <label className="space-y-1">
                 <span className={isNew ? 'text-[10px] text-text-disabled' : 'text-[10px] font-semibold uppercase tracking-wider text-text-tertiary'}>USD</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   placeholder="0"
-                  value={openingUsd}
-                  onChange={(e) => setOpeningUsd(e.target.value)}
+                  value={formatArDecimal(openingUsd)}
+                  onChange={(e) => setOpeningUsd(parseArSignedDecimalInput(e.target.value))}
                   className={inputClass}
                 />
               </label>
@@ -355,11 +356,11 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
               <label className="block space-y-1">
                 <span className="text-[10px] font-semibold text-text-tertiary">TNA %</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
                   placeholder="Ej. 78"
-                  value={yieldRate}
-                  onChange={(e) => setYieldRate(e.target.value)}
+                  value={formatArDecimal(yieldRate)}
+                  onChange={(e) => setYieldRate(parseArDecimalInput(e.target.value))}
                   className={inputClass}
                 />
               </label>
@@ -381,11 +382,11 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
               <label className="block space-y-1">
                 <span className="text-[10px] font-semibold text-text-tertiary">Tope remunerado ARS</span>
                 <input
-                  type="number"
+                  type="text"
                   inputMode="decimal"
-                  placeholder="Ej. 2000000"
-                  value={yieldCapAmount}
-                  onChange={(e) => setYieldCapAmount(e.target.value)}
+                  placeholder="Ej. 2.000.000"
+                  value={formatArDecimal(yieldCapAmount)}
+                  onChange={(e) => setYieldCapAmount(parseArDecimalInput(e.target.value))}
                   className={inputClass}
                 />
               </label>
