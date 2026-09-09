@@ -29,8 +29,15 @@ describe('Account edit white pilot', () => {
     const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
 
     expect(fullScreenSheet).toContain('fillAvailableHeight?: boolean')
-    expect(fullScreenSheet).toContain("fillAvailableHeight ? 'h-full' : 'h-[100dvh]'")
+    expect(fullScreenSheet).toContain("'h-full min-h-[100dvh] sm:min-h-0'")
     expect(taskSurface).toContain('fillAvailableHeight={compact}')
+  })
+
+  it('pushes the standalone add-account action to the bottom of its management surface', () => {
+    const source = read('../components/settings/AccountsSection.tsx')
+
+    expect(source).toContain("standalone ? 'flex min-h-full flex-col' : undefined")
+    expect(source).toContain("<div className={standalone ? 'mt-auto pt-4' : 'mt-4'}>")
   })
 
   it('renders account preferences with the canonical contained switch geometry', () => {

@@ -205,7 +205,9 @@ export function FullScreenSheet({
 
   if (!mounted || !open) return null
 
-  const mobileHeightClass = fillAvailableHeight ? 'h-full' : 'h-[100dvh]'
+  const mobileHeightClass = fillAvailableHeight
+    ? 'h-full min-h-[100dvh] sm:min-h-0'
+    : 'h-[100dvh]'
 
   return createPortal(
     <div
