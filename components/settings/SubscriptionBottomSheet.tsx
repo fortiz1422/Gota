@@ -1,11 +1,15 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bank, DeviceMobileSpeaker, Star, Wallet, X } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { Bank, CalendarBlank, CaretRight, CreditCard, DeviceMobileSpeaker, Receipt, Star, Wallet } from '@phosphor-icons/react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { FullScreenSheet } from '@/components/ui/FullScreenSheet'
+import { InlineError } from '@/components/ui/InlineError'
+import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { getCurrentMonth } from '@/lib/dates'
+import { buildSubscriptionApplyPayload, buildSubscriptionBasePayload } from '@/lib/subscriptions/form-payload'
 import type { Account, Card, Subscription } from '@/types/database'
 
 interface Props {
@@ -16,39 +20,39 @@ interface Props {
   onClose: () => void
   onSave: (subscription: Subscription) => void
   onArchive: (id: string) => void
+  triggerElement?: HTMLElement | null
+  request?: typeof fetch
 }
 
-function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number }) {
-  if (type === 'cash') return <Wallet weight="duotone" size={size} />
-  if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
-  return <Bank weight="duotone" size={size} />
+function AccountIcon({ type }: { type: Account['type'] }) {
+  if (type === 'cash') return <Wallet weight="duotone" size={17} />
+  if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={17} />
+  return <Bank weight="duotone" size={17} />
 }
 
 export function SubscriptionBottomSheet({
-  subscription,
-  cards,
-  accounts,
-  defaultCurrency,
-  onClose,
-  onSave,
-  onArchive,
+  subscription, cards, accounts, defaultCurrency, onClose, onSave, onArchive, triggerElement,
+  request = fetch,
 }: Props) {
   const queryClient = useQueryClient()
-  const activeCards = useMemo(() => cards.filter((c) => !c.archived), [cards])
-  const bankDigital = useMemo(() => accounts.filter((a) => a.type !== 'cash'), [accounts])
-  const cashAccount = useMemo(() => accounts.find((a) => a.type === 'cash') ?? null, [accounts])
-  const primaryAccount = bankDigital.find((a) => a.is_primary) ?? bankDigital[0] ?? null
+  const descriptionId = useId()
+  const amountId = useId()
+  const categoryId = useId()
+  const dayId = useId()
+  const scopeTitleId = useId()
+  const archiveTitleId = useId()
+  const descriptionRef = useRef<HTMLInputElement>(null)
+  const activeCards = useMemo(() => cards.filter((card) => !card.archived), [cards])
+  const bankDigital = useMemo(() => accounts.filter((account) => account.type !== 'cash'), [accounts])
+  const cashAccount = useMemo(() => accounts.find((account) => account.type === 'cash') ?? null, [accounts])
+  const primaryAccount = bankDigital.find((account) => account.is_primary) ?? bankDigital[0] ?? null
 
   const [description, setDescription] = useState(subscription?.description ?? '')
   const [amount, setAmount] = useState(subscription ? String(subscription.amount) : '')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(subscription?.currency ?? defaultCurrency)
-  const [category, setCategory] = useState<string>(subscription?.category ?? CATEGORIES[16])
-  const [dayOfMonth, setDayOfMonth] = useState(
-    subscription ? String(subscription.day_of_month) : '1',
-  )
-  const [paymentMethod, setPaymentMethod] = useState<'DEBIT' | 'CREDIT'>(
-    subscription?.payment_method ?? 'DEBIT',
-  )
+  const [category, setCategory] = useState(subscription?.category ?? CATEGORIES[16])
+  const [dayOfMonth, setDayOfMonth] = useState(subscription ? String(subscription.day_of_month) : '1')
+  const [paymentMethod, setPaymentMethod] = useState<'DEBIT' | 'CREDIT'>(subscription?.payment_method ?? 'DEBIT')
   const [cardId, setCardId] = useState<string | null>(subscription?.card_id ?? activeCards[0]?.id ?? null)
   const [selectedAccountKey, setSelectedAccountKey] = useState<string | null>(() => {
     if (subscription?.account_id) return subscription.account_id
@@ -56,13 +60,12 @@ export function SubscriptionBottomSheet({
   })
   const [isSaving, setIsSaving] = useState(false)
   const [isArchiving, setIsArchiving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [pendingPayload, setPendingPayload] = useState<Record<string, unknown> | null>(null)
+  const [archiveConfirmOpen, setArchiveConfirmOpen] = useState(false)
+  const [decisionTrigger, setDecisionTrigger] = useState<HTMLElement | null>(null)
 
-  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setTimeout(() => e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300)
-  }
-
-  const resolveAccountId = (): string | null => {
+  const resolveAccountId = () => {
     if (!selectedAccountKey || selectedAccountKey === 'cash') return cashAccount?.id ?? null
     return selectedAccountKey
   }
@@ -75,374 +78,221 @@ export function SubscriptionBottomSheet({
     ])
   }
 
-  const handleSave = async () => {
-    const num = Number(amount)
+  const handleSave = async (trigger: HTMLElement) => {
+    const numericAmount = Number(amount)
     const day = Number(dayOfMonth)
-    if (!description.trim() || !num || num <= 0 || !day || day < 1 || day > 31) return
-    if (paymentMethod === 'CREDIT' && !cardId) return
+    if (!description.trim()) { setError('Ingresá una descripción.'); return }
+    if (!numericAmount || numericAmount <= 0) { setError('El monto debe ser mayor a cero.'); return }
+    if (!day || day < 1 || day > 31) { setError('El día de cobro debe estar entre 1 y 31.'); return }
+    if (paymentMethod === 'CREDIT' && !cardId) { setError('Elegí una tarjeta para el cobro.'); return }
 
-    const basePayload = {
-      description: description.trim(),
+    const formValues = {
+      description,
       category,
-      amount: num,
+      amount: numericAmount,
       currency,
-      payment_method: paymentMethod,
-      card_id: paymentMethod === 'CREDIT' ? cardId : null,
-      account_id: paymentMethod === 'DEBIT' ? resolveAccountId() : null,
-      day_of_month: day,
+      paymentMethod,
+      cardId,
+      accountId: resolveAccountId(),
+      dayOfMonth: day,
     }
+    const basePayload = buildSubscriptionBasePayload(formValues)
+    const applyPayload = buildSubscriptionApplyPayload(formValues, new Date().toISOString(), getCurrentMonth())
 
-    const applyPayload = {
-      ...basePayload,
-      last_reviewed_at: new Date().toISOString(),
-      month: getCurrentMonth(),
-    }
-
+    setError(null)
+    setDecisionTrigger(trigger)
     setIsSaving(true)
     try {
       if (!subscription) {
-        const res = await fetch('/api/subscriptions', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(basePayload),
+        const response = await request('/api/subscriptions', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(basePayload),
         })
-        if (!res.ok) throw new Error()
-        const saved = (await res.json()) as Subscription
+        if (!response.ok) throw new Error('No se pudo guardar la suscripción.')
+        const saved = await response.json() as Subscription
         await invalidateData()
         onSave(saved)
         onClose()
         return
       }
 
-      const res = await fetch(`/api/subscriptions/${subscription.id}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(applyPayload),
+      const response = await request(`/api/subscriptions/${subscription.id}/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(applyPayload),
       })
-
-      if (res.status === 409) {
-        setPendingPayload(applyPayload)
-        return
-      }
-
-      if (!res.ok) throw new Error()
-      const result = (await res.json()) as { subscription: Subscription }
+      if (response.status === 409) { setPendingPayload(applyPayload); return }
+      if (!response.ok) throw new Error('No se pudo guardar la suscripción.')
+      const result = await response.json() as { subscription: Subscription }
       await invalidateData()
       onSave(result.subscription)
       onClose()
-    } catch {
-      alert('Error al guardar la suscripcion. Intenta de nuevo.')
-    } finally {
-      setIsSaving(false)
-    }
+    } catch (caught) {
+      setError(caught instanceof Error ? caught.message : 'No se pudo guardar la suscripción.')
+    } finally { setIsSaving(false) }
   }
 
   const handleApplyScope = async (scope: 'current_only' | 'current_and_future' | 'future_only') => {
     if (!subscription || !pendingPayload) return
     setIsSaving(true)
     try {
-      const res = await fetch(`/api/subscriptions/${subscription.id}/apply`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await request(`/api/subscriptions/${subscription.id}/apply`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...pendingPayload, scope }),
       })
-      if (!res.ok) throw new Error()
-      const result = (await res.json()) as { subscription: Subscription }
+      if (!response.ok) throw new Error('No se pudieron aplicar los cambios.')
+      const result = await response.json() as { subscription: Subscription }
       await invalidateData()
       onSave(result.subscription)
       setPendingPayload(null)
       onClose()
-    } catch {
-      alert('Error al aplicar cambios a la suscripcion.')
-    } finally {
-      setIsSaving(false)
-    }
+    } catch (caught) {
+      setPendingPayload(null)
+      setError(caught instanceof Error ? caught.message : 'No se pudieron aplicar los cambios.')
+    } finally { setIsSaving(false) }
   }
 
   const handleArchive = async () => {
     if (!subscription) return
     setIsArchiving(true)
     try {
-      const res = await fetch(`/api/subscriptions/${subscription.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await request(`/api/subscriptions/${subscription.id}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ is_active: false }),
       })
-      if (!res.ok) throw new Error()
+      if (!response.ok) throw new Error('No se pudo archivar la suscripción.')
       await invalidateData()
       onArchive(subscription.id)
       onClose()
-    } catch {
-      alert('Error al archivar la suscripcion. Intenta de nuevo.')
-    } finally {
-      setIsArchiving(false)
-    }
+    } catch (caught) {
+      setArchiveConfirmOpen(false)
+      setError(caught instanceof Error ? caught.message : 'No se pudo archivar la suscripción.')
+    } finally { setIsArchiving(false) }
   }
 
-  const chipBase =
-    'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
-  const chipActive = 'border-primary bg-primary/15 text-primary'
-  const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
-  const canSave =
-    description.trim().length > 0 &&
-    Number(amount) > 0 &&
-    Number(dayOfMonth) >= 1 &&
-    Number(dayOfMonth) <= 31 &&
-    (paymentMethod !== 'CREDIT' || !!cardId)
+  const canSave = description.trim().length > 0 && Number(amount) > 0 && Number(dayOfMonth) >= 1 && Number(dayOfMonth) <= 31 && (paymentMethod !== 'CREDIT' || Boolean(cardId))
+  const currencySymbol = currency === 'ARS' ? '$' : 'US$'
+  const choiceClass = (selected: boolean) => `flex min-h-12 w-full items-center gap-3 rounded-input border px-4 text-left type-body transition-colors ${selected ? 'border-primary bg-primary-soft text-primary' : 'border-border-subtle bg-bg-primary text-text-secondary'}`
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <div className="mb-5 flex items-center justify-between">
-        <h2 className="text-lg font-semibold text-text-primary">
-          {subscription ? 'Editar suscripcion' : 'Nueva suscripcion'}
-        </h2>
-        <button onClick={onClose} className="text-text-tertiary hover:text-text-secondary">
-          <X size={20} />
-        </button>
-      </div>
-
-      <div className="space-y-5">
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Descripcion
-          </label>
-          <input
-            type="text"
-            placeholder="Ej. Netflix, Spotify, Gym..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onFocus={scrollOnFocus}
-            maxLength={100}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Monto
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              onFocus={scrollOnFocus}
-              className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-            />
-            <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Categoria
-          </label>
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-            {CATEGORIES.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setCategory(cat)}
-                className={`${chipBase} ${category === cat ? chipActive : chipInactive}`}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Que dia se debita
-          </label>
-          <div className="flex items-center gap-3">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={1}
-              max={31}
-              value={dayOfMonth}
-              onChange={(e) => setDayOfMonth(e.target.value)}
-              onFocus={scrollOnFocus}
-              className="w-24 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-            />
-            <span className="text-xs text-text-tertiary">de cada mes (1-31)</span>
-          </div>
-        </div>
-
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Metodo de pago
-          </label>
-          <div className="flex gap-2">
-            {(['DEBIT', 'CREDIT'] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setPaymentMethod(m)}
-                className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
-                  paymentMethod === m
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border-subtle bg-bg-tertiary text-text-tertiary'
-                }`}
-              >
-                {m === 'DEBIT' ? 'Debito' : 'Credito'}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {paymentMethod === 'DEBIT' && accounts.length > 0 && (
-          <div>
-            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              Cuenta
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {bankDigital.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedAccountKey(acc.id)}
-                  className={`${chipBase} ${selectedAccountKey === acc.id ? chipActive : chipInactive}`}
-                >
-                  <AccountIcon type={acc.type} size={13} />
-                  <span>{acc.name}</span>
-                  {acc.is_primary && (
-                    <Star
-                      weight="fill"
-                      size={9}
-                      className={selectedAccountKey === acc.id ? 'text-primary' : 'text-text-disabled'}
-                    />
-                  )}
-                </button>
-              ))}
-              {cashAccount && (
-                <button
-                  onClick={() => setSelectedAccountKey('cash')}
-                  className={`${chipBase} ${selectedAccountKey === 'cash' ? chipActive : chipInactive}`}
-                >
-                  <Wallet weight="duotone" size={13} />
-                  <span>{cashAccount.name}</span>
-                </button>
-              )}
-            </div>
-          </div>
+    <>
+      <TaskSurface
+        open
+        onClose={onClose}
+        eyebrow="COMPROMISOS"
+        title={subscription ? 'Editar suscripción' : 'Nueva suscripción'}
+        description="Definí el cobro mensual y el medio desde el que se paga."
+        initialFocusRef={descriptionRef}
+        triggerElement={triggerElement}
+        footer={(
+          <>
+            <InlineError message={error} className="mb-3" />
+            <button
+              type="button"
+              onClick={(event) => { void handleSave(event.currentTarget) }}
+              disabled={!canSave || isSaving || isArchiving}
+              className="min-h-12 w-full rounded-button bg-primary px-4 type-body-lg text-white transition-transform active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+            >
+              {isSaving ? 'Guardando…' : subscription ? 'Guardar cambios' : 'Guardar suscripción'}
+            </button>
+            <button type="button" onClick={onClose} disabled={isSaving || isArchiving} className="mt-1 min-h-11 w-full type-body text-text-tertiary disabled:opacity-50">Cancelar</button>
+          </>
         )}
+      >
+        <section className="card-s5 px-4 pb-5 pt-4" aria-labelledby={`${descriptionId}-section`}>
+          <p id={`${descriptionId}-section`} className="type-micro text-primary">COBRO</p>
+          <label htmlFor={descriptionId} className="mb-2 mt-4 block type-meta font-semibold text-text-secondary">Descripción</label>
+          <div className="flex min-h-14 items-center gap-3 rounded-input border border-border-subtle bg-bg-tertiary px-4 focus-within:border-primary">
+            <Receipt size={18} weight="light" className="shrink-0 text-primary" />
+            <input ref={descriptionRef} id={descriptionId} type="text" placeholder="Ej. Netflix, Spotify, gimnasio" value={description} onChange={(event) => { setDescription(event.target.value); if (error) setError(null) }} maxLength={100} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
+          </div>
 
-        {paymentMethod === 'CREDIT' && activeCards.length > 0 && (
-          <div>
-            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              Tarjeta
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {activeCards.map((card) => (
-                <button
-                  key={card.id}
-                  onClick={() => setCardId(card.id)}
-                  className={`${chipBase} ${cardId === card.id ? chipActive : chipInactive}`}
-                >
-                  {card.name}
-                </button>
-              ))}
+          <label htmlFor={amountId} className="mb-2 mt-5 block type-meta font-semibold text-text-secondary">Monto mensual</label>
+          <div className="flex min-h-[62px] items-center rounded-input border border-border-subtle bg-bg-primary px-4 focus-within:border-primary">
+            <span className="mr-2 type-amount text-text-secondary">{currencySymbol}</span>
+            <input id={amountId} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary outline-none placeholder:text-text-muted focus:ring-0" />
+          </div>
+
+          <fieldset className="mt-4">
+            <legend className="mb-2 type-meta font-semibold text-text-secondary">Moneda</legend>
+            <div className="grid grid-cols-2 gap-1 rounded-input bg-bg-tertiary p-1">
+              {(['ARS', 'USD'] as const).map((option) => <button key={option} type="button" aria-pressed={currency === option} onClick={() => setCurrency(option)} className={`min-h-11 rounded-button type-body ${currency === option ? 'bg-bg-primary text-primary shadow-sm' : 'text-text-secondary'}`}>{option}</button>)}
+            </div>
+          </fieldset>
+        </section>
+
+        <section className="mt-6" aria-labelledby={`${dayId}-section`}>
+          <p id={`${dayId}-section`} className="mb-3 type-micro text-text-secondary">PROGRAMACIÓN</p>
+          <div className="border-y border-border-subtle py-3">
+            <label htmlFor={dayId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Día de cobro</label>
+            <div className="flex min-h-12 items-center gap-3 rounded-input bg-bg-tertiary px-4 focus-within:ring-1 focus-within:ring-primary">
+              <CalendarBlank size={18} weight="light" className="text-primary" />
+              <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary outline-none focus:ring-0" />
+              <span className="type-body text-text-tertiary">de cada mes</span>
             </div>
           </div>
-        )}
-      </div>
 
-      <div className="mt-6 flex flex-col gap-2">
-        <button
-          onClick={handleSave}
-          disabled={!canSave || isSaving}
-          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white transition-transform active:scale-95 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSaving ? 'Guardando...' : subscription ? 'Guardar cambios' : 'Guardar suscripcion'}
-        </button>
-
-        {subscription && (
-          <button
-            onClick={handleArchive}
-            disabled={isArchiving}
-            className="w-full rounded-button bg-danger/10 py-3 text-sm font-medium text-danger transition-colors hover:bg-danger/20 disabled:opacity-50"
-          >
-            {isArchiving ? 'Archivando...' : 'Archivar suscripcion'}
-          </button>
-        )}
-
-        <button
-          onClick={onClose}
-          disabled={isSaving || isArchiving}
-          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
-        >
-          Cancelar
-        </button>
-      </div>
-
-      {pendingPayload && (
-        <Modal open onClose={() => setPendingPayload(null)}>
-          <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-          <div className="space-y-4">
-            <div>
-              <h3 className="text-base font-semibold text-text-primary">Aplicar cambios</h3>
-              <p className="mt-1 text-xs text-text-tertiary">
-                Ya existe un débito generado este mes para esta suscripción. Elegí cómo aplicar la edición.
-              </p>
-            </div>
-
-            <button
-              onClick={() => handleApplyScope('current_only')}
-              disabled={isSaving}
-              className="w-full rounded-button border border-border-ocean px-4 py-3 text-left transition-colors hover:bg-primary/5 disabled:opacity-50"
-            >
-              <span className="block text-sm font-medium text-text-primary">This month only</span>
-              <span className="mt-1 block text-[11px] text-text-tertiary">
-                Corrige el débito ya generado de este mes sin cambiar los próximos.
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleApplyScope('current_and_future')}
-              disabled={isSaving}
-              className="w-full rounded-button border border-border-ocean px-4 py-3 text-left transition-colors hover:bg-primary/5 disabled:opacity-50"
-            >
-              <span className="block text-sm font-medium text-text-primary">This and future</span>
-              <span className="mt-1 block text-[11px] text-text-tertiary">
-                Corrige este mes y además actualiza la suscripción para los próximos.
-              </span>
-            </button>
-
-            <button
-              onClick={() => handleApplyScope('future_only')}
-              disabled={isSaving}
-              className="w-full rounded-button border border-border-ocean px-4 py-3 text-left transition-colors hover:bg-primary/5 disabled:opacity-50"
-            >
-              <span className="block text-sm font-medium text-text-primary">Future only</span>
-              <span className="mt-1 block text-[11px] text-text-tertiary">
-                Deja intacto el débito de este mes y aplica el cambio solo hacia adelante.
-              </span>
-            </button>
-
-            <button
-              onClick={() => setPendingPayload(null)}
-              disabled={isSaving}
-              className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary disabled:opacity-50"
-            >
-              Cancelar
-            </button>
+          <div className="border-b border-border-subtle py-3">
+            <label htmlFor={categoryId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Categoría</label>
+            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full rounded-input border border-border-subtle bg-bg-tertiary px-4 type-body text-text-primary">
+              {CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
+            </select>
           </div>
-        </Modal>
-      )}
-    </Modal>
+        </section>
+
+        <section className="mt-6" aria-labelledby={`${dayId}-payment`}>
+          <p id={`${dayId}-payment`} className="mb-3 type-micro text-text-secondary">MEDIO DE PAGO</p>
+          <div className="grid grid-cols-2 gap-2">
+            <button type="button" aria-pressed={paymentMethod === 'DEBIT'} onClick={() => setPaymentMethod('DEBIT')} className={choiceClass(paymentMethod === 'DEBIT')}><Wallet size={18} />Débito</button>
+            <button type="button" aria-pressed={paymentMethod === 'CREDIT'} onClick={() => setPaymentMethod('CREDIT')} className={choiceClass(paymentMethod === 'CREDIT')}><CreditCard size={18} />Crédito</button>
+          </div>
+
+          {paymentMethod === 'DEBIT' ? (
+            <div className="mt-3 space-y-2" aria-label="Cuenta del débito">
+              {bankDigital.map((account) => <button key={account.id} type="button" aria-pressed={selectedAccountKey === account.id} onClick={() => setSelectedAccountKey(account.id)} className={choiceClass(selectedAccountKey === account.id)}><AccountIcon type={account.type} /><span className="min-w-0 flex-1 truncate">{account.name}</span>{account.is_primary ? <Star size={12} weight="fill" /> : null}</button>)}
+              {cashAccount ? <button type="button" aria-pressed={selectedAccountKey === 'cash'} onClick={() => setSelectedAccountKey('cash')} className={choiceClass(selectedAccountKey === 'cash')}><Wallet size={17} /><span className="min-w-0 flex-1 truncate">{cashAccount.name}</span></button> : null}
+              {accounts.length === 0 ? <p className="type-body text-text-tertiary">No hay cuentas disponibles. El cobro quedará sin una cuenta asociada.</p> : null}
+            </div>
+          ) : (
+            <div className="mt-3 space-y-2" aria-label="Tarjeta del cobro">
+              {activeCards.map((card) => <button key={card.id} type="button" aria-pressed={cardId === card.id} onClick={() => { setCardId(card.id); if (error) setError(null) }} className={choiceClass(cardId === card.id)}><CreditCard size={17} /><span className="min-w-0 flex-1 truncate">{card.name}</span></button>)}
+              {activeCards.length === 0 ? <p className="type-body text-danger">No hay tarjetas activas disponibles.</p> : null}
+            </div>
+          )}
+        </section>
+
+        {subscription ? (
+          <section className="mt-8 border-t border-border-subtle pt-5">
+            <button type="button" onClick={(event) => { setDecisionTrigger(event.currentTarget); setArchiveConfirmOpen(true) }} className="min-h-11 type-body text-danger">Archivar suscripción</button>
+            <p className="type-meta text-text-tertiary">Deja de generar nuevos cobros; no elimina movimientos anteriores.</p>
+          </section>
+        ) : null}
+      </TaskSurface>
+
+      <FullScreenSheet open={pendingPayload !== null} onClose={() => setPendingPayload(null)} labelledBy={scopeTitleId} triggerElement={decisionTrigger}>
+        <div data-subscription-scope className="flex min-h-full flex-col bg-bg-primary px-[22px] pb-6 pt-[max(22px,env(safe-area-inset-top))]">
+          <p className="type-micro text-primary">CONFIRMAR ALCANCE</p>
+          <h3 id={scopeTitleId} className="mt-2 type-title text-text-primary">¿Dónde aplicamos el cambio?</h3>
+          <p className="mt-2 type-body text-text-secondary">Ya existe un cobro generado este mes. Elegí explícitamente qué querés modificar.</p>
+          <div className="mt-6 divide-y divide-border-subtle overflow-hidden rounded-card border border-border-ocean bg-bg-tertiary">
+            {[
+              ['current_and_future', 'Este mes y los próximos', 'Corrige el cobro actual y actualiza la suscripción.'],
+              ['future_only', 'Sólo próximos meses', 'Mantiene intacto el cobro de este mes.'],
+              ['current_only', 'Sólo este mes', 'Corrige el cobro actual sin cambiar la suscripción futura.'],
+            ].map(([scope, title, copy]) => <button key={scope} type="button" disabled={isSaving} onClick={() => { void handleApplyScope(scope as 'current_only' | 'current_and_future' | 'future_only') }} className="flex min-h-[88px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-soft disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block type-body-lg text-text-primary">{title}</span><span className="mt-1 block type-body text-text-tertiary">{copy}</span></span><CaretRight size={17} className="shrink-0 text-text-muted" /></button>)}
+          </div>
+          <button type="button" onClick={() => setPendingPayload(null)} disabled={isSaving} className="mt-auto min-h-12 type-body text-text-secondary">Volver sin aplicar</button>
+        </div>
+      </FullScreenSheet>
+
+      <FullScreenSheet open={archiveConfirmOpen} onClose={() => setArchiveConfirmOpen(false)} labelledBy={archiveTitleId} triggerElement={decisionTrigger}>
+        <div data-subscription-archive className="flex min-h-full flex-col bg-bg-primary px-[22px] pb-6 pt-[max(22px,env(safe-area-inset-top))]">
+          <p className="type-micro text-danger">ARCHIVAR</p>
+          <h3 id={archiveTitleId} className="mt-2 type-title text-text-primary">¿Archivar {subscription?.description}?</h3>
+          <p className="mt-2 type-body text-text-secondary">No se generarán cobros nuevos. Tus movimientos anteriores permanecen sin cambios.</p>
+          <div className="mt-auto">
+            <button type="button" onClick={() => { void handleArchive() }} disabled={isArchiving} className="min-h-12 w-full rounded-button bg-danger px-4 type-body-lg text-white disabled:opacity-50">{isArchiving ? 'Archivando…' : 'Sí, archivar'}</button>
+            <button type="button" onClick={() => setArchiveConfirmOpen(false)} disabled={isArchiving} className="mt-1 min-h-11 w-full type-body text-text-secondary">Cancelar</button>
+          </div>
+        </div>
+      </FullScreenSheet>
+    </>
   )
 }

@@ -267,6 +267,20 @@ El piloto agrega:
 
 La ruta de laboratorio `ui-exploration/mobile-task-pilot` importa el componente real y no debe usarse para mutaciones ni como evidencia de datos productivos.
 
+## Segundo checkpoint implementado
+
+La misma branch ya incorpora:
+
+- `GoalEditSheet` sobre `TaskSurface`, incluyendo foco y retorno al detalle;
+- `ManagementSurface` como contrato reutilizable de administración mobile;
+- `SubscriptionsSubSheet` migrado a Management Surface;
+- `SubscriptionBottomSheet` migrado a Task Surface;
+- confirmación explícita de alcance ante el `409` existente;
+- confirmación separada para archivar;
+- payloads de alta/edición preservados mediante `lib/subscriptions/form-payload.ts` y pruebas de contrato.
+
+El laboratorio `ui-exploration/mobile-subscriptions-pilot` usa fixtures sintéticas y un request adapter local. Valida Management → Task → Choice/Confirm sin escribir datos reales. El alta rápida de suscripciones desde Home (`components/subscriptions/SubscriptionSheet.tsx`) permanece fuera de este checkpoint para migrarla con el resto de los Task launchers de Home.
+
 ## Gates por ola
 
 Cada migración debe demostrar:

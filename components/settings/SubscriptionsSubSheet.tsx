@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { ArrowsClockwise, CaretRight, Repeat, X } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
-import { EmptyState } from '@/components/ui/EmptyState'
+import { ArrowsClockwise, CaretRight, Plus, Repeat } from '@phosphor-icons/react'
+import { ManagementSurface } from '@/components/ui/ManagementSurface'
 import { formatAmount } from '@/lib/format'
 import { loadSubscriptionsData } from '@/lib/settings/subscriptions-loader'
+import type { SubscriptionsData } from '@/lib/settings/subscriptions-loader'
 import { SubscriptionBottomSheet } from '@/components/settings/SubscriptionBottomSheet'
 import type { Account, Card, Subscription } from '@/types/database'
 
@@ -13,13 +13,22 @@ interface Props {
   open: boolean
   onClose: () => void
   defaultCurrency: 'ARS' | 'USD'
+  loadData?: () => Promise<SubscriptionsData>
+  editorRequest?: typeof fetch
 }
 
-export function SubscriptionsSubSheet({ open, onClose, defaultCurrency }: Props) {
+export function SubscriptionsSubSheet({
+  open,
+  onClose,
+  defaultCurrency,
+  loadData = loadSubscriptionsData,
+  editorRequest,
+}: Props) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [editing, setEditing] = useState<Subscription | null | undefined>(undefined)
+  const [editorTrigger, setEditorTrigger] = useState<HTMLElement | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [loadError, setLoadError] = useState<string | null>(null)
   const [loadAttempt, setLoadAttempt] = useState(0)
@@ -28,7 +37,7 @@ export function SubscriptionsSubSheet({ open, onClose, defaultCurrency }: Props)
     if (!open) return
     let cancelled = false
 
-    loadSubscriptionsData()
+    loadData()
       .then((data) => {
         if (cancelled) return
         setSubscriptions(data.subscriptions)
@@ -42,135 +51,121 @@ export function SubscriptionsSubSheet({ open, onClose, defaultCurrency }: Props)
         setIsLoading(false)
       })
 
-    return () => {
-      cancelled = true
-    }
-  }, [open, loadAttempt])
+    return () => { cancelled = true }
+  }, [loadAttempt, loadData, open])
 
   const handleClose = () => {
     setIsLoading(true)
     setLoadError(null)
+    setEditing(undefined)
     onClose()
   }
 
-  const handleRetry = () => {
-    setIsLoading(true)
-    setLoadError(null)
-    setLoadAttempt((attempt) => attempt + 1)
+  const openEditor = (subscription: Subscription | null, trigger: HTMLElement) => {
+    setEditorTrigger(trigger)
+    setEditing(subscription)
   }
 
   const handleSaved = (saved: Subscription) => {
-    setSubscriptions((prev) => {
-      const idx = prev.findIndex((s) => s.id === saved.id)
-      if (idx >= 0) {
-        const updated = [...prev]
-        updated[idx] = saved
-        return updated
-      }
-      return [...prev, saved]
+    setSubscriptions((previous) => {
+      const index = previous.findIndex((item) => item.id === saved.id)
+      if (index < 0) return [...previous, saved]
+      const updated = [...previous]
+      updated[index] = saved
+      return updated
     })
-  }
-
-  const handleArchived = (id: string) => {
-    setSubscriptions((prev) => prev.filter((s) => s.id !== id))
   }
 
   return (
     <>
-      <Modal open={open} onClose={handleClose}>
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-bold text-text-primary">
-              Suscripciones
-              {!isLoading && !loadError && subscriptions.length > 0
-                ? ` (${subscriptions.length})`
-                : ''}
-            </h2>
-            <button onClick={handleClose} className="text-text-tertiary hover:text-text-secondary">
-              <X size={20} />
+      <ManagementSurface
+        open={open}
+        onClose={handleClose}
+        eyebrow="COMPROMISOS"
+        title="Suscripciones"
+        description="Revisá qué se cobra cada mes y desde dónde se paga."
+        action={(
+          <button
+            type="button"
+            onClick={(event) => openEditor(null, event.currentTarget)}
+            className="flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-primary px-4 type-body-lg text-white transition-transform active:scale-[0.99]"
+          >
+            <Plus size={18} weight="bold" />
+            Nueva suscripción
+          </button>
+        )}
+      >
+        {isLoading ? (
+          <div className="space-y-3" aria-label="Cargando suscripciones">
+            {[0, 1, 2].map((item) => <div key={item} className="h-[72px] rounded-card skeleton" />)}
+          </div>
+        ) : loadError ? (
+          <div className="rounded-card border border-border-subtle bg-bg-primary px-5 py-8 text-center" role="alert">
+            <p className="type-body-lg text-text-primary">No pudimos cargar</p>
+            <p className="mt-1 type-body text-text-tertiary">{loadError}</p>
+            <button
+              type="button"
+              onClick={() => { setIsLoading(true); setLoadError(null); setLoadAttempt((attempt) => attempt + 1) }}
+              className="mt-4 min-h-11 rounded-button border border-border-ocean px-5 type-body text-primary"
+            >
+              Reintentar
             </button>
           </div>
-
-          {isLoading ? (
-            <div className="rounded-card bg-bg-primary px-4 py-12 text-center">
-              <p className="text-sm font-medium text-text-secondary">Cargando suscripciones...</p>
+        ) : subscriptions.length === 0 ? (
+          <div className="px-5 py-12 text-center">
+            <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary">
+              <Repeat size={22} weight="duotone" />
             </div>
-          ) : loadError ? (
-            <div className="rounded-card bg-bg-primary px-4 py-10 text-center">
-              <p className="text-sm font-semibold text-text-primary">No pudimos cargar</p>
-              <p className="mt-1 text-xs text-text-tertiary">{loadError}</p>
-              <button
-                type="button"
-                onClick={handleRetry}
-                className="mt-4 rounded-button bg-primary px-4 py-2 text-sm font-semibold text-white transition-all hover:brightness-110 active:scale-95"
-              >
-                Reintentar
-              </button>
+            <p className="mt-4 type-body-lg text-text-primary">Todavía no hay suscripciones</p>
+            <p className="mt-1 type-body text-text-tertiary">Cuando agregues una, vas a verla acá con su próximo cobro.</p>
+          </div>
+        ) : (
+          <section aria-label={`${subscriptions.length} suscripciones`}>
+            <div className="mb-2 flex items-center justify-between">
+              <p className="type-micro text-text-secondary">ACTIVAS</p>
+              <p className="type-meta text-text-tertiary">{subscriptions.length}</p>
             </div>
-          ) : subscriptions.length === 0 ? (
-            <EmptyState
-              icon={Repeat}
-              title="Sin suscripciones"
-              subtitle="Agregá suscripciones para no perderlas de vista"
-              ctaLabel="Agregar"
-              onCta={() => setEditing(null)}
-            />
-          ) : (
-            <div>
-              {subscriptions.map((sub) => (
+            <div className="divide-y divide-border-subtle border-y border-border-subtle">
+              {subscriptions.map((subscription) => (
                 <button
-                  key={sub.id}
-                  onClick={() => setEditing(sub)}
-                  className="flex w-full items-center gap-3 py-3 border-b border-border-subtle text-left transition-colors hover:bg-primary/5 rounded-sm"
+                  key={subscription.id}
+                  type="button"
+                  onClick={(event) => openEditor(subscription, event.currentTarget)}
+                  className="flex min-h-[76px] w-full items-center gap-3 py-3 text-left transition-colors hover:bg-primary/5"
                 >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/8 border border-border-ocean">
-                    <ArrowsClockwise weight="duotone" size={14} className="text-text-label" />
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary-soft text-primary">
+                    <ArrowsClockwise weight="duotone" size={17} />
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2">
-                      <span className="truncate text-sm text-text-primary">{sub.description}</span>
-                      <span className="shrink-0 text-[10px] text-text-tertiary">{sub.currency}</span>
+                    <div className="flex items-baseline justify-between gap-3">
+                      <span className="min-w-0 truncate type-body-lg text-text-primary">{subscription.description}</span>
+                      <span className="shrink-0 type-body-lg text-text-primary">{formatAmount(subscription.amount, subscription.currency)}</span>
                     </div>
-                    <span className="text-[10px] text-text-tertiary">
-                      {formatAmount(sub.amount, sub.currency)} · día {sub.day_of_month} ·{' '}
-                      {sub.payment_method === 'DEBIT' ? 'Débito' : 'Crédito'}
-                    </span>
+                    <p className="mt-1 type-meta text-text-tertiary">
+                      Día {subscription.day_of_month} · {subscription.payment_method === 'DEBIT' ? 'Débito' : 'Crédito'} · {subscription.currency}
+                    </p>
                   </div>
-                  <CaretRight size={14} className="text-text-dim" />
+                  <CaretRight size={16} className="shrink-0 text-text-muted" />
                 </button>
               ))}
             </div>
-          )}
+          </section>
+        )}
+      </ManagementSurface>
 
-          {!isLoading && !loadError && (
-            <button
-              onClick={() => setEditing(null)}
-              className="w-full rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-primary/5"
-            >
-              + Nueva suscripción
-            </button>
-          )}
-
-          <button
-            onClick={handleClose}
-            className="w-full rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-primary/5"
-          >
-            Listo
-          </button>
-        </div>
-      </Modal>
-
-      {editing !== undefined && (
+      {editing !== undefined ? (
         <SubscriptionBottomSheet
           subscription={editing}
           cards={cards}
           accounts={accounts}
           defaultCurrency={defaultCurrency}
           onSave={handleSaved}
-          onArchive={handleArchived}
+          onArchive={(id) => setSubscriptions((previous) => previous.filter((item) => item.id !== id))}
           onClose={() => setEditing(undefined)}
+          triggerElement={editorTrigger}
+          request={editorRequest}
         />
-      )}
+      ) : null}
     </>
   )
 }

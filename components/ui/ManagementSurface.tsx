@@ -5,31 +5,29 @@ import { X } from '@phosphor-icons/react'
 import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
-interface TaskSurfaceProps {
+interface ManagementSurfaceProps {
   open: boolean
   onClose: () => void
   eyebrow: string
   title: string
   description: string
   children: ReactNode
-  footer: ReactNode
+  action?: ReactNode
   initialFocusRef?: RefObject<HTMLElement | null>
   triggerRef?: RefObject<HTMLElement | null>
-  triggerElement?: HTMLElement | null
 }
 
-export function TaskSurface({
+export function ManagementSurface({
   open,
   onClose,
   eyebrow,
   title,
   description,
   children,
-  footer,
+  action,
   initialFocusRef,
   triggerRef,
-  triggerElement,
-}: TaskSurfaceProps) {
+}: ManagementSurfaceProps) {
   const titleId = useId()
 
   return (
@@ -40,11 +38,10 @@ export function TaskSurface({
       extendIntoTopSafeArea
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
-      triggerElement={triggerElement}
     >
-      <div data-task-surface className="flex h-full min-h-0 flex-col bg-bg-primary">
+      <div data-management-surface className="flex h-full min-h-0 flex-col bg-bg-primary">
         <BlueHeaderZone
-          className="shrink-0 px-[14px] pb-8 text-white"
+          className="shrink-0 px-[14px] pb-7 text-white"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
         >
           <div className="flex items-start gap-2">
@@ -65,12 +62,9 @@ export function TaskSurface({
           </div>
         </BlueHeaderZone>
 
-        <div data-task-scroll className="relative -mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[22px] pb-8 pt-4">
+        <div data-management-scroll className="relative -mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[22px] pb-8 pt-3">
+          {action ? <div className="mb-5">{action}</div> : null}
           {children}
-        </div>
-
-        <div data-task-footer className="shrink-0 border-t border-border-subtle bg-bg-primary px-[22px] pb-5 pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)]">
-          {footer}
         </div>
       </div>
     </FullScreenSheet>
