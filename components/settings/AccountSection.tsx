@@ -214,7 +214,7 @@ export function AccountSection({
                 type="password"
                 value={password}
                 onChange={(event) => setPassword(event.target.value)}
-                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary outline-none focus:border-primary focus:ring-0"
+                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
                 placeholder="Mínimo 8 caracteres"
               />
             </label>
@@ -227,7 +227,7 @@ export function AccountSection({
                 type="password"
                 value={confirmPassword}
                 onChange={(event) => setConfirmPassword(event.target.value)}
-                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary outline-none focus:border-primary focus:ring-0"
+                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
                 placeholder="Repetí la contraseña"
               />
             </label>

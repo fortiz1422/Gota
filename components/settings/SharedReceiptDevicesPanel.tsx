@@ -253,7 +253,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
         ) : (
           <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre del dispositivo</span>
-            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. iPhone personal" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. iPhone personal" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </label>
         )}
       </TaskSurface>

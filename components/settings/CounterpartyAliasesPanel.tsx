@@ -304,11 +304,11 @@ export function CounterpartyAliasesPanel() {
           <section data-counterparty-edit-information className="surface-module overflow-hidden rounded-card border border-border-subtle bg-white">
             <label className="block px-4 pb-4 pt-4">
               <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
-              <input ref={nameRef} value={name} maxLength={100} onChange={(event) => setName(event.target.value)} placeholder="Ej. Belmar" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+              <input ref={nameRef} value={name} maxLength={100} onChange={(event) => setName(event.target.value)} placeholder="Ej. Belmar" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
             </label>
             <label className="block border-t border-border-subtle px-4 py-4">
               <span className="mb-1 block text-xs font-semibold text-text-secondary">Categoría habitual</span>
-              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary outline-none focus:border-primary focus:ring-0">
+              <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
                 <option value="">Sin categoría habitual</option>
                 {CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
               </select>
@@ -330,7 +330,7 @@ export function CounterpartyAliasesPanel() {
           <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">{creating ? 'Primer alias (opcional)' : 'Agregar alias'}</span>
             <div className="flex gap-2">
-              <input value={newAlias} maxLength={160} onChange={(event) => setNewAlias(event.target.value)} placeholder="Texto tal como aparece" className="min-w-0 flex-1 border-0 border-b border-border-strong bg-transparent px-0 py-2 text-sm text-text-primary outline-none focus:border-primary focus:ring-0" />
+              <input value={newAlias} maxLength={160} onChange={(event) => setNewAlias(event.target.value)} placeholder="Texto tal como aparece" className="min-w-0 flex-1 border-0 border-b border-border-strong bg-transparent px-0 py-2 text-sm text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
               {selected ? <button type="button" onClick={() => void addAlias()} disabled={saving || !newAlias.trim()} className="rounded-button border border-primary px-3 text-sm font-semibold text-primary disabled:opacity-40">Agregar</button> : null}
             </div>
           </label>
