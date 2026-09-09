@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaretRight } from '@phosphor-icons/react'
 import { HeroBalanceModeSheet } from '@/components/settings/HeroBalanceModeSheet'
@@ -17,14 +17,17 @@ function getModeLabel(mode: HeroBalanceMode): string {
 
 export function HeroBalanceModePreference({
   initialValue,
+  onSaved,
 }: {
   initialValue: HeroBalanceMode
+  onSaved?: (value: HeroBalanceMode) => void
 }) {
   const router = useRouter()
   const [value, setValue] = useState(initialValue)
   const [open, setOpen] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
 
   const handleChange = async (next: HeroBalanceMode) => {
     if (next === value) {
@@ -50,6 +53,7 @@ export function HeroBalanceModePreference({
     })
 
     if (saved) {
+      onSaved?.(next)
       setOpen(false)
       router.refresh()
     } else {
@@ -64,6 +68,7 @@ export function HeroBalanceModePreference({
     <div>
       <p className="type-label text-text-label mb-2">Saldo Vivo</p>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className="rounded-card hover:bg-primary/5 flex min-h-11 w-full items-center px-4 py-3 text-left transition-colors"
@@ -95,6 +100,7 @@ export function HeroBalanceModePreference({
         value={value}
         onChange={handleChange}
         isSaving={isSaving}
+        triggerRef={triggerRef}
       />
     </div>
   )

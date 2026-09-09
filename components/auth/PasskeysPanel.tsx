@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { Fingerprint, PencilSimple, Plus, Trash } from '@phosphor-icons/react'
 import { InlineError } from '@/components/ui/InlineError'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import {
   deletePasskey,
   isPasskeySupported,
@@ -72,6 +73,7 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
   const [deletingPasskeyId, setDeletingPasskeyId] = useState<string | null>(null)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [deleteConfirmation, setDeleteConfirmation] = useState<{ id: string; title: string; trigger: HTMLElement } | null>(null)
 
   const compact = variant === 'mobile'
 
@@ -175,10 +177,6 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
   }
 
   const handleDelete = async (passkeyId: string) => {
-    if (!window.confirm('¿Eliminar esta passkey? Vas a dejar de poder usar este dispositivo para entrar.')) {
-      return
-    }
-
     setErrorMessage(null)
     setSuccessMessage(null)
     setDeletingPasskeyId(passkeyId)
@@ -192,11 +190,13 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
       return
     }
 
+    setDeleteConfirmation(null)
     setSuccessMessage('Passkey eliminada.')
     await loadPasskeys()
   }
 
   return (
+    <>
     <div className={compact ? 'space-y-3' : 'rounded-2xl bg-bg-secondary px-5 py-4'}>
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -318,7 +318,7 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
                       </button>
                       <button
                         type="button"
-                        onClick={() => void handleDelete(passkey.id)}
+                        onClick={(event) => setDeleteConfirmation({ id: passkey.id, title, trigger: event.currentTarget })}
                         disabled={isDeleting}
                         className="rounded-full p-2 text-text-secondary transition-colors hover:bg-danger/10 hover:text-danger disabled:opacity-50"
                         aria-label="Eliminar passkey"
@@ -338,5 +338,20 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
 
       {successMessage && <p className="text-xs font-medium text-success">{successMessage}</p>}
     </div>
+    <ConfirmationSurface
+      open={deleteConfirmation !== null}
+      onClose={() => setDeleteConfirmation(null)}
+      onConfirm={() => { if (deleteConfirmation) void handleDelete(deleteConfirmation.id) }}
+      triggerElement={deleteConfirmation?.trigger}
+      eyebrow="ELIMINAR PASSKEY"
+      title={`¿Eliminar ${deleteConfirmation?.title ?? 'esta passkey'}?`}
+      description="Este dispositivo deja de poder usarse para entrar con esta credencial."
+      confirmLabel="Eliminar passkey"
+      busy={deleteConfirmation !== null && deletingPasskeyId === deleteConfirmation.id}
+      destructive
+    >
+      Podés registrar una passkey nueva más adelante. Tus datos y otros métodos de acceso no cambian.
+    </ConfirmationSurface>
+    </>
   )
 }

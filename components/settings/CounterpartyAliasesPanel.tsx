@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { CaretRight, Plus, Storefront, Trash, X } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { ManagementSurface } from '@/components/ui/ManagementSurface'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import {
   counterpartyApiErrorMessage,
@@ -31,6 +33,15 @@ export function CounterpartyAliasesPanel() {
   const [name, setName] = useState('')
   const [category, setCategory] = useState('')
   const [newAlias, setNewAlias] = useState('')
+  const [taskTrigger, setTaskTrigger] = useState<HTMLElement | null>(null)
+  const [confirmation, setConfirmation] = useState<
+    | { kind: 'profile'; trigger: HTMLElement }
+    | { kind: 'alias'; alias: CounterpartyAlias; trigger: HTMLElement }
+    | null
+  >(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const searchRef = useRef<HTMLInputElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const loadProfiles = useCallback(async () => {
     setLoading(true)
@@ -55,6 +66,7 @@ export function CounterpartyAliasesPanel() {
       setQuery('')
       setSelectedId(null)
       setCreating(false)
+      setTaskTrigger(null)
       setError(null)
     }
   }, [open, loadProfiles])
@@ -70,12 +82,27 @@ export function CounterpartyAliasesPanel() {
 
   const filtered = useMemo(() => filterCounterpartyProfiles(profiles, query), [profiles, query])
 
-  const beginCreate = () => {
+  const beginCreate = (trigger: HTMLElement) => {
+    setTaskTrigger(trigger)
     setCreating(true)
     setSelectedId(null)
     setName('')
     setCategory('')
     setNewAlias('')
+    setError(null)
+  }
+
+  const beginEdit = (profile: CounterpartyProfile, trigger: HTMLElement) => {
+    setTaskTrigger(trigger)
+    setCreating(false)
+    setSelectedId(profile.id)
+    setError(null)
+  }
+
+  const closeEditor = () => {
+    setCreating(false)
+    setSelectedId(null)
+    setTaskTrigger(null)
     setError(null)
   }
 
@@ -109,8 +136,7 @@ export function CounterpartyAliasesPanel() {
         }
       }
       await loadProfiles()
-      setCreating(false)
-      setSelectedId(saved.id)
+      closeEditor()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos guardar el comercio.')
     } finally {
@@ -139,12 +165,12 @@ export function CounterpartyAliasesPanel() {
   }
 
   const removeAlias = async (alias: CounterpartyAlias) => {
-    if (!window.confirm(`¿Eliminar el alias “${alias.alias_value}”?`)) return
     setSaving(true)
     setError(null)
     try {
       const response = await fetch(`/api/counterparty-aliases/${encodeURIComponent(alias.id)}`, { method: 'DELETE' })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos eliminar el alias.'))
+      setConfirmation(null)
       await loadProfiles()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos eliminar el alias.')
@@ -154,13 +180,14 @@ export function CounterpartyAliasesPanel() {
   }
 
   const removeProfile = async () => {
-    if (!selected || !window.confirm(`¿Eliminar “${selected.display_name}” y todos sus alias? Los movimientos históricos no cambiarán.`)) return
+    if (!selected) return
     setSaving(true)
     setError(null)
     try {
       const response = await fetch(`/api/counterparty-profiles/${encodeURIComponent(selected.id)}`, { method: 'DELETE' })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos eliminar el comercio.'))
-      setSelectedId(null)
+      setConfirmation(null)
+      closeEditor()
       await loadProfiles()
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos eliminar el comercio.')
@@ -172,6 +199,7 @@ export function CounterpartyAliasesPanel() {
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className="flex min-h-11 w-full items-center gap-3 rounded-card border border-border-subtle bg-bg-secondary p-4 text-left transition-colors hover:bg-primary/5"
@@ -180,76 +208,154 @@ export function CounterpartyAliasesPanel() {
           <Storefront size={18} weight="duotone" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-text-primary">Alias de comercios</span>
+          <span className="block text-sm font-semibold text-text-primary">Alias y categorías</span>
           <span className="block text-xs leading-5 text-text-tertiary">Nombres y categorías que Gota recuerda</span>
         </span>
         <CaretRight size={14} className="text-text-dim" />
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <div className="space-y-4">
-          <header className="flex items-start justify-between gap-4">
-            <div>
-              <p className="type-label text-primary">Personalización</p>
-              <h2 className="mt-1 text-xl font-extrabold tracking-tight text-text-primary">Alias de comercios</h2>
-              <p className="mt-2 text-sm leading-6 text-text-secondary">Gota usa coincidencias exactas para precompletar. Siempre revisás antes de guardar.</p>
+      <ManagementSurface
+        open={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        initialFocusRef={searchRef}
+        eyebrow="PERSONALIZACIÓN"
+        title="Alias y categorías"
+        description="Lo que Gota recuerda para ayudarte a cargar sin cambiar movimientos históricos."
+        action={
+          <button
+            type="button"
+            onClick={(event) => beginCreate(event.currentTarget)}
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-primary py-3 text-sm font-semibold text-white"
+          >
+            <Plus size={16} /> Nuevo comercio
+          </button>
+        }
+      >
+        {error && !creating && !selected ? <p role="alert" className="mb-3 rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
+        <label className="sr-only" htmlFor="counterparty-search">Buscar nombre o alias</label>
+        <input
+          ref={searchRef}
+          id="counterparty-search"
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Buscar nombre o alias"
+          className="w-full rounded-input border border-border-ocean bg-bg-primary px-3 py-3 text-sm text-text-primary"
+        />
+
+        <section className="mt-4" aria-busy={loading}>
+          {loading ? (
+            <div className="space-y-2" aria-label="Cargando comercios">
+              {[0, 1, 2].map((item) => <div key={item} className="h-16 animate-pulse rounded-card bg-bg-tertiary" />)}
             </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar" className="p-2 text-text-tertiary"><X size={20} /></button>
-          </header>
-
-          {error && <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
-
-          {!creating && !selected && (
-            <section aria-busy={loading}>
-              <div className="flex gap-2">
-                <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Buscar nombre o alias" className="min-w-0 flex-1 rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary" />
-                <button type="button" onClick={beginCreate} className="rounded-button bg-primary px-3 text-sm font-semibold text-white"><Plus size={15} className="inline" /> Nuevo</button>
-              </div>
-              {loading ? <p className="py-8 text-center text-sm text-text-tertiary">Cargando…</p> : error && profiles.length === 0 ? (
-                <button type="button" onClick={() => void loadProfiles()} className="mt-4 text-sm font-semibold text-primary">Reintentar</button>
-              ) : filtered.length === 0 ? (
-                <div className="py-8 text-center"><p className="text-sm text-text-tertiary">{query ? 'No hay coincidencias.' : 'Todavía no guardaste comercios.'}</p>{!query && <button type="button" onClick={beginCreate} className="mt-3 text-sm font-semibold text-primary">Crear el primero</button>}</div>
-              ) : (
-                <ul className="mt-3 divide-y divide-border-subtle rounded-card border border-border-subtle">
-                  {filtered.map((profile) => <li key={profile.id}>
-                    <button type="button" onClick={() => { setCreating(false); setSelectedId(profile.id); setError(null) }} className="flex w-full items-center gap-3 p-3 text-left hover:bg-primary/5">
-                      <span className="min-w-0 flex-1"><span className="block text-sm font-semibold text-text-primary">{profile.display_name}</span><span className="block truncate text-xs text-text-tertiary">{profile.default_category || 'Sin categoría habitual'} · {profile.aliases.length} {profile.aliases.length === 1 ? 'alias' : 'alias'}</span></span>
-                      <CaretRight size={13} className="text-text-dim" />
-                    </button>
-                  </li>)}
-                </ul>
-              )}
-            </section>
+          ) : error && profiles.length === 0 ? (
+            <button type="button" onClick={() => void loadProfiles()} className="text-sm font-semibold text-primary">Reintentar</button>
+          ) : filtered.length === 0 ? (
+            <div className="rounded-card border border-dashed border-border-strong px-5 py-8 text-center">
+              <p className="text-sm font-semibold text-text-primary">{query ? 'No hay coincidencias' : 'Todavía no guardaste comercios'}</p>
+              <p className="mt-1 text-xs leading-5 text-text-tertiary">{query ? 'Probá con otro nombre o alias.' : 'Gota puede recordar el nombre y una categoría habitual.'}</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-card border border-border-strong bg-bg-primary">
+              {filtered.map((profile) => (
+                <li key={profile.id}>
+                  <button
+                    type="button"
+                    onClick={(event) => beginEdit(profile, event.currentTarget)}
+                    className="flex min-h-16 w-full items-center gap-3 px-4 py-3 text-left hover:bg-primary/5"
+                  >
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><Storefront size={17} /></span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-text-primary">{profile.display_name}</span>
+                      <span className="block truncate text-xs text-text-tertiary">{profile.default_category || 'Sin categoría habitual'} · {profile.aliases.length} {profile.aliases.length === 1 ? 'alias' : 'alias'}</span>
+                    </span>
+                    <CaretRight size={14} className="text-text-dim" />
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
+        </section>
+      </ManagementSurface>
 
-          {(creating || selected) && (
-            <section className="space-y-4">
-              <button type="button" onClick={() => { setCreating(false); setSelectedId(null); setError(null) }} className="text-xs font-semibold text-primary">← Volver a la lista</button>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary" htmlFor="counterparty-name">Nombre</label>
-                <input id="counterparty-name" value={name} maxLength={100} onChange={(event) => setName(event.target.value)} placeholder="Ej. Belmar" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary" />
+      <TaskSurface
+        open={creating || Boolean(selected)}
+        onClose={closeEditor}
+        triggerElement={taskTrigger}
+        initialFocusRef={nameRef}
+        eyebrow="ALIAS Y CATEGORÍAS"
+        title={creating ? 'Nuevo comercio' : 'Editar comercio'}
+        description={creating ? 'Definí cómo querés reconocerlo al cargar.' : 'Revisá el nombre, la categoría habitual y sus alias.'}
+        footer={
+          <button
+            type="button"
+            onClick={() => void saveProfile()}
+            disabled={saving || !name.trim()}
+            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50"
+          >
+            {saving ? 'Guardando…' : creating ? 'Crear comercio' : 'Guardar cambios'}
+          </button>
+        }
+      >
+        <div className="space-y-5">
+          {error ? <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
+            <input ref={nameRef} value={name} maxLength={100} onChange={(event) => setName(event.target.value)} placeholder="Ej. Belmar" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
+          </label>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Categoría habitual</span>
+            <select value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary">
+              <option value="">Sin categoría habitual</option>
+              {CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}
+            </select>
+          </label>
+          {selected ? (
+            <section>
+              <p className="mb-2 text-xs font-semibold text-text-secondary">Alias detectados</p>
+              <div className="flex flex-wrap gap-2">
+                {selected.aliases.length === 0 ? <p className="text-xs text-text-tertiary">Todavía no tiene alias.</p> : selected.aliases.map((alias) => (
+                  <span key={alias.id} className="inline-flex items-center gap-1 rounded-full bg-primary/8 px-2.5 py-1 text-xs text-text-primary">
+                    {alias.alias_value}
+                    <button type="button" onClick={(event) => setConfirmation({ kind: 'alias', alias, trigger: event.currentTarget })} disabled={saving} aria-label={`Eliminar alias ${alias.alias_value}`} className="text-danger"><X size={12} /></button>
+                  </span>
+                ))}
               </div>
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary" htmlFor="counterparty-category">Categoría habitual</label>
-                <select id="counterparty-category" value={category} onChange={(event) => setCategory(event.target.value)} className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary"><option value="">Sin categoría habitual</option>{CATEGORIES.map((item) => <option key={item} value={item}>{item}</option>)}</select>
-              </div>
-              {selected && <div>
-                <p className="mb-2 text-xs font-semibold text-text-secondary">Alias detectados</p>
-                <div className="flex flex-wrap gap-2">{selected.aliases.length === 0 ? <p className="text-xs text-text-tertiary">Todavía no tiene alias.</p> : selected.aliases.map((alias) => <span key={alias.id} className="inline-flex items-center gap-1 rounded-full bg-primary/8 px-2.5 py-1 text-xs text-text-primary">{alias.alias_value}<button type="button" onClick={() => void removeAlias(alias)} disabled={saving} aria-label={`Eliminar alias ${alias.alias_value}`} className="text-danger"><X size={12} /></button></span>)}</div>
-              </div>}
-              <div>
-                <label className="mb-1 block text-xs font-semibold text-text-secondary" htmlFor="counterparty-alias">{creating ? 'Primer alias (opcional)' : 'Agregar alias'}</label>
-                <div className="flex gap-2"><input id="counterparty-alias" value={newAlias} maxLength={160} onChange={(event) => setNewAlias(event.target.value)} placeholder="Texto tal como aparece" className="min-w-0 flex-1 rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary" />{selected && <button type="button" onClick={() => void addAlias()} disabled={saving || !newAlias.trim()} className="rounded-button border border-primary px-3 text-sm font-semibold text-primary disabled:opacity-40">Agregar</button>}</div>
-              </div>
-              <div className="flex gap-2">
-                <button type="button" onClick={() => void saveProfile()} disabled={saving || !name.trim()} className="flex-1 rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Guardando…' : creating ? 'Crear comercio' : 'Guardar cambios'}</button>
-                {selected && <button type="button" onClick={() => void removeProfile()} disabled={saving} aria-label="Eliminar comercio" className="rounded-button border border-danger/30 px-3 text-danger"><Trash size={17} /></button>}
-              </div>
-              <p className="text-xs leading-5 text-text-tertiary">Editar o eliminar una entrada no cambia movimientos históricos.</p>
             </section>
-          )}
+          ) : null}
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">{creating ? 'Primer alias (opcional)' : 'Agregar alias'}</span>
+            <div className="flex gap-2">
+              <input value={newAlias} maxLength={160} onChange={(event) => setNewAlias(event.target.value)} placeholder="Texto tal como aparece" className="min-w-0 flex-1 rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
+              {selected ? <button type="button" onClick={() => void addAlias()} disabled={saving || !newAlias.trim()} className="rounded-button border border-primary px-3 text-sm font-semibold text-primary disabled:opacity-40">Agregar</button> : null}
+            </div>
+          </label>
+          <p className="text-xs leading-5 text-text-tertiary">Editar o eliminar una entrada no cambia movimientos históricos.</p>
+          {selected ? (
+            <button type="button" onClick={(event) => setConfirmation({ kind: 'profile', trigger: event.currentTarget })} disabled={saving} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-danger/30 text-sm font-semibold text-danger">
+              <Trash size={17} /> Eliminar comercio
+            </button>
+          ) : null}
         </div>
-      </Modal>
+      </TaskSurface>
+
+      <ConfirmationSurface
+        open={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => {
+          if (confirmation?.kind === 'alias') void removeAlias(confirmation.alias)
+          if (confirmation?.kind === 'profile') void removeProfile()
+        }}
+        triggerElement={confirmation?.trigger}
+        eyebrow={confirmation?.kind === 'alias' ? 'ELIMINAR ALIAS' : 'ELIMINAR COMERCIO'}
+        title={confirmation?.kind === 'alias' ? `¿Eliminar “${confirmation.alias.alias_value}”?` : `¿Eliminar ${selected?.display_name ?? 'este comercio'}?`}
+        description={confirmation?.kind === 'alias' ? 'Gota dejará de reconocer ese texto exacto.' : 'Se eliminan el perfil y sus alias guardados.'}
+        confirmLabel={confirmation?.kind === 'alias' ? 'Eliminar alias' : 'Eliminar comercio'}
+        busy={saving}
+        destructive
+      >
+        Los movimientos históricos no se modifican. Esta acción sólo cambia lo que Gota recuerda para cargas futuras.
+      </ConfirmationSurface>
     </>
   )
 }

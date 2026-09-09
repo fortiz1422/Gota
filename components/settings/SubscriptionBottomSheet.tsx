@@ -4,7 +4,8 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, CalendarBlank, CaretRight, CreditCard, DeviceMobileSpeaker, Receipt, Star, Wallet } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
-import { FullScreenSheet } from '@/components/ui/FullScreenSheet'
+import { ChoiceSurface } from '@/components/ui/ChoiceSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { InlineError } from '@/components/ui/InlineError'
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import { CATEGORIES } from '@/lib/validation/schemas'
@@ -39,8 +40,7 @@ export function SubscriptionBottomSheet({
   const amountId = useId()
   const categoryId = useId()
   const dayId = useId()
-  const scopeTitleId = useId()
-  const archiveTitleId = useId()
+
   const descriptionRef = useRef<HTMLInputElement>(null)
   const activeCards = useMemo(() => cards.filter((card) => !card.archived), [cards])
   const bankDigital = useMemo(() => accounts.filter((account) => account.type !== 'cash'), [accounts])
@@ -266,33 +266,40 @@ export function SubscriptionBottomSheet({
         ) : null}
       </TaskSurface>
 
-      <FullScreenSheet open={pendingPayload !== null} onClose={() => setPendingPayload(null)} labelledBy={scopeTitleId} triggerElement={decisionTrigger}>
-        <div data-subscription-scope className="flex min-h-full flex-col bg-bg-primary px-[22px] pb-6 pt-[max(22px,env(safe-area-inset-top))]">
-          <p className="type-micro text-primary">CONFIRMAR ALCANCE</p>
-          <h3 id={scopeTitleId} className="mt-2 type-title text-text-primary">¿Dónde aplicamos el cambio?</h3>
-          <p className="mt-2 type-body text-text-secondary">Ya existe un cobro generado este mes. Elegí explícitamente qué querés modificar.</p>
-          <div className="mt-6 divide-y divide-border-subtle overflow-hidden rounded-card border border-border-ocean bg-bg-tertiary">
+      <ChoiceSurface
+        open={pendingPayload !== null}
+        onClose={() => setPendingPayload(null)}
+        triggerElement={decisionTrigger}
+        eyebrow="CONFIRMAR ALCANCE"
+        title="¿Dónde aplicamos el cambio?"
+        description="Ya existe un cobro generado este mes. Elegí explícitamente qué querés modificar."
+      >
+        <div data-subscription-scope>
+          <div className="divide-y divide-border-subtle overflow-hidden rounded-card border border-border-ocean bg-bg-tertiary">
             {[
               ['current_and_future', 'Este mes y los próximos', 'Corrige el cobro actual y actualiza la suscripción.'],
               ['future_only', 'Sólo próximos meses', 'Mantiene intacto el cobro de este mes.'],
               ['current_only', 'Sólo este mes', 'Corrige el cobro actual sin cambiar la suscripción futura.'],
             ].map(([scope, title, copy]) => <button key={scope} type="button" disabled={isSaving} onClick={() => { void handleApplyScope(scope as 'current_only' | 'current_and_future' | 'future_only') }} className="flex min-h-[88px] w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-primary-soft disabled:opacity-50"><span className="min-w-0 flex-1"><span className="block type-body-lg text-text-primary">{title}</span><span className="mt-1 block type-body text-text-tertiary">{copy}</span></span><CaretRight size={17} className="shrink-0 text-text-muted" /></button>)}
           </div>
-          <button type="button" onClick={() => setPendingPayload(null)} disabled={isSaving} className="mt-auto min-h-12 type-body text-text-secondary">Volver sin aplicar</button>
+          <button type="button" onClick={() => setPendingPayload(null)} disabled={isSaving} className="mt-4 min-h-12 w-full type-body text-text-secondary">Volver sin aplicar</button>
         </div>
-      </FullScreenSheet>
+      </ChoiceSurface>
 
-      <FullScreenSheet open={archiveConfirmOpen} onClose={() => setArchiveConfirmOpen(false)} labelledBy={archiveTitleId} triggerElement={decisionTrigger}>
-        <div data-subscription-archive className="flex min-h-full flex-col bg-bg-primary px-[22px] pb-6 pt-[max(22px,env(safe-area-inset-top))]">
-          <p className="type-micro text-danger">ARCHIVAR</p>
-          <h3 id={archiveTitleId} className="mt-2 type-title text-text-primary">¿Archivar {subscription?.description}?</h3>
-          <p className="mt-2 type-body text-text-secondary">No se generarán cobros nuevos. Tus movimientos anteriores permanecen sin cambios.</p>
-          <div className="mt-auto">
-            <button type="button" onClick={() => { void handleArchive() }} disabled={isArchiving} className="min-h-12 w-full rounded-button bg-danger px-4 type-body-lg text-white disabled:opacity-50">{isArchiving ? 'Archivando…' : 'Sí, archivar'}</button>
-            <button type="button" onClick={() => setArchiveConfirmOpen(false)} disabled={isArchiving} className="mt-1 min-h-11 w-full type-body text-text-secondary">Cancelar</button>
-          </div>
-        </div>
-      </FullScreenSheet>
+      <ConfirmationSurface
+        open={archiveConfirmOpen}
+        onClose={() => setArchiveConfirmOpen(false)}
+        onConfirm={() => { void handleArchive() }}
+        triggerElement={decisionTrigger}
+        eyebrow="ARCHIVAR SUSCRIPCIÓN"
+        title={`¿Archivar ${subscription?.description ?? 'esta suscripción'}?`}
+        description="No se generarán cobros nuevos."
+        confirmLabel="Archivar suscripción"
+        busy={isArchiving}
+        destructive
+      >
+        <span data-subscription-archive>Tus movimientos anteriores permanecen sin cambios.</span>
+      </ConfirmationSurface>
     </>
   )
 }

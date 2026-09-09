@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, type RefObject } from 'react'
 import { ArrowsClockwise, CaretRight, Plus, Repeat } from '@phosphor-icons/react'
 import { ManagementSurface } from '@/components/ui/ManagementSurface'
 import { formatAmount } from '@/lib/format'
@@ -15,6 +15,7 @@ interface Props {
   defaultCurrency: 'ARS' | 'USD'
   loadData?: () => Promise<SubscriptionsData>
   editorRequest?: typeof fetch
+  triggerRef?: RefObject<HTMLElement | null>
 }
 
 export function SubscriptionsSubSheet({
@@ -23,6 +24,7 @@ export function SubscriptionsSubSheet({
   defaultCurrency,
   loadData = loadSubscriptionsData,
   editorRequest,
+  triggerRef,
 }: Props) {
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -81,6 +83,7 @@ export function SubscriptionsSubSheet({
       <ManagementSurface
         open={open}
         onClose={handleClose}
+        triggerRef={triggerRef}
         eyebrow="COMPROMISOS"
         title="Suscripciones"
         description="Revisá qué se cobra cada mes y desde dónde se paga."

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { CaretRight, EnvelopeSimple, Fingerprint, LockKey, ShieldCheck, SignOut, UserCircle } from '@phosphor-icons/react'
 import styles from './MobileSettings.module.css'
@@ -10,7 +10,7 @@ import { createClient } from '@/lib/supabase/client'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
 import { PasskeysPanel } from '@/components/auth/PasskeysPanel'
 import { InlineError } from '@/components/ui/InlineError'
-import { Modal } from '@/components/ui/Modal'
+import { TaskSurface } from '@/components/ui/TaskSurface'
 import { requestPasswordReset, updatePassword } from '@/lib/auth'
 
 interface AccountSectionProps {
@@ -36,11 +36,19 @@ export function AccountSection({
   const [resetMessage, setResetMessage] = useState<string | null>(null)
   const [isSavingPassword, setIsSavingPassword] = useState(false)
   const [isSendingReset, setIsSendingReset] = useState(false)
+  const passwordInputRef = useRef<HTMLInputElement>(null)
+  const passwordTriggerRef = useRef<HTMLButtonElement>(null)
 
   const hasGoogle = authProviders.includes('google')
   const hasEmailProvider = authProviders.includes('email')
   const accessLabel = hasEmailProvider ? 'Actualizar contraseña' : 'Crear contraseña'
   const emailLabel = email || 'Sin mail vinculado'
+
+  const closePasswordTask = () => {
+    setPasswordModalOpen(false)
+    setPasswordSuccess(null)
+    resetPasswordForm()
+  }
 
   const handleLogout = async () => {
     setIsLoggingOut(true)
@@ -111,16 +119,23 @@ export function AccountSection({
 
   return (
     <>
-      <section className={styles.group} aria-labelledby="settings-access-title">
-        <h2 id="settings-access-title">Acceso y seguridad</h2>
-        <p className={styles.description}>Administrá cómo entrás a tu cuenta.</p>
+      <section className={styles.group} aria-labelledby="settings-account-title">
+        <h2 id="settings-account-title">Tu cuenta</h2>
+        <p className={styles.description}>Tu identidad dentro de Gota.</p>
         <div className={styles.rowGroup}>
           <div className={styles.identity}>
             <UserCircle size={20} weight="light" />
-            <div><span className={styles.rowTitle}>Tu cuenta</span><span className={styles.rowDescription}>{emailLabel}</span></div>
+            <div><span className={styles.rowTitle}>{isAnonymous ? 'Modo exploración' : 'Cuenta personal'}</span><span className={styles.rowDescription}>{emailLabel}</span></div>
           </div>
+        </div>
+      </section>
+
+      <section className={styles.group} aria-labelledby="settings-access-title">
+        <h2 id="settings-access-title">Acceso</h2>
+        <p className={styles.description}>Administrá cómo entrás a tu cuenta.</p>
+        <div className={styles.rowGroup}>
           {!isAnonymous && email && <>
-            <button type="button" className={styles.row} onClick={() => {
+            <button ref={passwordTriggerRef} type="button" className={styles.row} onClick={() => {
               setPasswordSuccess(null)
               resetPasswordForm()
               setPasswordModalOpen(true)
@@ -165,34 +180,39 @@ export function AccountSection({
         </button>
       </div>
 
-      <Modal
+      <TaskSurface
         open={passwordModalOpen}
-        onClose={() => {
-          setPasswordModalOpen(false)
-          setPasswordSuccess(null)
-          resetPasswordForm()
-        }}
+        onClose={closePasswordTask}
+        eyebrow="ACCESO"
+        title={accessLabel}
+        description={hasEmailProvider
+          ? 'Actualizá la contraseña del mismo usuario.'
+          : 'Sumá acceso por contraseña sin crear otra cuenta.'}
+        initialFocusRef={passwordInputRef}
+        triggerRef={passwordTriggerRef}
+        footer={
+          <button
+            type="button"
+            onClick={() => void handlePasswordSave()}
+            disabled={isSavingPassword || !password || !confirmPassword}
+            className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
+          >
+            {isSavingPassword ? 'Guardando...' : accessLabel}
+          </button>
+        }
       >
         <div className="space-y-4">
-          <div>
-            <h2 className="text-base font-semibold text-text-primary">{accessLabel}</h2>
-            <p className="mt-1 text-sm text-text-tertiary">
-              {hasEmailProvider
-                ? 'Vas a actualizar la contraseña del mismo usuario.'
-                : 'Vas a sumar una contraseña a esta misma cuenta. Tus datos siguen atados al mismo usuario.'}
-            </p>
-          </div>
-
           <label className="block">
             <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-text-label">
               Nueva contraseña
             </span>
             <input
+              ref={passwordInputRef}
               type="password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
               className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
-              placeholder="Minimo 8 caracteres"
+              placeholder="Mínimo 8 caracteres"
             />
           </label>
 
@@ -205,37 +225,17 @@ export function AccountSection({
               value={confirmPassword}
               onChange={(event) => setConfirmPassword(event.target.value)}
               className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
-              placeholder="Repeti la contraseña"
+              placeholder="Repetí la contraseña"
             />
           </label>
 
           <InlineError message={passwordError} />
-
-          {passwordSuccess && (
-            <p className="text-xs font-medium text-success">{passwordSuccess}</p>
-          )}
-
-          <div className="flex gap-2">
-            <button
-              onClick={() => {
-                setPasswordModalOpen(false)
-                setPasswordSuccess(null)
-                resetPasswordForm()
-              }}
-              className="flex-1 rounded-button border border-border-ocean py-2.5 text-sm font-medium text-text-secondary transition-colors hover:bg-primary/5"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handlePasswordSave}
-              disabled={isSavingPassword}
-              className="flex-1 rounded-button bg-primary py-2.5 text-sm font-medium text-white transition-opacity hover:opacity-90 disabled:opacity-50"
-            >
-              {isSavingPassword ? 'Guardando...' : accessLabel}
-            </button>
-          </div>
+          {passwordSuccess ? <p className="text-xs font-medium text-success">{passwordSuccess}</p> : null}
+          <p className="text-xs leading-5 text-text-tertiary">
+            Tus movimientos y preferencias siguen asociados a la misma cuenta.
+          </p>
         </div>
-      </Modal>
+      </TaskSurface>
     </>
   )
 }
