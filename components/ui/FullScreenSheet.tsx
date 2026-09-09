@@ -36,6 +36,7 @@ interface FullScreenSheetProps {
   labelledBy: string
   extendIntoTopSafeArea?: boolean
   extendIntoBottomSafeArea?: boolean
+  fillAvailableHeight?: boolean
   triggerRef?: RefObject<HTMLElement | null>
   triggerElement?: HTMLElement | null
   initialFocusRef?: RefObject<HTMLElement | null>
@@ -87,6 +88,7 @@ export function FullScreenSheet({
   labelledBy,
   extendIntoTopSafeArea = false,
   extendIntoBottomSafeArea = false,
+  fillAvailableHeight = false,
   triggerRef,
   triggerElement,
   initialFocusRef,
@@ -203,6 +205,8 @@ export function FullScreenSheet({
 
   if (!mounted || !open) return null
 
+  const mobileHeightClass = fillAvailableHeight ? 'h-full' : 'h-[100dvh]'
+
   return createPortal(
     <div
       ref={overlayRef}
@@ -222,8 +226,8 @@ export function FullScreenSheet({
         aria-labelledby={labelledBy}
         tabIndex={-1}
         className={surface === 'drawer'
-          ? 'slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:max-w-[500px] sm:border-l sm:border-[color:var(--color-border-strong)]'
-          : 'slide-up relative z-[71] box-border h-[100dvh] w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]'}
+          ? `slide-up relative z-[71] box-border ${mobileHeightClass} w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:max-w-[500px] sm:border-l sm:border-[color:var(--color-border-strong)]`
+          : `slide-up relative z-[71] box-border ${mobileHeightClass} w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]`}
         style={{
           paddingTop: extendIntoTopSafeArea ? 0 : 'env(safe-area-inset-top)',
           paddingBottom: extendIntoBottomSafeArea ? 0 : 'env(safe-area-inset-bottom)',
