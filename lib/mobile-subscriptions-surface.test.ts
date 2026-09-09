@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest'
+import { readFileSync } from 'node:fs'
 import {
   buildSubscriptionApplyPayload,
   buildSubscriptionBasePayload,
 } from '@/lib/subscriptions/form-payload'
 
 describe('mobile subscriptions surface contract', () => {
+  it('uses the shared choice and confirmation contracts for nested decisions', () => {
+    const source = readFileSync(new URL('../components/settings/SubscriptionBottomSheet.tsx', import.meta.url), 'utf8')
+    expect(source).toContain('<ChoiceSurface')
+    expect(source).toContain('data-subscription-scope')
+    expect(source).toContain('<ConfirmationSurface')
+    expect(source).toContain('data-subscription-archive')
+    expect(source).not.toContain('<FullScreenSheet')
+  })
+
   it('preserves the debit create payload and strips an inapplicable card', () => {
     expect(buildSubscriptionBasePayload({
       description: '  Netflix  ',

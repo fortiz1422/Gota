@@ -5,6 +5,14 @@ vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn(), push: 
 vi.mock('@/lib/auth', () => ({ isPasskeySupported: () => false }))
 import { AccountSection } from '@/components/settings/AccountSection'
 describe('Mobile account sections', () => {
+  it('separates identity, access and privacy into index destinations', () => {
+    const html = renderToStaticMarkup(createElement(AccountSection, {email:'example@example.invalid',isAnonymous:false,authProviders:['email']}))
+    expect(html).toContain('aria-labelledby="settings-account-title"')
+    expect(html).toContain('>Tu cuenta<')
+    expect(html).toContain('aria-labelledby="settings-access-title"')
+    expect(html).toContain('>Acceso<')
+    expect(html).toContain('aria-labelledby="settings-privacy-title"')
+  })
   it('separates privacy from access, keeping auth and deletion controls', () => {
     const html = renderToStaticMarkup(createElement(AccountSection, {email:'example@example.invalid',isAnonymous:false,authProviders:['email']}))
     expect(html).toContain('aria-labelledby="settings-privacy-title"')

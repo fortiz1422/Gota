@@ -15,10 +15,23 @@ describe('Mobile settings composition', () => {
     const html = renderToStaticMarkup(createElement(SettingsPreferences, { ...props, signalsCenterEnabled: enabled }))
     expect(html).toContain(enabled ? '>Perfil</h1>' : '>Configuración</h1>')
     expect(html.includes('Modo de cálculo')).toBe(enabled)
-    expect(html.includes('Administrar suscripciones')).toBe(enabled)
-    for (const label of ['Moneda predeterminada', 'Cuentas', 'Tarjetas', 'Alias de comercios', 'Compartir con Gota']) {
+    expect(html.includes('>Suscripciones<')).toBe(enabled)
+    for (const label of ['Moneda predeterminada', 'Cuentas', 'Tarjetas', 'Alias y categorías', 'Dispositivos']) {
       expect(html).toContain(label)
     }
+  })
+  it('uses a profile index organized by user intent instead of technical modules', () => {
+    const html = renderToStaticMarkup(createElement(SettingsPreferences, props))
+
+    for (const section of ['Cómo ves tu plata', 'Tu plata', 'Personalización', 'Conexiones']) {
+      expect(html).toContain(section)
+    }
+    for (const destination of ['Cuentas', 'Tarjetas', 'Suscripciones', 'Alias y categorías', 'Dispositivos']) {
+      expect(html).toContain(destination)
+    }
+    expect(html).not.toContain('>Lectura<')
+    expect(html).not.toContain('>Cuentas y tarjetas<')
+    expect(html).not.toContain('>Integraciones<')
   })
   it('groups the period under accounts/cards, separately from global reading preferences', () => {
     const html = renderToStaticMarkup(createElement(SettingsPreferences, props))
@@ -30,8 +43,8 @@ describe('Mobile settings composition', () => {
     const reading = html.slice(html.indexOf('aria-labelledby="settings-reading-title"'), html.indexOf('aria-labelledby="settings-finances-title"'))
     expect(reading).toContain('Moneda predeterminada')
     expect(reading).not.toContain('Mes anterior')
-    expect(html).toContain('Alias de comercios')
-    expect(html).toContain('Compartir con Gota')
+    expect(html).toContain('Alias y categorías')
+    expect(html).toContain('Dispositivos')
     expect(html).not.toContain('Comprobantes')
   })
 })

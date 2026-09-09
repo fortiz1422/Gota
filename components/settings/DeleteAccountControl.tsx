@@ -1,9 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { Warning } from '@phosphor-icons/react'
 import { createClient } from '@/lib/supabase/client'
 import { InlineError } from '@/components/ui/InlineError'
+import { TaskSurface } from '@/components/ui/TaskSurface'
 
 const DELETE_CONFIRMATION = 'ELIMINAR'
 
@@ -13,10 +15,13 @@ export function DeleteAccountControl() {
   const [confirmation, setConfirmation] = useState('')
   const [isDeleting, setIsDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
 
   const canDelete = confirmation.trim().toUpperCase() === DELETE_CONFIRMATION
 
   const resetConfirm = () => {
+    if (isDeleting) return
     setShowConfirm(false)
     setConfirmation('')
     setDeleteError(null)
@@ -24,16 +29,14 @@ export function DeleteAccountControl() {
 
   const handleDeleteAccount = async () => {
     if (!canDelete || isDeleting) return
-
     setIsDeleting(true)
     setDeleteError(null)
     try {
-      const res = await fetch('/api/account', { method: 'DELETE' })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
+      const response = await fetch('/api/account', { method: 'DELETE' })
+      if (!response.ok) {
+        const data = await response.json().catch(() => null)
         throw new Error(data?.error ?? 'Error al eliminar la cuenta')
       }
-
       const supabase = createClient()
       await supabase.auth.signOut()
       router.push('/login')
@@ -43,57 +46,38 @@ export function DeleteAccountControl() {
     }
   }
 
-  if (!showConfirm) {
-    return (
-      <button
-        onClick={() => setShowConfirm(true)}
-        className="w-full rounded-button bg-danger/10 py-2.5 text-sm font-medium text-danger transition-colors hover:bg-danger/20"
-      >
+  return (
+    <>
+      <button ref={triggerRef} type="button" onClick={() => setShowConfirm(true)} className="w-full rounded-button bg-danger/10 py-3 text-left text-sm font-medium text-danger transition-colors hover:bg-danger/20">
         Eliminar mi cuenta
       </button>
-    )
-  }
 
-  return (
-    <div className="space-y-3 rounded-card bg-danger/10 p-3">
-      <p className="text-xs font-medium text-danger">
-        Esta accion es irreversible. Se eliminaran tus datos financieros y tu usuario.
-      </p>
-      <div>
-        <label className="mb-1 block text-[10px] font-semibold uppercase tracking-widest text-danger">
-          Escribi ELIMINAR para confirmar
-        </label>
-        <input
-          type="text"
-          value={confirmation}
-          onChange={(e) => {
-            setConfirmation(e.target.value)
-            setDeleteError(null)
-          }}
-          disabled={isDeleting}
-          className="w-full rounded-input border border-danger/20 bg-bg-primary px-3 py-2 text-sm text-text-primary outline-none focus:border-danger disabled:opacity-50"
-          autoComplete="off"
-        />
-      </div>
-
-      <InlineError message={deleteError} />
-
-      <div className="flex gap-2">
-        <button
-          onClick={resetConfirm}
-          disabled={isDeleting}
-          className="flex-1 rounded-button py-2 text-xs text-text-secondary transition-colors hover:bg-primary/5 disabled:opacity-50"
-        >
-          Cancelar
-        </button>
-        <button
-          onClick={handleDeleteAccount}
-          disabled={!canDelete || isDeleting}
-          className="flex-1 rounded-button bg-danger py-2 text-xs font-semibold text-bg-primary disabled:opacity-50"
-        >
-          {isDeleting ? 'Eliminando...' : 'Eliminar'}
-        </button>
-      </div>
-    </div>
+      <TaskSurface
+        open={showConfirm}
+        onClose={resetConfirm}
+        triggerRef={triggerRef}
+        initialFocusRef={inputRef}
+        eyebrow="PRIVACIDAD Y DATOS"
+        title="Eliminar mi cuenta"
+        description="Esta acción es irreversible. Se eliminan tus datos financieros y tu usuario."
+        footer={
+          <button type="button" onClick={() => void handleDeleteAccount()} disabled={!canDelete || isDeleting} className="w-full rounded-button bg-danger py-3 text-sm font-semibold text-white disabled:opacity-50">
+            {isDeleting ? 'Eliminando…' : 'Eliminar definitivamente'}
+          </button>
+        }
+      >
+        <div className="space-y-4">
+          <div className="flex gap-3 rounded-card border border-danger/20 bg-danger/10 p-4">
+            <Warning size={21} weight="fill" className="shrink-0 text-danger" />
+            <p className="text-sm leading-6 text-danger">No vas a poder recuperar cuentas, tarjetas, movimientos ni preferencias.</p>
+          </div>
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Escribí ELIMINAR para confirmar</span>
+            <input ref={inputRef} type="text" value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setDeleteError(null) }} disabled={isDeleting} autoComplete="off" className="w-full rounded-input border border-danger/30 bg-bg-primary px-3 py-3 text-sm text-text-primary outline-none focus:border-danger disabled:opacity-50" />
+          </label>
+          <InlineError message={deleteError} />
+        </div>
+      </TaskSurface>
+    </>
   )
 }

@@ -2,6 +2,8 @@
 .page { min-height: 100dvh; background: var(--color-bg-primary); }
 .content { max-width: 448px; margin: 0 auto; padding: 0 20px calc(100px + env(safe-area-inset-bottom)); }
 .header { margin: 0 -20px 24px; padding: calc(20px + env(safe-area-inset-top)) 24px 24px; border-radius: 0 0 var(--radius-card-lg) var(--radius-card-lg); color: white; }
+.headerClose { position: absolute; top: max(12px, env(safe-area-inset-top)); right: 14px; display: flex; width: 44px; height: 44px; align-items: center; justify-content: center; border-radius: 999px; color: white; }
+.headerClose:hover { background: rgba(255,255,255,.1); }
 .eyebrow { font-size: 11px; font-weight: 600; letter-spacing: .12em; }
 .header h1 { margin-top: 8px; font-size: 28px; font-weight: 700; line-height: 1.2; letter-spacing: -.03em; }
 .intro { margin-top: 8px; font-size: 13px; line-height: 1.5; }

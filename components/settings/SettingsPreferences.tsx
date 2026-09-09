@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Bank, CreditCard, CaretLeft, CaretRight } from '@phosphor-icons/react'
+import { Bank, CreditCard, CaretLeft, CaretRight, X } from '@phosphor-icons/react'
 import { CurrencySection } from '@/components/settings/CurrencySection'
 import { AccountsSection } from '@/components/settings/AccountsSection'
 import { CardsSection } from '@/components/settings/CardsSection'
@@ -31,6 +31,10 @@ interface Props {
   accounts: Account[]
   heroBalanceMode: HeroBalanceMode
   signalsCenterEnabled: boolean
+  includeHeroBalanceMode?: boolean
+  includeSubscriptions?: boolean
+  onClose?: () => void
+  onHeroBalanceModeChange?: (value: HeroBalanceMode) => void
 }
 
 export function SettingsPreferences({
@@ -40,35 +44,42 @@ export function SettingsPreferences({
   accounts,
   heroBalanceMode,
   signalsCenterEnabled,
+  includeHeroBalanceMode,
+  includeSubscriptions,
+  onClose,
+  onHeroBalanceModeChange,
 }: Props) {
   const bankDigitalAccounts = accounts.filter((a) => a.type !== 'cash')
   const [month, setMonth] = useState(currentMonth)
   const minMonth = addMonths(currentMonth, -12)
   const maxMonth = addMonths(currentMonth, 3)
   const preferenceVisibility = getProfilePreferenceVisibility(signalsCenterEnabled)
+  const showHeroBalanceMode = includeHeroBalanceMode ?? preferenceVisibility.heroBalanceMode
+  const showSubscriptions = includeSubscriptions ?? preferenceVisibility.subscriptions
 
   return (
     <div className={styles.preferences}>
       <BlueHeaderZone className={styles.header}>
+        {onClose ? <button type="button" onClick={onClose} aria-label="Cerrar configuración" className={styles.headerClose}><X size={21} weight="light" /></button> : null}
         <p className={styles.eyebrow}>TU GOTA</p>
         <h1>{signalsCenterEnabled ? 'Perfil' : 'Configuración'}</h1>
         <p className={styles.intro}>Tu forma de ver, cargar y cuidar tu dinero.</p>
       </BlueHeaderZone>
 
       <section className={styles.group} aria-labelledby="settings-reading-title">
-        <h2 id="settings-reading-title">Lectura</h2>
-        <p className={styles.description}>Elegí la moneda y cómo ver tu saldo.</p>
+        <h2 id="settings-reading-title">Cómo ves tu plata</h2>
+        <p className={styles.description}>Elegí la moneda y la lectura principal de Gota.</p>
         <div className={styles.reading}>
           <CurrencySection currency={currency} />
-          {preferenceVisibility.heroBalanceMode && (
-            <HeroBalanceModePreference initialValue={heroBalanceMode} />
+          {showHeroBalanceMode && (
+            <HeroBalanceModePreference initialValue={heroBalanceMode} onSaved={onHeroBalanceModeChange} />
           )}
         </div>
       </section>
 
       <section className={styles.group} aria-labelledby="settings-finances-title">
-        <h2 id="settings-finances-title">Cuentas y tarjetas</h2>
-        <p className={styles.description}>Administrá tus medios de pago y sus datos.</p>
+        <h2 id="settings-finances-title">Tu plata</h2>
+        <p className={styles.description}>Administrá dónde está tu dinero y qué pagos se repiten.</p>
         <div className={styles.rowGroup}>
           <SettingsDetail title="Cuentas" description="Administrá tus cuentas y saldos por período" icon={<Bank size={20} weight="light" />}>
         <div className={styles.period}>
@@ -110,10 +121,8 @@ export function SettingsPreferences({
         </div>
             <CardsSection cards={cards} month={month} accounts={bankDigitalAccounts} standalone />
           </SettingsDetail>
+          {showSubscriptions ? <SubscriptionsPreference defaultCurrency={currency} /> : null}
         </div>
-        {preferenceVisibility.subscriptions && (
-          <div className={styles.subscription}><SubscriptionsPreference defaultCurrency={currency} /></div>
-        )}
       </section>
 
       <section className={styles.group} aria-labelledby="settings-personalization-title">
@@ -123,8 +132,8 @@ export function SettingsPreferences({
       </section>
 
       <section className={styles.group} aria-labelledby="settings-integrations-title">
-        <h2 id="settings-integrations-title">Integraciones</h2>
-        <p className={styles.description}>Conectá la carga con tu día a día.</p>
+        <h2 id="settings-integrations-title">Conexiones</h2>
+        <p className={styles.description}>Conectá dispositivos a tu forma de cargar.</p>
         <div className={styles.entry}><SharedReceiptDevicesPanel /></div>
       </section>
     </div>

@@ -1,8 +1,10 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
-import { CaretRight, Copy, DeviceMobile, Link as LinkIcon, Plus, Trash, X } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { useCallback, useEffect, useRef, useState } from 'react'
+import { CaretRight, Copy, DeviceMobile, Link as LinkIcon, Plus, Trash } from '@phosphor-icons/react'
+import { ManagementSurface } from '@/components/ui/ManagementSurface'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import {
   SHARED_RECEIPT_ROUTES,
   buildSharedReceiptDeviceCreatePayload,
@@ -24,6 +26,7 @@ async function errorMessage(response: Response, fallback: string): Promise<strin
 
 export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boolean }) {
   const [open, setOpen] = useState(false)
+  const [creating, setCreating] = useState(false)
   const [devices, setDevices] = useState<SharedReceiptDevice[]>([])
   const [loading, setLoading] = useState(false)
   const [name, setName] = useState('Mi iPhone')
@@ -33,6 +36,14 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
   const [createdDevice, setCreatedDevice] = useState<SharedReceiptDevice | null>(null)
   const [copied, setCopied] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [taskTrigger, setTaskTrigger] = useState<HTMLElement | null>(null)
+  const [confirmation, setConfirmation] = useState<
+    | { kind: 'token' }
+    | { kind: 'revoke'; device: SharedReceiptDevice; trigger: HTMLElement }
+    | null
+  >(null)
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
   const install = getShortcutInstallState(process.env.NEXT_PUBLIC_IOS_SHORTCUT_INSTALL_URL)
 
   const loadDevices = useCallback(async () => {
@@ -52,21 +63,40 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
   useEffect(() => {
     if (open) void loadDevices()
     if (!open) {
+      setCreating(false)
       setOneTimeToken(null)
       setCreatedDevice(null)
       setCopied(false)
+      setTaskTrigger(null)
       setError(null)
     }
   }, [open, loadDevices])
 
-  const createDevice = async (deviceName: string): Promise<{ device: SharedReceiptDevice; token: string }> => {
-    const response = await fetch(SHARED_RECEIPT_ROUTES.devices, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(buildSharedReceiptDeviceCreatePayload(deviceName)),
-    })
-    if (!response.ok) throw new Error(await errorMessage(response, 'No pudimos crear la credencial.'))
-    return extractCreatedDevice(await response.json())
+  const beginCreate = (trigger: HTMLElement) => {
+    setTaskTrigger(trigger)
+    setName('Mi iPhone')
+    setOneTimeToken(null)
+    setCreatedDevice(null)
+    setCopied(false)
+    setError(null)
+    setCreating(true)
+  }
+
+  const finishCredentialTask = () => {
+    setCreating(false)
+    setOneTimeToken(null)
+    setCreatedDevice(null)
+    setCopied(false)
+    setTaskTrigger(null)
+    setError(null)
+  }
+
+  const closeCredentialTask = () => {
+    if (oneTimeToken) {
+      setConfirmation({ kind: 'token' })
+      return
+    }
+    finishCredentialTask()
   }
 
   const handleCreate = async () => {
@@ -74,7 +104,13 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
     setSaving(true)
     setError(null)
     try {
-      const created = await createDevice(name)
+      const response = await fetch(SHARED_RECEIPT_ROUTES.devices, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(buildSharedReceiptDeviceCreatePayload(name)),
+      })
+      if (!response.ok) throw new Error(await errorMessage(response, 'No pudimos crear la credencial.'))
+      const created = extractCreatedDevice(await response.json())
       setDevices((current) => [created.device, ...current])
       setCreatedDevice(created.device)
       setOneTimeToken(created.token)
@@ -87,20 +123,19 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
   }
 
   const revoke = async (device: SharedReceiptDevice) => {
-    if (!window.confirm(`¿Revocar el acceso de “${device.name}”?`)) return
     setActingId(device.id)
     setError(null)
     try {
       const response = await fetch(SHARED_RECEIPT_ROUTES.device(device.id), { method: 'DELETE' })
       if (!response.ok) throw new Error(await errorMessage(response, 'No pudimos revocar el dispositivo.'))
       setDevices((current) => current.filter((item) => item.id !== device.id))
+      setConfirmation(null)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos revocar el dispositivo.')
     } finally {
       setActingId(null)
     }
   }
-
 
   const copyToken = async () => {
     if (!oneTimeToken) return
@@ -115,6 +150,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
   return (
     <>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(true)}
         className={compact
@@ -125,72 +161,123 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
           <DeviceMobile size={18} weight="duotone" />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-text-primary">Compartir con Gota</span>
-          <span className="block text-xs leading-5 text-text-tertiary">iPhone · Apple Shortcuts</span>
+          <span className="block text-sm font-semibold text-text-primary">Dispositivos</span>
+          <span className="block text-xs leading-5 text-text-tertiary">Compartir con Gota · iPhone</span>
         </span>
         <CaretRight size={14} className="text-text-dim" />
       </button>
 
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <div className="space-y-5">
-          <div className="flex items-start justify-between gap-4">
-            <div>
-              <p className="type-label text-primary">Integraciones</p>
-              <h2 className="mt-1 text-xl font-extrabold tracking-tight text-text-primary">Compartir con Gota</h2>
-              <p className="mt-2 text-sm leading-6 text-text-secondary">Creá una credencial para enviar comprobantes desde la hoja Compartir de tu iPhone.</p>
-              {!install.available && <p className="mt-2 text-xs font-semibold text-text-tertiary">{install.label}. Podés administrar credenciales, pero todavía no instalar la plantilla.</p>}
-            </div>
-            <button type="button" onClick={() => setOpen(false)} aria-label="Cerrar" className="p-2 text-text-tertiary"><X size={20} /></button>
+      <ManagementSurface
+        open={open}
+        onClose={() => setOpen(false)}
+        triggerRef={triggerRef}
+        eyebrow="CONEXIONES"
+        title="Dispositivos"
+        description="Credenciales para enviar comprobantes desde la hoja Compartir de tu iPhone."
+        action={
+          <button
+            type="button"
+            onClick={(event) => beginCreate(event.currentTarget)}
+            className="flex w-full items-center justify-center gap-2 rounded-button bg-primary py-3 text-sm font-semibold text-white"
+          >
+            <Plus size={16} /> Conectar iPhone
+          </button>
+        }
+      >
+        {!install.available ? <p className="mb-4 rounded-input bg-bg-tertiary px-3 py-2.5 text-xs leading-5 text-text-secondary">{install.label}. Podés crear y revocar credenciales; la plantilla todavía no está disponible.</p> : null}
+        {error && !creating ? <p role="alert" className="mb-4 rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
+        <section aria-busy={loading}>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-text-primary">Conectados</h3>
+            <button type="button" onClick={() => void loadDevices()} className="min-h-11 text-xs font-semibold text-primary">Actualizar</button>
           </div>
-
-          {oneTimeToken && createdDevice && (
-            <section role="status" className="rounded-card border border-warning/30 bg-warning/5 p-4">
-              <p className="text-sm font-bold text-text-primary">Copiá este token ahora</p>
-              <p className="mt-1 text-xs leading-5 text-text-secondary">Se muestra una sola vez. Gota no puede volver a enseñártelo y no lo guarda en este navegador.</p>
-              <label className="mt-3 block text-xs font-semibold text-text-secondary" htmlFor="shortcut-token">Token de importación</label>
-              <div className="mt-1 flex gap-2">
-                <input id="shortcut-token" readOnly value={oneTimeToken} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-input border border-border-ocean bg-white px-3 py-2 font-mono text-xs text-text-primary" />
-                <button type="button" onClick={() => void copyToken()} className="rounded-button bg-primary px-3 text-white" aria-label="Copiar token"><Copy size={17} /></button>
-              </div>
-              {copied && <p className="mt-2 text-xs font-semibold text-success">Token copiado.</p>}
-              <p className="mt-2 text-xs text-text-tertiary">Vence: {formatDate(createdDevice.expires_at)}</p>
-              {install.available ? (
-                <a href={install.url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 rounded-button bg-primary px-4 py-2.5 text-sm font-semibold text-white"><LinkIcon size={15} />{install.label}</a>
-              ) : (
-                <p className="mt-3 rounded-input bg-bg-tertiary px-3 py-2 text-xs font-semibold text-text-secondary">{install.label}</p>
-              )}
-              <button type="button" onClick={() => { setOneTimeToken(null); setCreatedDevice(null); setCopied(false) }} className="mt-3 block text-xs font-semibold text-primary">Ya guardé el token</button>
-            </section>
-          )}
-
-          <section>
-            <h3 className="text-sm font-bold text-text-primary">Nuevo iPhone</h3>
-            <div className="mt-2 flex gap-2">
-              <label className="sr-only" htmlFor="device-name">Nombre del dispositivo</label>
-              <input id="device-name" value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej: iPhone personal" className="min-w-0 flex-1 rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary" />
-              <button type="button" onClick={() => void handleCreate()} disabled={saving || !name.trim() || Boolean(oneTimeToken)} className="rounded-button bg-primary px-4 text-sm font-semibold text-white disabled:opacity-50"><Plus size={15} className="inline" /> {saving ? 'Creando…' : 'Crear'}</button>
+          {loading ? (
+            <div className="space-y-2" aria-label="Cargando dispositivos">
+              {[0, 1].map((item) => <div key={item} className="h-20 animate-pulse rounded-card bg-bg-tertiary" />)}
             </div>
-          </section>
+          ) : devices.length === 0 ? (
+            <div className="rounded-card border border-dashed border-border-strong px-5 py-8 text-center">
+              <DeviceMobile size={24} className="mx-auto text-text-tertiary" />
+              <p className="mt-3 text-sm font-semibold text-text-primary">No hay dispositivos conectados</p>
+              <p className="mt-1 text-xs leading-5 text-text-tertiary">Creá una credencial para empezar a compartir comprobantes.</p>
+            </div>
+          ) : (
+            <ul className="divide-y divide-border-subtle overflow-hidden rounded-card border border-border-strong bg-bg-primary">
+              {devices.map((device) => (
+                <li key={device.id} className="flex min-h-20 items-center gap-3 px-4 py-3">
+                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"><DeviceMobile size={17} /></span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-text-primary">{device.name}</span>
+                    <span className="mt-0.5 block text-xs leading-5 text-text-tertiary">Creado {formatDate(device.created_at)} · vence {formatDate(device.expires_at)}</span>
+                  </span>
+                  <button type="button" onClick={(event) => setConfirmation({ kind: 'revoke', device, trigger: event.currentTarget })} disabled={actingId === device.id} aria-label={`Revocar ${device.name}`} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-danger disabled:opacity-40"><Trash size={17} /></button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      </ManagementSurface>
 
-          {error && <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p>}
-
-          <section aria-busy={loading}>
-            <div className="flex items-center justify-between"><h3 className="text-sm font-bold text-text-primary">Dispositivos</h3><button type="button" onClick={() => void loadDevices()} className="text-xs font-semibold text-primary">Actualizar</button></div>
-            {loading ? <p className="mt-3 text-sm text-text-tertiary">Cargando…</p> : devices.length === 0 ? <p className="mt-3 text-sm text-text-tertiary">Todavía no creaste credenciales.</p> : (
-              <ul className="mt-2 divide-y divide-border-subtle rounded-card border border-border-subtle">
-                {devices.map((device) => <li key={device.id} className="p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div><p className="text-sm font-semibold text-text-primary">{device.name}</p><p className="mt-1 text-xs text-text-tertiary">Creado {formatDate(device.created_at)} · vence {formatDate(device.expires_at)}</p></div>
-                    <div className="flex gap-1">
-                      <button type="button" onClick={() => void revoke(device)} disabled={actingId === device.id} aria-label={`Revocar ${device.name}`} className="rounded-button p-2 text-danger disabled:opacity-40"><Trash size={17} /></button>
-                    </div>
-                  </div>
-                </li>)}
-              </ul>
-            )}
+      <TaskSurface
+        open={creating}
+        onClose={closeCredentialTask}
+        triggerElement={taskTrigger}
+        initialFocusRef={oneTimeToken ? undefined : nameRef}
+        eyebrow="DISPOSITIVOS"
+        title={oneTimeToken ? 'Guardá el token' : 'Conectar iPhone'}
+        description={oneTimeToken
+          ? 'Se muestra una sola vez. Gota no puede volver a enseñártelo.'
+          : 'Nombrá el dispositivo para reconocer y revocar su acceso cuando quieras.'}
+        footer={oneTimeToken ? (
+          <button type="button" onClick={closeCredentialTask} className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white">Ya guardé el token</button>
+        ) : (
+          <button type="button" onClick={() => void handleCreate()} disabled={saving || !name.trim()} className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50">{saving ? 'Creando…' : 'Crear credencial'}</button>
+        )}
+      >
+        {error ? <p role="alert" className="mb-4 rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
+        {oneTimeToken && createdDevice ? (
+          <section role="status" className="rounded-card border border-warning/30 bg-warning/5 p-4">
+            <label className="block text-xs font-semibold text-text-secondary" htmlFor="shortcut-token">Token de importación</label>
+            <div className="mt-2 flex gap-2">
+              <input id="shortcut-token" readOnly value={oneTimeToken} onFocus={(event) => event.currentTarget.select()} className="min-w-0 flex-1 rounded-input border border-border-ocean bg-white px-3 py-3 font-mono text-xs text-text-primary" />
+              <button type="button" onClick={() => void copyToken()} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-button bg-primary text-white" aria-label="Copiar token"><Copy size={17} /></button>
+            </div>
+            {copied ? <p className="mt-2 text-xs font-semibold text-success">Token copiado.</p> : null}
+            <p className="mt-3 text-xs text-text-tertiary">Vence: {formatDate(createdDevice.expires_at)}</p>
+            {install.available ? (
+              <a href={install.url} target="_blank" rel="noreferrer" className="mt-4 flex min-h-11 items-center justify-center gap-2 rounded-button border border-primary px-4 text-sm font-semibold text-primary"><LinkIcon size={15} />{install.label}</a>
+            ) : null}
           </section>
-        </div>
-      </Modal>
+        ) : (
+          <label className="block">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre del dispositivo</span>
+            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. iPhone personal" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
+          </label>
+        )}
+      </TaskSurface>
+
+      <ConfirmationSurface
+        open={confirmation !== null}
+        onClose={() => setConfirmation(null)}
+        onConfirm={() => {
+          if (confirmation?.kind === 'token') {
+            setConfirmation(null)
+            finishCredentialTask()
+          }
+          if (confirmation?.kind === 'revoke') void revoke(confirmation.device)
+        }}
+        triggerElement={confirmation?.kind === 'revoke' ? confirmation.trigger : null}
+        eyebrow={confirmation?.kind === 'token' ? 'TOKEN DE UN SOLO USO' : 'REVOCAR DISPOSITIVO'}
+        title={confirmation?.kind === 'token' ? '¿Ya guardaste el token?' : `¿Revocar ${confirmation?.kind === 'revoke' ? confirmation.device.name : 'este dispositivo'}?`}
+        description={confirmation?.kind === 'token' ? 'Gota no puede volver a mostrar esta credencial.' : 'El dispositivo deja de poder enviar comprobantes de inmediato.'}
+        confirmLabel={confirmation?.kind === 'token' ? 'Sí, ya lo guardé' : 'Revocar acceso'}
+        busy={confirmation?.kind === 'revoke' && actingId === confirmation.device.id}
+        destructive={confirmation?.kind === 'revoke'}
+      >
+        {confirmation?.kind === 'token'
+          ? 'Si todavía no lo copiaste, cancelá y volvé a la pantalla anterior.'
+          : 'Podés conectar el dispositivo otra vez creando una credencial nueva.'}
+      </ConfirmationSurface>
     </>
   )
 }

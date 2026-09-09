@@ -1,7 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Modal } from '@/components/ui/Modal'
+import { useRef, useState, useEffect } from 'react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
+import { InlineError } from '@/components/ui/InlineError'
 import { FF_YIELD } from '@/lib/flags'
 import type { Account, AccountType } from '@/types/database'
 
@@ -12,6 +14,7 @@ interface Props {
   onSave: (account: Account) => void
   onDelete?: (id: string) => void
   onClose: () => void
+  triggerElement?: HTMLElement | null
 }
 
 const TYPE_LABELS: Record<AccountType, string> = {
@@ -47,7 +50,7 @@ function getMonthLabel(ym: string): string {
   return label.charAt(0).toUpperCase() + label.slice(1)
 }
 
-export function AccountBottomSheet({ account, type, month, onSave, onDelete, onClose }: Props) {
+export function AccountBottomSheet({ account, type, month, onSave, onDelete, onClose, triggerElement }: Props) {
   const isNew = account === null
   const [name, setName] = useState(account?.name ?? '')
   const [isPrimary, setIsPrimary] = useState(account?.is_primary ?? false)
@@ -61,6 +64,10 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   )
   const [isSaving, setIsSaving] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
+  const [confirmArchive, setConfirmArchive] = useState(false)
+  const [archiveTrigger, setArchiveTrigger] = useState<HTMLElement | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const [openingArs, setOpeningArs] = useState(
     account?.opening_balance_ars ? String(account.opening_balance_ars) : '',
@@ -129,6 +136,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const handleSave = async () => {
     if (!name.trim()) return
     setIsSaving(true)
+    setError(null)
     try {
       const payload = {
         name: name.trim(),
@@ -163,7 +171,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
       onSave(saved)
       onClose()
     } catch {
-      alert('Error al guardar cuenta.')
+      setError('No pudimos guardar la cuenta. Revisá los datos e intentá nuevamente.')
     } finally {
       setIsSaving(false)
     }
@@ -171,15 +179,17 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
 
   const handleDelete = async () => {
     if (!account) return
-    if (!confirm('¿Archivar esta cuenta?')) return
     setIsDeleting(true)
+    setError(null)
     try {
       const res = await fetch(`/api/accounts/${account.id}`, { method: 'DELETE' })
       if (!res.ok) throw new Error()
       onDelete?.(account.id)
+      setConfirmArchive(false)
       onClose()
     } catch {
-      alert('Error al archivar cuenta.')
+      setConfirmArchive(false)
+      setError('No pudimos archivar la cuenta. Intentá nuevamente.')
     } finally {
       setIsDeleting(false)
     }
@@ -198,24 +208,36 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
     'w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none'
 
   return (
-    <Modal open onClose={onClose}>
+    <TaskSurface
+      open
+      onClose={onClose}
+      eyebrow={TYPE_LABELS[type].toUpperCase()}
+      title={isNew ? 'Nueva cuenta' : account?.name ?? 'Editar cuenta'}
+      description={isNew ? 'Definí la cuenta y su punto de partida.' : 'Revisá identidad, saldo inicial y preferencias de esta cuenta.'}
+      initialFocusRef={nameRef}
+      triggerElement={triggerElement}
+      footer={
+        <button
+          type="button"
+          onClick={() => void handleSave()}
+          disabled={!name.trim() || isSaving}
+          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white transition-all hover:brightness-110 disabled:opacity-50"
+        >
+          {isSaving ? 'Guardando...' : isNew ? 'Crear cuenta' : 'Guardar cambios'}
+        </button>
+      }
+    >
       <div className="space-y-4">
-        <div>
-          <p className="mb-0.5 text-xs text-text-tertiary">{TYPE_LABELS[type]}</p>
-          <h2 className="text-lg font-bold text-text-primary">
-            {isNew ? 'Nueva cuenta' : 'Editar cuenta'}
-          </h2>
-        </div>
-
+        <InlineError message={error} />
         <label className="block space-y-1">
           <span className="text-[10px] text-text-tertiary">Nombre</span>
           <input
+            ref={nameRef}
             type="text"
             placeholder="Ej. Banco Nación"
             value={name}
             onChange={(e) => setName(e.target.value)}
             className={inputClass}
-            autoFocus
           />
         </label>
 
@@ -416,24 +438,32 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
           )}
         </div>}
 
-        <button
-          onClick={handleSave}
-          disabled={!name.trim() || isSaving}
-          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-bg-primary transition-all duration-150 hover:brightness-110 active:scale-95 disabled:opacity-50"
-        >
-          {isSaving ? 'Guardando...' : isNew ? 'Crear cuenta' : 'Guardar cambios'}
-        </button>
 
         {!isNew && (
           <button
-            onClick={handleDelete}
+            type="button"
+            onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }}
             disabled={isDeleting}
             className="w-full rounded-button border border-border-strong py-2.5 text-sm text-text-tertiary transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
           >
-            {isDeleting ? 'Archivando...' : account?.archived ? 'Restaurar cuenta' : 'Archivar cuenta'}
+            Archivar cuenta
           </button>
         )}
       </div>
-    </Modal>
+      <ConfirmationSurface
+        open={confirmArchive}
+        onClose={() => setConfirmArchive(false)}
+        onConfirm={() => void handleDelete()}
+        triggerElement={archiveTrigger}
+        eyebrow="ARCHIVAR CUENTA"
+        title={`¿Archivar ${account?.name ?? 'esta cuenta'}?`}
+        description="Deja de aparecer para nuevas cargas, sin modificar movimientos históricos."
+        confirmLabel="Archivar cuenta"
+        busy={isDeleting}
+        destructive
+      >
+        Los movimientos vinculados se conservan. Si la cuenta nunca tuvo movimientos, Gota puede quitarla definitivamente.
+      </ConfirmationSurface>
+    </TaskSurface>
   )
 }
