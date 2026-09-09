@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState, useEffect } from 'react'
+import { CaretRight, Trash } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { InlineError } from '@/components/ui/InlineError'
@@ -204,8 +205,11 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
         ) * (rateNum / 100 / 365)
       : null
 
-  const inputClass =
+  const legacyInputClass =
     'w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-2 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none'
+  const editInputClass =
+    'w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none placeholder:text-text-disabled focus:border-primary focus:ring-0'
+  const inputClass = isNew ? legacyInputClass : editInputClass
 
   return (
     <TaskSurface
@@ -214,6 +218,8 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
       eyebrow={TYPE_LABELS[type].toUpperCase()}
       title={isNew ? 'Nueva cuenta' : account?.name ?? 'Editar cuenta'}
       description={isNew ? 'Definí la cuenta y su punto de partida.' : 'Revisá identidad, saldo inicial y preferencias de esta cuenta.'}
+      appearance={isNew ? 'brand' : 'compact'}
+      navigationTitle={isNew ? undefined : 'Editar cuenta'}
       initialFocusRef={nameRef}
       triggerElement={triggerElement}
       footer={
@@ -227,61 +233,76 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
         </button>
       }
     >
-      <div className="space-y-4">
+      <div className={isNew ? 'space-y-4' : 'space-y-5'}>
         <InlineError message={error} />
-        <label className="block space-y-1">
-          <span className="text-[10px] text-text-tertiary">Nombre</span>
-          <input
-            ref={nameRef}
-            type="text"
-            placeholder="Ej. Banco Nación"
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            className={inputClass}
-          />
-        </label>
-
-        {/* Saldo base histórico */}
-        <div className="rounded-card border border-border-subtle bg-bg-tertiary px-3 py-3 space-y-2">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-medium uppercase tracking-wider text-text-tertiary">
-              {isNew ? 'SALDO INICIAL HISTÓRICO' : 'Saldo inicial histórico'}
+        <div className={isNew ? 'contents' : 'space-y-2'}>
+          {!isNew && <h3 className="px-1 type-micro text-text-tertiary">INFORMACIÓN</h3>}
+          <section
+            data-account-edit-information={!isNew ? '' : undefined}
+            className={isNew ? 'contents' : 'surface-module block overflow-hidden rounded-card border border-border-subtle bg-white'}
+          >
+          <label className={isNew ? 'block space-y-1' : 'block px-4 pb-4 pt-4'}>
+            <span className={isNew ? 'text-[10px] text-text-tertiary' : 'mb-1.5 block text-[11px] font-semibold text-text-tertiary'}>
+              Nombre
             </span>
-            {periodSource && !isNew && (
-              <span className="text-[9px] font-semibold tracking-wider text-text-disabled">
-                {SOURCE_LABELS[periodSource] ?? periodSource}
+            <input
+              ref={nameRef}
+              type="text"
+              placeholder="Ej. Banco Nación"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              className={inputClass}
+            />
+            {!isNew && (
+              <span className="mt-2 block text-[11px] leading-relaxed text-text-tertiary">
+                Identifica la cuenta en movimientos y saldos.
               </span>
             )}
+          </label>
+
+          {/* Saldo base histórico */}
+          <div className={isNew ? 'space-y-2 rounded-card border border-border-subtle bg-bg-tertiary px-3 py-3' : 'space-y-3 border-t border-border-subtle px-4 py-4'}>
+            <div className="flex items-center justify-between gap-3">
+              <span className={isNew ? 'text-[10px] font-medium uppercase tracking-wider text-text-tertiary' : 'text-[13px] font-semibold text-text-primary'}>
+                {isNew ? 'SALDO INICIAL HISTÓRICO' : 'Saldo inicial histórico'}
+              </span>
+              {periodSource && !isNew && (
+                <span className="rounded-pill bg-primary-soft px-2 py-1 text-[9px] font-semibold tracking-wider text-primary">
+                  {SOURCE_LABELS[periodSource] ?? periodSource}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <label className="space-y-1">
+                <span className={isNew ? 'text-[10px] text-text-disabled' : 'text-[10px] font-semibold uppercase tracking-wider text-text-tertiary'}>ARS</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={openingArs}
+                  onChange={(e) => setOpeningArs(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+              <label className="space-y-1">
+                <span className={isNew ? 'text-[10px] text-text-disabled' : 'text-[10px] font-semibold uppercase tracking-wider text-text-tertiary'}>USD</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={openingUsd}
+                  onChange={(e) => setOpeningUsd(e.target.value)}
+                  className={inputClass}
+                />
+              </label>
+            </div>
+            <p className={isNew ? 'text-[10px] text-text-disabled' : 'text-[11px] leading-relaxed text-text-tertiary'}>
+              {isNew
+                ? 'El dinero que ya tenés en esta cuenta antes de empezar a registrar.'
+                : 'Corrige el punto de partida histórico. No modifica snapshots mensuales.'}
+            </p>
           </div>
-          <div className="grid grid-cols-2 gap-2">
-            <label className="space-y-1">
-              <span className="text-[10px] text-text-disabled">ARS</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="0"
-                value={openingArs}
-                onChange={(e) => setOpeningArs(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-            <label className="space-y-1">
-              <span className="text-[10px] text-text-disabled">USD</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="0"
-                value={openingUsd}
-                onChange={(e) => setOpeningUsd(e.target.value)}
-                className={inputClass}
-              />
-            </label>
-          </div>
-          <p className="text-[10px] text-text-disabled">
-            {isNew
-              ? 'El dinero que ya tenés en esta cuenta antes de empezar a registrar.'
-              : 'Corrige el punto de partida histórico de la cuenta. No edita snapshots mensuales.'}
-          </p>
+          </section>
         </div>
 
         {!isNew && periodSource && (
@@ -290,14 +311,24 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
           </p>
         )}
 
-        {type !== 'cash' && (
-          <div className="flex items-center justify-between rounded-card border border-border-subtle bg-bg-tertiary px-3 py-2.5">
-            <span className="text-sm text-text-primary">Cuenta principal</span>
+        <div className={isNew ? 'contents' : 'space-y-2'}>
+          {!isNew && <h3 className="px-1 type-micro text-text-tertiary">COMPORTAMIENTO</h3>}
+          <section
+            data-account-edit-behavior={!isNew ? '' : undefined}
+            className={isNew ? 'contents' : 'surface-module block overflow-hidden rounded-card border border-border-subtle bg-white'}
+          >
+          {type !== 'cash' && (
+          <div className={isNew ? 'flex items-center justify-between rounded-card border border-border-subtle bg-bg-tertiary px-3 py-2.5' : 'flex min-h-[68px] items-center justify-between gap-4 px-4 py-3.5'}>
+            <span>
+              <span className="block text-sm font-medium text-text-primary">Cuenta principal</span>
+              {!isNew && <span className="mt-0.5 block text-[11px] text-text-tertiary">La opción predeterminada para nuevas cargas.</span>}
+            </span>
             <button
+              type="button"
               onClick={() => setIsPrimary((v) => !v)}
               aria-label={isPrimary ? 'Quitar principal' : 'Marcar como principal'}
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                isPrimary ? 'bg-primary' : 'bg-bg-elevated'
+                isPrimary ? 'bg-primary' : isNew ? 'bg-bg-elevated' : 'bg-text-disabled/55'
               }`}
             >
               <span
@@ -310,19 +341,21 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
         )}
 
         {/* Rendimiento diario */}
-        {FF_YIELD && <div className="rounded-card border border-border-subtle bg-bg-tertiary px-3 py-2.5 space-y-0">
+        {FF_YIELD && <div className={isNew ? 'space-y-0 rounded-card border border-border-subtle bg-bg-tertiary px-3 py-2.5' : `${type !== 'cash' ? 'border-t border-border-subtle' : ''} space-y-0 px-4 py-3.5`}>
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-text-primary">Rendimiento diario</p>
+              <p className="text-sm font-medium text-text-primary">Rendimiento diario</p>
               {!yieldEnabled && (
-                <p className="text-[10px] text-text-disabled">Desactivado</p>
+                <p className={isNew ? 'text-[10px] text-text-disabled' : 'mt-0.5 text-[11px] text-text-tertiary'}>
+                  {isNew ? 'Desactivado' : 'Estima el rendimiento que genera esta cuenta.'}
+                </p>
               )}
             </div>
             <button
               onClick={() => setYieldEnabled((v) => !v)}
               aria-label={yieldEnabled ? 'Desactivar rendimiento' : 'Activar rendimiento'}
               className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                yieldEnabled ? 'bg-primary' : 'bg-bg-elevated'
+                yieldEnabled ? 'bg-primary' : isNew ? 'bg-bg-elevated' : 'bg-text-disabled/55'
               }`}
             >
               <span
@@ -334,7 +367,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
           </div>
 
           {yieldEnabled && (
-            <div className="space-y-3 pt-3 mt-2.5 border-t border-border-subtle">
+            <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
               <label className="block space-y-1">
                 <span className="text-[10px] text-text-disabled">TNA %</span>
                 <input
@@ -437,16 +470,26 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
             </div>
           )}
         </div>}
+          </section>
+        </div>
 
 
         {!isNew && (
           <button
+            data-account-edit-archive
             type="button"
             onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }}
             disabled={isDeleting}
-            className="w-full rounded-button border border-border-strong py-2.5 text-sm text-text-tertiary transition-colors hover:border-danger/40 hover:text-danger disabled:opacity-50"
+            className="surface-module flex min-h-[66px] w-full items-center gap-3 rounded-card border border-danger/10 bg-white px-3.5 py-3 text-left transition-colors hover:border-danger/20 disabled:opacity-50"
           >
-            Archivar cuenta
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-danger-soft text-danger">
+              <Trash size={17} weight="regular" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-danger">Archivar cuenta</span>
+              <span className="mt-0.5 block text-[11px] text-text-tertiary">Conserva sus movimientos y su historial.</span>
+            </span>
+            <CaretRight size={17} className="shrink-0 text-danger/45" />
           </button>
         )}
       </div>
