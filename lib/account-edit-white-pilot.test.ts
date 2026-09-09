@@ -49,6 +49,17 @@ describe('Account edit white pilot', () => {
     expect(source).toContain('font-semibold text-text-tertiary">TNA %')
   })
 
+  it('uses a single line focus treatment and locale-formatted numeric inputs', () => {
+    const source = read('../components/settings/AccountBottomSheet.tsx')
+
+    expect(source).toContain("import { formatArDecimal, parseArDecimalInput, parseArSignedDecimalInput } from '@/lib/ar-input'")
+    expect(source).toContain('focus-visible:!outline-none')
+    expect(source).toContain('value={formatArDecimal(openingArs)}')
+    expect(source).toContain('setOpeningArs(parseArSignedDecimalInput(e.target.value))')
+    expect(source).toContain('value={formatArDecimal(yieldCapAmount)}')
+    expect(source).toContain('setYieldCapAmount(parseArDecimalInput(e.target.value))')
+  })
+
   it('groups account edit controls into white semantic sections without tertiary field wells', () => {
     const source = read('../components/settings/AccountBottomSheet.tsx')
 
