@@ -112,7 +112,7 @@ export function TaskSurface({
 
         <div
           data-task-footer
-          className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? 'pb-[calc(env(safe-area-inset-bottom)+20px)]' : 'pb-5'}`}
+          className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}
         >
           {footer}
         </div>
