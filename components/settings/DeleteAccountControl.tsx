@@ -55,6 +55,8 @@ export function DeleteAccountControl() {
       <TaskSurface
         open={showConfirm}
         onClose={resetConfirm}
+        appearance="compact"
+        navigationTitle="Eliminar cuenta"
         triggerRef={triggerRef}
         initialFocusRef={inputRef}
         eyebrow="PRIVACIDAD Y DATOS"
@@ -73,7 +75,7 @@ export function DeleteAccountControl() {
           </div>
           <label className="block">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">Escribí ELIMINAR para confirmar</span>
-            <input ref={inputRef} type="text" value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setDeleteError(null) }} disabled={isDeleting} autoComplete="off" className="w-full rounded-input border border-danger/30 bg-bg-primary px-3 py-3 text-sm text-text-primary outline-none focus:border-danger disabled:opacity-50" />
+            <input ref={inputRef} type="text" value={confirmation} onChange={(event) => { setConfirmation(event.target.value); setDeleteError(null) }} disabled={isDeleting} autoComplete="off" className="w-full border-0 border-b border-danger/40 bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-danger focus:ring-0 disabled:opacity-50" />
           </label>
           <InlineError message={deleteError} />
         </div>

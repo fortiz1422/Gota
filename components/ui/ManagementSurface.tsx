@@ -36,6 +36,8 @@ export function ManagementSurface({
       onClose={onClose}
       labelledBy={titleId}
       extendIntoTopSafeArea
+      extendIntoBottomSafeArea
+      fillAvailableHeight
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
     >
@@ -63,9 +65,13 @@ export function ManagementSurface({
         </BlueHeaderZone>
 
         <div data-management-scroll className="relative -mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[22px] pb-8 pt-3">
-          {action ? <div className="mb-5">{action}</div> : null}
           {children}
         </div>
+        {action ? (
+          <div data-management-footer className="shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pb-[max(12px,env(safe-area-inset-bottom))] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl">
+            {action}
+          </div>
+        ) : null}
       </div>
     </FullScreenSheet>
   )

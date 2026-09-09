@@ -113,6 +113,8 @@ function CardTask({ card, month, accounts, triggerElement, onClose, onSaved, onR
     <TaskSurface
       open
       onClose={onClose}
+      appearance="compact"
+      navigationTitle={isNew ? 'Nueva tarjeta' : 'Editar tarjeta'}
       triggerElement={triggerElement}
       initialFocusRef={nameRef}
       eyebrow="TARJETAS"
@@ -126,36 +128,39 @@ function CardTask({ card, month, accounts, triggerElement, onClose, onSaved, onR
     >
       <div className="space-y-5">
         {error ? <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
-          <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Visa Galicia" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
-        </label>
-        <label className="block">
-          <span className="mb-1 block text-xs font-semibold text-text-secondary">Últimos 4 dígitos <span className="font-normal text-text-tertiary">(opcional)</span></span>
-          <input inputMode="numeric" autoComplete="off" maxLength={4} value={lastFour} onChange={(event) => { setLastFour(event.target.value); setError(null) }} placeholder="1234" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
-          <span className="mt-1 block text-xs text-text-tertiary">Sólo se guarda el sufijo para reconocerla: •••• 1234.</span>
-        </label>
-        <section className="rounded-card border border-border-strong bg-bg-primary p-4">
+        <section data-card-edit-information className="surface-module overflow-hidden rounded-card border border-border-subtle bg-white">
+          <label className="block px-4 pb-4 pt-4">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
+            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Visa Galicia" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+          </label>
+          <label className="block border-t border-border-subtle px-4 py-4">
+            <span className="mb-1 block text-xs font-semibold text-text-secondary">Últimos 4 dígitos <span className="font-normal text-text-tertiary">(opcional)</span></span>
+            <input inputMode="numeric" autoComplete="off" maxLength={4} value={lastFour} onChange={(event) => { setLastFour(event.target.value); setError(null) }} placeholder="1234" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+            <span className="mt-1 block text-xs text-text-tertiary">Sólo se guarda el sufijo para reconocerla: •••• 1234.</span>
+          </label>
+        </section>
+        <section data-card-edit-cycle className="surface-module rounded-card border border-border-subtle bg-white p-4">
           <h3 className="text-sm font-semibold text-text-primary">Ciclo habitual</h3>
           <p className="mt-1 text-xs leading-5 text-text-tertiary">Estas fechas son la referencia habitual. Los resúmenes pueden tener fechas exactas propias.</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Cierre</span><input type="date" value={closingDate} min={`${month}-01`} max={`${month}-31`} onChange={(event) => setClosingDate(event.target.value)} className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-2 py-3 text-xs text-text-primary" /></label>
-            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Vencimiento</span><input type="date" value={dueDate} min={`${dueMonth}-01`} max={`${dueMonth}-31`} onChange={(event) => setDueDate(event.target.value)} className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-2 py-3 text-xs text-text-primary" /></label>
+            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Cierre</span><input type="date" value={closingDate} min={`${month}-01`} max={`${month}-31`} onChange={(event) => setClosingDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary outline-none focus:border-primary focus:ring-0" /></label>
+            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Vencimiento</span><input type="date" value={dueDate} min={`${dueMonth}-01`} max={`${dueMonth}-31`} onChange={(event) => setDueDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary outline-none focus:border-primary focus:ring-0" /></label>
           </div>
         </section>
-        <label className="block">
+        <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
           <span className="mb-1 block text-xs font-semibold text-text-secondary">Cuenta asociada</span>
-          <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary">
+          <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary outline-none focus:border-primary focus:ring-0">
             <option value="">Sin cuenta asociada</option>
             {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
           </select>
         </label>
         {!isNew && card ? (
-          <button type="button" onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }} disabled={removing} className="flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-danger/30 text-sm font-semibold text-danger disabled:opacity-50">
+          <button data-card-edit-archive type="button" onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }} disabled={removing} className="surface-module flex min-h-[66px] w-full items-center justify-center gap-2 rounded-card border border-danger/15 bg-white text-sm font-semibold text-danger disabled:opacity-50">
             <Trash size={17} /> Archivar tarjeta
           </button>
         ) : null}
         <ConfirmationSurface
+          appearance="compact"
           open={confirmArchive}
           onClose={() => setConfirmArchive(false)}
           onConfirm={() => void remove()}
@@ -215,7 +220,7 @@ export function CardsSection({ cards: initialCards, standalone = false, month, a
   const summary = cards.length === 0 ? 'Sin tarjetas' : `${cards.length} tarjeta${cards.length === 1 ? '' : 's'}`
 
   const content = (
-    <div>
+    <div className={standalone ? 'flex min-h-full flex-col' : undefined}>
       {cards.length === 0 ? <CardEmptyState onAdd={(trigger) => openEditor(null, trigger)} /> : (
         <ul className="divide-y divide-border-subtle overflow-hidden rounded-card border border-border-strong bg-bg-primary">
           {cards.map((card) => {
@@ -237,7 +242,7 @@ export function CardsSection({ cards: initialCards, standalone = false, month, a
           })}
         </ul>
       )}
-      {cards.length > 0 ? <button type="button" onClick={(event) => openEditor(null, event.currentTarget)} className="mt-4 flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-primary text-sm font-semibold text-white"><Plus size={16} /> Agregar tarjeta</button> : null}
+      {cards.length > 0 ? <div className={standalone ? 'mt-auto pt-4' : 'mt-4'}><button type="button" onClick={(event) => openEditor(null, event.currentTarget)} className="flex min-h-12 w-full items-center justify-center gap-2 rounded-button bg-primary text-sm font-semibold text-white"><Plus size={16} /> Agregar tarjeta</button></div> : null}
     </div>
   )
 

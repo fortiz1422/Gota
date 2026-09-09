@@ -229,11 +229,11 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
       )}
 
       {isLoading ? (
-        <div className={`rounded-input px-3 py-3 text-text-tertiary ${compact ? 'bg-bg-secondary text-xs' : 'bg-white text-[13px]'}`}>
+        <div className={`rounded-input px-3 py-3 text-text-tertiary ${compact ? 'border border-border-subtle bg-white text-xs' : 'bg-white text-[13px]'}`}>
           Cargando passkeys...
         </div>
       ) : passkeys.length === 0 ? (
-        <div className={`rounded-input px-3 py-3 ${compact ? 'bg-bg-secondary' : 'bg-white'}`}>
+        <div className={`rounded-input px-3 py-3 ${compact ? 'border border-border-subtle bg-white' : 'bg-white'}`}>
           <div className="flex items-start gap-2.5">
             <div className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
               <Fingerprint size={16} weight="regular" />
@@ -258,7 +258,7 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
             return (
               <div
                 key={passkey.id}
-                className={`rounded-input border border-border-ocean/70 px-3 py-3 ${compact ? 'bg-bg-secondary' : 'bg-white'}`}
+                className="rounded-input border border-border-subtle bg-white px-3 py-3"
               >
                 {isEditing ? (
                   <div className="space-y-2">
@@ -339,6 +339,7 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
       {successMessage && <p className="text-xs font-medium text-success">{successMessage}</p>}
     </div>
     <ConfirmationSurface
+      appearance={compact ? 'compact' : 'brand'}
       open={deleteConfirmation !== null}
       onClose={() => setDeleteConfirmation(null)}
       onConfirm={() => { if (deleteConfirmation) void handleDelete(deleteConfirmation.id) }}

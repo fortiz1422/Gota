@@ -152,6 +152,7 @@ export function AccountsSection({ initialAccounts, month, standalone = false, on
       )}
 
       <ChoiceSurface
+        appearance="compact"
         open={choosingType}
         onClose={() => setChoosingType(false)}
         triggerElement={taskTrigger}
