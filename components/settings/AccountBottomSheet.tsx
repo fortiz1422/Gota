@@ -5,6 +5,7 @@ import { CaretRight, Trash } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { InlineError } from '@/components/ui/InlineError'
+import { Toggle } from '@/components/ui/Toggle'
 import { FF_YIELD } from '@/lib/flags'
 import type { Account, AccountType } from '@/types/database'
 
@@ -323,20 +324,11 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
               <span className="block text-sm font-medium text-text-primary">Cuenta principal</span>
               {!isNew && <span className="mt-0.5 block text-[11px] text-text-tertiary">La opción predeterminada para nuevas cargas.</span>}
             </span>
-            <button
-              type="button"
-              onClick={() => setIsPrimary((v) => !v)}
-              aria-label={isPrimary ? 'Quitar principal' : 'Marcar como principal'}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                isPrimary ? 'bg-primary' : isNew ? 'bg-bg-elevated' : 'bg-text-disabled/55'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                  isPrimary ? 'translate-x-5' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+            <Toggle
+              value={isPrimary}
+              onChange={setIsPrimary}
+              ariaLabel={isPrimary ? 'Quitar principal' : 'Marcar como principal'}
+            />
           </div>
         )}
 
@@ -351,25 +343,17 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                 </p>
               )}
             </div>
-            <button
-              onClick={() => setYieldEnabled((v) => !v)}
-              aria-label={yieldEnabled ? 'Desactivar rendimiento' : 'Activar rendimiento'}
-              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ${
-                yieldEnabled ? 'bg-primary' : isNew ? 'bg-bg-elevated' : 'bg-text-disabled/55'
-              }`}
-            >
-              <span
-                className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform duration-200 ${
-                  yieldEnabled ? 'translate-x-5' : 'translate-x-0.5'
-                }`}
-              />
-            </button>
+            <Toggle
+              value={yieldEnabled}
+              onChange={setYieldEnabled}
+              ariaLabel={yieldEnabled ? 'Desactivar rendimiento' : 'Activar rendimiento'}
+            />
           </div>
 
           {yieldEnabled && (
             <div className="mt-3 space-y-3 border-t border-border-subtle pt-3">
               <label className="block space-y-1">
-                <span className="text-[10px] text-text-disabled">TNA %</span>
+                <span className="text-[10px] font-semibold text-text-tertiary">TNA %</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -380,7 +364,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                 />
               </label>
               <label className="block space-y-1">
-                <span className="text-[10px] text-text-disabled">Proveedor</span>
+                <span className="text-[10px] font-semibold text-text-tertiary">Proveedor</span>
                 <select
                   value={yieldProvider}
                   onChange={(e) => {
@@ -395,7 +379,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                 </select>
               </label>
               <label className="block space-y-1">
-                <span className="text-[10px] text-text-disabled">Tope remunerado ARS</span>
+                <span className="text-[10px] font-semibold text-text-tertiary">Tope remunerado ARS</span>
                 <input
                   type="number"
                   inputMode="decimal"
@@ -416,12 +400,12 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                     : '—'}
                 </span>
               </div>
-              <p className="text-[10px] text-text-disabled">
+              <p className="text-[11px] leading-relaxed text-text-tertiary">
                 Gota estima rendimientos diarios y puede reemplazarlos por el monto real cuando importás el extracto del banco.
               </p>
 
               {!isNew && (
-                <div className="space-y-2 rounded-card border border-border-subtle bg-bg-secondary p-3">
+                <div data-account-yield-summary className="space-y-2 border-t border-border-subtle pt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] text-text-tertiary">Impacto en Saldo Vivo</span>
                     <span className="text-[13px] font-semibold text-success">

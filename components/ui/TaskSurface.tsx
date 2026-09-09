@@ -44,6 +44,7 @@ export function TaskSurface({
       labelledBy={titleId}
       extendIntoTopSafeArea
       extendIntoBottomSafeArea={compact}
+      fillAvailableHeight={compact}
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
       triggerElement={triggerElement}

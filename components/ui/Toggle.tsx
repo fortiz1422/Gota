@@ -4,16 +4,19 @@ interface Props {
   value: boolean
   onChange: (v: boolean) => void
   disabled?: boolean
+  ariaLabel?: string
 }
 
-export function Toggle({ value, onChange, disabled = false }: Props) {
+export function Toggle({ value, onChange, disabled = false, ariaLabel }: Props) {
   return (
     <button
+      type="button"
       role="switch"
       aria-checked={value}
+      aria-label={ariaLabel}
       onClick={() => !disabled && onChange(!value)}
       disabled={disabled}
-      className={`relative h-6 w-11 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40 ${
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none disabled:opacity-40 ${
         value ? 'bg-primary' : 'bg-bg-elevated'
       }`}
     >
