@@ -209,7 +209,7 @@ export function SubscriptionBottomSheet({
           <label htmlFor={amountId} className="mb-2 mt-5 block type-meta font-semibold text-text-secondary">Monto mensual</label>
           <div className="flex min-h-[62px] items-center border-b border-border-strong focus-within:border-primary">
             <span className="mr-2 type-amount text-text-secondary">{currencySymbol}</span>
-            <input id={amountId} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary outline-none placeholder:text-text-muted focus:ring-0" />
+            <input id={amountId} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </div>
 
           <fieldset className="mt-4">
@@ -226,14 +226,14 @@ export function SubscriptionBottomSheet({
             <label htmlFor={dayId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Día de cobro</label>
             <div className="flex min-h-12 items-center gap-3 border-b border-border-strong focus-within:border-primary">
               <CalendarBlank size={18} weight="light" className="text-primary" />
-              <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary outline-none focus:ring-0" />
+              <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
               <span className="type-body text-text-tertiary">de cada mes</span>
             </div>
           </div>
 
           <div className="border-b border-border-subtle py-3">
             <label htmlFor={categoryId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Categoría</label>
-            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full border-0 border-b border-border-strong bg-transparent px-0 type-body text-text-primary outline-none focus:border-primary focus:ring-0">
+            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full border-0 border-b border-border-strong bg-transparent px-0 type-body text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
               {CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>

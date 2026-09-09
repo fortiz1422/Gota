@@ -131,11 +131,11 @@ function CardTask({ card, month, accounts, triggerElement, onClose, onSaved, onR
         <section data-card-edit-information className="surface-module overflow-hidden rounded-card border border-border-subtle bg-white">
           <label className="block px-4 pb-4 pt-4">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
-            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Visa Galicia" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Visa Galicia" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </label>
           <label className="block border-t border-border-subtle px-4 py-4">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">Últimos 4 dígitos <span className="font-normal text-text-tertiary">(opcional)</span></span>
-            <input inputMode="numeric" autoComplete="off" maxLength={4} value={lastFour} onChange={(event) => { setLastFour(event.target.value); setError(null) }} placeholder="1234" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
+            <input inputMode="numeric" autoComplete="off" maxLength={4} value={lastFour} onChange={(event) => { setLastFour(event.target.value); setError(null) }} placeholder="1234" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
             <span className="mt-1 block text-xs text-text-tertiary">Sólo se guarda el sufijo para reconocerla: •••• 1234.</span>
           </label>
         </section>
@@ -143,13 +143,13 @@ function CardTask({ card, month, accounts, triggerElement, onClose, onSaved, onR
           <h3 className="text-sm font-semibold text-text-primary">Ciclo habitual</h3>
           <p className="mt-1 text-xs leading-5 text-text-tertiary">Estas fechas son la referencia habitual. Los resúmenes pueden tener fechas exactas propias.</p>
           <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Cierre</span><input type="date" value={closingDate} min={`${month}-01`} max={`${month}-31`} onChange={(event) => setClosingDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary outline-none focus:border-primary focus:ring-0" /></label>
-            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Vencimiento</span><input type="date" value={dueDate} min={`${dueMonth}-01`} max={`${dueMonth}-31`} onChange={(event) => setDueDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary outline-none focus:border-primary focus:ring-0" /></label>
+            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Cierre</span><input type="date" value={closingDate} min={`${month}-01`} max={`${month}-31`} onChange={(event) => setClosingDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" /></label>
+            <label className="block"><span className="mb-1 block text-xs text-text-secondary">Vencimiento</span><input type="date" value={dueDate} min={`${dueMonth}-01`} max={`${dueMonth}-31`} onChange={(event) => setDueDate(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-xs text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" /></label>
           </div>
         </section>
         <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
           <span className="mb-1 block text-xs font-semibold text-text-secondary">Cuenta asociada</span>
-          <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary outline-none focus:border-primary focus:ring-0">
+          <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
             <option value="">Sin cuenta asociada</option>
             {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
           </select>
