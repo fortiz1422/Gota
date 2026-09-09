@@ -176,6 +176,8 @@ export function SubscriptionBottomSheet({
       <TaskSurface
         open
         onClose={onClose}
+        appearance="compact"
+        navigationTitle={subscription ? 'Editar suscripción' : 'Nueva suscripción'}
         eyebrow="COMPROMISOS"
         title={subscription ? 'Editar suscripción' : 'Nueva suscripción'}
         description="Definí el cobro mensual y el medio desde el que se paga."
@@ -196,16 +198,16 @@ export function SubscriptionBottomSheet({
           </>
         )}
       >
-        <section className="card-s5 px-4 pb-5 pt-4" aria-labelledby={`${descriptionId}-section`}>
+        <section data-subscription-edit-charge className="surface-module rounded-card border border-border-subtle bg-white px-4 pb-5 pt-4" aria-labelledby={`${descriptionId}-section`}>
           <p id={`${descriptionId}-section`} className="type-micro text-primary">COBRO</p>
           <label htmlFor={descriptionId} className="mb-2 mt-4 block type-meta font-semibold text-text-secondary">Descripción</label>
-          <div className="flex min-h-14 items-center gap-3 rounded-input border border-border-subtle bg-bg-tertiary px-4 focus-within:border-primary">
+          <div className="flex min-h-14 items-center gap-3 border-b border-border-strong focus-within:border-primary">
             <Receipt size={18} weight="light" className="shrink-0 text-primary" />
             <input ref={descriptionRef} id={descriptionId} type="text" placeholder="Ej. Netflix, Spotify, gimnasio" value={description} onChange={(event) => { setDescription(event.target.value); if (error) setError(null) }} maxLength={100} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </div>
 
           <label htmlFor={amountId} className="mb-2 mt-5 block type-meta font-semibold text-text-secondary">Monto mensual</label>
-          <div className="flex min-h-[62px] items-center rounded-input border border-border-subtle bg-bg-primary px-4 focus-within:border-primary">
+          <div className="flex min-h-[62px] items-center border-b border-border-strong focus-within:border-primary">
             <span className="mr-2 type-amount text-text-secondary">{currencySymbol}</span>
             <input id={amountId} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary outline-none placeholder:text-text-muted focus:ring-0" />
           </div>
@@ -222,7 +224,7 @@ export function SubscriptionBottomSheet({
           <p id={`${dayId}-section`} className="mb-3 type-micro text-text-secondary">PROGRAMACIÓN</p>
           <div className="border-y border-border-subtle py-3">
             <label htmlFor={dayId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Día de cobro</label>
-            <div className="flex min-h-12 items-center gap-3 rounded-input bg-bg-tertiary px-4 focus-within:ring-1 focus-within:ring-primary">
+            <div className="flex min-h-12 items-center gap-3 border-b border-border-strong focus-within:border-primary">
               <CalendarBlank size={18} weight="light" className="text-primary" />
               <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary outline-none focus:ring-0" />
               <span className="type-body text-text-tertiary">de cada mes</span>
@@ -231,7 +233,7 @@ export function SubscriptionBottomSheet({
 
           <div className="border-b border-border-subtle py-3">
             <label htmlFor={categoryId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Categoría</label>
-            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full rounded-input border border-border-subtle bg-bg-tertiary px-4 type-body text-text-primary">
+            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full border-0 border-b border-border-strong bg-transparent px-0 type-body text-text-primary outline-none focus:border-primary focus:ring-0">
               {CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
@@ -267,6 +269,7 @@ export function SubscriptionBottomSheet({
       </TaskSurface>
 
       <ChoiceSurface
+        appearance="compact"
         open={pendingPayload !== null}
         onClose={() => setPendingPayload(null)}
         triggerElement={decisionTrigger}
@@ -287,6 +290,7 @@ export function SubscriptionBottomSheet({
       </ChoiceSurface>
 
       <ConfirmationSurface
+        appearance="compact"
         open={archiveConfirmOpen}
         onClose={() => setArchiveConfirmOpen(false)}
         onConfirm={() => { void handleArchive() }}

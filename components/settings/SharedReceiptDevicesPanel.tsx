@@ -221,6 +221,8 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
       <TaskSurface
         open={creating}
         onClose={closeCredentialTask}
+        appearance="compact"
+        navigationTitle={oneTimeToken ? 'Token del dispositivo' : 'Conectar iPhone'}
         triggerElement={taskTrigger}
         initialFocusRef={oneTimeToken ? undefined : nameRef}
         eyebrow="DISPOSITIVOS"
@@ -249,14 +251,15 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
             ) : null}
           </section>
         ) : (
-          <label className="block">
+          <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
             <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre del dispositivo</span>
-            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. iPhone personal" className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-3 text-sm text-text-primary" />
+            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. iPhone personal" className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0" />
           </label>
         )}
       </TaskSurface>
 
       <ConfirmationSurface
+        appearance="compact"
         open={confirmation !== null}
         onClose={() => setConfirmation(null)}
         onConfirm={() => {

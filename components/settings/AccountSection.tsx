@@ -183,6 +183,8 @@ export function AccountSection({
       <TaskSurface
         open={passwordModalOpen}
         onClose={closePasswordTask}
+        appearance="compact"
+        navigationTitle={accessLabel}
         eyebrow="ACCESO"
         title={accessLabel}
         description={hasEmailProvider
@@ -202,32 +204,34 @@ export function AccountSection({
         }
       >
         <div className="space-y-4">
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-text-label">
-              Nueva contraseña
-            </span>
-            <input
-              ref={passwordInputRef}
-              type="password"
-              value={password}
-              onChange={(event) => setPassword(event.target.value)}
-              className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
-              placeholder="Mínimo 8 caracteres"
-            />
-          </label>
+          <section data-password-edit className="surface-module overflow-hidden rounded-card border border-border-subtle bg-white">
+            <label className="block px-4 pb-4 pt-4">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-text-label">
+                Nueva contraseña
+              </span>
+              <input
+                ref={passwordInputRef}
+                type="password"
+                value={password}
+                onChange={(event) => setPassword(event.target.value)}
+                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary outline-none focus:border-primary focus:ring-0"
+                placeholder="Mínimo 8 caracteres"
+              />
+            </label>
 
-          <label className="block">
-            <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-text-label">
-              Repetir contraseña
-            </span>
-            <input
-              type="password"
-              value={confirmPassword}
-              onChange={(event) => setConfirmPassword(event.target.value)}
-              className="w-full rounded-input border border-border-ocean bg-bg-tertiary px-3 py-2.5 text-sm text-text-primary outline-none"
-              placeholder="Repetí la contraseña"
-            />
-          </label>
+            <label className="block border-t border-border-subtle px-4 py-4">
+              <span className="mb-1 block text-xs font-medium uppercase tracking-[0.12em] text-text-label">
+                Repetir contraseña
+              </span>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(event) => setConfirmPassword(event.target.value)}
+                className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base text-text-primary outline-none focus:border-primary focus:ring-0"
+                placeholder="Repetí la contraseña"
+              />
+            </label>
+          </section>
 
           <InlineError message={passwordError} />
           {passwordSuccess ? <p className="text-xs font-medium text-success">{passwordSuccess}</p> : null}
