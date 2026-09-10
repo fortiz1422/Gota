@@ -1,251 +1,74 @@
 'use client'
 
-import { useState } from 'react'
-import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { useRef, useState } from 'react'
+import { Bank, DeviceMobileSpeaker, Star, Wallet } from '@phosphor-icons/react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
+import { InlineError } from '@/components/ui/InlineError'
 import { dateInputToISO } from '@/lib/format'
+import { buildIncomePayload, formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import type { Account, IncomeEntry, IncomeCategory } from '@/types/database'
 
-const INCOME_CATEGORIES: { value: IncomeCategory; label: string }[] = [
-  { value: 'salary', label: 'Sueldo' },
-  { value: 'freelance', label: 'Freelance' },
-  { value: 'other', label: 'Otro' },
-]
+const CATEGORIES: { value: IncomeCategory; label: string }[] = [{ value: 'salary', label: 'Sueldo' }, { value: 'freelance', label: 'Freelance' }, { value: 'other', label: 'Otro' }]
+const labelClass = 'mb-2 block type-meta font-semibold text-text-secondary'
+const fieldClass = 'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:outline-none'
 
-function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number }) {
+function AccountIcon({ type, size = 15 }: { type: Account['type']; size?: number }) {
   if (type === 'cash') return <Wallet weight="duotone" size={size} />
   if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
   return <Bank weight="duotone" size={size} />
 }
 
-interface Props {
-  entry: IncomeEntry
-  accounts: Account[]
-  onClose: () => void
-  onUpdate: () => void
-}
+interface Props { entry: IncomeEntry; accounts: Account[]; onClose: () => void; onUpdate: () => void }
 
 export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
+  const amountRef = useRef<HTMLInputElement>(null)
+  const deleteTriggerRef = useRef<HTMLButtonElement>(null)
   const [amount, setAmount] = useState(String(entry.amount))
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(entry.currency)
   const [category, setCategory] = useState<IncomeCategory>(entry.category)
   const [description, setDescription] = useState(entry.description ?? '')
   const [date, setDate] = useState(entry.date.substring(0, 10))
+  const [selectedKey, setSelectedKey] = useState<string | null>(entry.account_id)
   const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
   const [confirmDelete, setConfirmDelete] = useState(false)
-
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
   const cashAccount = accounts.find((a) => a.type === 'cash') ?? null
+  const effectiveKey = selectedKey === cashAccount?.id ? 'cash' : selectedKey
+  const resolveAccountId = () => effectiveKey === 'cash' ? cashAccount?.id ?? null : effectiveKey
 
-  const [selectedKey, setSelectedKey] = useState<string | null>(() => {
-    if (!entry.account_id) return null
-    if (cashAccount?.id === entry.account_id) return 'cash'
-    return entry.account_id
-  })
-
-  const resolveAccountId = (): string | null => {
-    if (selectedKey === 'cash') return cashAccount?.id ?? null
-    return selectedKey
-  }
-
-  const chipBase =
-    'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
-  const chipActive = 'border-primary bg-primary/15 text-primary'
-  const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
-
-  const handleSave = async () => {
+  async function handleSave() {
     const num = Number(amount)
-    if (!num || num <= 0) return
-    setIsSaving(true)
+    if (!num || num <= 0) { setError('Ingresá un monto mayor a cero.'); return }
+    setError(null); setIsSaving(true)
     try {
-      const res = await fetch(`/api/income-entries/${entry.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          amount: num,
-          currency,
-          category,
-          description: description.trim(),
-          date: dateInputToISO(date),
-          account_id: resolveAccountId(),
-        }),
-      })
-      if (!res.ok) throw new Error()
+      const res = await fetch(`/api/income-entries/${entry.id}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(buildIncomePayload({ accountId: resolveAccountId(), amount, currency, category, description, date: dateInputToISO(date) })) })
+      if (!res.ok) throw new Error('Error al guardar. Intentá de nuevo.')
       onUpdate()
-    } catch {
-      alert('Error al guardar. Intentá de nuevo.')
-    } finally {
-      setIsSaving(false)
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error al guardar. Intentá de nuevo.') } finally { setIsSaving(false) }
   }
-
-  const handleDelete = async () => {
+  async function handleDelete() {
     setIsSaving(true)
     try {
       const res = await fetch(`/api/income-entries/${entry.id}`, { method: 'DELETE' })
-      if (!res.ok) throw new Error()
+      if (!res.ok) throw new Error('Error al eliminar.')
       onUpdate()
-    } catch {
-      alert('Error al eliminar.')
-      setIsSaving(false)
-      setConfirmDelete(false)
-    }
+    } catch (err) { setError(err instanceof Error ? err.message : 'Error al eliminar.'); setIsSaving(false); setConfirmDelete(false) }
   }
 
-  return (
-    <Modal open onClose={onClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <h2 className="text-lg font-semibold text-text-primary">Editar ingreso</h2>
-
-      <div className="mt-5 space-y-5">
-        {/* Monto + Moneda */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Monto
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              inputMode="decimal"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-            />
-            <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ¿A dónde entra? */}
-        {accounts.length > 0 && (
-          <div>
-            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              ¿A dónde entra?
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {bankDigital.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedKey(acc.id)}
-                  className={`${chipBase} ${selectedKey === acc.id ? chipActive : chipInactive}`}
-                >
-                  <AccountIcon type={acc.type} size={13} />
-                  <span>{acc.name}</span>
-                  {acc.is_primary && (
-                    <Star
-                      weight="fill"
-                      size={9}
-                      className={selectedKey === acc.id ? 'text-primary' : 'text-text-disabled'}
-                    />
-                  )}
-                </button>
-              ))}
-              <button
-                onClick={() => setSelectedKey('cash')}
-                className={`${chipBase} ${selectedKey === 'cash' ? chipActive : chipInactive}`}
-              >
-                <Wallet weight="duotone" size={13} />
-                <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Categoría */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Categoría
-          </label>
-          <div className="flex gap-2">
-            {INCOME_CATEGORIES.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => setCategory(cat.value)}
-                className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
-                  category === cat.value
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border-subtle bg-bg-tertiary text-text-tertiary'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Descripción */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Descripción{' '}
-            <span className="normal-case text-text-disabled">(opcional)</span>
-          </label>
-          <input
-            type="text"
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            maxLength={100}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        {/* Fecha */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Fecha
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-          />
-        </div>
+  return <>
+    <TaskSurface open onClose={onClose} appearance="compact" eyebrow="INGRESOS" title="Editar ingreso" description="Actualizá los datos sin cambiar su naturaleza." initialFocusRef={amountRef}
+      footer={<><InlineError message={error} className="mb-3" /><button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 type-body-lg text-white disabled:opacity-45">{isSaving ? 'Guardando…' : 'Guardar cambios'}</button><button ref={deleteTriggerRef} type="button" onClick={() => setConfirmDelete(true)} disabled={isSaving} className="mt-1 min-h-11 w-full type-body text-danger disabled:opacity-50">Eliminar ingreso</button></>}
+    >
+      <div className="space-y-7 pb-2">
+        <section><p className="type-micro text-primary">MONTO</p><div className="mt-2 flex items-baseline gap-2 border-b border-border-strong"><span className="type-amount text-text-secondary">{currency === 'ARS' ? '$' : 'US$'}</span><input ref={amountRef} id="income-edit-amount" type="text" inputMode="decimal" value={formatMonetaryInput(amount)} onChange={(e) => setAmount(normalizeMonetaryInput(e.target.value))} aria-label="Monto" className="min-w-0 flex-1 border-0 bg-transparent py-3 type-amount text-text-primary outline-none focus:ring-0 focus-visible:outline-none" /><fieldset className="flex gap-1 pb-2"><legend className="sr-only">Moneda</legend>{(['ARS', 'USD'] as const).map((c) => <button key={c} type="button" aria-pressed={currency === c} onClick={() => setCurrency(c)} className={`rounded-button px-2 py-1 type-meta ${currency === c ? 'bg-primary text-white' : 'text-text-tertiary'}`}>{c}</button>)}</fieldset></div></section>
+        {accounts.length > 0 && <section><label className={labelClass}>¿A dónde entra?</label><div className="flex gap-2 overflow-x-auto pb-1">{[...bankDigital, ...(cashAccount ? [cashAccount] : [])].map((acc) => { const key = acc.type === 'cash' ? 'cash' : acc.id; return <button key={key} type="button" onClick={() => setSelectedKey(key === 'cash' ? cashAccount?.id ?? null : key)} aria-pressed={effectiveKey === key} className={`flex shrink-0 items-center gap-2 border-b px-1 py-2 type-body ${effectiveKey === key ? 'border-primary text-primary' : 'border-transparent text-text-tertiary'}`}><AccountIcon type={acc.type} /><span>{acc.name}</span>{acc.is_primary && <Star weight="fill" size={11} />}</button> })}</div></section>}
+        <fieldset><legend className={labelClass}>Categoría</legend><div className="grid grid-cols-3 gap-2">{CATEGORIES.map((cat) => <button key={cat.value} type="button" aria-pressed={category === cat.value} onClick={() => setCategory(cat.value)} className={`min-h-11 border-b type-body ${category === cat.value ? 'border-primary text-primary' : 'border-border-subtle text-text-tertiary'}`}>{cat.label}</button>)}</div></fieldset>
+        <div><label htmlFor="income-edit-description" className={labelClass}>Descripción <span className="normal-case font-normal text-text-muted">(opcional)</span></label><input id="income-edit-description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={100} className={fieldClass} /></div>
+        <div><label htmlFor="income-edit-date" className={labelClass}>Fecha</label><input id="income-edit-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} /></div>
       </div>
-
-      <div className="mt-6 flex flex-col gap-2">
-        <button
-          onClick={handleSave}
-          disabled={!amount || Number(amount) <= 0 || isSaving}
-          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50"
-        >
-          {isSaving && !confirmDelete ? 'Guardando...' : 'Guardar'}
-        </button>
-        {confirmDelete ? (
-          <div className="flex gap-2">
-            <button
-              onClick={() => setConfirmDelete(false)}
-              className="flex-1 rounded-button py-3 text-sm text-text-secondary"
-            >
-              Cancelar
-            </button>
-            <button
-              onClick={handleDelete}
-              disabled={isSaving}
-              className="flex-1 rounded-button bg-danger/20 py-3 text-sm font-semibold text-danger disabled:opacity-50"
-            >
-              {isSaving ? '...' : 'Eliminar'}
-            </button>
-          </div>
-        ) : (
-          <button
-            onClick={() => setConfirmDelete(true)}
-            className="w-full rounded-button py-3 text-sm text-danger"
-          >
-            Eliminar ingreso
-          </button>
-        )}
-      </div>
-    </Modal>
-  )
+    </TaskSurface>
+    <ConfirmationSurface open={confirmDelete} onClose={() => { if (!isSaving) setConfirmDelete(false) }} onConfirm={() => { void handleDelete() }} triggerElement={deleteTriggerRef.current} appearance="compact" destructive title="Eliminar ingreso" description="Esta acción elimina el ingreso y no se puede deshacer." confirmLabel="Eliminar ingreso" busy={isSaving}><p>Se conservarán las demás operaciones y cuentas.</p></ConfirmationSurface>
+  </>
 }

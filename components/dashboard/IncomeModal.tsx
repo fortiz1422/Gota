@@ -1,11 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
-import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
-import { todayAR, dateInputToISO } from '@/lib/format'
+import { Bank, DeviceMobileSpeaker, Star, Wallet } from '@phosphor-icons/react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { InlineError } from '@/components/ui/InlineError'
+import { dateInputToISO, todayAR } from '@/lib/format'
+import { buildIncomePayload, formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import type { Account, IncomeCategory } from '@/types/database'
 
 interface Props {
@@ -13,13 +15,7 @@ interface Props {
   defaultCurrency: 'ARS' | 'USD'
   onClose: () => void
   onSaved?: () => void
-  prefill?: {
-    amount: number
-    currency: 'ARS' | 'USD'
-    category: IncomeCategory
-    description: string
-    account_id: string | null
-  }
+  prefill?: { amount: number; currency: 'ARS' | 'USD'; category: IncomeCategory; description: string; account_id: string | null }
   recurringIncomeId?: string
 }
 
@@ -29,270 +25,75 @@ const INCOME_CATEGORIES: { value: IncomeCategory; label: string }[] = [
   { value: 'other', label: 'Otro' },
 ]
 
-function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number }) {
+function AccountIcon({ type, size = 15 }: { type: Account['type']; size?: number }) {
   if (type === 'cash') return <Wallet weight="duotone" size={size} />
   if (type === 'digital') return <DeviceMobileSpeaker weight="duotone" size={size} />
   return <Bank weight="duotone" size={size} />
 }
 
+const labelClass = 'mb-2 block type-meta font-semibold text-text-secondary'
+const fieldClass = 'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:outline-none'
+
 export function IncomeModal({ accounts, defaultCurrency, onClose, onSaved, prefill, recurringIncomeId }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
+  const amountRef = useRef<HTMLInputElement>(null)
   const [amount, setAmount] = useState(() => prefill ? String(prefill.amount) : '')
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(() => prefill?.currency ?? defaultCurrency)
   const [category, setCategory] = useState<IncomeCategory>(() => prefill?.category ?? 'salary')
   const [description, setDescription] = useState(() => prefill?.description ?? '')
-  const [date, setDate] = useState(() => todayAR())
-  const [isSaving, setIsSaving] = useState(false)
+  const [date, setDate] = useState(todayAR)
+  const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [repeat, setRepeat] = useState(false)
-  const [dayOfMonth, setDayOfMonth] = useState(() => new Date().getDate())
+  const [dayOfMonth, setDayOfMonth] = useState(new Date().getDate())
+  const [isSaving, setIsSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
   const cashAccount = accounts.find((a) => a.type === 'cash') ?? null
   const primaryAccount = bankDigital.find((a) => a.is_primary) ?? bankDigital[0]
   const defaultAccountKey = primaryAccount?.id ?? (cashAccount ? 'cash' : null)
-  const [selectedKey, setSelectedKey] = useState<string | null>(() => {
-    if (prefill?.account_id) {
-      if (cashAccount?.id === prefill.account_id) return 'cash'
-      if (bankDigital.some((a) => a.id === prefill.account_id)) return prefill.account_id
-    }
-    return defaultAccountKey
-  })
+  const prefillKey = prefill?.account_id && (cashAccount?.id === prefill.account_id ? 'cash' : bankDigital.some((account) => account.id === prefill.account_id) ? prefill.account_id : null)
+  const effectiveSelectedKey = selectedKey ?? prefillKey ?? defaultAccountKey
+  const resolveAccountId = () => effectiveSelectedKey === 'cash' ? cashAccount?.id ?? null : effectiveSelectedKey
 
-  const resolveAccountId = (): string | null => {
-    if (selectedKey === 'cash') return cashAccount?.id ?? null
-    return selectedKey
-  }
-
-  const handleSave = async () => {
+  async function handleSave() {
     const num = Number(amount)
-    if (!num || num <= 0) return
+    if (!num || num <= 0) { setError('Ingresá un monto mayor a cero.'); return }
+    setError(null)
     setIsSaving(true)
     try {
       const res = await fetch('/api/income-entries', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          account_id: resolveAccountId(),
-          amount: num,
-          currency,
-          description: description.trim(),
-          category,
-          date: dateInputToISO(date),
-          ...(recurringIncomeId ? { recurring_income_id: recurringIncomeId } : {}),
-          ...(repeat && !recurringIncomeId ? { recurring: { day_of_month: dayOfMonth } } : {}),
-        }),
+        body: JSON.stringify(buildIncomePayload({
+          accountId: resolveAccountId(), amount, currency, description, category, date: dateInputToISO(date),
+          recurringIncomeId, recurring: repeat ? { day_of_month: dayOfMonth } : undefined,
+        })),
       })
-      if (!res.ok) throw new Error()
+      if (!res.ok) throw new Error('Error al registrar ingreso. Intentá de nuevo.')
       queryClient.invalidateQueries({ queryKey: ['dashboard'] })
       queryClient.invalidateQueries({ queryKey: ['account-breakdown'] })
       router.refresh()
       onSaved?.()
       onClose()
-    } catch {
-      alert('Error al registrar ingreso. Intentá de nuevo.')
-    } finally {
-      setIsSaving(false)
-    }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Error al registrar ingreso. Intentá de nuevo.')
+    } finally { setIsSaving(false) }
   }
-
-  const scrollOnFocus = (e: React.FocusEvent<HTMLInputElement>) => {
-    setTimeout(() => e.target.scrollIntoView({ block: 'nearest', behavior: 'smooth' }), 300)
-  }
-
-  const chipBase =
-    'flex shrink-0 items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-medium transition-colors border'
-  const chipActive = 'border-primary bg-primary/15 text-primary'
-  const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
 
   return (
-    <Modal open onClose={onClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <h2 className="text-lg font-semibold text-text-primary">Registrar ingreso</h2>
-      <p className="mb-5 mt-1 text-xs text-text-tertiary">¿Cuánto y de dónde entra?</p>
-
-      <div className="space-y-5">
-        {/* Monto + Moneda */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Monto
-          </label>
-          <div className="flex gap-2">
-            <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              onFocus={scrollOnFocus}
-              className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-            />
-            <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((c) => (
-                <button
-                  key={c}
-                  onClick={() => setCurrency(c)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'
-                  }`}
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-
-        {/* ¿A dónde entra? */}
-        {accounts.length > 0 && (
-          <div>
-            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-              ¿A dónde entra?
-            </label>
-            <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-              {bankDigital.map((acc) => (
-                <button
-                  key={acc.id}
-                  onClick={() => setSelectedKey(acc.id)}
-                  className={`${chipBase} ${selectedKey === acc.id ? chipActive : chipInactive}`}
-                >
-                  <AccountIcon type={acc.type} size={13} />
-                  <span>{acc.name}</span>
-                  {acc.is_primary && (
-                    <Star
-                      weight="fill"
-                      size={9}
-                      className={selectedKey === acc.id ? 'text-primary' : 'text-text-disabled'}
-                    />
-                  )}
-                </button>
-              ))}
-              <button
-                onClick={() => setSelectedKey('cash')}
-                className={`${chipBase} ${selectedKey === 'cash' ? chipActive : chipInactive}`}
-              >
-                <Wallet weight="duotone" size={13} />
-                <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Categoría */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Categoría
-          </label>
-          <div className="flex gap-2">
-            {INCOME_CATEGORIES.map((cat) => (
-              <button
-                key={cat.value}
-                onClick={() => setCategory(cat.value)}
-                className={`flex-1 rounded-full border px-3 py-2 text-sm font-medium transition-colors ${
-                  category === cat.value
-                    ? 'border-primary bg-primary/15 text-primary'
-                    : 'border-border-subtle bg-bg-tertiary text-text-tertiary'
-                }`}
-              >
-                {cat.label}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {/* Descripción */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Descripción{' '}
-            <span className="normal-case text-text-disabled">(opcional)</span>
-          </label>
-          <input
-            type="text"
-            placeholder="Ej. Quincena, proyecto freelance..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onFocus={scrollOnFocus}
-            maxLength={100}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        {/* Repetir cada mes — solo si no viene de un recordatorio existente */}
-        {!recurringIncomeId && (
-          <div>
-            <div className="flex items-center justify-between">
-              <label className="text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-                Repetir cada mes
-              </label>
-              <button
-                type="button"
-                role="switch"
-                aria-checked={repeat}
-                onClick={() => setRepeat((v) => !v)}
-                className={`relative h-6 w-10 rounded-full transition-colors ${
-                  repeat ? 'bg-primary' : 'border border-border-subtle bg-bg-tertiary'
-                }`}
-              >
-                <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-sm transition-transform ${
-                    repeat ? 'translate-x-4' : 'translate-x-0.5'
-                  }`}
-                />
-              </button>
-            </div>
-            {repeat && (
-              <div className="mt-3">
-                <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-                  Día del mes <span className="normal-case text-text-disabled">(1–28)</span>
-                </label>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min={1}
-                  max={28}
-                  value={dayOfMonth}
-                  onChange={(e) =>
-                    setDayOfMonth(Math.min(28, Math.max(1, Number(e.target.value) || 1)))
-                  }
-                  onFocus={scrollOnFocus}
-                  className="w-28 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-                />
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Fecha */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Fecha
-          </label>
-          <input
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-            onFocus={scrollOnFocus}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-          />
-        </div>
+    <TaskSurface open onClose={onClose} appearance="compact" eyebrow="INGRESOS" title="Registrar ingreso" description="¿Cuánto y de dónde entra?" initialFocusRef={amountRef}
+      footer={<><InlineError message={error} className="mb-3" /><button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 type-body-lg text-white disabled:opacity-45">{isSaving ? 'Guardando…' : 'Guardar ingreso'}</button><button type="button" onClick={onClose} disabled={isSaving} className="mt-1 min-h-11 w-full type-body text-text-tertiary disabled:opacity-50">Cancelar</button></>}
+    >
+      <div className="space-y-7 pb-2">
+        <section className="surface-module" aria-labelledby="income-amount"><p id="income-amount" className="type-micro text-primary">MONTO</p><div className="mt-2 flex items-baseline gap-2 border-b border-border-strong"><span className="type-amount text-text-secondary">{currency === 'ARS' ? '$' : 'US$'}</span><input ref={amountRef} id="income-amount-input" type="text" inputMode="decimal" placeholder="0" value={formatMonetaryInput(amount)} onChange={(e) => setAmount(normalizeMonetaryInput(e.target.value))} aria-label="Monto" className="min-w-0 flex-1 border-0 bg-transparent py-3 type-amount text-text-primary outline-none focus:ring-0 focus-visible:outline-none" /><fieldset className="flex gap-1 pb-2"><legend className="sr-only">Moneda</legend>{(['ARS', 'USD'] as const).map((c) => <button key={c} type="button" aria-pressed={currency === c} onClick={() => setCurrency(c)} className={`rounded-button px-2 py-1 type-meta ${currency === c ? 'bg-primary text-white' : 'text-text-tertiary'}`}>{c}</button>)}</fieldset></div></section>
+        {accounts.length > 0 && <section><label className={labelClass}>¿A dónde entra?</label><div className="flex gap-2 overflow-x-auto pb-1">{[...bankDigital, ...(cashAccount ? [cashAccount] : [])].map((acc) => { const key = acc.type === 'cash' ? 'cash' : acc.id; return <button key={key} type="button" onClick={() => setSelectedKey(key)} aria-pressed={effectiveSelectedKey === key} className={`flex shrink-0 items-center gap-2 border-b px-1 py-2 type-body ${effectiveSelectedKey === key ? 'border-primary text-primary' : 'border-transparent text-text-tertiary'}`}><AccountIcon type={acc.type} /><span>{acc.name}</span>{acc.is_primary && <Star weight="fill" size={11} />}</button> })}</div></section>}
+        <fieldset><legend className={labelClass}>Categoría</legend><div className="grid grid-cols-3 gap-2">{INCOME_CATEGORIES.map((cat) => <button key={cat.value} type="button" aria-pressed={category === cat.value} onClick={() => setCategory(cat.value)} className={`min-h-11 border-b type-body ${category === cat.value ? 'border-primary text-primary' : 'border-border-subtle text-text-tertiary'}`}>{cat.label}</button>)}</div></fieldset>
+        <div><label htmlFor="income-description" className={labelClass}>Descripción <span className="normal-case font-normal text-text-muted">(opcional)</span></label><input id="income-description" type="text" value={description} onChange={(e) => setDescription(e.target.value)} maxLength={100} placeholder="Ej. Quincena, proyecto freelance…" className={fieldClass} /></div>
+        {!recurringIncomeId && <div className="border-y border-border-subtle py-3"><div className="flex items-center justify-between"><label htmlFor="income-repeat" className="type-body text-text-secondary">Repetir cada mes</label><button id="income-repeat" type="button" role="switch" aria-checked={repeat} onClick={() => setRepeat((value) => !value)} className={`h-6 w-10 rounded-full ${repeat ? 'bg-primary' : 'bg-bg-tertiary'}`}><span className={`block h-5 w-5 rounded-full bg-white transition-transform ${repeat ? 'translate-x-4' : 'translate-x-0.5'}`} /></button></div>{repeat && <div className="mt-3"><label htmlFor="income-day" className={labelClass}>Día del mes <span className="normal-case font-normal text-text-muted">(1–28)</span></label><input id="income-day" type="number" min={1} max={28} value={dayOfMonth} onChange={(e) => setDayOfMonth(Math.min(28, Math.max(1, Number(e.target.value) || 1)))} className={fieldClass} /></div>}</div>}
+        <div><label htmlFor="income-date" className={labelClass}>Fecha</label><input id="income-date" type="date" value={date} onChange={(e) => setDate(e.target.value)} className={fieldClass} /></div>
       </div>
-
-      <div className="mt-6 flex flex-col gap-2">
-        <button
-          onClick={handleSave}
-          disabled={!amount || Number(amount) <= 0 || isSaving}
-          className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white transition-transform active:scale-95 hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {isSaving ? 'Guardando...' : 'Guardar ingreso ✓'}
-        </button>
-        <button
-          onClick={onClose}
-          disabled={isSaving}
-          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
-        >
-          Cancelar
-        </button>
-      </div>
-    </Modal>
+    </TaskSurface>
   )
 }
