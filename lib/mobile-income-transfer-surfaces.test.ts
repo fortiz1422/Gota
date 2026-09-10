@@ -143,6 +143,28 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain('env(safe-area-inset-bottom)')
   })
 
+  it('keeps income controls flat, pill-shaped, and structurally separated from the footer', () => {
+    const createSource = read('../components/dashboard/IncomeModal.tsx')
+    const editSource = read('../components/movimientos/IncomeEditSheet.tsx')
+
+    for (const source of [createSource, editSource]) {
+      expect(source).toContain('rounded-full border')
+      expect(source).toContain('bg-primary-soft text-primary')
+      expect(source).toContain('border-border-subtle bg-white text-text-secondary')
+      expect(source).not.toContain('surface-module')
+    }
+
+    expect(createSource).not.toContain('Cancelar')
+    const editFooterStart = editSource.indexOf('footer={')
+    const editFooterEnd = editSource.indexOf('      >', editFooterStart)
+    const editFooter = editSource.slice(editFooterStart, editFooterEnd)
+    expect(editFooter).not.toContain('deleteTriggerRef')
+    expect(editFooter).not.toContain('Eliminar ingreso')
+    expect(editSource).toContain('ref={deleteTriggerRef}')
+    expect(editSource).toContain('onClick={() => setConfirmDelete(true)}')
+    expect(editSource).toContain('border-danger/25')
+  })
+
   it('renders all four real components through the compact task contract', () => {
     const renders = [
       renderToStaticMarkup(

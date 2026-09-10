@@ -164,19 +164,11 @@ export function IncomeModal({
           >
             {isSaving ? 'Guardando…' : 'Guardar ingreso'}
           </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="type-body text-text-tertiary mt-1 min-h-11 w-full disabled:opacity-50"
-          >
-            Cancelar
-          </button>
         </>
       }
     >
       <div className="space-y-7 pb-2">
-        <section className="surface-module" aria-labelledby="income-amount">
+        <section aria-labelledby="income-amount">
           <p id="income-amount" className="type-micro text-primary">
             MONTO
           </p>
@@ -223,7 +215,7 @@ export function IncomeModal({
                   type="button"
                   onClick={() => setSelectedKey(account.id)}
                   aria-pressed={effectiveSelectedKey === account.id}
-                  className={`type-body flex shrink-0 items-center gap-2 border-b px-1 py-2 ${effectiveSelectedKey === account.id ? 'border-primary text-primary' : 'text-text-tertiary border-transparent'}`}
+                  className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${effectiveSelectedKey === account.id ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
                 >
                   <AccountIcon type={account.type} />
                   <span>{account.name}</span>
@@ -234,7 +226,7 @@ export function IncomeModal({
                 type="button"
                 onClick={() => setSelectedKey('cash')}
                 aria-pressed={effectiveSelectedKey === 'cash'}
-                className={`type-body flex shrink-0 items-center gap-2 border-b px-1 py-2 ${effectiveSelectedKey === 'cash' ? 'border-primary text-primary' : 'text-text-tertiary border-transparent'}`}
+                className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${effectiveSelectedKey === 'cash' ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
               >
                 <Wallet weight="duotone" size={15} />
                 <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
@@ -251,7 +243,7 @@ export function IncomeModal({
                 type="button"
                 aria-pressed={category === cat.value}
                 onClick={() => setCategory(cat.value)}
-                className={`type-body min-h-11 border-b ${category === cat.value ? 'border-primary text-primary' : 'border-border-subtle text-text-tertiary'}`}
+                className={`type-body min-h-11 rounded-full border px-3 ${category === cat.value ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
               >
                 {cat.label}
               </button>

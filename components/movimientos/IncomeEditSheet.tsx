@@ -136,15 +136,6 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
             >
               {isSaving ? 'Guardando…' : 'Guardar cambios'}
             </button>
-            <button
-              ref={deleteTriggerRef}
-              type="button"
-              onClick={() => setConfirmDelete(true)}
-              disabled={isSaving}
-              className="type-body text-danger mt-1 min-h-11 w-full disabled:opacity-50"
-            >
-              Eliminar ingreso
-            </button>
           </>
         }
       >
@@ -193,7 +184,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                     type="button"
                     onClick={() => setSelectedKey(account.id)}
                     aria-pressed={selectedKey === account.id}
-                    className={`type-body flex shrink-0 items-center gap-2 border-b px-1 py-2 ${selectedKey === account.id ? 'border-primary text-primary' : 'text-text-tertiary border-transparent'}`}
+                    className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${selectedKey === account.id ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
                   >
                     <AccountIcon type={account.type} />
                     <span>{account.name}</span>
@@ -204,7 +195,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                   type="button"
                   onClick={() => setSelectedKey('cash')}
                   aria-pressed={selectedKey === 'cash'}
-                  className={`type-body flex shrink-0 items-center gap-2 border-b px-1 py-2 ${selectedKey === 'cash' ? 'border-primary text-primary' : 'text-text-tertiary border-transparent'}`}
+                  className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${selectedKey === 'cash' ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
                 >
                   <Wallet weight="duotone" size={15} />
                   <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
@@ -221,7 +212,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                   type="button"
                   aria-pressed={category === cat.value}
                   onClick={() => setCategory(cat.value)}
-                  className={`type-body min-h-11 border-b ${category === cat.value ? 'border-primary text-primary' : 'border-border-subtle text-text-tertiary'}`}
+                  className={`type-body min-h-11 rounded-full border px-3 ${category === cat.value ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
                 >
                   {cat.label}
                 </button>
@@ -256,6 +247,15 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
               className={fieldClass}
             />
           </div>
+          <button
+            ref={deleteTriggerRef}
+            type="button"
+            onClick={() => setConfirmDelete(true)}
+            disabled={isSaving}
+            className="type-body min-h-11 w-full rounded-button border border-danger/25 px-4 text-danger disabled:opacity-50"
+          >
+            Eliminar ingreso
+          </button>
         </div>
       </TaskSurface>
       <ConfirmationSurface
