@@ -119,6 +119,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
         open
         onClose={onClose}
         appearance="compact"
+        canvas="white"
         eyebrow="INGRESOS"
         title="Editar ingreso"
         description="Actualizá los datos sin cambiar su naturaleza."
