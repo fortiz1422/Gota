@@ -72,7 +72,8 @@ export function buildTransferPayload({
     amount_to: Number(amountTo),
     currency_from: currencyFrom,
     currency_to: currencyTo,
-    exchange_rate: currencyFrom !== currencyTo && exchangeRate ? Number(exchangeRate) : null,
+    exchange_rate:
+      currencyFrom !== currencyTo && exchangeRate ? Number(exchangeRate) : null,
     date,
     note: note.trim() || null,
   }
