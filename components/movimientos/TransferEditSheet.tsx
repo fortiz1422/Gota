@@ -19,7 +19,7 @@ interface Props {
 }
 const labelClass = 'mb-2 block type-meta font-semibold text-text-secondary'
 const fieldClass =
-  'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:outline-none'
+  'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0'
 type Currency = 'ARS' | 'USD'
 
 export function TransferEditSheet({
@@ -199,7 +199,7 @@ export function TransferEditSheet({
                 id="transfer-edit-from-account"
                 value={fromAccountId}
                 onChange={(e) => setFromAccountId(e.target.value)}
-                className="type-body text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0"
+                className="type-body text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
               >
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>
@@ -231,7 +231,7 @@ export function TransferEditSheet({
                 id="transfer-edit-to-account"
                 value={toAccountId}
                 onChange={(e) => setToAccountId(e.target.value)}
-                className="type-body text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0"
+                className="type-body text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
               >
                 {accounts.map((a) => (
                   <option key={a.id} value={a.id}>

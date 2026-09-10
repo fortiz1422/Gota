@@ -20,7 +20,7 @@ const CATEGORIES: { value: IncomeCategory; label: string }[] = [
 ]
 const labelClass = 'mb-2 block type-meta font-semibold text-text-secondary'
 const fieldClass =
-  'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:outline-none'
+  'w-full border-0 border-b border-border-strong bg-transparent px-0 py-3 type-body text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0'
 
 function AccountIcon({
   type,
@@ -151,7 +151,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
         <div className="space-y-7 pb-2">
           <section>
             <p className="type-micro text-primary">MONTO</p>
-            <div className="border-border-strong mt-2 flex items-baseline gap-2 border-b">
+            <div className="border-border-strong focus-within:border-primary mt-2 flex items-baseline gap-2 border-b transition-colors">
               <span className="type-amount text-text-secondary">
                 {currency === 'ARS' ? '$' : 'US$'}
               </span>
@@ -165,7 +165,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                   setAmount(normalizeMonetaryInput(e.target.value))
                 }
                 aria-label="Monto"
-                className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:outline-none"
+                className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
               />
               <fieldset className="flex gap-1 pb-2">
                 <legend className="sr-only">Moneda</legend>

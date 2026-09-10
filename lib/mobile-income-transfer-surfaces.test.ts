@@ -132,6 +132,7 @@ describe('mobile income and transfer surfaces', () => {
       expect(source).toContain('appearance="compact"')
       expect(source).toContain('initialFocusRef=')
       expect(source).toContain('<InlineError')
+      expect(source).toContain('focus-visible:!outline-none')
       expect(source).not.toContain("from '@/components/ui/Modal'")
       expect(source).not.toContain('alert(')
       expect(source).toContain('type="button"')
