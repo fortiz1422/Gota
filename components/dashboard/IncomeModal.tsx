@@ -147,7 +147,7 @@ export function IncomeModal({
       open
       onClose={onClose}
       appearance="compact"
-      canvas="white"
+      canvasTone="standard"
       eyebrow="INGRESOS"
       title="Registrar ingreso"
       description="¿Cuánto y de dónde entra?"

@@ -14,7 +14,7 @@ interface TaskSurfaceProps {
   children: ReactNode
   footer: ReactNode
   appearance?: 'brand' | 'compact'
-  canvas?: 'white'
+  canvasTone?: 'standard'
   navigationTitle?: string
   initialFocusRef?: RefObject<HTMLElement | null>
   triggerRef?: RefObject<HTMLElement | null>
@@ -30,7 +30,7 @@ export function TaskSurface({
   children,
   footer,
   appearance = 'brand',
-  canvas,
+  canvasTone,
   navigationTitle,
   initialFocusRef,
   triggerRef,
@@ -54,7 +54,7 @@ export function TaskSurface({
       <div
         data-task-surface
         data-task-appearance={appearance}
-        className={`flex h-full min-h-0 flex-col ${compact ? canvas === 'white' ? 'bg-bg-primary' : 'bg-bg-secondary' : 'bg-bg-primary'}`}
+        className={`flex h-full min-h-0 flex-col ${compact ? canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary' : 'bg-bg-primary'}`}
       >
         {compact ? (
           <>

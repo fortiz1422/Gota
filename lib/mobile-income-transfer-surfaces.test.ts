@@ -23,14 +23,14 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     footer,
     title,
     appearance,
-    canvas,
+    canvasTone,
     initialFocusRef,
   }: {
     children: ReactNode
     footer: ReactNode
     title: string
     appearance?: string
-    canvas?: string
+    canvasTone?: string
     initialFocusRef?: unknown
   }) =>
     createElement(
@@ -38,7 +38,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
       {
         'data-task-surface': title,
         'data-task-appearance': appearance,
-        'data-task-canvas': canvas,
+        'data-task-canvas-tone': canvasTone,
         'data-has-initial-focus': String(Boolean(initialFocusRef)),
       },
       children,
@@ -144,9 +144,9 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain('data-task-scroll')
     expect(taskSurface).toContain('data-task-footer')
     expect(taskSurface).toContain('env(safe-area-inset-bottom)')
-    expect(taskSurface).toContain("canvas?: 'white'")
+    expect(taskSurface).toContain("canvasTone?: 'standard'")
     expect(taskSurface).toContain(
-      "canvas === 'white' ? 'bg-bg-primary' : 'bg-bg-secondary'"
+      "canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary'"
     )
   })
 
@@ -210,13 +210,13 @@ describe('mobile income and transfer surfaces', () => {
       expect(html).toContain('data-has-initial-focus="true"')
     }
     expect(renders[0]).toContain('data-task-surface="Registrar ingreso"')
-    expect(renders[0]).toContain('data-task-canvas="white"')
+    expect(renders[0]).toContain('data-task-canvas-tone="standard"')
     expect(renders[1]).toContain('data-task-surface="Transferencia"')
-    expect(renders[1]).not.toContain('data-task-canvas="white"')
+    expect(renders[1]).not.toContain('data-task-canvas-tone="standard"')
     expect(renders[2]).toContain('data-task-surface="Editar ingreso"')
-    expect(renders[2]).toContain('data-task-canvas="white"')
+    expect(renders[2]).toContain('data-task-canvas-tone="standard"')
     expect(renders[3]).toContain('data-task-surface="Editar transferencia"')
-    expect(renders[3]).not.toContain('data-task-canvas="white"')
+    expect(renders[3]).not.toContain('data-task-canvas-tone="standard"')
   })
 
   it('preserves the Efectivo fallback without a persisted cash account', () => {
