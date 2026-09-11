@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildIncomePayload,
   buildTransferPayload,
+  formatMonetaryInput,
   normalizeMonetaryInput,
 } from '@/lib/mobile-income-transfer-surfaces'
 import type { Account, IncomeEntry, Transfer } from '@/types/database'
@@ -150,15 +151,41 @@ describe('mobile income and transfer surfaces', () => {
     )
   })
 
-  it('keeps income controls flat, pill-shaped, and structurally separated from the footer', () => {
+  it('copies ParsePreview classes for income chips, categories, and all currency selectors', () => {
     const createSource = read('../components/dashboard/IncomeModal.tsx')
     const editSource = read('../components/movimientos/IncomeEditSheet.tsx')
+    const parsePreview = read('../components/dashboard/ParsePreview.tsx')
+    const chipBase =
+      'flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors'
+    const chipActive = 'border-primary bg-primary/15 text-primary'
+    const chipInactive = 'border-border-ocean bg-primary/[0.03] text-text-tertiary'
+    const selectClass =
+      'w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none'
+    const currencyBase = 'flex rounded-input bg-bg-tertiary p-1'
+    const currencyButton =
+      'rounded-button px-3 py-1.5 text-sm font-medium transition-colors'
+
+    expect(parsePreview).toContain(chipBase)
+    expect(parsePreview).toContain(chipActive)
+    expect(parsePreview).toContain(chipInactive)
+    expect(parsePreview).toContain(selectClass)
+    expect(parsePreview).toContain(currencyBase)
+    expect(parsePreview).toContain(currencyButton)
 
     for (const source of [createSource, editSource]) {
-      expect(source).toContain('rounded-full border')
-      expect(source).toContain('bg-primary-soft text-primary')
-      expect(source).toContain('border-border-subtle bg-white text-text-secondary')
+      expect(source).toContain(chipBase)
+      expect(source).toContain(chipActive)
+      expect(source).toContain(chipInactive)
+      expect(source).toContain(selectClass)
+      expect(source).toContain(currencyBase)
+      expect(source).toContain(currencyButton)
+      expect(source).not.toContain('grid grid-cols-3')
       expect(source).not.toContain('surface-module')
+    }
+
+    for (const source of surfaceFiles) {
+      expect(read(source)).toContain(currencyBase)
+      expect(read(source)).toContain(currencyButton)
     }
 
     expect(createSource).not.toContain('Cancelar')
@@ -267,6 +294,26 @@ describe('mobile income and transfer surfaces', () => {
     expect(normalizeMonetaryInput('1.305,50')).toBe('1305.50')
     expect(normalizeMonetaryInput('1234.56')).toBe('1234.56')
     expect(normalizeMonetaryInput('1,234.56')).toBe('1234.56')
+    expect(normalizeMonetaryInput('343.604')).toBe('343604')
+    expect(Number(normalizeMonetaryInput('343.604'))).toBe(343604)
+  })
+
+  it('simulates the real formatted feedback loop, deletion, and final canonical payload amount', () => {
+    let canonical = ''
+    for (const key of '130000') {
+      canonical = normalizeMonetaryInput(
+        `${formatMonetaryInput(canonical)}${key}`,
+        canonical
+      )
+    }
+
+    expect(formatMonetaryInput(canonical)).toBe('130.000')
+    expect(Number(canonical)).toBe(130000)
+
+    const displayAfterDeletion = formatMonetaryInput(canonical).slice(0, -1)
+    canonical = normalizeMonetaryInput(displayAfterDeletion, canonical)
+    expect(formatMonetaryInput(canonical)).toBe('13.000')
+    expect(Number(canonical)).toBe(13000)
   })
 
   it('builds exact income create and edit payloads', () => {
@@ -309,6 +356,17 @@ describe('mobile income and transfer surfaces', () => {
       date: '2026-09-10',
       recurring: { day_of_month: 15 },
     })
+
+    expect(
+      buildIncomePayload({
+        accountId: 'account-1',
+        amount: '343604',
+        currency: 'ARS',
+        description: '',
+        category: 'other',
+        date: '2026-09-10',
+      }).amount
+    ).toBe(343604)
   })
 
   it('builds exact transfer create and edit payloads', () => {

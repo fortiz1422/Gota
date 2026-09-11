@@ -18,7 +18,34 @@ describe('ar-input helpers', () => {
     expect(parseArDecimalInput('1305,5')).toBe('1305.5')
     expect(parseArDecimalInput('1234.56')).toBe('1234.56')
     expect(parseArDecimalInput('1,234.56')).toBe('1234.56')
+    expect(parseArDecimalInput('1,30000')).toBe('130000')
+    expect(parseArDecimalInput('343.604')).toBe('343604')
     expect(Number(parseArDecimalInput('1234.56'))).toBe(1234.56)
+  })
+
+  it('keeps the canonical value through the formatted feedback loop and tail deletion', () => {
+    let canonical = ''
+    for (const key of '130000') {
+      canonical = parseArDecimalInput(`${formatArDecimal(canonical)}${key}`, canonical)
+    }
+
+    expect(formatArDecimal(canonical)).toBe('130.000')
+    expect(Number(canonical)).toBe(130000)
+
+    const displayAfterDeletion = formatArDecimal(canonical).slice(0, -1)
+    canonical = parseArDecimalInput(displayAfterDeletion, canonical)
+    expect(formatArDecimal(canonical)).toBe('13.000')
+    expect(Number(canonical)).toBe(13000)
+  })
+
+  it('keeps decimals of up to two digits editable', () => {
+    let canonical = ''
+    for (const key of '1.30') {
+      canonical = parseArDecimalInput(`${formatArDecimal(canonical)}${key}`, canonical)
+    }
+
+    expect(canonical).toBe('1.30')
+    expect(formatArDecimal(canonical)).toBe('1,30')
   })
 
   it('formats canonical decimal strings for es-AR display', () => {

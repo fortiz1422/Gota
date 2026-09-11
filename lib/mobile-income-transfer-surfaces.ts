@@ -1,8 +1,11 @@
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import type { IncomeCategory } from '@/types/database'
 
-export function normalizeMonetaryInput(display: string): string {
-  return parseArDecimalInput(display)
+export function normalizeMonetaryInput(
+  display: string,
+  previousCanonical = ''
+): string {
+  return parseArDecimalInput(display, previousCanonical)
 }
 
 export function formatMonetaryInput(canonical: string): string {
