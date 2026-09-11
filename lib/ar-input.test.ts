@@ -18,7 +18,18 @@ describe('ar-input helpers', () => {
     expect(parseArDecimalInput('1305,5')).toBe('1305.5')
     expect(parseArDecimalInput('1234.56')).toBe('1234.56')
     expect(parseArDecimalInput('1,234.56')).toBe('1234.56')
+    expect(parseArDecimalInput('1,30000')).toBe('130000')
+    expect(parseArDecimalInput('343.604')).toBe('343604')
     expect(Number(parseArDecimalInput('1234.56'))).toBe(1234.56)
+  })
+
+  it('keeps the canonical value while typing a grouped ARS amount incrementally', () => {
+    const displays = ['1', '13', '130', '1.300', '13.000', '130.000']
+    const canonical = displays.map(parseArDecimalInput)
+
+    expect(canonical).toEqual(['1', '13', '130', '1300', '13000', '130000'])
+    expect(formatArDecimal(canonical.at(-1) ?? '')).toBe('130.000')
+    expect(Number(canonical.at(-1))).toBe(130000)
   })
 
   it('formats canonical decimal strings for es-AR display', () => {

@@ -138,7 +138,7 @@ export function TransferEditSheet({
     value: Currency,
     onChange: (value: Currency) => void
   ) => (
-    <fieldset className="flex gap-1">
+    <fieldset className="flex rounded-input bg-bg-tertiary p-1">
       <legend className="sr-only">Moneda</legend>
       {(['ARS', 'USD'] as const).map((currency) => (
         <button
@@ -146,7 +146,7 @@ export function TransferEditSheet({
           type="button"
           aria-pressed={value === currency}
           onClick={() => onChange(currency)}
-          className={`rounded-button type-meta px-2 py-1 ${value === currency ? 'bg-primary text-white' : 'text-text-tertiary'}`}
+          className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${value === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
         >
           {currency}
         </button>

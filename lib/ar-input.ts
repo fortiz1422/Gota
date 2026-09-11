@@ -18,6 +18,10 @@ export function parseArDecimalInput(display: string): string {
   }
 
   if (lastComma >= 0) {
+    if (/^\d{1,3}(,\d{3})+$/.test(clean) ||
+        /^\d{1,3},\d{3,}$/.test(clean)) {
+      return clean.replace(/,/g, '')
+    }
     const integer = clean.slice(0, lastComma).replace(/,/g, '')
     const decimal = clean.slice(lastComma + 1).replace(/,/g, '')
     return `${integer}.${decimal}`
@@ -26,6 +30,10 @@ export function parseArDecimalInput(display: string): string {
   if (lastDot < 0) return clean
 
   if (/^\d{1,3}(\.\d{3})+$/.test(clean)) {
+    return clean.replace(/\./g, '')
+  }
+
+  if (/^\d{1,3}\.\d{3,}$/.test(clean)) {
     return clean.replace(/\./g, '')
   }
 

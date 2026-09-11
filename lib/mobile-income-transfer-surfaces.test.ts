@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildIncomePayload,
   buildTransferPayload,
+  formatMonetaryInput,
   normalizeMonetaryInput,
 } from '@/lib/mobile-income-transfer-surfaces'
 import type { Account, IncomeEntry, Transfer } from '@/types/database'
@@ -150,14 +151,16 @@ describe('mobile income and transfer surfaces', () => {
     )
   })
 
-  it('keeps income controls flat, pill-shaped, and structurally separated from the footer', () => {
+  it('keeps income account chips and category selects structurally separated from the footer', () => {
     const createSource = read('../components/dashboard/IncomeModal.tsx')
     const editSource = read('../components/movimientos/IncomeEditSheet.tsx')
 
     for (const source of [createSource, editSource]) {
       expect(source).toContain('rounded-full border')
-      expect(source).toContain('bg-primary-soft text-primary')
-      expect(source).toContain('border-border-subtle bg-white text-text-secondary')
+      expect(source).toContain('border-primary bg-primary/15 text-primary')
+      expect(source).toContain('border-border-ocean bg-primary/[0.03] text-text-tertiary')
+      expect(source).toContain('rounded-input border border-transparent bg-bg-tertiary')
+      expect(source).not.toContain('grid grid-cols-3')
       expect(source).not.toContain('surface-module')
     }
 
@@ -267,6 +270,17 @@ describe('mobile income and transfer surfaces', () => {
     expect(normalizeMonetaryInput('1.305,50')).toBe('1305.50')
     expect(normalizeMonetaryInput('1234.56')).toBe('1234.56')
     expect(normalizeMonetaryInput('1,234.56')).toBe('1234.56')
+    expect(normalizeMonetaryInput('343.604')).toBe('343604')
+    expect(Number(normalizeMonetaryInput('343.604'))).toBe(343604)
+  })
+
+  it('simulates incremental typing and preserves the final canonical payload amount', () => {
+    const displays = ['1', '13', '130', '1.300', '13.000', '130.000']
+    const canonical = displays.map(normalizeMonetaryInput)
+
+    expect(canonical).toEqual(['1', '13', '130', '1300', '13000', '130000'])
+    expect(formatMonetaryInput(canonical.at(-1) ?? '')).toBe('130.000')
+    expect(Number(canonical.at(-1))).toBe(130000)
   })
 
   it('builds exact income create and edit payloads', () => {
@@ -309,6 +323,17 @@ describe('mobile income and transfer surfaces', () => {
       date: '2026-09-10',
       recurring: { day_of_month: 15 },
     })
+
+    expect(
+      buildIncomePayload({
+        accountId: 'account-1',
+        amount: '343604',
+        currency: 'ARS',
+        description: '',
+        category: 'other',
+        date: '2026-09-10',
+      }).amount
+    ).toBe(343604)
   })
 
   it('builds exact transfer create and edit payloads', () => {

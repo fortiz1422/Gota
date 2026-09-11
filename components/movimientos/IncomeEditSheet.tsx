@@ -159,7 +159,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                 aria-label="Monto"
                 className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
               />
-              <fieldset className="flex gap-1 pb-2">
+              <fieldset className="flex rounded-input bg-bg-tertiary p-1">
                 <legend className="sr-only">Moneda</legend>
                 {(['ARS', 'USD'] as const).map((c) => (
                   <button
@@ -167,7 +167,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                     type="button"
                     aria-pressed={currency === c}
                     onClick={() => setCurrency(c)}
-                    className={`rounded-button type-meta px-2 py-1 ${currency === c ? 'bg-primary text-white' : 'text-text-tertiary'}`}
+                    className={`rounded-button px-3 py-1.5 text-sm font-medium ${currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
                   >
                     {c}
                   </button>
@@ -178,14 +178,15 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
           {accounts.length > 0 && (
             <section>
               <label className={labelClass}>¿A dónde entra?</label>
-              <div className="flex gap-2 overflow-x-auto pb-1">
+              <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {bankDigital.map((account) => (
                   <button
                     key={account.id}
                     type="button"
                     onClick={() => setSelectedKey(account.id)}
                     aria-pressed={selectedKey === account.id}
-                    className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${selectedKey === account.id ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
+                    className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${selectedKey === account.id ? 'border-primary bg-primary/15 text-primary' : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'}`}
+                    aria-label={`Cuenta ${account.name}`}
                   >
                     <AccountIcon type={account.type} />
                     <span>{account.name}</span>
@@ -196,7 +197,8 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
                   type="button"
                   onClick={() => setSelectedKey('cash')}
                   aria-pressed={selectedKey === 'cash'}
-                  className={`type-body flex shrink-0 items-center gap-2 rounded-full border px-3 py-2 ${selectedKey === 'cash' ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
+                  className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${selectedKey === 'cash' ? 'border-primary bg-primary/15 text-primary' : 'border-border-ocean bg-primary/[0.03] text-text-tertiary'}`}
+                  aria-label="Cuenta Efectivo"
                 >
                   <Wallet weight="duotone" size={15} />
                   <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
@@ -206,19 +208,16 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
           )}
           <fieldset>
             <legend className={labelClass}>Categoría</legend>
-            <div className="grid grid-cols-3 gap-2">
+            <select
+              id="income-edit-category"
+              value={category}
+              onChange={(e) => setCategory(e.target.value as IncomeCategory)}
+              className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+            >
               {CATEGORIES.map((cat) => (
-                <button
-                  key={cat.value}
-                  type="button"
-                  aria-pressed={category === cat.value}
-                  onClick={() => setCategory(cat.value)}
-                  className={`type-body min-h-11 rounded-full border px-3 ${category === cat.value ? 'border-primary/30 bg-primary-soft text-primary' : 'border-border-subtle bg-white text-text-secondary'}`}
-                >
-                  {cat.label}
-                </button>
+                <option key={cat.value} value={cat.value}>{cat.label}</option>
               ))}
-            </div>
+            </select>
           </fieldset>
           <div>
             <label htmlFor="income-edit-description" className={labelClass}>
