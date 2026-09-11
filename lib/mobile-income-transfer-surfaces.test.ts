@@ -5,7 +5,6 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildIncomePayload,
   buildTransferPayload,
-  footerSafeAreaGap,
   formatMonetaryInput,
   normalizeMonetaryInput,
 } from '@/lib/mobile-income-transfer-surfaces'
@@ -189,12 +188,6 @@ describe('mobile income and transfer surfaces', () => {
       expect(source).not.toContain('footerSafeArea=')
     }
 
-    for (const safeAreaInset of [0, 8, 12, 24]) {
-      expect(footerSafeAreaGap('exact', safeAreaInset)).toBe(safeAreaInset)
-      expect(footerSafeAreaGap('minimum', safeAreaInset)).toBe(
-        Math.max(12, safeAreaInset)
-      )
-    }
   })
 
   it('copies ParsePreview classes for income chips, categories, and all currency selectors', () => {
