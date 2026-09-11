@@ -49,12 +49,12 @@ export function TransferEditSheet({
   const sameCurrency = currencyFrom === currencyTo
 
   const updateFrom = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, amountFrom)
     setAmountFrom(raw)
     if (sameCurrency) setAmountTo(raw)
   }
   const updateTo = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, amountTo)
     setAmountTo(raw)
     if (!sameCurrency && amountFrom && raw) {
       const rate = Number(amountFrom) / Number(raw)
@@ -62,7 +62,7 @@ export function TransferEditSheet({
     }
   }
   const updateRate = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, exchangeRate)
     setExchangeRate(raw)
     if (!sameCurrency && amountFrom && Number(raw) > 0)
       setAmountTo((Number(amountFrom) / Number(raw)).toFixed(2))

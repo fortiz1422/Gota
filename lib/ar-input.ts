@@ -5,7 +5,10 @@ export function formatArDecimal(raw: string): string {
   return dec !== undefined ? `${intFmt},${dec}` : intFmt
 }
 
-export function parseArDecimalInput(display: string): string {
+export function parseArDecimalInput(
+  display: string,
+  previousCanonical = ''
+): string {
   const clean = display.replace(/[^\d.,]/g, '')
   const lastComma = clean.lastIndexOf(',')
   const lastDot = clean.lastIndexOf('.')
@@ -34,6 +37,15 @@ export function parseArDecimalInput(display: string): string {
   }
 
   if (/^\d{1,3}\.\d{3,}$/.test(clean)) {
+    return clean.replace(/\./g, '')
+  }
+
+  const previousDisplay = formatArDecimal(previousCanonical)
+  if (
+    /^\d{1,3}\.\d{1,2}$/.test(clean) &&
+    previousDisplay.length === clean.length + 1 &&
+    previousDisplay.startsWith(clean)
+  ) {
     return clean.replace(/\./g, '')
   }
 

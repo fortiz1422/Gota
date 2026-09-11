@@ -185,7 +185,7 @@ export function IncomeModal({
               placeholder="0"
               value={formatMonetaryInput(amount)}
               onChange={(e) =>
-                setAmount(normalizeMonetaryInput(e.target.value))
+                setAmount(normalizeMonetaryInput(e.target.value, amount))
               }
               aria-label="Monto"
               className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
@@ -198,7 +198,7 @@ export function IncomeModal({
                   type="button"
                   aria-pressed={currency === c}
                   onClick={() => setCurrency(c)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium ${currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
+                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
                 >
                   {c}
                 </button>

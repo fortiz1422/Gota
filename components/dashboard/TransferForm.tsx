@@ -70,7 +70,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
   }, [sameCurrency, currencyFrom, currencyTo]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const updateAmountFrom = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, amountFrom)
     setAmountFrom(raw)
     if (sameCurrency) setAmountTo(raw)
     else if (exchangeRate && Number(raw) > 0 && Number(exchangeRate) > 0)
@@ -82,7 +82,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
       )
   }
   const updateAmountTo = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, amountTo)
     setAmountTo(raw)
     if (!sameCurrency && amountFrom && raw) {
       const rate = Number(amountFrom) / Number(raw)
@@ -90,7 +90,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
     }
   }
   const updateRate = (display: string) => {
-    const raw = normalizeMonetaryInput(display)
+    const raw = normalizeMonetaryInput(display, exchangeRate)
     setExchangeRate(raw)
     if (!sameCurrency && amountFrom && Number(raw) > 0)
       setAmountTo((Number(amountFrom) / Number(raw)).toFixed(2))
