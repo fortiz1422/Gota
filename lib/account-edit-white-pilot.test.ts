@@ -21,7 +21,11 @@ describe('Account edit white pilot', () => {
 
     expect(fullScreenSheet).toContain('extendIntoBottomSafeArea?: boolean')
     expect(taskSurface).toContain('extendIntoBottomSafeArea={compact}')
-    expect(taskSurface).toContain("compact ? 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'")
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
+    expect(taskSurface).toContain("footerSafeArea = 'minimum'")
+    expect(taskSurface).toContain("footerSafeArea === 'exact'")
+    expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
+    expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
   })
 
   it('sizes mobile sheets from the fixed viewport overlay instead of a second dvh calculation', () => {
