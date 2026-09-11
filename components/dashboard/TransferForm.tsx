@@ -174,6 +174,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
       open
       onClose={onClose}
       appearance="compact"
+      footerSafeArea="exact"
       eyebrow="TRANSFERENCIAS"
       title="Transferencia"
       description="Movimiento entre tus cuentas"
@@ -183,6 +184,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
           <InlineError message={error} className="mb-3" />
           <button
             type="button"
+            data-primary-action
             onClick={() => {
               void handleSave()
             }}
@@ -190,14 +192,6 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
             className="rounded-button bg-primary type-body-lg min-h-12 w-full px-4 text-white disabled:opacity-45"
           >
             {isSaving ? 'Guardando…' : 'Registrar transferencia'}
-          </button>
-          <button
-            type="button"
-            onClick={onClose}
-            disabled={isSaving}
-            className="type-body text-text-tertiary mt-1 min-h-11 w-full disabled:opacity-50"
-          >
-            Cancelar
           </button>
         </>
       }

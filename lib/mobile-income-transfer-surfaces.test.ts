@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from 'vitest'
 import {
   buildIncomePayload,
   buildTransferPayload,
+  footerSafeAreaGap,
   formatMonetaryInput,
   normalizeMonetaryInput,
 } from '@/lib/mobile-income-transfer-surfaces'
@@ -25,6 +26,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     title,
     appearance,
     canvasTone,
+    footerSafeArea,
     initialFocusRef,
   }: {
     children: ReactNode
@@ -32,6 +34,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     title: string
     appearance?: string
     canvasTone?: string
+    footerSafeArea?: string
     initialFocusRef?: unknown
   }) =>
     createElement(
@@ -43,7 +46,14 @@ vi.mock('@/components/ui/TaskSurface', () => ({
         'data-has-initial-focus': String(Boolean(initialFocusRef)),
       },
       children,
-      footer
+      createElement(
+        'footer',
+        {
+          'data-task-footer': true,
+          'data-footer-safe-area': footerSafeArea ?? 'minimum',
+        },
+        footer
+      )
     ),
 }))
 
@@ -149,6 +159,42 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain(
       "canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary'"
     )
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
+    expect(taskSurface).toContain("footerSafeArea = 'minimum'")
+    expect(taskSurface).toContain("footerSafeArea === 'exact'")
+    expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
+    expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
+  })
+
+  it('opts create CTAs into exact safe-area geometry and preserves edit default', () => {
+    const createSources = [
+      read('../components/dashboard/IncomeModal.tsx'),
+      read('../components/dashboard/TransferForm.tsx'),
+    ]
+    const editSources = [
+      read('../components/movimientos/IncomeEditSheet.tsx'),
+      read('../components/movimientos/TransferEditSheet.tsx'),
+    ]
+
+    for (const source of createSources) {
+      expect(source).toContain('footerSafeArea="exact"')
+      expect(source).toContain('data-primary-action')
+      expect(source.indexOf('<InlineError')).toBeLessThan(
+        source.indexOf('data-primary-action')
+      )
+    }
+    expect(createSources[1]).not.toContain('Cancelar')
+
+    for (const source of editSources) {
+      expect(source).not.toContain('footerSafeArea=')
+    }
+
+    for (const safeAreaInset of [0, 8, 12, 24]) {
+      expect(footerSafeAreaGap('exact', safeAreaInset)).toBe(safeAreaInset)
+      expect(footerSafeAreaGap('minimum', safeAreaInset)).toBe(
+        Math.max(12, safeAreaInset)
+      )
+    }
   })
 
   it('copies ParsePreview classes for income chips, categories, and all currency selectors', () => {
@@ -244,6 +290,16 @@ describe('mobile income and transfer surfaces', () => {
     expect(renders[2]).toContain('data-task-canvas-tone="standard"')
     expect(renders[3]).toContain('data-task-surface="Editar transferencia"')
     expect(renders[3]).not.toContain('data-task-canvas-tone="standard"')
+    expect(renders[0]).toContain('data-footer-safe-area="exact"')
+    expect(renders[1]).toContain('data-footer-safe-area="exact"')
+    expect(renders[2]).toContain('data-footer-safe-area="minimum"')
+    expect(renders[3]).toContain('data-footer-safe-area="minimum"')
+
+    for (const html of renders.slice(0, 2)) {
+      const footer = html.slice(html.indexOf('<footer'))
+      expect((footer.match(/<button/g) ?? []).length).toBe(1)
+      expect(footer).toContain('data-primary-action')
+    }
   })
 
   it('preserves the Efectivo fallback without a persisted cash account', () => {

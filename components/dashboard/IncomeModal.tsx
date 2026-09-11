@@ -148,6 +148,7 @@ export function IncomeModal({
       onClose={onClose}
       appearance="compact"
       canvasTone="standard"
+      footerSafeArea="exact"
       eyebrow="INGRESOS"
       title="Registrar ingreso"
       description="¿Cuánto y de dónde entra?"
@@ -157,6 +158,7 @@ export function IncomeModal({
           <InlineError message={error} className="mb-3" />
           <button
             type="button"
+            data-primary-action
             onClick={() => {
               void handleSave()
             }}

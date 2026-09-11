@@ -1,6 +1,15 @@
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import type { IncomeCategory } from '@/types/database'
 
+export type FooterSafeAreaMode = 'minimum' | 'exact'
+
+export function footerSafeAreaGap(
+  mode: FooterSafeAreaMode,
+  safeAreaInset: number
+): number {
+  return mode === 'exact' ? safeAreaInset : Math.max(12, safeAreaInset)
+}
+
 export function normalizeMonetaryInput(
   display: string,
   previousCanonical = ''
