@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Modal } from '@/components/ui/Modal'
+import { ChoiceSurface } from '@/components/ui/ChoiceSurface'
+import { InlineError } from '@/components/ui/InlineError'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { GoalWithMetrics } from '@/lib/goals/types'
 
@@ -98,8 +99,7 @@ export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked }: Props
   if (!open || !goal) return null
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
+    <ChoiceSurface open={open} onClose={handleClose} eyebrow="PLANIFICAR" title="Vincular transferencia" description={`Elegí una transferencia en ${goal.currency} para registrarla como aporte.`} appearance="compact">
       <div className="mb-4 flex items-center gap-2">
         {goal.emoji ? <span className="text-[20px]">{goal.emoji}</span> : null}
         <div>
@@ -157,25 +157,18 @@ export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked }: Props
         </div>
       )}
 
-      {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
+      <InlineError message={error} className="mt-3" />
 
       <div className="mt-6 flex gap-2">
         <button
           type="button"
-          onClick={handleClose}
-          className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-primary"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
           onClick={handleLink}
           disabled={!selectedId || isLinking}
-          className="flex-1 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
+          className="w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
         >
           {isLinking ? 'Vinculando...' : 'Vincular aporte'}
         </button>
       </div>
-    </Modal>
+    </ChoiceSurface>
   )
 }

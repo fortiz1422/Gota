@@ -1,7 +1,9 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { InlineError } from '@/components/ui/InlineError'
+import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import { todayAR } from '@/lib/format'
 import type { GoalContribution } from '@/lib/goals/types'
 import type { Currency } from '@/types/database'
@@ -82,8 +84,14 @@ export function GoalContributionEditSheet({
   if (!open || !contribution) return null
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
+    <TaskSurface open={open} onClose={handleClose} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" footer={(
+      <>
+        <InlineError message={error} className="mb-3" />
+        <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
+          {isSaving ? 'Guardando...' : 'Guardar cambios'}
+        </button>
+      </>
+    )}>
 
       <p className="text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
         Editar aporte manual
@@ -101,11 +109,11 @@ export function GoalContributionEditSheet({
             Monto ({goalCurrency})
           </label>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
-            value={amount}
-            onChange={(event) => setAmount(event.target.value)}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary focus:border-primary focus:outline-none"
+            value={formatArDecimal(amount)}
+            onChange={(event) => setAmount(parseArDecimalInput(event.target.value))}
+            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary outline-none focus:border-primary focus:ring-0"
           />
         </div>
 
@@ -135,25 +143,6 @@ export function GoalContributionEditSheet({
         </div>
       </div>
 
-      {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
-
-      <div className="mt-6 flex gap-2">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-primary"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex-1 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
-        >
-          {isSaving ? 'Guardando...' : 'Guardar cambios'}
-        </button>
-      </div>
-    </Modal>
+    </TaskSurface>
   )
 }

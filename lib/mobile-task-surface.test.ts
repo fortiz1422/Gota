@@ -1,4 +1,5 @@
 import { createElement, type ReactNode } from 'react'
+import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -24,6 +25,7 @@ vi.mock('@/components/ui/FullScreenSheet', () => ({
 
 import { GoalCreateSheet } from '@/components/analytics/GoalCreateSheet'
 import { GoalEditSheet } from '@/components/analytics/GoalEditSheet'
+
 import type { GoalWithMetrics } from '@/lib/goals/types'
 
 const goalFixture: GoalWithMetrics = {
@@ -55,9 +57,7 @@ describe('Mobile Task Surface pilot', () => {
     expect(html).toContain('>CONTEXTO<')
     expect(html).toContain('aria-pressed="true"')
     expect(html).toContain('Crear meta')
-    expect(html).toContain('Cancelar')
     expect(html).not.toContain('disabled=""')
-    expect(html.indexOf('Crear meta')).toBeLessThan(html.lastIndexOf('Cancelar'))
   })
 
   it('keeps the task closed when the owner says it is closed', () => {
@@ -86,5 +86,47 @@ describe('Mobile Task Surface pilot', () => {
     expect(html).toContain('No editable')
     expect(html).toContain('Guardar cambios')
     expect(html).not.toContain('aria-pressed=')
+  })
+
+  it('uses compact canonical surfaces for goals and budgets', () => {
+    const read = (file: string) => readFileSync(new URL(file, import.meta.url), 'utf8')
+    const contribution = read('../components/analytics/GoalContributionSheet.tsx')
+    const contributionEdit = read('../components/analytics/GoalContributionEditSheet.tsx')
+    const link = read('../components/analytics/LinkTransferToGoalSheet.tsx')
+    const budget = read('../components/analytics/BudgetEditorSheet.tsx')
+
+    expect(contribution).toContain('<TaskSurface')
+    expect(contribution).toContain('appearance="compact"')
+    expect(contributionEdit).toContain('<TaskSurface')
+    expect(contributionEdit).toContain('appearance="compact"')
+    expect(link).toContain('<ChoiceSurface')
+    expect(link).toContain('appearance="compact"')
+    expect(budget).toContain('<TaskSurface')
+    expect(budget).toContain('appearance="compact"')
+    expect(contribution).not.toContain('>Cancelar<')
+    expect(contributionEdit).not.toContain('>Cancelar<')
+    expect(link).not.toContain('>Cancelar<')
+    expect(budget).not.toContain('>Cancelar<')
+    expect(budget).toContain('parseArDecimalInput')
+    expect(budget).toContain('onRequestDelete')
+  })
+
+  it('keeps detail management, destructive confirmations, and exact request contracts', () => {
+    const detail = readFileSync(new URL('../components/analytics/GoalDetailSheet.tsx', import.meta.url), 'utf8')
+    const history = readFileSync(new URL('../components/analytics/GoalContributionHistory.tsx', import.meta.url), 'utf8')
+    const budgets = readFileSync(new URL('../components/analytics/BudgetsSection.tsx', import.meta.url), 'utf8')
+    const contribution = readFileSync(new URL('../components/analytics/GoalContributionSheet.tsx', import.meta.url), 'utf8')
+
+    expect(detail).toContain('<ManagementSurface')
+    expect(detail).not.toContain('<Modal')
+    expect(history).toContain('<ConfirmationSurface')
+    expect(history).not.toContain('onClick={() => handleDelete')
+    expect(budgets).toContain('<ConfirmationSurface')
+    expect(budgets).not.toContain('alert(')
+    expect(budgets).toContain("periodMonth: `${selectedMonth}-01`")
+    expect(budgets).toContain('baseCurrency: currency')
+    expect(contribution).toContain("sourceType: 'manual'")
+    expect(contribution).toContain('availabilityEffect')
+    expect(contribution).toContain('destinationKind')
   })
 })

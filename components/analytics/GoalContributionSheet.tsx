@@ -2,7 +2,9 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Modal } from '@/components/ui/Modal'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { InlineError } from '@/components/ui/InlineError'
+import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import { todayAR } from '@/lib/format'
 import type { GoalWithMetrics } from '@/lib/goals/types'
 
@@ -133,8 +135,23 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
   if (!open || !goal) return null
 
   return (
-    <Modal open={open} onClose={handleClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
+    <TaskSurface
+      open={open}
+      onClose={handleClose}
+      eyebrow="PLANIFICAR"
+      title={`Aporte · ${goal.name}`}
+      description="Registrá progreso sin tocar tu Disponible real."
+      appearance="compact"
+      canvasTone="standard"
+      footer={(
+        <>
+          <InlineError message={error} className="mb-3" />
+          <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
+            {isSaving ? 'Registrando...' : 'Registrar'}
+          </button>
+        </>
+      )}
+    >
       <div className="mb-4 flex items-center gap-2">
         {goal.emoji ? <span className="text-[20px]">{goal.emoji}</span> : null}
         <div>
@@ -155,13 +172,12 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
             Monto ({goal.currency})
           </label>
           <input
-            type="number"
+            type="text"
             inputMode="decimal"
             placeholder="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            autoFocus
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary placeholder:text-text-muted focus:border-primary focus:outline-none"
+            value={formatArDecimal(amount)}
+            onChange={(e) => setAmount(parseArDecimalInput(e.target.value))}
+            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary placeholder:text-text-muted outline-none focus:border-primary focus:ring-0"
           />
         </div>
 
@@ -282,25 +298,6 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
         ) : null}
       </div>
 
-      {error ? <p className="mt-3 text-[13px] text-danger">{error}</p> : null}
-
-      <div className="mt-6 flex gap-2">
-        <button
-          type="button"
-          onClick={handleClose}
-          className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-primary"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className="flex-1 rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60"
-        >
-          {isSaving ? 'Registrando...' : 'Registrar'}
-        </button>
-      </div>
-    </Modal>
+    </TaskSurface>
   )
 }

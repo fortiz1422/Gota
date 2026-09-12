@@ -117,14 +117,6 @@ export function GoalCreateSheet({ open, onClose, onCreated }: Props) {
           >
             {isSaving ? 'Creando meta…' : 'Crear meta'}
           </button>
-          <button
-            type="button"
-            onClick={handleClose}
-            disabled={isSaving}
-            className="mt-1 min-h-11 w-full type-body text-text-tertiary disabled:opacity-50"
-          >
-            Cancelar
-          </button>
         </>
       )}
     >

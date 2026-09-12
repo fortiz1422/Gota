@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { PencilSimple, Trash } from '@phosphor-icons/react'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { GoalContribution } from '@/lib/goals/types'
 import type { Currency } from '@/types/database'
@@ -36,6 +37,7 @@ export function GoalContributionHistory({
 }: Props) {
   const [deletingId, setDeletingId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [pendingDelete, setPendingDelete] = useState<{ id: string; trigger: HTMLElement | null } | null>(null)
 
   async function handleDelete(contributionId: string) {
     setDeletingId(contributionId)
@@ -61,6 +63,7 @@ export function GoalContributionHistory({
   }
 
   return (
+    <>
     <div>
       {error ? <p className="mb-2 text-[12px] text-danger">{error}</p> : null}
       <div className="divide-y divide-separator">
@@ -107,7 +110,7 @@ export function GoalContributionHistory({
                 <button
                   type="button"
                   disabled={deletingId === contribution.id}
-                  onClick={() => handleDelete(contribution.id)}
+                  onClick={(event) => setPendingDelete({ id: contribution.id, trigger: event.currentTarget })}
                   className="rounded-full p-1.5 text-text-disabled transition-colors hover:bg-danger-light hover:text-danger disabled:opacity-40"
                   aria-label="Eliminar aporte"
                 >
@@ -121,5 +124,22 @@ export function GoalContributionHistory({
         ))}
       </div>
     </div>
+    <ConfirmationSurface
+      open={pendingDelete !== null}
+      onClose={() => setPendingDelete(null)}
+      onConfirm={() => {
+        if (!pendingDelete) return
+        void handleDelete(pendingDelete.id).then(() => setPendingDelete(null))
+      }}
+      triggerElement={pendingDelete?.trigger}
+      title="Eliminar aporte"
+      description="Esta acción elimina el registro manual y no se puede deshacer."
+      confirmLabel="Eliminar aporte"
+      destructive
+      appearance="compact"
+    >
+      Revisá que quieras eliminar este aporte de la historia de tu meta.
+    </ConfirmationSurface>
+    </>
   )
 }
