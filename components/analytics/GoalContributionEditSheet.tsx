@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { InlineError } from '@/components/ui/InlineError'
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
@@ -32,6 +32,7 @@ export function GoalContributionEditSheet({
   const [note, setNote] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     if (!open || !contribution) return
@@ -86,7 +87,7 @@ export function GoalContributionEditSheet({
   if (!open || !contribution) return null
 
   return (
-    <TaskSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" footer={(
+    <TaskSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" initialFocusRef={amountRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
@@ -111,6 +112,7 @@ export function GoalContributionEditSheet({
             Monto ({goalCurrency})
           </label>
           <input
+            ref={amountRef}
             type="text"
             inputMode="decimal"
             value={formatArDecimal(amount)}

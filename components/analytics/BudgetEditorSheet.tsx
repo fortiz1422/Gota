@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { InlineError } from '@/components/ui/InlineError'
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
@@ -39,6 +39,8 @@ export function BudgetEditorSheet({
   const [draftItems, setDraftItems] = useState<DraftItem[]>([])
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const categoryRef = useRef<HTMLSelectElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   const normalizedAvailable = useMemo(
     () => availableCategories.filter((category) => category !== 'Pago de Tarjetas'),
@@ -113,8 +115,11 @@ export function BudgetEditorSheet({
     }
   }
 
+  const firstItem = draftItems[0]
+  const initialFocusRef = mode === 'create' || !firstItem?.id ? categoryRef : amountRef
+
   return (
-    <TaskSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" footer={(
+    <TaskSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
@@ -133,9 +138,10 @@ export function BudgetEditorSheet({
 
       <div className="mt-5 space-y-3">
         {draftItems.map((item, index) => (
-          <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-[1fr_132px_auto] gap-2">
+          <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto]">
             {mode === 'create' || !item.id ? (
               <select
+                ref={index === 0 ? categoryRef : undefined}
                 value={item.category}
                 onChange={(event) =>
                   setDraftItems((prev) =>
@@ -144,7 +150,7 @@ export function BudgetEditorSheet({
                     ),
                   )
                 }
-                className="rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="min-h-11 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
                 {normalizedAvailable.map((category) => (
                   <option key={category} value={category}>
@@ -153,12 +159,13 @@ export function BudgetEditorSheet({
                 ))}
               </select>
             ) : (
-              <div className="rounded-input bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary">
+              <div className="flex min-h-11 items-center rounded-input bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary">
                 {item.category}
               </div>
             )}
 
             <input
+              ref={index === 0 ? amountRef : undefined}
               type="text"
               inputMode="decimal"
               placeholder="0"
@@ -170,13 +177,13 @@ export function BudgetEditorSheet({
                   ),
                 )
               }
-              className="rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+              className="min-h-11 min-w-0 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
 
             <button
               type="button"
               onClick={() => handleRemoveRow(index)}
-              className="rounded-input border border-border-ocean px-3 text-sm font-semibold text-text-secondary"
+              className="min-h-11 rounded-input border border-border-ocean px-3 text-sm font-semibold text-text-secondary"
             >
               Quitar
             </button>

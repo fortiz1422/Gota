@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { InlineError } from '@/components/ui/InlineError'
@@ -37,6 +37,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
   const [sourceAccountId, setSourceAccountId] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   const { data: accountsData } = useQuery<{ accounts: SourceAccount[] }>({
     queryKey: ['goal-source-accounts'],
@@ -143,6 +144,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
       description="Registrá progreso sin tocar tu Disponible real."
       appearance="compact"
       canvasTone="standard"
+      initialFocusRef={amountRef}
       footer={(
         <>
           <InlineError message={error} className="mb-3" />
@@ -172,6 +174,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
             Monto ({goal.currency})
           </label>
           <input
+            ref={amountRef}
             type="text"
             inputMode="decimal"
             placeholder="0"
