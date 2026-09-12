@@ -41,6 +41,8 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
   const [editOpen, setEditOpen] = useState(false)
   const [linkTransferOpen, setLinkTransferOpen] = useState(false)
   const [editingContribution, setEditingContribution] = useState<GoalContribution | null>(null)
+  const [editingContributionTrigger, setEditingContributionTrigger] = useState<HTMLElement | null>(null)
+  const [linkTransferTrigger, setLinkTransferTrigger] = useState<HTMLElement | null>(null)
   const editTriggerRef = useRef<HTMLButtonElement>(null)
 
   const { data: detail, isLoading: isDetailLoading } = useQuery<GoalDetail>({
@@ -179,7 +181,10 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
               </button>
               <button
                 type="button"
-                onClick={() => setLinkTransferOpen(true)}
+                onClick={(event) => {
+                  setLinkTransferTrigger(event.currentTarget)
+                  setLinkTransferOpen(true)
+                }}
                 className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-secondary"
               >
                 Vincular transferencia
@@ -247,7 +252,10 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
               goalCurrency={displayGoal.currency}
               goalId={displayGoal.id}
               onDeleted={invalidateAll}
-              onEdit={(contribution) => setEditingContribution(contribution)}
+              onEdit={(contribution, trigger) => {
+                setEditingContributionTrigger(trigger)
+                setEditingContribution(contribution)
+              }}
             />
           )}
         </div>
@@ -268,7 +276,11 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
         goalId={displayGoal.id}
         goalCurrency={displayGoal.currency}
         contribution={editingContribution}
-        onClose={() => setEditingContribution(null)}
+        triggerElement={editingContributionTrigger}
+        onClose={() => {
+          setEditingContribution(null)
+          setEditingContributionTrigger(null)
+        }}
         onSaved={async () => {
           await invalidateAll()
         }}
@@ -277,7 +289,11 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
       <LinkTransferToGoalSheet
         open={linkTransferOpen}
         goal={displayGoal}
-        onClose={() => setLinkTransferOpen(false)}
+        triggerElement={linkTransferTrigger}
+        onClose={() => {
+          setLinkTransferOpen(false)
+          setLinkTransferTrigger(null)
+        }}
         onLinked={async () => {
           await invalidateAll()
         }}

@@ -22,14 +22,15 @@ interface Props {
   goal: GoalWithMetrics | null
   onClose: () => void
   onLinked: () => void
+  triggerElement?: HTMLElement | null
 }
 
-export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked }: Props) {
+export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked, triggerElement }: Props) {
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [isLinking, setIsLinking] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  const { data, isLoading } = useQuery<{ transfers: TransferRow[] }>({
+  const { data, isLoading, isError: isTransfersError, refetch } = useQuery<{ transfers: TransferRow[] }>({
     queryKey: ['transfers-for-goal'],
     queryFn: async () => {
       const res = await fetch('/api/transfers')
@@ -99,7 +100,7 @@ export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked }: Props
   if (!open || !goal) return null
 
   return (
-    <ChoiceSurface open={open} onClose={handleClose} eyebrow="PLANIFICAR" title="Vincular transferencia" description={`Elegí una transferencia en ${goal.currency} para registrarla como aporte.`} appearance="compact">
+    <ChoiceSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Vincular transferencia" description={`Elegí una transferencia en ${goal.currency} para registrarla como aporte.`} appearance="compact">
       <div className="mb-4 flex items-center gap-2">
         {goal.emoji ? <span className="text-[20px]">{goal.emoji}</span> : null}
         <div>
@@ -119,6 +120,11 @@ export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked }: Props
           <div className="h-14 rounded-card skeleton" />
           <div className="h-14 rounded-card skeleton" />
           <div className="h-14 rounded-card skeleton" />
+        </div>
+      ) : isTransfersError ? (
+        <div className="py-4 text-center">
+          <p className="text-[13px] text-text-tertiary">No pudimos cargar las transferencias disponibles.</p>
+          <button type="button" onClick={() => { void refetch() }} className="mt-3 min-h-11 text-[13px] font-semibold text-primary">Reintentar</button>
         </div>
       ) : eligible.length === 0 ? (
         <p className="py-4 text-center text-[13px] text-text-tertiary">

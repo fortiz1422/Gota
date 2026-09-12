@@ -15,6 +15,7 @@ interface Props {
   contribution: GoalContribution | null
   onClose: () => void
   onSaved: () => Promise<void> | void
+  triggerElement?: HTMLElement | null
 }
 
 export function GoalContributionEditSheet({
@@ -24,6 +25,7 @@ export function GoalContributionEditSheet({
   contribution,
   onClose,
   onSaved,
+  triggerElement,
 }: Props) {
   const [amount, setAmount] = useState('')
   const [contributedAt, setContributedAt] = useState(todayAR())
@@ -84,7 +86,7 @@ export function GoalContributionEditSheet({
   if (!open || !contribution) return null
 
   return (
-    <TaskSurface open={open} onClose={handleClose} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" footer={(
+    <TaskSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">

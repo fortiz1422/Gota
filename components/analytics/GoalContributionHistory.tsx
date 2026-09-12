@@ -25,7 +25,22 @@ interface Props {
   goalCurrency: Currency
   goalId: string
   onDeleted: () => void
-  onEdit: (contribution: GoalContribution) => void
+  onEdit: (contribution: GoalContribution, trigger: HTMLElement) => void
+}
+
+export async function deleteGoalContribution(
+  goalId: string,
+  contributionId: string,
+  request: typeof fetch = fetch,
+) {
+  const res = await request(`/api/goals/${goalId}/contributions/${contributionId}`, {
+    method: 'DELETE',
+  })
+
+  if (!res.ok) {
+    const data = await res.json().catch(() => null)
+    throw new Error(data?.error ?? 'No se pudo eliminar el aporte.')
+  }
 }
 
 export function GoalContributionHistory({
@@ -43,16 +58,12 @@ export function GoalContributionHistory({
     setDeletingId(contributionId)
     setError(null)
     try {
-      const res = await fetch(`/api/goals/${goalId}/contributions/${contributionId}`, {
-        method: 'DELETE',
-      })
-      if (!res.ok) {
-        const data = await res.json().catch(() => null)
-        throw new Error(data?.error ?? 'No se pudo eliminar el aporte.')
-      }
+      await deleteGoalContribution(goalId, contributionId)
       onDeleted()
+      return true
     } catch (err) {
       setError(err instanceof Error ? err.message : 'No se pudo eliminar el aporte.')
+      return false
     } finally {
       setDeletingId(null)
     }
@@ -101,7 +112,7 @@ export function GoalContributionHistory({
               <div className="flex shrink-0 items-center gap-1">
                 <button
                   type="button"
-                  onClick={() => onEdit(contribution)}
+                  onClick={(event) => onEdit(contribution, event.currentTarget)}
                   className="rounded-full p-1.5 text-text-disabled transition-colors hover:bg-primary-soft hover:text-primary"
                   aria-label="Editar aporte"
                 >
@@ -126,19 +137,26 @@ export function GoalContributionHistory({
     </div>
     <ConfirmationSurface
       open={pendingDelete !== null}
-      onClose={() => setPendingDelete(null)}
+      onClose={() => {
+        setPendingDelete(null)
+        setError(null)
+      }}
       onConfirm={() => {
         if (!pendingDelete) return
-        void handleDelete(pendingDelete.id).then(() => setPendingDelete(null))
+        void handleDelete(pendingDelete.id).then((deleted) => {
+          if (deleted) setPendingDelete(null)
+        })
       }}
       triggerElement={pendingDelete?.trigger}
       title="Eliminar aporte"
       description="Esta acción elimina el registro manual y no se puede deshacer."
       confirmLabel="Eliminar aporte"
       destructive
+      busy={deletingId === pendingDelete?.id}
       appearance="compact"
     >
       Revisá que quieras eliminar este aporte de la historia de tu meta.
+      {error ? <p className="mt-3 text-[12px] text-danger">{error}</p> : null}
     </ConfirmationSurface>
     </>
   )
