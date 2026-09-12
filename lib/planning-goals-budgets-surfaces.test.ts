@@ -21,6 +21,9 @@ describe('planning goals and budgets task surfaces', () => {
     expect(budget).toContain('ref={index === 0 ? categoryRef : undefined}')
     expect(budget).toContain('ref={index === 0 ? amountRef : undefined}')
     expect(budget).toContain('const firstItem = draftItems[0]')
+    expect(budget).toContain('const getInitialDraftItems = (')
+    expect(budget).toContain('useState<DraftItem[]>(() => getInitialDraftItems(initialItems, availableCategories))')
+    expect(budget).toContain('setDraftItems(getInitialDraftItems(initialItems, availableCategories))')
   })
 
   it('uses a responsive budget row with compact layout only above mobile width', () => {

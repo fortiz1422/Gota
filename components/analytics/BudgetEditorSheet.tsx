@@ -12,6 +12,24 @@ type DraftItem = {
   amount: string
 }
 
+const getAvailableBudgetCategories = (availableCategories: string[]) =>
+  availableCategories.filter((category) => category !== 'Pago de Tarjetas')
+
+const getInitialDraftItems = (
+  initialItems: BudgetItemMetrics[],
+  availableCategories: string[],
+): DraftItem[] => {
+  if (initialItems.length > 0) {
+    return initialItems.map((item) => ({
+      id: item.id,
+      category: item.category,
+      amount: String(item.amount),
+    }))
+  }
+
+  return [{ category: getAvailableBudgetCategories(availableCategories)[0] ?? '', amount: '' }]
+}
+
 interface Props {
   open: boolean
   mode: 'create' | 'edit'
@@ -36,30 +54,22 @@ export function BudgetEditorSheet({
   onSync,
   onRequestDelete,
 }: Props) {
-  const [draftItems, setDraftItems] = useState<DraftItem[]>([])
+  const [draftItems, setDraftItems] = useState<DraftItem[]>(() => getInitialDraftItems(initialItems, availableCategories))
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
   const categoryRef = useRef<HTMLSelectElement>(null)
   const amountRef = useRef<HTMLInputElement>(null)
 
   const normalizedAvailable = useMemo(
-    () => availableCategories.filter((category) => category !== 'Pago de Tarjetas'),
+    () => getAvailableBudgetCategories(availableCategories),
     [availableCategories],
   )
 
   useEffect(() => {
     if (!open) return
-    setDraftItems(
-      initialItems.length > 0
-        ? initialItems.map((item) => ({
-            id: item.id,
-            category: item.category,
-            amount: String(item.amount),
-          }))
-        : [{ category: normalizedAvailable[0] ?? '', amount: '' }],
-    )
+    setDraftItems(getInitialDraftItems(initialItems, availableCategories))
     setError(null)
-  }, [open, initialItems, normalizedAvailable])
+  }, [open, initialItems, availableCategories])
 
   if (!open) return null
 
