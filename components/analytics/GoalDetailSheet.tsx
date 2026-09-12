@@ -2,8 +2,7 @@
 
 import { useRef, useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { X } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { ManagementSurface } from '@/components/ui/ManagementSurface'
 import { GoalProgressBar } from './GoalProgressBar'
 import { GoalContributionEditSheet } from './GoalContributionEditSheet'
 import { GoalContributionHistory } from './GoalContributionHistory'
@@ -42,6 +41,8 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
   const [editOpen, setEditOpen] = useState(false)
   const [linkTransferOpen, setLinkTransferOpen] = useState(false)
   const [editingContribution, setEditingContribution] = useState<GoalContribution | null>(null)
+  const [editingContributionTrigger, setEditingContributionTrigger] = useState<HTMLElement | null>(null)
+  const [linkTransferTrigger, setLinkTransferTrigger] = useState<HTMLElement | null>(null)
   const editTriggerRef = useRef<HTMLButtonElement>(null)
 
   const { data: detail, isLoading: isDetailLoading } = useQuery<GoalDetail>({
@@ -81,30 +82,12 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
 
   return (
     <>
-      <Modal open={open} onClose={onClose}>
-        <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-
-        <div className="mb-4 flex items-start justify-between gap-2">
+      <ManagementSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={displayGoal.name} description="Revisá el progreso, los aportes y el estado de tu meta.">
+        <div className="mb-4 flex items-start gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {displayGoal.emoji ? <span className="text-[22px]">{displayGoal.emoji}</span> : null}
-            <h2 className="text-[17px] font-semibold text-text-primary">{displayGoal.name}</h2>
           </div>
-          <div className="flex shrink-0 items-center gap-2">
-            <button
-              ref={editTriggerRef}
-              type="button"
-              onClick={() => setEditOpen(true)}
-              className="rounded-full px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary-soft"
-            >
-              Editar
-            </button>
-            <button
-              onClick={onClose}
-              className="rounded-full p-1.5 text-text-disabled transition-colors hover:bg-bg-tertiary hover:text-text-primary"
-            >
-              <X weight="bold" size={16} />
-            </button>
-          </div>
+          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="ml-auto rounded-pill px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary-soft">Editar</button>
         </div>
 
         <GoalProgressBar pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
@@ -198,7 +181,10 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
               </button>
               <button
                 type="button"
-                onClick={() => setLinkTransferOpen(true)}
+                onClick={(event) => {
+                  setLinkTransferTrigger(event.currentTarget)
+                  setLinkTransferOpen(true)
+                }}
                 className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-[13px] font-semibold text-text-secondary"
               >
                 Vincular transferencia
@@ -266,11 +252,14 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
               goalCurrency={displayGoal.currency}
               goalId={displayGoal.id}
               onDeleted={invalidateAll}
-              onEdit={(contribution) => setEditingContribution(contribution)}
+              onEdit={(contribution, trigger) => {
+                setEditingContributionTrigger(trigger)
+                setEditingContribution(contribution)
+              }}
             />
           )}
         </div>
-      </Modal>
+      </ManagementSurface>
 
       <GoalEditSheet
         open={editOpen}
@@ -287,7 +276,11 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
         goalId={displayGoal.id}
         goalCurrency={displayGoal.currency}
         contribution={editingContribution}
-        onClose={() => setEditingContribution(null)}
+        triggerElement={editingContributionTrigger}
+        onClose={() => {
+          setEditingContribution(null)
+          setEditingContributionTrigger(null)
+        }}
         onSaved={async () => {
           await invalidateAll()
         }}
@@ -296,7 +289,11 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
       <LinkTransferToGoalSheet
         open={linkTransferOpen}
         goal={displayGoal}
-        onClose={() => setLinkTransferOpen(false)}
+        triggerElement={linkTransferTrigger}
+        onClose={() => {
+          setLinkTransferOpen(false)
+          setLinkTransferTrigger(null)
+        }}
         onLinked={async () => {
           await invalidateAll()
         }}

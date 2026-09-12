@@ -1,13 +1,33 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
-import { Modal } from '@/components/ui/Modal'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
+import { InlineError } from '@/components/ui/InlineError'
+import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import type { BudgetItemMetrics } from '@/lib/budgets/types'
 
 type DraftItem = {
   id?: string
   category: string
   amount: string
+}
+
+const getAvailableBudgetCategories = (availableCategories: string[]) =>
+  availableCategories.filter((category) => category !== 'Pago de Tarjetas')
+
+const getInitialDraftItems = (
+  initialItems: BudgetItemMetrics[],
+  availableCategories: string[],
+): DraftItem[] => {
+  if (initialItems.length > 0) {
+    return initialItems.map((item) => ({
+      id: item.id,
+      category: item.category,
+      amount: String(item.amount),
+    }))
+  }
+
+  return [{ category: getAvailableBudgetCategories(availableCategories)[0] ?? '', amount: '' }]
 }
 
 interface Props {
@@ -20,7 +40,7 @@ interface Props {
   onClose: () => void
   onCreate: (items: Array<{ category: string; amount: number }>) => Promise<void>
   onSync: (items: Array<{ id?: string; category: string; amount: number }>) => Promise<void>
-  onDelete?: () => Promise<void>
+  onRequestDelete?: (trigger: HTMLElement) => void
 }
 
 export function BudgetEditorSheet({
@@ -32,30 +52,24 @@ export function BudgetEditorSheet({
   onClose,
   onCreate,
   onSync,
-  onDelete,
+  onRequestDelete,
 }: Props) {
-  const [draftItems, setDraftItems] = useState<DraftItem[]>([])
+  const [draftItems, setDraftItems] = useState<DraftItem[]>(() => getInitialDraftItems(initialItems, availableCategories))
   const [error, setError] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const categoryRef = useRef<HTMLSelectElement>(null)
+  const amountRef = useRef<HTMLInputElement>(null)
 
   const normalizedAvailable = useMemo(
-    () => availableCategories.filter((category) => category !== 'Pago de Tarjetas'),
+    () => getAvailableBudgetCategories(availableCategories),
     [availableCategories],
   )
 
   useEffect(() => {
     if (!open) return
-    setDraftItems(
-      initialItems.length > 0
-        ? initialItems.map((item) => ({
-            id: item.id,
-            category: item.category,
-            amount: String(item.amount),
-          }))
-        : [{ category: normalizedAvailable[0] ?? '', amount: '' }],
-    )
+    setDraftItems(getInitialDraftItems(initialItems, availableCategories))
     setError(null)
-  }, [open, initialItems, normalizedAvailable])
+  }, [open, initialItems, availableCategories])
 
   if (!open) return null
 
@@ -75,20 +89,7 @@ export function BudgetEditorSheet({
     }))
 
     if (cleaned.length === 0) {
-      if (mode === 'edit' && onDelete) {
-        setError(null)
-        setIsSaving(true)
-        try {
-          await onDelete()
-          onClose()
-        } catch (deleteError) {
-          setError(deleteError instanceof Error ? deleteError.message : 'No se pudo eliminar el presupuesto.')
-        } finally {
-          setIsSaving(false)
-        }
-      } else {
-        setError('El presupuesto no puede quedar vacío.')
-      }
+      setError('El presupuesto no puede quedar vacío.')
       return
     }
 
@@ -124,10 +125,19 @@ export function BudgetEditorSheet({
     }
   }
 
+  const firstItem = draftItems[0]
+  const initialFocusRef = mode === 'create' || !firstItem?.id ? categoryRef : amountRef
+
   return (
-    <Modal open={open} onClose={onClose}>
-      <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <h2 className="text-lg font-semibold text-text-primary">
+    <TaskSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
+      <>
+        <InlineError message={error} className="mb-3" />
+        <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
+          {isSaving ? 'Guardando...' : 'Guardar presupuesto'}
+        </button>
+      </>
+    )}>
+      <h2 className="sr-only">
         {mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'}
       </h2>
       <p className="mt-1 text-xs text-text-tertiary">
@@ -138,9 +148,10 @@ export function BudgetEditorSheet({
 
       <div className="mt-5 space-y-3">
         {draftItems.map((item, index) => (
-          <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-[1fr_132px_auto] gap-2">
+          <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto]">
             {mode === 'create' || !item.id ? (
               <select
+                ref={index === 0 ? categoryRef : undefined}
                 value={item.category}
                 onChange={(event) =>
                   setDraftItems((prev) =>
@@ -149,7 +160,7 @@ export function BudgetEditorSheet({
                     ),
                   )
                 }
-                className="rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="min-h-11 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               >
                 {normalizedAvailable.map((category) => (
                   <option key={category} value={category}>
@@ -158,30 +169,31 @@ export function BudgetEditorSheet({
                 ))}
               </select>
             ) : (
-              <div className="rounded-input bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary">
+              <div className="flex min-h-11 items-center rounded-input bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary">
                 {item.category}
               </div>
             )}
 
             <input
-              type="number"
+              ref={index === 0 ? amountRef : undefined}
+              type="text"
               inputMode="decimal"
               placeholder="0"
-              value={item.amount}
+              value={formatArDecimal(item.amount)}
               onChange={(event) =>
                 setDraftItems((prev) =>
                   prev.map((row, rowIndex) =>
-                    rowIndex === index ? { ...row, amount: event.target.value } : row,
+                    rowIndex === index ? { ...row, amount: parseArDecimalInput(event.target.value, row.amount) } : row,
                   ),
                 )
               }
-              className="rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+              className="min-h-11 min-w-0 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
 
             <button
               type="button"
               onClick={() => handleRemoveRow(index)}
-              className="rounded-input border border-border-ocean px-3 text-sm font-semibold text-text-secondary"
+              className="min-h-11 rounded-input border border-border-ocean px-3 text-sm font-semibold text-text-secondary"
             >
               Quitar
             </button>
@@ -195,35 +207,12 @@ export function BudgetEditorSheet({
         </button>
       ) : null}
 
-      {error ? <p className="mt-4 text-sm text-danger">{error}</p> : null}
+      {mode === 'edit' && onRequestDelete ? (
+        <button type="button" onClick={(event) => onRequestDelete(event.currentTarget)} className="mt-6 w-full rounded-button border border-danger/30 px-4 py-3 text-sm font-semibold text-danger">
+          Eliminar presupuesto
+        </button>
+      ) : null}
 
-      <div className="mt-6 flex gap-2">
-        <button
-          type="button"
-          onClick={onClose}
-          className="flex-1 rounded-button border border-border-ocean px-4 py-3 text-sm font-semibold text-text-primary"
-        >
-          Cancelar
-        </button>
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={isSaving}
-          className={`flex-1 rounded-button px-4 py-3 text-sm font-semibold text-white disabled:opacity-60 ${
-            mode === 'edit' && draftItems.length === 0
-              ? 'bg-danger'
-              : 'bg-primary'
-          }`}
-        >
-          {isSaving
-            ? mode === 'edit' && draftItems.length === 0
-              ? 'Eliminando...'
-              : 'Guardando...'
-            : mode === 'edit' && draftItems.length === 0
-              ? 'Eliminar presupuesto'
-              : 'Guardar'}
-        </button>
-      </div>
-    </Modal>
+    </TaskSurface>
   )
 }

@@ -8,6 +8,8 @@ import { BudgetCategoryGroups } from './BudgetCategoryGroups'
 import { BudgetEditorSheet } from './BudgetEditorSheet'
 import { BudgetEmptyState } from './BudgetEmptyState'
 import { BudgetFocusList } from './BudgetFocusList'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
+import { InlineError } from '@/components/ui/InlineError'
 
 interface Props {
   budget: BudgetSnapshot
@@ -37,6 +39,11 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
   const queryClient = useQueryClient()
   const [editorOpen, setEditorOpen] = useState(false)
   const [isCloning, setIsCloning] = useState(false)
+  const [cloneError, setCloneError] = useState<string | null>(null)
+  const [deleteOpen, setDeleteOpen] = useState(false)
+  const [deleteTrigger, setDeleteTrigger] = useState<HTMLElement | null>(null)
+  const [isDeleting, setIsDeleting] = useState(false)
+  const [deleteError, setDeleteError] = useState<string | null>(null)
 
   const planExists = budget.plan !== null
   const creatableCategories = useMemo(
@@ -140,6 +147,7 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
 
   async function handleClone() {
     setIsCloning(true)
+    setCloneError(null)
     try {
       const res = await fetch('/api/budgets/clone-from-previous', {
         method: 'POST',
@@ -158,7 +166,7 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
       await refreshBudgets()
       router.refresh()
     } catch (error) {
-      alert(error instanceof Error ? error.message : 'No se pudo clonar el presupuesto anterior.')
+      setCloneError(error instanceof Error ? error.message : 'No se pudo clonar el presupuesto anterior.')
     } finally {
       setIsCloning(false)
     }
@@ -212,8 +220,38 @@ export function BudgetsSection({ budget, currency, selectedMonth, categories }: 
         onClose={() => setEditorOpen(false)}
         onCreate={handleCreate}
         onSync={handleSync}
-        onDelete={planExists ? handleDelete : undefined}
+        onRequestDelete={planExists ? (trigger) => {
+          setDeleteTrigger(trigger)
+          setDeleteOpen(true)
+        } : undefined}
       />
+      <ConfirmationSurface
+        open={deleteOpen}
+        onClose={() => setDeleteOpen(false)}
+        onConfirm={() => {
+          setIsDeleting(true)
+          setDeleteError(null)
+          void handleDelete().then(() => {
+            setIsDeleting(false)
+            setDeleteOpen(false)
+            setEditorOpen(false)
+          }).catch((error) => {
+            setIsDeleting(false)
+            setDeleteError(error instanceof Error ? error.message : 'No se pudo eliminar el presupuesto.')
+          })
+        }}
+        triggerElement={deleteTrigger}
+        title="Eliminar presupuesto"
+        description="Se van a eliminar el plan y sus categorías. Esta acción no se puede deshacer."
+        confirmLabel="Eliminar presupuesto"
+        destructive
+        busy={isDeleting}
+        appearance="compact"
+      >
+        Revisá que quieras eliminar este presupuesto del mes.
+        <InlineError message={deleteError} className="mt-3" />
+      </ConfirmationSurface>
+      {!planExists ? <InlineError message={cloneError} className="mx-auto mt-3 max-w-md px-[22px]" /> : null}
     </div>
   )
 }
