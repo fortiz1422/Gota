@@ -56,6 +56,32 @@ export interface SharedReceiptSummary {
   preview_overrides?: { description?: string; category?: string | null } | null
 }
 
+export type ReceiptRequest = Readonly<{ id: string; generation: number }>
+
+/**
+ * Keeps asynchronous receipt work scoped to the receipt that started it.
+ * A newer request for the same lane, or selecting another receipt, makes
+ * every earlier response inert.
+ */
+export function createReceiptRequestGuard(initialReceiptId: string) {
+  let activeReceiptId = initialReceiptId
+  let generation = 0
+
+  return {
+    activate(receiptId: string): void {
+      activeReceiptId = receiptId
+      generation += 1
+    },
+    start(receiptId: string): ReceiptRequest {
+      generation += 1
+      return { id: receiptId, generation }
+    },
+    isCurrent(request: ReceiptRequest): boolean {
+      return request.id === activeReceiptId && request.generation === generation
+    },
+  }
+}
+
 export interface PurchaseProposal {
   transaction_type: 'purchase'
   description: string

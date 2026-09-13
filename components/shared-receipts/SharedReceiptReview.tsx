@@ -11,6 +11,7 @@ import {
   getNextReviewReceiptId,
   getReceiptQueuePosition,
   getReviewCompletionLabel,
+  createReceiptRequestGuard,
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
   invalidateAfterSharedReceiptConfirmation,
@@ -50,17 +51,27 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
+  const pendingPreviewReviewId = useRef<string | null>(null)
+  const loadRequestGuard = useRef(createReceiptRequestGuard(receiptId))
+  const analyzeRequestGuard = useRef(createReceiptRequestGuard(receiptId))
+  const analyzeRef = useRef<((targetId: string, targetReceipt: SharedReceiptSummary) => Promise<void>) | null>(null)
   const queuePosition = getReceiptQueuePosition(queue, activeReceiptId)
   const completionLabel = getReviewCompletionLabel(queue, activeReceiptId, completedReceiptIds)
+  const previewLoading = previewReceipt?.id === activeReceiptId && loading && receipt?.id !== previewReceipt.id
+  const previewAnalyzing = previewReceipt?.id === activeReceiptId && analyzing
+  const previewError = previewReceipt?.id === activeReceiptId ? error : null
 
   const batchSummary = summarizeReviewBatch(batchOutcomes)
 
   const selectReceipt = useCallback((nextId: string) => {
     if (nextId === activeReceiptId) return
     window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))
+    loadRequestGuard.current.activate(nextId)
+    analyzeRequestGuard.current.activate(nextId)
     setActiveReceiptId(nextId)
     setReceipt(null)
     setAnalysis(null)
+    setAnalyzing(false)
     setError(null)
   }, [activeReceiptId])
 
@@ -77,6 +88,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setBatchComplete(true)
   }, [completedReceiptIds, queue, selectReceipt])
   const load = useCallback(async () => {
+    const request = loadRequestGuard.current.start(activeReceiptId)
+    const isCurrentLoad = () => loadRequestGuard.current.isCurrent(request)
     if (sessionLoaded.current) {
       setLoading(true)
       setError(null)
@@ -84,12 +97,18 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(activeReceiptId), { cache: 'no-store' })
         if (!response.ok) throw new Error(await responseError(response, 'No pudimos cargar el comprobante.'))
         const loadedReceipt = normalizeReceiptResponse(await response.json())
+        if (!isCurrentLoad()) return
+        const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null
+        const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
+        pendingPreviewReviewId.current = null
         setReceipt(loadedReceipt)
-        setAnalysis(loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null)
+        setAnalysis(restoredAnalysis)
+        if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
+        if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       } catch (reason) {
-        setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
+        if (isCurrentLoad()) setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
       } finally {
-        setLoading(false)
+        if (isCurrentLoad()) setLoading(false)
       }
       return
     }
@@ -111,14 +130,21 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         requireReferenceArray<Account>(await accountsResponse.json(), 'cuentas'),
         requireReferenceArray<Card>(await cardsResponse.json(), 'tarjetas'),
       ])
+      if (!isCurrentLoad()) return
       const activeAccounts = loadedAccounts.filter((item) => !item.archived)
       cardsRef.current = loadedCards
+      const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, loadedCards) : null
+      const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
+      pendingPreviewReviewId.current = null
       setReceipt(loadedReceipt)
       setAccounts(activeAccounts)
       setCards(loadedCards)
-      if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
+      setAnalysis(restoredAnalysis)
+      if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
+      if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
+        if (!isCurrentLoad()) return
         setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))
         void Promise.all(summaries.map(async (summary) => {
           if (summary.id === loadedReceipt?.id) return loadedReceipt
@@ -129,35 +155,40 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           } catch {
             return summary
           }
-        })).then(setQueue)
+        })).then((detailedQueue) => {
+          if (isCurrentLoad()) setQueue(detailedQueue)
+        })
       } else if (loadedReceipt) {
         setQueue([loadedReceipt])
       }
       sessionLoaded.current = true
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
+      if (isCurrentLoad()) setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
     } finally {
-      setLoading(false)
+      if (isCurrentLoad()) setLoading(false)
     }
   }, [activeReceiptId])
 
   useEffect(() => { void load() }, [load])
 
-  const analyze = async () => {
+  const analyze = async (targetId = activeReceiptId, targetReceipt = receipt) => {
+    const request = analyzeRequestGuard.current.start(targetId)
+    const isCurrentAnalyze = () => analyzeRequestGuard.current.isCurrent(request)
     setAnalyzing(true)
     setError(null)
     try {
       const response = await fetch(
-        SHARED_RECEIPT_ROUTES.analyze(activeReceiptId, receipt?.status === 'parse_failed'),
+        SHARED_RECEIPT_ROUTES.analyze(targetId, targetReceipt?.status === 'parse_failed'),
         { method: 'POST' },
       )
       if (!response.ok) {
-        if (response.status === 422) {
-          setReceipt((current) => current ? { ...current, status: 'parse_failed' } : current)
+        if (response.status === 422 && isCurrentAnalyze()) {
+          setReceipt((current) => current?.id === targetId ? { ...current, status: 'parse_failed' } : current)
         }
         throw new Error(await responseError(response, 'No pudimos analizar el comprobante.'))
       }
       const parsed = parsePurchaseProposal(await response.json())
+      if (!isCurrentAnalyze()) return
       if (parsed.supported) {
         const matchingCard = parsed.proposal.payment_method === 'CREDIT'
           ? matchReceiptCard(cards, parsed.proposal.card_brand, parsed.proposal.card_issuer)
@@ -172,11 +203,39 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       } else {
         setAnalysis(parsed)
       }
+      setPreviewReceipt(null)
     } catch (reason) {
-      setError(reason instanceof Error ? reason.message : 'No pudimos analizar el comprobante.')
+      if (isCurrentAnalyze()) setError(reason instanceof Error ? reason.message : 'No pudimos analizar el comprobante.')
     } finally {
-      setAnalyzing(false)
+      if (isCurrentAnalyze()) setAnalyzing(false)
     }
+  }
+
+  analyzeRef.current = analyze
+
+  const beginPreviewReview = (targetReceipt: SharedReceiptSummary) => {
+    pendingPreviewReviewId.current = targetReceipt.id
+    if (targetReceipt.id !== activeReceiptId) {
+      window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(targetReceipt.id))
+      loadRequestGuard.current.activate(targetReceipt.id)
+      analyzeRequestGuard.current.activate(targetReceipt.id)
+      setLoading(true)
+      setActiveReceiptId(targetReceipt.id)
+      setAnalysis(null)
+      setAnalyzing(false)
+      setError(null)
+      return
+    }
+    if (receipt?.id !== targetReceipt.id) {
+      void load()
+      return
+    }
+    pendingPreviewReviewId.current = null
+    if (analysis) {
+      setPreviewReceipt(null)
+      return
+    }
+    if (!analyzing) void analyze(targetReceipt.id, receipt)
   }
 
   const confirmPurchase = async (payload: ParsePreviewConfirmPayload) => {
@@ -217,7 +276,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   }
 
 
-  if (loading) return <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe"><p className="py-12 text-center text-sm text-text-tertiary">Cargando comprobante…</p></main>
+  if (loading && !previewReceipt) return <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe"><p className="py-12 text-center text-sm text-text-tertiary">Cargando comprobante…</p></main>
 
   if (batchComplete) return (
     <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pb-tab-bar pt-safe">
@@ -299,17 +358,11 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         />
       </section>}
 
-      {!analysis && <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
-        <p className="type-label text-primary">Revisión pendiente</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">El análisis solo prepara una propuesta editable. No habrá cambios financieros hasta que confirmes.</p>
-        <div className="mt-4 rounded-input bg-bg-tertiary p-3 text-xs text-text-tertiary"><p>{receipt.filename || 'Imagen enviada desde iPhone'}</p><p className="mt-1">Recibido {new Date(receipt.created_at).toLocaleString('es-AR')}</p></div>
-        <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : receipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Analizar comprobante'}</button>
-      </section>}
+      {!analysis && <p className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">Abrí la imagen para comenzar o retomar la revisión.</p>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
-      {error && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
+      {error && !previewReceipt && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <button type="button" onClick={() => void dismiss()} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
 
       {previewReceipt?.image_url && <Modal open onClose={() => setPreviewReceipt(null)}>
@@ -322,18 +375,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewReceipt.image_url} alt="Comprobante ampliado" className="max-h-[62dvh] w-full object-contain" />
           </div>
-          <Link
-            href={SHARED_RECEIPT_ROUTES.review(previewReceipt.id)}
-            onClick={(event) => {
-              event.preventDefault()
-              const nextId = previewReceipt.id
-              setPreviewReceipt(null)
-              selectReceipt(nextId)
-            }}
-            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white"
+          <button
+            type="button"
+            onClick={() => beginPreviewReview(previewReceipt)}
+            disabled={previewLoading || previewAnalyzing}
+            aria-busy={previewLoading || previewAnalyzing}
+            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            Revisar este comprobante
-          </Link>
+            {previewLoading ? 'Cargando comprobante…' : previewAnalyzing ? 'Analizando…' : previewError ? 'Reintentar' : previewReceipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Revisar este comprobante'}
+          </button>
+          {previewError && <p role="alert" className="mt-3 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{previewError}</p>}
         </section>
       </Modal>}
     </main>
