@@ -147,11 +147,27 @@ export function getNextReviewReceiptId(
   currentReceiptId: string,
   completedReceiptIds: ReadonlySet<string>,
 ): string | null {
-  return receipts.find((receipt) => (
-    receipt.id !== currentReceiptId
-    && !completedReceiptIds.has(receipt.id)
-    && receipt.status === 'needs_review'
+  const currentIndex = receipts.findIndex((receipt) => receipt.id === currentReceiptId)
+  if (currentIndex < 0) return null
+  return receipts.slice(currentIndex + 1).find((receipt) => (
+    !completedReceiptIds.has(receipt.id) && receipt.status === 'needs_review'
   ))?.id ?? null
+}
+
+export type ReviewBatchOutcome = 'confirmed' | 'duplicate' | 'discarded'
+
+export function summarizeReviewBatch(outcomes: Readonly<Record<string, ReviewBatchOutcome>>): {
+  confirmed: number
+  duplicates: number
+  discarded: number
+} {
+  const summary = { confirmed: 0, duplicates: 0, discarded: 0 }
+  for (const outcome of Object.values(outcomes)) {
+    if (outcome === 'confirmed') summary.confirmed += 1
+    if (outcome === 'duplicate') summary.duplicates += 1
+    if (outcome === 'discarded') summary.discarded += 1
+  }
+  return summary
 }
 
 export function getReviewCompletionLabel(

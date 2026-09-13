@@ -18,7 +18,9 @@ import {
   parseConfirmResult,
   parsePurchaseProposal,
   restoreStoredPurchaseProposal,
+  summarizeReviewBatch,
   type ParsedPurchaseProposal,
+  type ReviewBatchOutcome,
   type SharedReceiptSummary,
 } from '@/lib/shared-receipts-ui'
 import type { Account, Card } from '@/types/database'
@@ -32,6 +34,9 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const queryClient = useQueryClient()
   const [activeReceiptId, setActiveReceiptId] = useState(receiptId)
   const [completedReceiptIds, setCompletedReceiptIds] = useState<Set<string>>(new Set())
+  const [batchOutcomes, setBatchOutcomes] = useState<Record<string, ReviewBatchOutcome>>({})
+  const [batchComplete, setBatchComplete] = useState(false)
+  const cardsRef = useRef<Card[]>([])
   const sessionLoaded = useRef(false)
   const [receipt, setReceipt] = useState<SharedReceiptSummary | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -41,30 +46,35 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [dismissing, setDismissing] = useState(false)
   const [analysis, setAnalysis] = useState<ParsedPurchaseProposal | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
   const queuePosition = getReceiptQueuePosition(queue, activeReceiptId)
   const completionLabel = getReviewCompletionLabel(queue, activeReceiptId, completedReceiptIds)
 
-  const advanceAfterDurableAction = useCallback((currentId: string) => {
+  const batchSummary = summarizeReviewBatch(batchOutcomes)
+
+  const selectReceipt = useCallback((nextId: string) => {
+    if (nextId === activeReceiptId) return
+    window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))
+    setActiveReceiptId(nextId)
+    setReceipt(null)
+    setAnalysis(null)
+    setError(null)
+  }, [activeReceiptId])
+
+  const advanceAfterDurableAction = useCallback((currentId: string, outcome: ReviewBatchOutcome) => {
     const nextCompleted = new Set(completedReceiptIds)
     nextCompleted.add(currentId)
     setCompletedReceiptIds(nextCompleted)
+    setBatchOutcomes((current) => ({ ...current, [currentId]: outcome }))
     const nextId = getNextReviewReceiptId(queue, currentId, nextCompleted)
     if (nextId) {
-      setActiveReceiptId(nextId)
-      setReceipt(null)
-      setAnalysis(null)
-      setError(null)
-      setDone(null)
-      setDismissed(false)
+      selectReceipt(nextId)
       return
     }
-    return
-  }, [completedReceiptIds, queue])
+    setBatchComplete(true)
+  }, [completedReceiptIds, queue, selectReceipt])
   const load = useCallback(async () => {
     if (sessionLoaded.current) {
       setLoading(true)
@@ -74,7 +84,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         if (!response.ok) throw new Error(await responseError(response, 'No pudimos cargar el comprobante.'))
         const loadedReceipt = normalizeReceiptResponse(await response.json())
         setReceipt(loadedReceipt)
-        setAnalysis(loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cards) : null)
+        setAnalysis(loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null)
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
       } finally {
@@ -102,6 +112,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       if (cardsResponse.ok) {
         const data = await cardsResponse.json()
         loadedCards = Array.isArray(data) ? data : []
+        cardsRef.current = loadedCards
         setCards(loadedCards)
       }
       if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
@@ -127,7 +138,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     } finally {
       setLoading(false)
     }
-  }, [activeReceiptId, cards])
+  }, [activeReceiptId])
 
   useEffect(() => { void load() }, [load])
 
@@ -183,9 +194,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const completePurchase = (outcome?: { aliasSaved: boolean | null; financialResult?: unknown }) => {
     const result = outcome?.financialResult as { duplicate: boolean; expenseId: string | null } | undefined
     if (!result) return
-    setAliasSaveFailed(outcome?.aliasSaved === false)
-    setDone(result)
-    advanceAfterDurableAction(activeReceiptId)
+    setAliasSaveFailed((current) => current || outcome?.aliasSaved === false)
+    advanceAfterDurableAction(activeReceiptId, result.duplicate ? 'duplicate' : 'confirmed')
   }
 
   const dismiss = async () => {
@@ -196,8 +206,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     try {
       const response = await fetch(contract.url, { method: contract.method })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos descartar el comprobante.'))
-      setDismissed(true)
-      advanceAfterDurableAction(activeReceiptId)
+      advanceAfterDurableAction(activeReceiptId, 'discarded')
       void queryClient.invalidateQueries({ queryKey: ['shared-receipts'] })
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos descartar el comprobante.')
@@ -209,14 +218,19 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
   if (loading) return <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe"><p className="py-12 text-center text-sm text-text-tertiary">Cargando comprobante…</p></main>
 
-  if (done || dismissed) return (
-    <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe">
+  if (batchComplete) return (
+    <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pb-tab-bar pt-safe">
       <section className="mt-10 rounded-card border border-success/20 bg-success/5 p-6 text-center">
         <CheckCircle size={42} weight="duotone" className="mx-auto text-success" />
-        <h1 className="mt-3 text-xl font-bold text-text-primary">{dismissed ? 'Comprobante descartado' : done?.duplicate ? 'Esta compra ya estaba confirmada' : 'Compra confirmada'}</h1>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">{dismissed ? 'No se creó ningún movimiento.' : done?.duplicate ? 'No duplicamos el movimiento existente.' : 'El movimiento se creó con los datos que revisaste.'}</p>
-        {aliasSaveFailed && <p role="status" className="mt-3 rounded-input bg-warning/10 px-3 py-2 text-sm text-warning">El gasto se guardó, pero no pudimos recordar el comercio.</p>}
-        <Link href="/" className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">Volver al Home</Link>
+        <h1 className="mt-3 text-xl font-bold text-text-primary">Lote revisado</h1>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">Terminaste la revisión de los comprobantes que abriste.</p>
+        <dl className="mt-5 grid grid-cols-3 gap-2 text-left">
+          <div className="rounded-input bg-bg-primary p-3"><dt className="text-[11px] text-text-tertiary">Confirmados</dt><dd className="mt-1 text-lg font-bold text-text-primary">{batchSummary.confirmed}</dd></div>
+          <div className="rounded-input bg-bg-primary p-3"><dt className="text-[11px] text-text-tertiary">Duplicados</dt><dd className="mt-1 text-lg font-bold text-text-primary">{batchSummary.duplicates}</dd></div>
+          <div className="rounded-input bg-bg-primary p-3"><dt className="text-[11px] text-text-tertiary">Descartados</dt><dd className="mt-1 text-lg font-bold text-text-primary">{batchSummary.discarded}</dd></div>
+        </dl>
+        {aliasSaveFailed && <p role="status" className="mt-3 rounded-input bg-warning/10 px-3 py-2 text-sm text-warning">Algún gasto se guardó, pero no pudimos recordar el comercio.</p>}
+        <Link href="/" className="mt-5 inline-flex min-h-11 items-center rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">Terminar</Link>
       </section>
     </main>
   )
@@ -258,7 +272,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
                 href={SHARED_RECEIPT_ROUTES.review(receipt.id)}
                 onClick={(event) => {
                   event.preventDefault()
-                  if (!current) setActiveReceiptId(receipt.id)
+                  selectReceipt(receipt.id)
                 }}
                 aria-current={current ? 'page' : undefined}
                 className="block p-2"
@@ -270,17 +284,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           })}
         </div>
       </section>}
-      <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
-        <p className="type-label text-primary">Revisión pendiente</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">El análisis solo prepara una propuesta editable. No habrá cambios financieros hasta que confirmes.</p>
-        <div className="mt-4 rounded-input bg-bg-tertiary p-3 text-xs text-text-tertiary"><p>{receipt.filename || 'Imagen enviada desde iPhone'}</p><p className="mt-1">Recibido {new Date(receipt.created_at).toLocaleString('es-AR')}</p></div>
-        {!analysis && <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : receipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Analizar comprobante'}</button>}
-      </section>
-
-      {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
-
-      {analysis?.supported && <section className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-5">
+      {analysis?.supported && <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
         <ParsePreview
           data={analysis.proposal}
           cards={cards}
@@ -293,6 +297,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           embedded
         />
       </section>}
+
+      {!analysis && <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
+        <p className="type-label text-primary">Revisión pendiente</p>
+        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>
+        <p className="mt-2 text-sm leading-6 text-text-secondary">El análisis solo prepara una propuesta editable. No habrá cambios financieros hasta que confirmes.</p>
+        <div className="mt-4 rounded-input bg-bg-tertiary p-3 text-xs text-text-tertiary"><p>{receipt.filename || 'Imagen enviada desde iPhone'}</p><p className="mt-1">Recibido {new Date(receipt.created_at).toLocaleString('es-AR')}</p></div>
+        <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : receipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Analizar comprobante'}</button>
+      </section>}
+
+      {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
       {error && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <button type="button" onClick={() => void dismiss()} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
@@ -309,7 +323,12 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           </div>
           <Link
             href={SHARED_RECEIPT_ROUTES.review(previewReceipt.id)}
-            onClick={() => setPreviewReceipt(null)}
+            onClick={(event) => {
+              event.preventDefault()
+              const nextId = previewReceipt.id
+              setPreviewReceipt(null)
+              selectReceipt(nextId)
+            }}
             className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white"
           >
             Revisar este comprobante
