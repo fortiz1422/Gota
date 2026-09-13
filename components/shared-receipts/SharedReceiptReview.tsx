@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { useQueryClient } from '@tanstack/react-query'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle, X } from '@phosphor-icons/react'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import { Modal } from '@/components/ui/Modal'
 import {
   SHARED_RECEIPT_ROUTES,
-  getNextPendingReceiptId,
+  getNextReviewReceiptId,
   getReceiptQueuePosition,
+  getReviewCompletionLabel,
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
   invalidateAfterSharedReceiptConfirmation,
@@ -29,6 +30,9 @@ async function responseError(response: Response, fallback: string): Promise<stri
 
 export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const queryClient = useQueryClient()
+  const [activeReceiptId, setActiveReceiptId] = useState(receiptId)
+  const [completedReceiptIds, setCompletedReceiptIds] = useState<Set<string>>(new Set())
+  const sessionLoaded = useRef(false)
   const [receipt, setReceipt] = useState<SharedReceiptSummary | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -40,27 +44,49 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [done, setDone] = useState<{ duplicate: boolean; expenseId: string | null } | null>(null)
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
   const [dismissed, setDismissed] = useState(false)
-  const [nextReceiptId, setNextReceiptId] = useState<string | null>(null)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
-  const queuePosition = getReceiptQueuePosition(queue, receiptId)
+  const queuePosition = getReceiptQueuePosition(queue, activeReceiptId)
+  const completionLabel = getReviewCompletionLabel(queue, activeReceiptId, completedReceiptIds)
 
-  const loadNextReceiptId = async (): Promise<string | null> => {
-    try {
-      const response = await fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' })
-      if (!response.ok) return null
-      return getNextPendingReceiptId(normalizeReceiptsResponse(await response.json()), receiptId)
-    } catch {
-      return null
+  const advanceAfterDurableAction = useCallback((currentId: string) => {
+    const nextCompleted = new Set(completedReceiptIds)
+    nextCompleted.add(currentId)
+    setCompletedReceiptIds(nextCompleted)
+    const nextId = getNextReviewReceiptId(queue, currentId, nextCompleted)
+    if (nextId) {
+      setActiveReceiptId(nextId)
+      setReceipt(null)
+      setAnalysis(null)
+      setError(null)
+      setDone(null)
+      setDismissed(false)
+      return
     }
-  }
-
+    return
+  }, [completedReceiptIds, queue])
   const load = useCallback(async () => {
+    if (sessionLoaded.current) {
+      setLoading(true)
+      setError(null)
+      try {
+        const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(activeReceiptId), { cache: 'no-store' })
+        if (!response.ok) throw new Error(await responseError(response, 'No pudimos cargar el comprobante.'))
+        const loadedReceipt = normalizeReceiptResponse(await response.json())
+        setReceipt(loadedReceipt)
+        setAnalysis(loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cards) : null)
+      } catch (reason) {
+        setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
+      } finally {
+        setLoading(false)
+      }
+      return
+    }
     setLoading(true)
     setError(null)
     try {
       const [receiptResponse, accountsResponse, cardsResponse, inboxResponse] = await Promise.all([
-        fetch(SHARED_RECEIPT_ROUTES.apiDetail(receiptId), { cache: 'no-store' }),
+        fetch(SHARED_RECEIPT_ROUTES.apiDetail(activeReceiptId), { cache: 'no-store' }),
         fetch('/api/accounts', { cache: 'no-store' }),
         fetch('/api/cards', { cache: 'no-store' }),
         fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' }),
@@ -95,12 +121,13 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       } else if (loadedReceipt) {
         setQueue([loadedReceipt])
       }
+      sessionLoaded.current = true
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
     } finally {
       setLoading(false)
     }
-  }, [receiptId])
+  }, [activeReceiptId, cards])
 
   useEffect(() => { void load() }, [load])
 
@@ -109,7 +136,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setError(null)
     try {
       const response = await fetch(
-        SHARED_RECEIPT_ROUTES.analyze(receiptId, receipt?.status === 'parse_failed'),
+        SHARED_RECEIPT_ROUTES.analyze(activeReceiptId, receipt?.status === 'parse_failed'),
         { method: 'POST' },
       )
       if (!response.ok) {
@@ -142,16 +169,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
   const confirmPurchase = async (payload: ParsePreviewConfirmPayload) => {
     setError(null)
-    const response = await fetch(SHARED_RECEIPT_ROUTES.confirm(receiptId), {
+    const response = await fetch(SHARED_RECEIPT_ROUTES.confirm(activeReceiptId), {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     })
     if (!response.ok) throw new Error(await responseError(response, 'No pudimos confirmar la compra.'))
     const result = parseConfirmResult(await response.json())
-    setNextReceiptId(getNextPendingReceiptId(queue, receiptId))
     void invalidateAfterSharedReceiptConfirmation(queryClient)
-    void loadNextReceiptId().then(setNextReceiptId)
     return result
   }
 
@@ -160,20 +185,20 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     if (!result) return
     setAliasSaveFailed(outcome?.aliasSaved === false)
     setDone(result)
+    advanceAfterDurableAction(activeReceiptId)
   }
 
   const dismiss = async () => {
     if (!window.confirm('¿Descartar este comprobante? No se creará ningún movimiento.')) return
     setDismissing(true)
     setError(null)
-    const contract = SHARED_RECEIPT_ROUTES.dismiss(receiptId)
+    const contract = SHARED_RECEIPT_ROUTES.dismiss(activeReceiptId)
     try {
       const response = await fetch(contract.url, { method: contract.method })
       if (!response.ok) throw new Error(await responseError(response, 'No pudimos descartar el comprobante.'))
-      setNextReceiptId(getNextPendingReceiptId(queue, receiptId))
       setDismissed(true)
+      advanceAfterDurableAction(activeReceiptId)
       void queryClient.invalidateQueries({ queryKey: ['shared-receipts'] })
-      void loadNextReceiptId().then(setNextReceiptId)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'No pudimos descartar el comprobante.')
     } finally {
@@ -191,7 +216,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         <h1 className="mt-3 text-xl font-bold text-text-primary">{dismissed ? 'Comprobante descartado' : done?.duplicate ? 'Esta compra ya estaba confirmada' : 'Compra confirmada'}</h1>
         <p className="mt-2 text-sm leading-6 text-text-secondary">{dismissed ? 'No se creó ningún movimiento.' : done?.duplicate ? 'No duplicamos el movimiento existente.' : 'El movimiento se creó con los datos que revisaste.'}</p>
         {aliasSaveFailed && <p role="status" className="mt-3 rounded-input bg-warning/10 px-3 py-2 text-sm text-warning">El gasto se guardó, pero no pudimos recordar el comercio.</p>}
-        <Link href={nextReceiptId ? SHARED_RECEIPT_ROUTES.review(nextReceiptId) : '/'} className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">{nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'}</Link>
+        <Link href="/" className="mt-5 inline-flex rounded-button bg-primary px-5 py-3 text-sm font-semibold text-white">Volver al Home</Link>
       </section>
     </main>
   )
@@ -213,7 +238,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         </div>
         <div className="flex gap-2 overflow-x-auto pb-1">
           {queue.map((receipt, index) => {
-            const current = receipt.id === receiptId
+            const current = receipt.id === activeReceiptId
             const parsed = receipt.parsed_payload ? parsePurchaseProposal(receipt.parsed_payload) : null
             const label = parsed?.supported ? parsed.proposal.description : `Comprobante ${index + 1}`
             return <div
@@ -231,6 +256,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
                 : <div className="flex h-20 items-center justify-center bg-bg-tertiary"><Receipt size={24} className="text-text-disabled" /></div>}
               <Link
                 href={SHARED_RECEIPT_ROUTES.review(receipt.id)}
+                onClick={(event) => {
+                  event.preventDefault()
+                  if (!current) setActiveReceiptId(receipt.id)
+                }}
                 aria-current={current ? 'page' : undefined}
                 className="block p-2"
               >
@@ -260,6 +289,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
           onSave={completePurchase}
           onCancel={() => window.history.back()}
           aliasSource="receipt"
+          confirmLabel={completionLabel}
           embedded
         />
       </section>}

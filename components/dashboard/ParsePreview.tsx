@@ -56,6 +56,7 @@ interface ParsePreviewProps {
   onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<unknown>
   embedded?: boolean
   aliasSource?: 'receipt' | 'parser'
+  confirmLabel?: string
 }
 
 type CounterpartyProfileOption = {
@@ -147,7 +148,7 @@ function fromDateInput(dateStr: string): string {
 }
 
 export function ParsePreview({
-  data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser',
+  data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -678,7 +679,7 @@ export function ParsePreview({
               ? 'Guardando...'
               : duplicatesChecked && foundDuplicates.length > 0
                 ? 'Guardar de todas formas'
-                : 'Guardar gasto ✓'}
+                : confirmLabel ?? 'Guardar gasto ✓'}
         </button>
         <button
           onClick={handleCancel}

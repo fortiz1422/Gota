@@ -142,6 +142,28 @@ export function getNextPendingReceiptId(
   return receipts.find((receipt) => receipt.id !== currentReceiptId)?.id ?? null
 }
 
+export function getNextReviewReceiptId(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+  completedReceiptIds: ReadonlySet<string>,
+): string | null {
+  return receipts.find((receipt) => (
+    receipt.id !== currentReceiptId
+    && !completedReceiptIds.has(receipt.id)
+    && receipt.status === 'needs_review'
+  ))?.id ?? null
+}
+
+export function getReviewCompletionLabel(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+  completedReceiptIds: ReadonlySet<string>,
+): 'Confirmar y seguir' | 'Confirmar y terminar' {
+  return getNextReviewReceiptId(receipts, currentReceiptId, completedReceiptIds)
+    ? 'Confirmar y seguir'
+    : 'Confirmar y terminar'
+}
+
 export function getReceiptQueuePosition(
   receipts: SharedReceiptSummary[],
   currentReceiptId: string,
