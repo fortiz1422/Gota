@@ -82,6 +82,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setBatchOutcomes((current) => ({ ...current, [currentId]: outcome }))
     const nextId = getNextReviewReceiptId(queue, currentId, nextCompleted)
     if (nextId) {
+      pendingPreviewReviewId.current = nextId
       selectReceipt(nextId)
       return
     }
@@ -358,7 +359,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         />
       </section>}
 
-      {!analysis && <p className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">Abrí la imagen para comenzar o retomar la revisión.</p>}
+      {!analysis && <section className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">
+        {receipt.image_url
+          ? 'Abrí la imagen para comenzar o retomar la revisión.'
+          : 'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'}
+        <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block w-full font-semibold text-primary disabled:opacity-50">
+          {analyzing ? 'Analizando…' : 'Revisar comprobante'}
+        </button>
+      </section>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 

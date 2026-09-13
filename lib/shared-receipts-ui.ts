@@ -3,7 +3,7 @@ import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 export const SHARED_RECEIPT_ROUTES = {
   devices: '/api/shared-receipt-devices',
   device: (id: string) => `/api/shared-receipt-devices/${encodeURIComponent(id)}`,
-  inbox: '/api/shared-receipts?status=needs_review',
+  inbox: '/api/shared-receipts',
   apiDetail: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}`,
   review: (id: string) => `/shared-receipts/${encodeURIComponent(id)}`,
   analyze: (id: string, retry = false) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze${retry ? '?retry=true' : ''}`,
@@ -55,6 +55,8 @@ export interface SharedReceiptSummary {
   alias_match?: CounterpartyAliasMatch | null
   preview_overrides?: { description?: string; category?: string | null } | null
 }
+
+const REVIEWABLE_RECEIPT_STATUSES = new Set(['received', 'needs_review', 'parse_failed'])
 
 export type ReceiptRequest = Readonly<{ id: string; generation: number }>
 
@@ -178,7 +180,7 @@ export function getNextReviewReceiptId(
 
   for (let offset = 1; offset < receipts.length; offset += 1) {
     const receipt = receipts[(currentIndex + offset) % receipts.length]
-    if (receipt.status === 'needs_review' && !completedReceiptIds.has(receipt.id)) {
+    if (REVIEWABLE_RECEIPT_STATUSES.has(receipt.status) && !completedReceiptIds.has(receipt.id)) {
       return receipt.id
     }
   }
