@@ -95,6 +95,8 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('beginPreviewReview(previewReceipt)')
     expect(review).toContain("SHARED_RECEIPT_ROUTES.analyze(targetId, targetReceipt?.status === 'parse_failed')")
     expect(review).toContain("previewAnalyzing ? 'Analizando…'")
+    expect(review).toContain('disabled={previewLoading || previewAnalyzing}')
+    expect(review).toContain('aria-busy={previewLoading || previewAnalyzing}')
     expect(review).not.toContain('Revisión pendiente')
     expect(review).not.toContain('Analizar comprobante')
     expect(review.match(/Revisar este comprobante/g)).toHaveLength(1)

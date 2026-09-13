@@ -71,6 +71,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setActiveReceiptId(nextId)
     setReceipt(null)
     setAnalysis(null)
+    setAnalyzing(false)
     setError(null)
   }, [activeReceiptId])
 
@@ -218,6 +219,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(targetReceipt.id))
       loadRequestGuard.current.activate(targetReceipt.id)
       analyzeRequestGuard.current.activate(targetReceipt.id)
+      setLoading(true)
       setActiveReceiptId(targetReceipt.id)
       setAnalysis(null)
       setAnalyzing(false)
