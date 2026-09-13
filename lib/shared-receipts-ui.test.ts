@@ -80,6 +80,16 @@ describe('iOS Shortcut receipt UI contract', () => {
     )
     expect(review).toContain('confirmLabel={completionLabel}')
     expect(review).toContain('getNextReviewReceiptId(queue, currentId, nextCompleted)')
+    expect(review).toContain('pendingAutoPreviewId.current = nextId')
+    expect(review).not.toContain('pendingPreviewReviewId.current = nextId')
+    expect(review).toContain('pendingPreviewReviewId.current === activeReceiptId')
+    expect(review).toContain('pendingAutoPreviewId.current === activeReceiptId && loadedReceipt?.id === activeReceiptId')
+    expect(review).toContain('if (shouldAutoPreview) pendingAutoPreviewId.current = null')
+    expect(review).toContain('if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)')
+    expect(review).not.toContain('shouldAutoPreview && loadedReceipt && !restoredAnalysis) void analyzeRef.current')
+    expect(review).toContain("'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'")
+    expect(review).toContain('{!receipt.image_url && <button type="button" onClick={() => beginPreviewReview(receipt)}')
+    expect(review).toContain("? 'Abrí la imagen para comenzar o retomar la revisión.'")
     expect(review).toContain("window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))")
     expect(review).toContain('selectReceipt(nextId)')
     expect(review).toContain('Lote revisado')
@@ -126,21 +136,23 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(analyzeGuard.isCurrent(analyzeB)).toBe(true)
   })
 
-  it('advances only through the opening batch and labels the final CTA', () => {
+  it('continues through received, needs_review and parse_failed while skipping parsing', () => {
     const receipts = [
       { id: 'first', status: 'needs_review', created_at: '2026-09-06T18:06:00Z' },
-      { id: 'second', status: 'needs_review', created_at: '2026-09-06T18:05:00Z' },
-      { id: 'third', status: 'needs_review', created_at: '2026-09-06T18:04:00Z' },
+      { id: 'received', status: 'received', created_at: '2026-09-06T18:05:00Z' },
+      { id: 'parsing', status: 'parsing', created_at: '2026-09-06T18:04:00Z' },
+      { id: 'failed', status: 'parse_failed', created_at: '2026-09-06T18:03:00Z' },
+      { id: 'review', status: 'needs_review', created_at: '2026-09-06T18:02:00Z' },
     ]
-    expect(getNextReviewReceiptId(receipts, 'first', new Set())).toBe('second')
-    expect(getNextReviewReceiptId(receipts, 'second', new Set(['first', 'second']))).toBe('third')
-    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second', 'third']))).toBeNull()
-    expect(getNextReviewReceiptId(receipts, 'third', new Set())).toBe('first')
-    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first']))).toBe('second')
-    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second']))).toBeNull()
+    expect(getNextReviewReceiptId(receipts, 'first', new Set())).toBe('received')
+    expect(getNextReviewReceiptId(receipts, 'received', new Set(['first', 'received']))).toBe('failed')
+    expect(getNextReviewReceiptId(receipts, 'failed', new Set(['first', 'received', 'failed']))).toBe('review')
+    expect(getNextReviewReceiptId(receipts, 'review', new Set(['first', 'received', 'failed', 'review']))).toBeNull()
+    expect(getNextReviewReceiptId(receipts, 'review', new Set(['first', 'received']))).toBe('failed')
     expect(getNextReviewReceiptId(receipts, 'missing', new Set())).toBeNull()
     expect(getReviewCompletionLabel(receipts, 'first', new Set())).toBe('Confirmar y seguir')
-    expect(getReviewCompletionLabel(receipts, 'third', new Set(['first', 'second']))).toBe('Confirmar y terminar')
+    expect(getReviewCompletionLabel(receipts, 'review', new Set(['first', 'received']))).toBe('Confirmar y seguir')
+    expect(getReviewCompletionLabel(receipts, 'review', new Set(['first', 'received', 'failed', 'review']))).toBe('Confirmar y terminar')
     expect(summarizeReviewBatch({
       first: 'confirmed', second: 'duplicate', third: 'discarded',
     })).toEqual({ confirmed: 1, duplicates: 1, discarded: 1 })

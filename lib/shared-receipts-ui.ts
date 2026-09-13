@@ -56,6 +56,8 @@ export interface SharedReceiptSummary {
   preview_overrides?: { description?: string; category?: string | null } | null
 }
 
+const REVIEWABLE_RECEIPT_STATUSES = new Set(['received', 'needs_review', 'parse_failed'])
+
 export type ReceiptRequest = Readonly<{ id: string; generation: number }>
 
 /**
@@ -178,7 +180,7 @@ export function getNextReviewReceiptId(
 
   for (let offset = 1; offset < receipts.length; offset += 1) {
     const receipt = receipts[(currentIndex + offset) % receipts.length]
-    if (receipt.status === 'needs_review' && !completedReceiptIds.has(receipt.id)) {
+    if (REVIEWABLE_RECEIPT_STATUSES.has(receipt.status) && !completedReceiptIds.has(receipt.id)) {
       return receipt.id
     }
   }

@@ -52,6 +52,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
   const pendingPreviewReviewId = useRef<string | null>(null)
+  const pendingAutoPreviewId = useRef<string | null>(null)
   const loadRequestGuard = useRef(createReceiptRequestGuard(receiptId))
   const analyzeRequestGuard = useRef(createReceiptRequestGuard(receiptId))
   const analyzeRef = useRef<((targetId: string, targetReceipt: SharedReceiptSummary) => Promise<void>) | null>(null)
@@ -82,6 +83,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setBatchOutcomes((current) => ({ ...current, [currentId]: outcome }))
     const nextId = getNextReviewReceiptId(queue, currentId, nextCompleted)
     if (nextId) {
+      pendingAutoPreviewId.current = nextId
       selectReceipt(nextId)
       return
     }
@@ -100,9 +102,12 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         if (!isCurrentLoad()) return
         const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null
         const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
-        pendingPreviewReviewId.current = null
+        const shouldAutoPreview = pendingAutoPreviewId.current === activeReceiptId && loadedReceipt?.id === activeReceiptId
+        if (shouldStartReview) pendingPreviewReviewId.current = null
+        if (shouldAutoPreview) pendingAutoPreviewId.current = null
         setReceipt(loadedReceipt)
         setAnalysis(restoredAnalysis)
+        if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)
         if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
         if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       } catch (reason) {
@@ -135,11 +140,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       cardsRef.current = loadedCards
       const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, loadedCards) : null
       const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
-      pendingPreviewReviewId.current = null
+      const shouldAutoPreview = pendingAutoPreviewId.current === activeReceiptId && loadedReceipt?.id === activeReceiptId
+      if (shouldStartReview) pendingPreviewReviewId.current = null
+      if (shouldAutoPreview) pendingAutoPreviewId.current = null
       setReceipt(loadedReceipt)
       setAccounts(activeAccounts)
       setCards(loadedCards)
       setAnalysis(restoredAnalysis)
+      if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)
       if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
       if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       if (inboxResponse.ok) {
@@ -358,7 +366,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         />
       </section>}
 
-      {!analysis && <p className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">Abrí la imagen para comenzar o retomar la revisión.</p>}
+      {!analysis && <section className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">
+        {receipt.image_url
+          ? 'Abrí la imagen para comenzar o retomar la revisión.'
+          : 'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'}
+        {!receipt.image_url && <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block w-full font-semibold text-primary disabled:opacity-50">
+          {analyzing ? 'Analizando…' : 'Revisar comprobante'}
+        </button>}
+      </section>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
