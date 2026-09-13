@@ -142,6 +142,54 @@ export function getNextPendingReceiptId(
   return receipts.find((receipt) => receipt.id !== currentReceiptId)?.id ?? null
 }
 
+export function getNextReviewReceiptId(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+  completedReceiptIds: ReadonlySet<string>,
+): string | null {
+  const currentIndex = receipts.findIndex((receipt) => receipt.id === currentReceiptId)
+  if (currentIndex < 0) return null
+
+  for (let offset = 1; offset < receipts.length; offset += 1) {
+    const receipt = receipts[(currentIndex + offset) % receipts.length]
+    if (receipt.status === 'needs_review' && !completedReceiptIds.has(receipt.id)) {
+      return receipt.id
+    }
+  }
+  return null
+}
+
+export function requireReferenceArray<T>(value: unknown, label: string): T[] {
+  if (!Array.isArray(value)) throw new Error(`No pudimos cargar las ${label}. Reintentá.`)
+  return value as T[]
+}
+
+export type ReviewBatchOutcome = 'confirmed' | 'duplicate' | 'discarded'
+
+export function summarizeReviewBatch(outcomes: Readonly<Record<string, ReviewBatchOutcome>>): {
+  confirmed: number
+  duplicates: number
+  discarded: number
+} {
+  const summary = { confirmed: 0, duplicates: 0, discarded: 0 }
+  for (const outcome of Object.values(outcomes)) {
+    if (outcome === 'confirmed') summary.confirmed += 1
+    if (outcome === 'duplicate') summary.duplicates += 1
+    if (outcome === 'discarded') summary.discarded += 1
+  }
+  return summary
+}
+
+export function getReviewCompletionLabel(
+  receipts: SharedReceiptSummary[],
+  currentReceiptId: string,
+  completedReceiptIds: ReadonlySet<string>,
+): 'Confirmar y seguir' | 'Confirmar y terminar' {
+  return getNextReviewReceiptId(receipts, currentReceiptId, completedReceiptIds)
+    ? 'Confirmar y seguir'
+    : 'Confirmar y terminar'
+}
+
 export function getReceiptQueuePosition(
   receipts: SharedReceiptSummary[],
   currentReceiptId: string,

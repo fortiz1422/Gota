@@ -7,7 +7,10 @@ import {
   buildConfirmPurchasePayload,
   extractCreatedDevice,
   getNextPendingReceiptId,
+  getNextReviewReceiptId,
   getReceiptQueuePosition,
+  requireReferenceArray,
+  getReviewCompletionLabel,
   getShortcutInstallState,
   matchReceiptCard,
   normalizeDevicesResponse,
@@ -16,6 +19,7 @@ import {
   parseConfirmResult,
   parsePurchaseProposal,
   restoreStoredPurchaseProposal,
+  summarizeReviewBatch,
   validateCardLastFour,
 } from './shared-receipts-ui'
 
@@ -52,6 +56,12 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(normalizeReceiptResponse({ nope: true })).toBeNull()
   })
 
+  it('fails closed when account or card reference data is not an array', () => {
+    expect(requireReferenceArray([{ id: 'account-1' }], 'cuentas')).toEqual([{ id: 'account-1' }])
+    expect(() => requireReferenceArray({ accounts: [] }, 'cuentas')).toThrow('No pudimos cargar las cuentas.')
+    expect(() => requireReferenceArray(null, 'tarjetas')).toThrow('No pudimos cargar las tarjetas.')
+  })
+
   it('selects another pending receipt for a chained review flow', () => {
     const receipts = [
       { id: 'current', status: 'needs_review', created_at: '2026-09-06T18:06:00Z' },
@@ -67,8 +77,13 @@ describe('iOS Shortcut receipt UI contract', () => {
       new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
       'utf8',
     )
-    expect(review).toContain("nextReceiptId ? 'Revisar siguiente' : 'Volver al Home'")
-    expect(review).toContain('SHARED_RECEIPT_ROUTES.review(nextReceiptId)')
+    expect(review).toContain('confirmLabel={completionLabel}')
+    expect(review).toContain('getNextReviewReceiptId(queue, currentId, nextCompleted)')
+    expect(review).toContain("window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))")
+    expect(review).toContain('selectReceipt(nextId)')
+    expect(review).toContain('Lote revisado')
+    expect(review).toContain('batchSummary.confirmed')
+    expect(review).not.toContain('loadNextReceiptId')
     expect(review).toContain('href={SHARED_RECEIPT_ROUTES.review(receipt.id)}')
     expect(review).not.toContain('href={SHARED_RECEIPT_ROUTES.apiDetail')
     expect(review).toContain('Comprobantes pendientes')
@@ -80,6 +95,25 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('de {queuePosition.total}')
   })
 
+  it('advances only through the opening batch and labels the final CTA', () => {
+    const receipts = [
+      { id: 'first', status: 'needs_review', created_at: '2026-09-06T18:06:00Z' },
+      { id: 'second', status: 'needs_review', created_at: '2026-09-06T18:05:00Z' },
+      { id: 'third', status: 'needs_review', created_at: '2026-09-06T18:04:00Z' },
+    ]
+    expect(getNextReviewReceiptId(receipts, 'first', new Set())).toBe('second')
+    expect(getNextReviewReceiptId(receipts, 'second', new Set(['first', 'second']))).toBe('third')
+    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second', 'third']))).toBeNull()
+    expect(getNextReviewReceiptId(receipts, 'third', new Set())).toBe('first')
+    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first']))).toBe('second')
+    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second']))).toBeNull()
+    expect(getNextReviewReceiptId(receipts, 'missing', new Set())).toBeNull()
+    expect(getReviewCompletionLabel(receipts, 'first', new Set())).toBe('Confirmar y seguir')
+    expect(getReviewCompletionLabel(receipts, 'third', new Set(['first', 'second']))).toBe('Confirmar y terminar')
+    expect(summarizeReviewBatch({
+      first: 'confirmed', second: 'duplicate', third: 'discarded',
+    })).toEqual({ confirmed: 1, duplicates: 1, discarded: 1 })
+  })
   it('normalizes the backend device label and last-seen fields', () => {
     expect(normalizeDevicesResponse({ devices: [{
       id: 'd1', label: 'Mi iPhone', created_at: '2026-09-06T00:00:00Z',
@@ -231,8 +265,9 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('void Promise.all(summaries.map(async (summary) => {')
     expect(review).not.toContain('const detailedQueue = await Promise.all')
     expect(review).toContain('return result')
-    expect(review).toContain('setAliasSaveFailed(outcome?.aliasSaved === false)')
-    expect(review).toContain('setDone(result)')
+    expect(review).toContain("setAliasSaveFailed((current) => current || outcome?.aliasSaved === false)")
+    expect(review).toContain("advanceAfterDurableAction(activeReceiptId, result.duplicate ? 'duplicate' : 'confirmed')")
+    expect(review).not.toContain('setDone(result)')
     expect(review).toContain('onSave={completePurchase}')
     expect(review).toContain('onCancel={() => window.history.back()}')
     expect(review).not.toContain('onCancel={() => setAnalysis(null)}')
