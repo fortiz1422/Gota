@@ -3,7 +3,7 @@ import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 export const SHARED_RECEIPT_ROUTES = {
   devices: '/api/shared-receipt-devices',
   device: (id: string) => `/api/shared-receipt-devices/${encodeURIComponent(id)}`,
-  inbox: '/api/shared-receipts',
+  inbox: '/api/shared-receipts?status=needs_review',
   apiDetail: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}`,
   review: (id: string) => `/shared-receipts/${encodeURIComponent(id)}`,
   analyze: (id: string, retry = false) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze${retry ? '?retry=true' : ''}`,
