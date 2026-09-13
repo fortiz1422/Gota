@@ -5,6 +5,7 @@ import {
   buildSharedReceiptDeviceCreatePayload,
   buildCardLastFourPayload,
   buildConfirmPurchasePayload,
+  createReceiptRequestGuard,
   extractCreatedDevice,
   getNextPendingReceiptId,
   getNextReviewReceiptId,
@@ -93,12 +94,34 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('Revisar este comprobante')
     expect(review).toContain('beginPreviewReview(previewReceipt)')
     expect(review).toContain("SHARED_RECEIPT_ROUTES.analyze(targetId, targetReceipt?.status === 'parse_failed')")
-    expect(review).toContain("{analyzing ? 'Analizando…'")
+    expect(review).toContain("previewAnalyzing ? 'Analizando…'")
     expect(review).not.toContain('Revisión pendiente')
     expect(review).not.toContain('Analizar comprobante')
     expect(review.match(/Revisar este comprobante/g)).toHaveLength(1)
     expect(review).toContain('setPreviewReceipt(receipt)')
     expect(review).toContain('de {queuePosition.total}')
+  })
+
+  it('makes stale receipt loads and analyses inert after a newer receipt request', () => {
+    const loadGuard = createReceiptRequestGuard('receipt-a')
+    const loadA = loadGuard.start('receipt-a')
+    loadGuard.activate('receipt-b')
+    const loadB = loadGuard.start('receipt-b')
+
+    expect(loadGuard.isCurrent(loadA)).toBe(false)
+    expect(loadGuard.isCurrent(loadB)).toBe(true)
+
+    const analyzeGuard = createReceiptRequestGuard('receipt-a')
+    const analyzeA = analyzeGuard.start('receipt-a')
+    const retryA = analyzeGuard.start('receipt-a')
+    expect(analyzeGuard.isCurrent(analyzeA)).toBe(false)
+    expect(analyzeGuard.isCurrent(retryA)).toBe(true)
+
+    analyzeGuard.activate('receipt-b')
+    const analyzeB = analyzeGuard.start('receipt-b')
+
+    expect(analyzeGuard.isCurrent(retryA)).toBe(false)
+    expect(analyzeGuard.isCurrent(analyzeB)).toBe(true)
   })
 
   it('advances only through the opening batch and labels the final CTA', () => {
