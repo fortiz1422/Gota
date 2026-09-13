@@ -91,6 +91,12 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('Ampliar comprobante')
     expect(review).toContain('Vista completa del comprobante')
     expect(review).toContain('Revisar este comprobante')
+    expect(review).toContain('beginPreviewReview(previewReceipt)')
+    expect(review).toContain("SHARED_RECEIPT_ROUTES.analyze(targetId, targetReceipt?.status === 'parse_failed')")
+    expect(review).toContain("{analyzing ? 'Analizando…'")
+    expect(review).not.toContain('Revisión pendiente')
+    expect(review).not.toContain('Analizar comprobante')
+    expect(review.match(/Revisar este comprobante/g)).toHaveLength(1)
     expect(review).toContain('setPreviewReceipt(receipt)')
     expect(review).toContain('de {queuePosition.total}')
   })
@@ -260,7 +266,7 @@ describe('iOS Shortcut receipt UI contract', () => {
       new URL('../components/shared-receipts/SharedReceiptReview.tsx', import.meta.url),
       'utf8',
     )
-    expect(review).toContain('setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))')
+    expect(review).toContain('setAnalysis(restoredAnalysis)')
     expect(review).toContain('setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))')
     expect(review).toContain('void Promise.all(summaries.map(async (summary) => {')
     expect(review).not.toContain('const detailedQueue = await Promise.all')

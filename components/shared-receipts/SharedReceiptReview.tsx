@@ -50,6 +50,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
+  const pendingPreviewReviewId = useRef<string | null>(null)
+  const analyzeRef = useRef<((targetId: string, targetReceipt: SharedReceiptSummary) => Promise<void>) | null>(null)
   const queuePosition = getReceiptQueuePosition(queue, activeReceiptId)
   const completionLabel = getReviewCompletionLabel(queue, activeReceiptId, completedReceiptIds)
 
@@ -84,8 +86,12 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(activeReceiptId), { cache: 'no-store' })
         if (!response.ok) throw new Error(await responseError(response, 'No pudimos cargar el comprobante.'))
         const loadedReceipt = normalizeReceiptResponse(await response.json())
+        const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null
+        const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
+        pendingPreviewReviewId.current = null
         setReceipt(loadedReceipt)
-        setAnalysis(loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, cardsRef.current) : null)
+        setAnalysis(restoredAnalysis)
+        if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       } catch (reason) {
         setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
       } finally {
@@ -113,10 +119,14 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       ])
       const activeAccounts = loadedAccounts.filter((item) => !item.archived)
       cardsRef.current = loadedCards
+      const restoredAnalysis = loadedReceipt ? restoreStoredPurchaseProposal(loadedReceipt, loadedCards) : null
+      const shouldStartReview = pendingPreviewReviewId.current === activeReceiptId
+      pendingPreviewReviewId.current = null
       setReceipt(loadedReceipt)
       setAccounts(activeAccounts)
       setCards(loadedCards)
-      if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
+      setAnalysis(restoredAnalysis)
+      if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
         setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))
@@ -143,12 +153,12 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
   useEffect(() => { void load() }, [load])
 
-  const analyze = async () => {
+  const analyze = async (targetId = activeReceiptId, targetReceipt = receipt) => {
     setAnalyzing(true)
     setError(null)
     try {
       const response = await fetch(
-        SHARED_RECEIPT_ROUTES.analyze(activeReceiptId, receipt?.status === 'parse_failed'),
+        SHARED_RECEIPT_ROUTES.analyze(targetId, targetReceipt?.status === 'parse_failed'),
         { method: 'POST' },
       )
       if (!response.ok) {
@@ -177,6 +187,23 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     } finally {
       setAnalyzing(false)
     }
+  }
+
+  analyzeRef.current = analyze
+
+  const beginPreviewReview = (targetReceipt: SharedReceiptSummary) => {
+    setPreviewReceipt(null)
+    pendingPreviewReviewId.current = targetReceipt.id
+    if (targetReceipt.id !== activeReceiptId) {
+      window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(targetReceipt.id))
+      setActiveReceiptId(targetReceipt.id)
+      setReceipt(null)
+      setAnalysis(null)
+      setError(null)
+      return
+    }
+    pendingPreviewReviewId.current = null
+    if (!analysis && !analyzing) void analyze(targetReceipt.id, receipt ?? targetReceipt)
   }
 
   const confirmPurchase = async (payload: ParsePreviewConfirmPayload) => {
@@ -299,13 +326,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         />
       </section>}
 
-      {!analysis && <section className="rounded-card border border-border-subtle bg-bg-secondary p-5">
-        <p className="type-label text-primary">Revisión pendiente</p>
-        <h1 className="mt-2 text-2xl font-extrabold tracking-tight text-text-primary">Revisá antes de guardar</h1>
-        <p className="mt-2 text-sm leading-6 text-text-secondary">El análisis solo prepara una propuesta editable. No habrá cambios financieros hasta que confirmes.</p>
-        <div className="mt-4 rounded-input bg-bg-tertiary p-3 text-xs text-text-tertiary"><p>{receipt.filename || 'Imagen enviada desde iPhone'}</p><p className="mt-1">Recibido {new Date(receipt.created_at).toLocaleString('es-AR')}</p></div>
-        <button type="button" onClick={() => void analyze()} disabled={analyzing} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50">{analyzing ? 'Analizando…' : receipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Analizar comprobante'}</button>
-      </section>}
+      {!analysis && <p className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">Abrí la imagen para comenzar o retomar la revisión.</p>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
@@ -322,18 +343,15 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={previewReceipt.image_url} alt="Comprobante ampliado" className="max-h-[62dvh] w-full object-contain" />
           </div>
-          <Link
-            href={SHARED_RECEIPT_ROUTES.review(previewReceipt.id)}
-            onClick={(event) => {
-              event.preventDefault()
-              const nextId = previewReceipt.id
-              setPreviewReceipt(null)
-              selectReceipt(nextId)
-            }}
-            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white"
+          <button
+            type="button"
+            onClick={() => beginPreviewReview(previewReceipt)}
+            disabled={analyzing}
+            aria-busy={analyzing}
+            className="mt-4 flex min-h-11 w-full items-center justify-center rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-50"
           >
-            Revisar este comprobante
-          </Link>
+            {analyzing ? 'Analizando…' : previewReceipt.status === 'parse_failed' ? 'Reintentar análisis' : 'Revisar este comprobante'}
+          </button>
         </section>
       </Modal>}
     </main>
