@@ -17,6 +17,7 @@ import {
   matchReceiptCard,
   parseConfirmResult,
   parsePurchaseProposal,
+  requireReferenceArray,
   restoreStoredPurchaseProposal,
   summarizeReviewBatch,
   type ParsedPurchaseProposal,
@@ -102,19 +103,19 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' }),
       ])
       if (!receiptResponse.ok) throw new Error(await responseError(receiptResponse, 'No pudimos cargar el comprobante.'))
-      const loadedReceipt = normalizeReceiptResponse(await receiptResponse.json())
+      if (!accountsResponse.ok) throw new Error(await responseError(accountsResponse, 'No pudimos cargar las cuentas. Reintentá.'))
+      if (!cardsResponse.ok) throw new Error(await responseError(cardsResponse, 'No pudimos cargar las tarjetas. Reintentá.'))
+
+      const [loadedReceipt, loadedAccounts, loadedCards] = await Promise.all([
+        normalizeReceiptResponse(await receiptResponse.json()),
+        requireReferenceArray<Account>(await accountsResponse.json(), 'cuentas'),
+        requireReferenceArray<Card>(await cardsResponse.json(), 'tarjetas'),
+      ])
+      const activeAccounts = loadedAccounts.filter((item) => !item.archived)
+      cardsRef.current = loadedCards
       setReceipt(loadedReceipt)
-      if (accountsResponse.ok) {
-        const data = await accountsResponse.json()
-        setAccounts(Array.isArray(data) ? data.filter((item: Account) => !item.archived) : [])
-      }
-      let loadedCards: Card[] = []
-      if (cardsResponse.ok) {
-        const data = await cardsResponse.json()
-        loadedCards = Array.isArray(data) ? data : []
-        cardsRef.current = loadedCards
-        setCards(loadedCards)
-      }
+      setAccounts(activeAccounts)
+      setCards(loadedCards)
       if (loadedReceipt) setAnalysis(restoreStoredPurchaseProposal(loadedReceipt, loadedCards))
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
@@ -238,7 +239,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   if (!receipt) return (
     <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe">
       <Link href="/" className="mt-4 inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} />Volver</Link>
-      <section className="mt-6 rounded-card border border-border-subtle bg-bg-secondary p-5"><h1 className="text-lg font-bold text-text-primary">El comprobante ya no está pendiente</h1><p className="mt-2 text-sm text-text-secondary">Puede haber sido confirmado o descartado desde otra sesión.</p><button type="button" onClick={() => void load()} className="mt-4 text-sm font-semibold text-primary">Actualizar</button></section>
+      <section className="mt-6 rounded-card border border-border-subtle bg-bg-secondary p-5"><h1 className="text-lg font-bold text-text-primary">No pudimos preparar la revisión</h1><p role="alert" className="mt-2 text-sm text-text-secondary">{error ?? 'El comprobante ya no está pendiente. Puede haber sido confirmado o descartado desde otra sesión.'}</p><button type="button" onClick={() => void load()} className="mt-4 text-sm font-semibold text-primary">Reintentar carga</button></section>
     </main>
   )
 

@@ -9,6 +9,7 @@ import {
   getNextPendingReceiptId,
   getNextReviewReceiptId,
   getReceiptQueuePosition,
+  requireReferenceArray,
   getReviewCompletionLabel,
   getShortcutInstallState,
   matchReceiptCard,
@@ -55,6 +56,12 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(normalizeReceiptResponse({ nope: true })).toBeNull()
   })
 
+  it('fails closed when account or card reference data is not an array', () => {
+    expect(requireReferenceArray([{ id: 'account-1' }], 'cuentas')).toEqual([{ id: 'account-1' }])
+    expect(() => requireReferenceArray({ accounts: [] }, 'cuentas')).toThrow('No pudimos cargar las cuentas.')
+    expect(() => requireReferenceArray(null, 'tarjetas')).toThrow('No pudimos cargar las tarjetas.')
+  })
+
   it('selects another pending receipt for a chained review flow', () => {
     const receipts = [
       { id: 'current', status: 'needs_review', created_at: '2026-09-06T18:06:00Z' },
@@ -97,7 +104,9 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(getNextReviewReceiptId(receipts, 'first', new Set())).toBe('second')
     expect(getNextReviewReceiptId(receipts, 'second', new Set(['first', 'second']))).toBe('third')
     expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second', 'third']))).toBeNull()
-    expect(getNextReviewReceiptId(receipts, 'third', new Set())).toBeNull()
+    expect(getNextReviewReceiptId(receipts, 'third', new Set())).toBe('first')
+    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first']))).toBe('second')
+    expect(getNextReviewReceiptId(receipts, 'third', new Set(['first', 'second']))).toBeNull()
     expect(getNextReviewReceiptId(receipts, 'missing', new Set())).toBeNull()
     expect(getReviewCompletionLabel(receipts, 'first', new Set())).toBe('Confirmar y seguir')
     expect(getReviewCompletionLabel(receipts, 'third', new Set(['first', 'second']))).toBe('Confirmar y terminar')

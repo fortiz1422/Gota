@@ -149,9 +149,19 @@ export function getNextReviewReceiptId(
 ): string | null {
   const currentIndex = receipts.findIndex((receipt) => receipt.id === currentReceiptId)
   if (currentIndex < 0) return null
-  return receipts.slice(currentIndex + 1).find((receipt) => (
-    !completedReceiptIds.has(receipt.id) && receipt.status === 'needs_review'
-  ))?.id ?? null
+
+  for (let offset = 1; offset < receipts.length; offset += 1) {
+    const receipt = receipts[(currentIndex + offset) % receipts.length]
+    if (receipt.status === 'needs_review' && !completedReceiptIds.has(receipt.id)) {
+      return receipt.id
+    }
+  }
+  return null
+}
+
+export function requireReferenceArray<T>(value: unknown, label: string): T[] {
+  if (!Array.isArray(value)) throw new Error(`No pudimos cargar las ${label}. Reintentá.`)
+  return value as T[]
 }
 
 export type ReviewBatchOutcome = 'confirmed' | 'duplicate' | 'discarded'
