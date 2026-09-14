@@ -26,6 +26,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     appearance,
     canvasTone,
     footerSafeArea,
+    viewportHeight,
     initialFocusRef,
   }: {
     children: ReactNode
@@ -34,6 +35,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     appearance?: string
     canvasTone?: string
     footerSafeArea?: string
+    viewportHeight?: string
     initialFocusRef?: unknown
   }) =>
     createElement(
@@ -50,6 +52,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
         {
           'data-task-footer': true,
           'data-footer-safe-area': footerSafeArea ?? 'minimum',
+          'data-viewport-height': viewportHeight ?? 'dynamic',
         },
         footer
       )
@@ -158,8 +161,11 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain(
       "canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary'"
     )
-    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact' | 'reference'")
+    expect(taskSurface).toContain("viewportHeight?: 'dynamic' | 'large'")
     expect(taskSurface).toContain("footerSafeArea = 'minimum'")
+    expect(taskSurface).toContain("footerSafeArea === 'reference'")
+    expect(taskSurface).toContain("'pb-[max(52px,env(safe-area-inset-bottom))]'")
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
@@ -176,7 +182,8 @@ describe('mobile income and transfer surfaces', () => {
     ]
 
     for (const source of createSources) {
-      expect(source).toContain('footerSafeArea="exact"')
+      expect(source).toContain('footerSafeArea="reference"')
+      expect(source).toContain('viewportHeight="large"')
       expect(source).toContain('data-primary-action')
       expect(source.indexOf('<InlineError')).toBeLessThan(
         source.indexOf('data-primary-action')
@@ -283,8 +290,10 @@ describe('mobile income and transfer surfaces', () => {
     expect(renders[2]).toContain('data-task-canvas-tone="standard"')
     expect(renders[3]).toContain('data-task-surface="Editar transferencia"')
     expect(renders[3]).not.toContain('data-task-canvas-tone="standard"')
-    expect(renders[0]).toContain('data-footer-safe-area="exact"')
-    expect(renders[1]).toContain('data-footer-safe-area="exact"')
+    expect(renders[0]).toContain('data-footer-safe-area="reference"')
+    expect(renders[1]).toContain('data-footer-safe-area="reference"')
+    expect(renders[0]).toContain('data-viewport-height="large"')
+    expect(renders[1]).toContain('data-viewport-height="large"')
     expect(renders[2]).toContain('data-footer-safe-area="minimum"')
     expect(renders[3]).toContain('data-footer-safe-area="minimum"')
 

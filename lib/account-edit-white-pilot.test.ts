@@ -21,7 +21,7 @@ describe('Account edit white pilot', () => {
 
     expect(fullScreenSheet).toContain('extendIntoBottomSafeArea?: boolean')
     expect(taskSurface).toContain('extendIntoBottomSafeArea={compact}')
-    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact' | 'reference'")
     expect(taskSurface).toContain("footerSafeArea = 'minimum'")
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
@@ -33,7 +33,7 @@ describe('Account edit white pilot', () => {
     const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
 
     expect(fullScreenSheet).toContain('fillAvailableHeight?: boolean')
-    expect(fullScreenSheet).toContain("'h-full min-h-[100dvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("viewportHeight === 'large' ? 'lvh' : 'dvh'")
     expect(taskSurface).toContain('fillAvailableHeight={compact}')
   })
 

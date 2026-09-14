@@ -15,7 +15,8 @@ interface TaskSurfaceProps {
   footer: ReactNode
   appearance?: 'brand' | 'compact'
   canvasTone?: 'standard'
-  footerSafeArea?: 'minimum' | 'exact'
+  footerSafeArea?: 'minimum' | 'exact' | 'reference'
+  viewportHeight?: 'dynamic' | 'large'
   navigationTitle?: string
   initialFocusRef?: RefObject<HTMLElement | null>
   triggerRef?: RefObject<HTMLElement | null>
@@ -33,6 +34,7 @@ export function TaskSurface({
   appearance = 'brand',
   canvasTone,
   footerSafeArea = 'minimum',
+  viewportHeight = 'dynamic',
   navigationTitle,
   initialFocusRef,
   triggerRef,
@@ -49,6 +51,7 @@ export function TaskSurface({
       extendIntoTopSafeArea
       extendIntoBottomSafeArea={compact}
       fillAvailableHeight={compact}
+      viewportHeight={compact ? viewportHeight : 'dynamic'}
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
       triggerElement={triggerElement}
@@ -115,9 +118,11 @@ export function TaskSurface({
           {children}
         </div>
 
+        {/* The reference mode reserves the legacy footer's gap plus its
+            44px secondary action without rendering Cancelar. */}
         <div
           data-task-footer
-          className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? footerSafeArea === 'exact' ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}
+          className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? footerSafeArea === 'reference' ? 'pb-[max(52px,env(safe-area-inset-bottom))]' : footerSafeArea === 'exact' ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}
         >
           {footer}
         </div>
