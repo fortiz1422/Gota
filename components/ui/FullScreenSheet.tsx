@@ -37,6 +37,7 @@ interface FullScreenSheetProps {
   extendIntoTopSafeArea?: boolean
   extendIntoBottomSafeArea?: boolean
   fillAvailableHeight?: boolean
+  viewportHeight?: 'dynamic' | 'large'
   triggerRef?: RefObject<HTMLElement | null>
   triggerElement?: HTMLElement | null
   initialFocusRef?: RefObject<HTMLElement | null>
@@ -89,6 +90,7 @@ export function FullScreenSheet({
   extendIntoTopSafeArea = false,
   extendIntoBottomSafeArea = false,
   fillAvailableHeight = false,
+  viewportHeight = 'dynamic',
   triggerRef,
   triggerElement,
   initialFocusRef,
@@ -206,8 +208,12 @@ export function FullScreenSheet({
   if (!mounted || !open) return null
 
   const mobileHeightClass = fillAvailableHeight
-    ? 'h-full min-h-[100dvh] sm:min-h-0'
-    : 'h-[100dvh]'
+    ? viewportHeight === 'large'
+      ? 'h-full min-h-[100lvh] sm:min-h-0'
+      : 'h-full min-h-[100dvh] sm:min-h-0'
+    : viewportHeight === 'large'
+      ? 'h-[100lvh]'
+      : 'h-[100dvh]'
 
   return createPortal(
     <div

@@ -16,6 +16,7 @@ interface TaskSurfaceProps {
   appearance?: 'brand' | 'compact'
   canvasTone?: 'standard'
   footerSafeArea?: 'minimum' | 'exact'
+  viewportHeight?: 'dynamic' | 'large'
   navigationTitle?: string
   initialFocusRef?: RefObject<HTMLElement | null>
   triggerRef?: RefObject<HTMLElement | null>
@@ -33,6 +34,7 @@ export function TaskSurface({
   appearance = 'brand',
   canvasTone,
   footerSafeArea = 'minimum',
+  viewportHeight = 'dynamic',
   navigationTitle,
   initialFocusRef,
   triggerRef,
@@ -49,6 +51,7 @@ export function TaskSurface({
       extendIntoTopSafeArea
       extendIntoBottomSafeArea={compact}
       fillAvailableHeight={compact}
+      viewportHeight={compact ? viewportHeight : 'dynamic'}
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
       triggerElement={triggerElement}

@@ -149,6 +149,7 @@ export function IncomeModal({
       appearance="compact"
       canvasTone="standard"
       footerSafeArea="exact"
+      viewportHeight="large"
       eyebrow="INGRESOS"
       title="Registrar ingreso"
       description="¿Cuánto y de dónde entra?"

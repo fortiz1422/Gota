@@ -26,6 +26,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     appearance,
     canvasTone,
     footerSafeArea,
+    viewportHeight,
     initialFocusRef,
   }: {
     children: ReactNode
@@ -34,6 +35,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
     appearance?: string
     canvasTone?: string
     footerSafeArea?: string
+    viewportHeight?: string
     initialFocusRef?: unknown
   }) =>
     createElement(
@@ -50,6 +52,7 @@ vi.mock('@/components/ui/TaskSurface', () => ({
         {
           'data-task-footer': true,
           'data-footer-safe-area': footerSafeArea ?? 'minimum',
+          'data-viewport-height': viewportHeight ?? 'dynamic',
         },
         footer
       )
@@ -151,6 +154,7 @@ describe('mobile income and transfer surfaces', () => {
       expect(source).toContain('type="button"')
     }
     const taskSurface = read('../components/ui/TaskSurface.tsx')
+    const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
     expect(taskSurface).toContain('data-task-scroll')
     expect(taskSurface).toContain('data-task-footer')
     expect(taskSurface).toContain('env(safe-area-inset-bottom)')
@@ -159,13 +163,18 @@ describe('mobile income and transfer surfaces', () => {
       "canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary'"
     )
     expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
+    expect(taskSurface).toContain("viewportHeight?: 'dynamic' | 'large'")
     expect(taskSurface).toContain("footerSafeArea = 'minimum'")
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
+    expect(fullScreenSheet).toContain("'h-full min-h-[100lvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("'h-full min-h-[100dvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("'h-[100lvh]'")
+    expect(fullScreenSheet).toContain("'h-[100dvh]'")
   })
 
-  it('opts create CTAs into exact safe-area geometry and preserves edit default', () => {
+  it('opts only create CTAs into large viewport geometry and preserves edit defaults', () => {
     const createSources = [
       read('../components/dashboard/IncomeModal.tsx'),
       read('../components/dashboard/TransferForm.tsx'),
@@ -177,6 +186,7 @@ describe('mobile income and transfer surfaces', () => {
 
     for (const source of createSources) {
       expect(source).toContain('footerSafeArea="exact"')
+      expect(source).toContain('viewportHeight="large"')
       expect(source).toContain('data-primary-action')
       expect(source.indexOf('<InlineError')).toBeLessThan(
         source.indexOf('data-primary-action')
@@ -285,6 +295,8 @@ describe('mobile income and transfer surfaces', () => {
     expect(renders[3]).not.toContain('data-task-canvas-tone="standard"')
     expect(renders[0]).toContain('data-footer-safe-area="exact"')
     expect(renders[1]).toContain('data-footer-safe-area="exact"')
+    expect(renders[0]).toContain('data-viewport-height="large"')
+    expect(renders[1]).toContain('data-viewport-height="large"')
     expect(renders[2]).toContain('data-footer-safe-area="minimum"')
     expect(renders[3]).toContain('data-footer-safe-area="minimum"')
 

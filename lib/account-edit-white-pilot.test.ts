@@ -33,7 +33,10 @@ describe('Account edit white pilot', () => {
     const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
 
     expect(fullScreenSheet).toContain('fillAvailableHeight?: boolean')
+    expect(fullScreenSheet).toContain("'h-full min-h-[100lvh] sm:min-h-0'")
     expect(fullScreenSheet).toContain("'h-full min-h-[100dvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("'h-[100lvh]'")
+    expect(fullScreenSheet).toContain("'h-[100dvh]'")
     expect(taskSurface).toContain('fillAvailableHeight={compact}')
   })
 

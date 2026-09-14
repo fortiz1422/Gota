@@ -175,6 +175,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
       onClose={onClose}
       appearance="compact"
       footerSafeArea="exact"
+      viewportHeight="large"
       eyebrow="TRANSFERENCIAS"
       title="Transferencia"
       description="Movimiento entre tus cuentas"
