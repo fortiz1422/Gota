@@ -154,6 +154,7 @@ describe('mobile income and transfer surfaces', () => {
       expect(source).toContain('type="button"')
     }
     const taskSurface = read('../components/ui/TaskSurface.tsx')
+    const fullScreenSheet = read('../components/ui/FullScreenSheet.tsx')
     expect(taskSurface).toContain('data-task-scroll')
     expect(taskSurface).toContain('data-task-footer')
     expect(taskSurface).toContain('env(safe-area-inset-bottom)')
@@ -167,6 +168,10 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
+    expect(fullScreenSheet).toContain("'h-full min-h-[100lvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("'h-full min-h-[100dvh] sm:min-h-0'")
+    expect(fullScreenSheet).toContain("'h-[100lvh]'")
+    expect(fullScreenSheet).toContain("'h-[100dvh]'")
   })
 
   it('opts only create CTAs into large viewport geometry and preserves edit defaults', () => {
