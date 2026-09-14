@@ -161,17 +161,15 @@ describe('mobile income and transfer surfaces', () => {
     expect(taskSurface).toContain(
       "canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary'"
     )
-    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact' | 'reference'")
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
     expect(taskSurface).toContain("viewportHeight?: 'dynamic' | 'large'")
     expect(taskSurface).toContain("footerSafeArea = 'minimum'")
-    expect(taskSurface).toContain("footerSafeArea === 'reference'")
-    expect(taskSurface).toContain("'pb-[max(52px,env(safe-area-inset-bottom))]'")
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[env(safe-area-inset-bottom)]'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")
   })
 
-  it('opts create CTAs into exact safe-area geometry and preserves edit default', () => {
+  it('opts only create CTAs into large viewport geometry and preserves edit defaults', () => {
     const createSources = [
       read('../components/dashboard/IncomeModal.tsx'),
       read('../components/dashboard/TransferForm.tsx'),
@@ -182,7 +180,7 @@ describe('mobile income and transfer surfaces', () => {
     ]
 
     for (const source of createSources) {
-      expect(source).toContain('footerSafeArea="reference"')
+      expect(source).toContain('footerSafeArea="exact"')
       expect(source).toContain('viewportHeight="large"')
       expect(source).toContain('data-primary-action')
       expect(source.indexOf('<InlineError')).toBeLessThan(
@@ -290,8 +288,8 @@ describe('mobile income and transfer surfaces', () => {
     expect(renders[2]).toContain('data-task-canvas-tone="standard"')
     expect(renders[3]).toContain('data-task-surface="Editar transferencia"')
     expect(renders[3]).not.toContain('data-task-canvas-tone="standard"')
-    expect(renders[0]).toContain('data-footer-safe-area="reference"')
-    expect(renders[1]).toContain('data-footer-safe-area="reference"')
+    expect(renders[0]).toContain('data-footer-safe-area="exact"')
+    expect(renders[1]).toContain('data-footer-safe-area="exact"')
     expect(renders[0]).toContain('data-viewport-height="large"')
     expect(renders[1]).toContain('data-viewport-height="large"')
     expect(renders[2]).toContain('data-footer-safe-area="minimum"')

@@ -21,7 +21,7 @@ describe('Account edit white pilot', () => {
 
     expect(fullScreenSheet).toContain('extendIntoBottomSafeArea?: boolean')
     expect(taskSurface).toContain('extendIntoBottomSafeArea={compact}')
-    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact' | 'reference'")
+    expect(taskSurface).toContain("footerSafeArea?: 'minimum' | 'exact'")
     expect(taskSurface).toContain("footerSafeArea = 'minimum'")
     expect(taskSurface).toContain("footerSafeArea === 'exact'")
     expect(taskSurface).toContain("'pb-[max(12px,env(safe-area-inset-bottom))]'")

@@ -148,7 +148,7 @@ export function IncomeModal({
       onClose={onClose}
       appearance="compact"
       canvasTone="standard"
-      footerSafeArea="reference"
+      footerSafeArea="exact"
       viewportHeight="large"
       eyebrow="INGRESOS"
       title="Registrar ingreso"

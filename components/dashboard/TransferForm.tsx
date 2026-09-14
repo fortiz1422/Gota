@@ -174,7 +174,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
       open
       onClose={onClose}
       appearance="compact"
-      footerSafeArea="reference"
+      footerSafeArea="exact"
       viewportHeight="large"
       eyebrow="TRANSFERENCIAS"
       title="Transferencia"
