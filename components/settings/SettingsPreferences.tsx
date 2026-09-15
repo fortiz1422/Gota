@@ -8,6 +8,7 @@ import { CardsSection } from '@/components/settings/CardsSection'
 import { HeroBalanceModePreference } from '@/components/settings/HeroBalanceModePreference'
 import { SubscriptionsPreference } from '@/components/settings/SubscriptionsPreference'
 import { SharedReceiptDevicesPanel } from '@/components/settings/SharedReceiptDevicesPanel'
+import { MercadoPagoSettingsCard } from '@/components/settings/MercadoPagoSettingsCard'
 import { CounterpartyAliasesPanel } from '@/components/settings/CounterpartyAliasesPanel'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import styles from './MobileSettings.module.css'
@@ -135,6 +136,7 @@ export function SettingsPreferences({
         <h2 id="settings-integrations-title">Conexiones</h2>
         <p className={styles.description}>Conectá dispositivos a tu forma de cargar.</p>
         <div className={styles.entry}><SharedReceiptDevicesPanel /></div>
+        <MercadoPagoSettingsCard />
       </section>
     </div>
   )
