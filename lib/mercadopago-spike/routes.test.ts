@@ -114,7 +114,7 @@ describe('Mercado Pago OAuth spike routes', () => {
     expect(await response.text()).not.toContain('never-return')
   })
 
-  it('clears both cookies on success and redirects with bounded diagnostics', async () => {
+  it('clears both cookies on success and redirects with only a fixed result status', async () => {
     const response = await callbackGet(callbackRequest(
       '?code=authorization-code&state=state',
       'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier',
@@ -130,10 +130,12 @@ describe('Mercado Pago OAuth spike routes', () => {
     })
     expect(mocks.runReadOnlyProbes).toHaveBeenCalledWith({ accessToken: 'access-token-never-returned' })
     expect(response.headers.get('location')).toBe(
-      'https://gota-arg.vercel.app/integrations/mercadopago/result?status=success&identity=verified&reports=0&payments=0',
+      'https://gota-arg.vercel.app/integrations/mercadopago/result?status=success',
     )
     expect(response.headers.get('location')).not.toContain('access-token-never-returned')
     expect(response.headers.get('location')).not.toContain('authorization-code')
+    expect(response.headers.get('location')).not.toContain('reports=')
+    expect(response.headers.get('location')).not.toContain('payments=')
   })
 
   it.each([

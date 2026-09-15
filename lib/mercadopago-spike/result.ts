@@ -7,12 +7,13 @@ type ResultProbe = {
 }
 
 export type MercadoPagoResult =
-  | { status: 'success'; identity: 'verified'; reports: number; payments: number }
+  | { status: 'success' }
   | { status: Exclude<MercadoPagoResultStatus, 'success'> }
 
-function boundedCount(value: number | null): number {
-  if (!Number.isInteger(value) || value === null || value < 0) return 0
-  return Math.min(value, 5)
+export function parseMercadoPagoResultStatus(value: string | undefined): MercadoPagoResultStatus {
+  return MERCADOPAGO_RESULT_STATUSES.includes(value as MercadoPagoResultStatus)
+    ? value as MercadoPagoResultStatus
+    : 'invalid'
 }
 
 export function mapMercadoPagoResult(probes: ResultProbe[]): MercadoPagoResult {
@@ -23,26 +24,19 @@ export function mapMercadoPagoResult(probes: ResultProbe[]): MercadoPagoResult {
     return { status: 'provider_error' }
   }
   if (!reports?.diagnostic.ok || !payments?.diagnostic.ok) return { status: 'provider_error' }
-  return {
-    status: 'success',
-    identity: 'verified',
-    reports: boundedCount(reports.diagnostic.count),
-    payments: boundedCount(payments.diagnostic.count),
-  }
+  return { status: 'success' }
 }
 
 export function getMercadoPagoResultCopy(result: MercadoPagoResult) {
   if (result.status === 'success') {
-    const zeroActivity = result.reports === 0 && result.payments === 0
     return {
       eyebrow: 'Mercado Pago',
       title: 'Prueba completada',
       description: 'Verificamos el acceso de prueba y revisamos información de solo lectura.',
       note: 'No se importó ni modificó nada en Gota.',
       identity: 'Identidad verificada',
-      reports: `Reportes encontrados: ${result.reports}`,
-      payments: `Pagos encontrados hoy: ${result.payments}`,
-      zeroActivity: zeroActivity ? 'Que no aparezcan resultados no implica que no haya actividad.' : '',
+      reports: 'Importaciones realizadas: 0',
+      payments: 'Movimientos modificados: 0',
       action: 'Volver a Configuración',
     }
   }

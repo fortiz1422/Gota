@@ -1,13 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { getMercadoPagoResultCopy, mapMercadoPagoResult } from './result'
+import { getMercadoPagoResultCopy, mapMercadoPagoResult, parseMercadoPagoResultStatus } from './result'
 
 describe('Mercado Pago result UX mapper', () => {
-  it('maps only sanitized diagnostics into bounded success params', () => {
+  it('uses provider diagnostics only to establish success, never as result values', () => {
     expect(mapMercadoPagoResult([
       { name: 'user', diagnostic: { status: 200, ok: true, count: null } },
       { name: 'settlement_reports', diagnostic: { status: 200, ok: true, count: 999 } },
       { name: 'payments', diagnostic: { status: 200, ok: true, count: -4 } },
-    ])).toEqual({ status: 'success', identity: 'verified', reports: 5, payments: 0 })
+    ])).toEqual({ status: 'success' })
   })
 
   it('uses a safe provider error when identity cannot be verified', () => {
@@ -18,13 +18,24 @@ describe('Mercado Pago result UX mapper', () => {
     ])).toEqual({ status: 'provider_error' })
   })
 
-  it('keeps zero counts honest and avoids technical or financial data in copy', () => {
-    const copy = getMercadoPagoResultCopy({ status: 'success', identity: 'verified', reports: 0, payments: 0 })
+  it('keeps zero Gota changes honest and avoids technical or provider data in copy', () => {
+    const copy = getMercadoPagoResultCopy({ status: 'success' })
     const text = Object.values(copy).join(' ')
     expect(text).toContain('Prueba completada')
-    expect(text).toContain('no implica que no haya actividad')
     expect(text.toLowerCase()).toContain('no se importó ni modificó nada')
+    expect(text).toContain('Importaciones realizadas: 0')
+    expect(text).toContain('Movimientos modificados: 0')
     expect(text).not.toMatch(/\b(token|code|state|id|monto|importe|descripci[oó]n)\b/i)
+  })
+
+  it.each([
+    ['success', 'success'],
+    ['provider_error', 'provider_error'],
+    ['success?code=provider-value', 'invalid'],
+    ['unexpected', 'invalid'],
+    [undefined, 'invalid'],
+  ] as const)('allows only a known status query value', (value, expected) => {
+    expect(parseMercadoPagoResultStatus(value)).toBe(expected)
   })
 
   it('has safe human copy for every non-success state', () => {

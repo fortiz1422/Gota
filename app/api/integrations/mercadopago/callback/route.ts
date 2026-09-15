@@ -20,14 +20,9 @@ function noStore(response: NextResponse): NextResponse {
   return response
 }
 
-function resultRedirect(request: Request, status: MercadoPagoResultStatus, result?: ReturnType<typeof mapMercadoPagoResult>): NextResponse {
+function resultRedirect(request: Request, status: MercadoPagoResultStatus): NextResponse {
   const url = new URL('/integrations/mercadopago/result', request.url)
   url.searchParams.set('status', status)
-  if (result?.status === 'success') {
-    url.searchParams.set('identity', result.identity)
-    url.searchParams.set('reports', String(result.reports))
-    url.searchParams.set('payments', String(result.payments))
-  }
   return noStore(NextResponse.redirect(url, 307))
 }
 
@@ -69,7 +64,7 @@ export async function GET(request: Request) {
     })
     const probes = await runReadOnlyProbes({ accessToken })
     const result = mapMercadoPagoResult(probes)
-    response = resultRedirect(request, result.status, result)
+    response = resultRedirect(request, result.status)
   } catch {
     response = resultRedirect(request, 'provider_error')
   }
