@@ -1,73 +1,44 @@
 import { NextResponse } from 'next/server'
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
+import { exchangeMercadoPagoAuthorizationCode, getMercadoPagoOAuthReadiness, MERCADOPAGO_STATE_COOKIE, MERCADOPAGO_VERIFIER_COOKIE } from '@/lib/mercadopago/oauth'
+import { saveMercadoPagoConnection } from '@/lib/mercadopago/server-repository'
 
-import {
-  exchangeAuthorizationCode,
-  getMercadoPagoReadiness,
-  isMatchingOAuthState,
-  MERCADOPAGO_STATE_COOKIE,
-  MERCADOPAGO_VERIFIER_COOKIE,
-} from '@/lib/mercadopago-spike/oauth'
-import { runReadOnlyProbes } from '@/lib/mercadopago-spike/probes'
-import { mapMercadoPagoResult, type MercadoPagoResultStatus } from '@/lib/mercadopago-spike/result'
-
-export const dynamic = 'force-dynamic'
-
-const NO_STORE_HEADERS = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
-
-function noStore(response: NextResponse): NextResponse {
-  Object.entries(NO_STORE_HEADERS).forEach(([name, value]) => response.headers.set(name, value))
-  return response
-}
-
-function resultRedirect(request: Request, status: MercadoPagoResultStatus): NextResponse {
-  const url = new URL('/integrations/mercadopago/result', request.url)
-  url.searchParams.set('status', status)
-  return noStore(NextResponse.redirect(url, 307))
-}
-
-function clearOAuthCookies(response: NextResponse): NextResponse {
+const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
+function clearOAuthCookies(response: NextResponse) {
   response.cookies.delete(MERCADOPAGO_STATE_COOKIE)
   response.cookies.delete(MERCADOPAGO_VERIFIER_COOKIE)
   return response
 }
-
-function requestCookie(request: Request, name: string): string | null {
-  const value = request.headers.get('cookie')?.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))
-  return value ? decodeURIComponent(value.slice(name.length + 1)) : null
+function resultRedirect(request: Request, status: 'success' | 'denied' | 'invalid' | 'not_configured' | 'provider_error') {
+  return clearOAuthCookies(NextResponse.redirect(new URL(`/integrations/mercadopago/result?status=${status}`, request.url), { headers }))
+}
+function unauthorizedResponse() {
+  return clearOAuthCookies(NextResponse.json({ error: 'unauthorized' }, { status: 401, headers }))
 }
 
 export async function GET(request: Request) {
-  let response: NextResponse
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return unauthorizedResponse()
+
+  const query = new URL(request.url).searchParams
+  const readiness = getMercadoPagoOAuthReadiness()
+  if (!readiness.ok) return resultRedirect(request, 'not_configured')
+
+  const cookieStore = await cookies()
+  const state = query.get('state')
+  const code = query.get('code')
+  const expectedState = cookieStore.get(MERCADOPAGO_STATE_COOKIE)?.value
+  const verifier = cookieStore.get(MERCADOPAGO_VERIFIER_COOKIE)?.value
+  if (query.get('error')) return resultRedirect(request, 'denied')
+  if (!state || !code || !expectedState || state !== expectedState || !verifier) return resultRedirect(request, 'invalid')
+
   try {
-    const supabase = await createClient()
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return clearOAuthCookies(resultRedirect(request, 'invalid'))
-
-    const readiness = getMercadoPagoReadiness()
-    if (!readiness.ok) return clearOAuthCookies(resultRedirect(request, 'not_configured'))
-
-    const params = new URL(request.url).searchParams
-    if (params.get('error')) return clearOAuthCookies(resultRedirect(request, 'denied'))
-
-    const code = params.get('code')
-    const receivedState = params.get('state')
-    const expectedState = requestCookie(request, MERCADOPAGO_STATE_COOKIE)
-    const verifier = requestCookie(request, MERCADOPAGO_VERIFIER_COOKIE)
-    if (!code || !receivedState || !verifier) return clearOAuthCookies(resultRedirect(request, 'invalid'))
-    if (!isMatchingOAuthState(expectedState, receivedState)) return clearOAuthCookies(resultRedirect(request, 'invalid'))
-
-    const accessToken = await exchangeAuthorizationCode({
-      code,
-      verifier,
-      config: readiness.config,
-    })
-    const probes = await runReadOnlyProbes({ accessToken })
-    const result = mapMercadoPagoResult(probes)
-    response = resultRedirect(request, result.status)
+    const token = await exchangeMercadoPagoAuthorizationCode({ code, verifier, config: readiness.config })
+    await saveMercadoPagoConnection(user.id, token, readiness.config.tokenEncryptionKey)
+    return resultRedirect(request, 'success')
   } catch {
-    response = resultRedirect(request, 'provider_error')
+    return resultRedirect(request, 'provider_error')
   }
-
-  return clearOAuthCookies(response)
 }
