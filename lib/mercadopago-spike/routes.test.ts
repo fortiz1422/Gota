@@ -68,6 +68,16 @@ beforeEach(() => {
     method: 'GET',
     path: '/users/me',
     diagnostic: { status: 200, ok: true, payloadType: 'object', count: null, fields: ['id'], error: null },
+  }, {
+    name: 'settlement_reports',
+    method: 'GET',
+    path: '/v1/account/settlement_report/list',
+    diagnostic: { status: 200, ok: true, payloadType: 'object', count: 0, fields: [], error: null },
+  }, {
+    name: 'payments',
+    method: 'GET',
+    path: '/v1/payments/search',
+    diagnostic: { status: 200, ok: true, payloadType: 'object', count: 0, fields: [], error: null },
   }])
 })
 
@@ -90,7 +100,7 @@ describe('Mercado Pago OAuth spike routes', () => {
     ['unauthorized', () => mocks.getUser.mockResolvedValue({ data: { user: null } }), '', ''],
     ['missing configuration', () => mocks.getMercadoPagoReadiness.mockReturnValue({ ok: false, missing: ['MERCADOPAGO_CLIENT_ID'] }), '', ''],
     ['provider denial', () => undefined, '?error=access_denied', ''],
-    ['missing callback data', () => undefined, '?code=code&state=state', 'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier'],
+    ['missing callback data', () => undefined, '?state=state', 'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier'],
     ['state mismatch', () => mocks.isMatchingOAuthState.mockReturnValue(false), '?code=code&state=wrong', 'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier'],
     ['exchange failure', () => mocks.exchangeAuthorizationCode.mockRejectedValue(new Error('client_secret=never-return')), '?code=code&state=state', 'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier'],
   ])('clears both OAuth cookies and disables caching on callback %s', async (_name, arrange, query, cookies) => {
@@ -100,16 +110,17 @@ describe('Mercado Pago OAuth spike routes', () => {
 
     expectNoStore(response)
     expectOAuthCookiesCleared(response)
-    expect(JSON.stringify(await response.json())).not.toContain('never-return')
+    expect(response.headers.get('location')).toMatch(/status=(invalid|not_configured|denied|provider_error)/)
+    expect(await response.text()).not.toContain('never-return')
   })
 
-  it('clears both cookies on success and returns only sanitized diagnostics', async () => {
+  it('clears both cookies on success and redirects with only a fixed result status', async () => {
     const response = await callbackGet(callbackRequest(
       '?code=authorization-code&state=state',
       'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier',
     ))
 
-    expect(response.status).toBe(200)
+    expect(response.status).toBe(307)
     expectNoStore(response)
     expectOAuthCookiesCleared(response)
     expect(mocks.exchangeAuthorizationCode).toHaveBeenCalledWith({
@@ -118,9 +129,25 @@ describe('Mercado Pago OAuth spike routes', () => {
       config: readyConfig,
     })
     expect(mocks.runReadOnlyProbes).toHaveBeenCalledWith({ accessToken: 'access-token-never-returned' })
-    const payload = JSON.stringify(await response.json())
-    expect(payload).toContain('"read_only":true')
-    expect(payload).not.toContain('access-token-never-returned')
-    expect(payload).not.toContain('authorization-code')
+    expect(response.headers.get('location')).toBe(
+      'https://gota-arg.vercel.app/integrations/mercadopago/result?status=success',
+    )
+    expect(response.headers.get('location')).not.toContain('access-token-never-returned')
+    expect(response.headers.get('location')).not.toContain('authorization-code')
+    expect(response.headers.get('location')).not.toContain('reports=')
+    expect(response.headers.get('location')).not.toContain('payments=')
+  })
+
+  it.each([
+    ['provider denial', '?error=access_denied', '', 'denied'],
+    ['invalid callback', '?code=code', 'mp_personal_oauth_state=state; mp_personal_oauth_verifier=verifier', 'invalid'],
+  ])('redirects %s to a human-safe result state', async (_name, query, cookies, status) => {
+    const response = await callbackGet(callbackRequest(query, cookies))
+
+    expect(response.status).toBe(307)
+    expect(response.headers.get('location')).toBe(
+      `https://gota-arg.vercel.app/integrations/mercadopago/result?status=${status}`,
+    )
+    expect(JSON.stringify(await response.text())).not.toContain('access_denied')
   })
 })
