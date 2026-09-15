@@ -1,4 +1,4 @@
-import { ArrowLeft, CheckCircle, FileText, Receipt, ShieldCheck } from '@phosphor-icons/react/dist/ssr'
+import { ArrowLeft, CheckCircle, ShieldCheck } from '@phosphor-icons/react/dist/ssr'
 import { unstable_noStore as noStore } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
@@ -38,8 +38,7 @@ export default async function MercadoPagoResultPage({
           {status === 'success' && (
             <div className="mt-6 divide-y divide-separator rounded-card bg-bg-secondary">
               <p className="flex items-center gap-3 p-4 type-body text-text-primary"><ShieldCheck size={22} weight="light" className="text-success" aria-hidden="true" />{copy.identity}</p>
-              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><FileText size={22} weight="light" className="text-data" aria-hidden="true" />{copy.reports}</p>
-              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><Receipt size={22} weight="light" className="text-data" aria-hidden="true" />{copy.payments}</p>
+              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><CheckCircle size={22} weight="light" className="text-data" aria-hidden="true" />{copy.nextStep}</p>
             </div>
           )}
           <a href="/settings" className="mt-8 flex min-h-12 items-center justify-center rounded-button bg-primary px-5 type-body-lg text-white transition-opacity hover:opacity-90">{copy.action}</a>
