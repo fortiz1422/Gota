@@ -35,8 +35,7 @@ export function getMercadoPagoResultCopy(result: MercadoPagoResult) {
       description: 'Verificamos el acceso de prueba y revisamos información de solo lectura.',
       note: 'No se importó ni modificó nada en Gota.',
       identity: 'Identidad verificada',
-      reports: 'Importaciones realizadas: 0',
-      payments: 'Movimientos modificados: 0',
+      nextStep: 'Tu cuenta está lista para la próxima etapa de validación.',
       action: 'Volver a Configuración',
     }
   }
