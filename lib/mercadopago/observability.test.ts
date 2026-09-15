@@ -24,7 +24,7 @@ describe('Mercado Pago observability harness', () => {
     expect(url.searchParams.get('code_challenge')).toBe('sha256-challenge')
     const token = parseMercadoPagoTokenPayload({ access_token: 'a', refresh_token: 'r', expires_in: 3600, user_id: 42 }, NOW)
     expect(token.expiresAt).toBe(resolveMercadoPagoTokenExpiresAt({ expiresInSeconds: 3600, now: NOW }))
-    expect(getMercadoPagoOAuthReadiness({ MERCADOPAGO_CLIENT_ID: 'id', MERCADOPAGO_CLIENT_SECRET: 'secret', MERCADOPAGO_REDIRECT_URI: 'https://example.test/callback', MERCADOPAGO_TOKEN_ENCRYPTION_KEY: 'bad' })).toEqual({ ok: false, missing: ['MERCADOPAGO_TOKEN_ENCRYPTION_KEY'] })
+    expect(getMercadoPagoOAuthReadiness({ MERCADOPAGO_CLIENT_ID: 'id', MERCADOPAGO_CLIENT_SECRET: 'secret', MERCADOPAGO_REDIRECT_URI: 'https://example.test/callback', MERCADOPAGO_TOKEN_ENCRYPTION_KEY: KEY, NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co' })).toEqual({ ok: false, missing: ['SUPABASE_SERVICE_ROLE_KEY'] })
   })
 
   it('builds Mercado Pago official 30-day search parameters and an unfiltered report URL', () => {

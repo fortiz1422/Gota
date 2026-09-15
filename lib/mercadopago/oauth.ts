@@ -13,7 +13,7 @@ const record = (value: unknown): value is Record<string, unknown> => typeof valu
 export function getMercadoPagoOAuthReadiness(env: Record<string, string | undefined> = process.env) {
   const key = text(env.MERCADOPAGO_TOKEN_ENCRYPTION_KEY)
   const hasValidKey = Boolean(key && Buffer.from(key, 'base64').byteLength === 32)
-  const missing = ['MERCADOPAGO_CLIENT_ID', 'MERCADOPAGO_CLIENT_SECRET', 'MERCADOPAGO_REDIRECT_URI'].filter((keyName) => !text(env[keyName]))
+  const missing = ['MERCADOPAGO_CLIENT_ID', 'MERCADOPAGO_CLIENT_SECRET', 'MERCADOPAGO_REDIRECT_URI', 'NEXT_PUBLIC_SUPABASE_URL', 'SUPABASE_SERVICE_ROLE_KEY'].filter((keyName) => !text(env[keyName]))
   if (!hasValidKey) missing.push('MERCADOPAGO_TOKEN_ENCRYPTION_KEY')
   if (missing.length) return { ok: false as const, missing }
   return { ok: true as const, config: { clientId: text(env.MERCADOPAGO_CLIENT_ID)!, clientSecret: text(env.MERCADOPAGO_CLIENT_SECRET)!, redirectUri: text(env.MERCADOPAGO_REDIRECT_URI)!, scope: text(env.MERCADOPAGO_OAUTH_SCOPE) ?? 'offline_access read', tokenEncryptionKey: text(env.MERCADOPAGO_TOKEN_ENCRYPTION_KEY)! } }

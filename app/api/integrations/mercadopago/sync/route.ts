@@ -7,10 +7,10 @@ import { syncMercadoPagoObservations, type SourceRun } from '@/lib/mercadopago/o
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
 const response = (body: unknown, status = 200) => NextResponse.json(body, { status, headers })
-type SourceSummary = { status: SourceRun['status'] | 'not_run'; count: number; errorCode: SourceRun['errorCode'] }
+type SourceSummary = { status: SourceRun['status'] | 'not_run'; count: number }
 const emptySources = (): { payments: SourceSummary; reports: SourceSummary } => ({
-  payments: { status: 'not_run', count: 0, errorCode: null },
-  reports: { status: 'not_run', count: 0, errorCode: null },
+  payments: { status: 'not_run', count: 0 },
+  reports: { status: 'not_run', count: 0 },
 })
 
 export async function GET() {
@@ -22,7 +22,7 @@ export async function GET() {
   if (!connection) return response({ state: 'not_connected', lastSyncAt: null, sources: emptySources() })
   const sources = emptySources()
   for (const run of await getLatestMercadoPagoSourceRuns(user.id, connection.id)) {
-    const summary = { status: run.status, count: run.count, errorCode: run.error_code }
+    const summary = { status: run.status, count: run.count }
     if (run.source === 'payments_search') sources.payments = summary
     else sources.reports = summary
   }
@@ -71,8 +71,8 @@ export async function POST() {
       last_error_code: failed ? 'provider_error' : null,
     })
     return response({
-      sources: Object.fromEntries(run.sources.map((source) => [source.source === 'payments_search' ? 'payments' : 'reports', { status: source.status, count: source.count, errorCode: source.errorCode }])),
-    })
+      sources: Object.fromEntries(run.sources.map((source) => [source.source === 'payments_search' ? 'payments' : 'reports', { status: source.status, count: source.count }])),
+    }, failed ? 207 : 200)
   } catch {
     await updateMercadoPagoConnection(user.id, connection.id, { status: 'error', last_error_code: 'sync_failed' }).catch(() => undefined)
     return response({ error: 'sync_failed' }, 502)

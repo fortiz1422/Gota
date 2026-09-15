@@ -3,8 +3,9 @@
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 import { ArrowsClockwise, ArrowSquareOut, Wallet } from '@phosphor-icons/react'
+import { getMercadoPagoValidationMessage } from '@/lib/mercadopago/sync-presentation'
 
-type Source = { status: 'success' | 'error' | 'not_run'; count: number; errorCode: 'provider_error' | null }
+type Source = { status: 'success' | 'error' | 'not_run'; count: number }
 type State = {
   state: 'not_connected' | 'connected' | 'error'
   lastSyncAt: string | null
@@ -13,7 +14,7 @@ type State = {
 
 function sourceLabel(source: Source) {
   if (source.status === 'not_run') return 'Todavía sin validación'
-  if (source.status === 'error') return `No disponible · ${source.errorCode ?? 'error'}`
+  if (source.status === 'error') return 'No disponible'
   return `Validada · ${source.count}`
 }
 
@@ -41,7 +42,9 @@ export function MercadoPagoSettingsCard() {
     setMessage(null)
     try {
       const result = await fetch('/api/integrations/mercadopago/sync', { method: 'POST', cache: 'no-store' })
-      setMessage(result.ok ? 'Validación completada. Nada se importó al registro financiero.' : 'No se pudo completar la validación.')
+      if (!result.ok) throw new Error('sync_failed')
+      const payload = await result.json() as Pick<State, 'sources'>
+      setMessage(getMercadoPagoValidationMessage(payload.sources))
       await load()
     } catch {
       setMessage('No se pudo completar la validación.')
@@ -53,7 +56,6 @@ export function MercadoPagoSettingsCard() {
   const current = state?.state ?? 'not_connected'
   return (
     <section className="mt-8" aria-labelledby="mercadopago-title">
-      <p className="mb-4 type-label text-text-label">Conexiones</p>
       <div className="card-s5 p-4">
         <div className="flex items-start gap-3">
           <Wallet size={22} className="text-primary" />
@@ -79,7 +81,7 @@ export function MercadoPagoSettingsCard() {
             </div>
 
             <div className="mt-4 flex gap-2">
-              {current === 'connected' ? (
+              {current !== 'not_connected' ? (
                 <button type="button" onClick={() => void sync()} disabled={busy} className="inline-flex items-center gap-2 rounded-button bg-primary px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-50">
                   <ArrowsClockwise size={14} />{busy ? 'Validando…' : 'Sincronizar ahora'}
                 </button>
