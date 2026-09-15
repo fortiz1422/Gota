@@ -41,7 +41,7 @@ describe('Mercado Pago server repository', () => {
     await repository.getMercadoPagoConnection('user-1')
 
     expect(fake.database.from).toHaveBeenCalledWith('mercadopago_connections')
-    expect(fake.calls).toContainEqual({ method: 'select', args: ['id,status,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at'] })
+    expect(fake.calls).toContainEqual({ method: 'select', args: ['id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at'] })
     expect(fake.calls.filter((call) => call.method === 'eq')).toEqual([
       { method: 'eq', args: ['user_id', 'user-1'] },
       { method: 'eq', args: ['provider', 'mercadopago'] },
@@ -91,5 +91,18 @@ describe('Mercado Pago server repository', () => {
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['user_id', 'user-1'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['connection_id', 'connection-1'] })
     expect(fake.calls).toContainEqual({ method: 'order', args: ['started_at', { ascending: false }] })
+  })
+
+  it('reads only user and connection scoped observation fields', async () => {
+    const fake = fakeDatabase({ data: [{ native_key: '101', source: 'payments_search', payload: { id: 101 }, occurred_at: '2026-09-15T00:00:00.000Z' }], error: null })
+    const repository = createMercadoPagoRepository(fake.database as unknown as MercadoPagoDatabase)
+
+    await repository.getMercadoPagoMovementObservations('user-1', 'connection-1', 100)
+
+    expect(fake.database.from).toHaveBeenCalledWith('mercadopago_raw_observations')
+    expect(fake.calls).toContainEqual({ method: 'select', args: ['source,native_key,payload,last_seen_at'] })
+    expect(fake.calls).toContainEqual({ method: 'eq', args: ['user_id', 'user-1'] })
+    expect(fake.calls).toContainEqual({ method: 'eq', args: ['connection_id', 'connection-1'] })
+    expect(fake.calls).toContainEqual({ method: 'order', args: ['last_seen_at', { ascending: false }] })
   })
 })
