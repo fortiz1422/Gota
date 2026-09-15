@@ -22,13 +22,12 @@ export function getMercadoPagoOAuthReadiness(env: Record<string, string | undefi
 export function generatePkcePair() {
   const state = randomBytes(24).toString('hex')
   const verifier = randomBytes(32).toString('base64url')
-  const challenge = createHash('sha256').update(verifier).digest('base64url')
-  return { state, verifier, challenge }
+  return { state, verifier, challenge: createHash('sha256').update(verifier).digest('base64url') }
 }
 
 export function buildMercadoPagoAuthorizeUrl({ config, state, challenge }: { config: OAuthConfig; state: string; challenge: string }) {
   const url = new URL(MERCADOPAGO_OAUTH_AUTHORIZE_URL)
-  url.search = new URLSearchParams({ client_id: config.clientId, response_type: 'code', platform_id: 'mp', redirect_uri: config.redirectUri, state, scope: config.scope, code_challenge: challenge, code_challenge_method: 'plain' }).toString()
+  url.search = new URLSearchParams({ client_id: config.clientId, response_type: 'code', platform_id: 'mp', redirect_uri: config.redirectUri, state, scope: config.scope, code_challenge: challenge, code_challenge_method: 'S256' }).toString()
   return url.toString()
 }
 

@@ -1,57 +1,114 @@
+import { createHash } from 'node:crypto'
+
 const API = 'https://api.mercadopago.com'
 const DAY = 24 * 60 * 60 * 1000
-const MAX_PAGES = 10
-export type RawObservation = { userId: string; source: 'payments_search' | 'account_settlement_report'; nativeKey: string; payload: unknown; firstSeenAt: string; lastSeenAt: string; metadata: { batchId: string; syncStartedAt: string } }
+export const MERCADOPAGO_PAGE_SIZE = 50
+export const MERCADOPAGO_MAX_PAGES = 10
+
+type Source = 'payments_search' | 'account_settlement_report'
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
+export type RawObservation = {
+  userId: string
+  source: Source
+  nativeKey: string
+  payload: unknown
+  firstSeenAt: string
+  lastSeenAt: string
+  metadata: { batchId: string; syncStartedAt: string }
+}
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
+export type SourceRun = { source: Source; status: 'success' | 'error'; count: number; errorCode: 'provider_error' | null }
+
+function paymentSearchUrl(now: Date, offset: number): string {
+  const url = new URL(`${API}/v1/payments/search`)
+  url.search = new URLSearchParams({
+    sort: 'date_created',
+    criteria: 'desc',
+    range: 'date_created',
+    begin_date: new Date(now.getTime() - 30 * DAY).toISOString(),
+    end_date: now.toISOString(),
+    limit: String(MERCADOPAGO_PAGE_SIZE),
+    offset: String(offset),
+  }).toString()
+  return url.toString()
+}
 
 export function buildMercadoPagoPullUrls({ now }: { now: Date }) {
-  const begin = new Date(now.getTime() - 30 * DAY).toISOString()
-  const end = now.toISOString()
-  const url = new URL(`${API}/v1/payments/search`)
-  url.search = new URLSearchParams({ range: 'date_created', begin_date: begin, end_date: end, limit: '50', offset: '0' }).toString()
-  return [url.toString(), `${API}/v1/account/settlement_report/list`]
+  return [paymentSearchUrl(now, 0), `${API}/v1/account/settlement_report/list`]
 }
 
-function nativeKey(value: unknown, fallback: string) {
+function canonical(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value)
+  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
+  const record = value as Record<string, unknown>
+  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(',')}}`
+}
+
+export function observationNativeKey(value: unknown): string {
   if (typeof value === 'object' && value !== null) {
     const record = value as Record<string, unknown>
-    for (const key of ['id', 'payment_id', 'transaction_id', 'external_reference']) if (typeof record[key] === 'string' || typeof record[key] === 'number') return String(record[key])
+    for (const key of ['id', 'payment_id', 'transaction_id', 'external_reference']) {
+      if (typeof record[key] === 'string' || typeof record[key] === 'number') return String(record[key])
+    }
   }
-  return fallback
+  return `sha256:${createHash('sha256').update(canonical(value)).digest('hex')}`
 }
+
 function items(payload: unknown): unknown[] {
   if (Array.isArray(payload)) return payload
   if (typeof payload === 'object' && payload !== null) {
-    const value = (payload as Record<string, unknown>).results ?? (payload as Record<string, unknown>).data
-    return Array.isArray(value) ? value : [payload]
+    const record = payload as Record<string, unknown>
+    const value = record.results ?? record.data
+    return Array.isArray(value) ? value : []
   }
-  return [payload]
+  return []
 }
-async function getJson(url: string, token: string, fetchImpl: FetchLike) {
-  const response = await fetchImpl(url, { method: 'GET', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' }, cache: 'no-store' })
-  if (!response.ok) throw new Error('Mercado Pago sync failed')
-  return response.json().catch(() => null)
+
+async function getJson(url: string, token: string, fetchImpl: FetchLike): Promise<unknown> {
+  const response = await fetchImpl(url, {
+    method: 'GET',
+    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    cache: 'no-store',
+  })
+  if (!response.ok) throw new Error('provider_error')
+  return response.json().catch(() => { throw new Error('provider_error') })
 }
+
+async function pullPayments({ userId, accessToken, now, fetchImpl, store, started, batchId }: { userId: string; accessToken: string; now: Date; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
+  let count = 0
+  for (let page = 0; page < MERCADOPAGO_MAX_PAGES; page += 1) {
+    const payload = await getJson(paymentSearchUrl(now, page * MERCADOPAGO_PAGE_SIZE), accessToken, fetchImpl)
+    const rows = items(payload)
+    for (const row of rows) {
+      await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
+    }
+    count += rows.length
+    const paging = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>).paging : null
+    const rawTotal = typeof paging === 'object' && paging !== null ? (paging as Record<string, unknown>).total : null
+    const total: number | null = typeof rawTotal === 'number' ? rawTotal : null
+    if (rows.length < MERCADOPAGO_PAGE_SIZE || (total !== null && count >= total)) break
+  }
+  return { source: 'payments_search', status: 'success', count, errorCode: null }
+}
+
+async function pullReports({ userId, accessToken, fetchImpl, store, started, batchId }: { userId: string; accessToken: string; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
+  const payload = await getJson(`${API}/v1/account/settlement_report/list`, accessToken, fetchImpl)
+  const rows = items(payload)
+  for (const row of rows) {
+    await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
+  }
+  return { source: 'account_settlement_report', status: 'success', count: rows.length, errorCode: null }
+}
+
 export async function syncMercadoPagoObservations({ userId, accessToken, now = new Date(), fetchImpl = fetch, store }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store }) {
   const started = now.toISOString()
   const batchId = `mp-${now.getTime()}`
-  let totalPayments = 0
-  for (let page = 0; page < MAX_PAGES; page += 1) {
-    const url = new URL(`${API}/v1/payments/search`)
-    url.search = new URLSearchParams({ range: 'date_created', begin_date: new Date(now.getTime() - 30 * DAY).toISOString(), end_date: now.toISOString(), limit: '50', offset: String(page * 50) }).toString()
-    const payload = await getJson(url.toString(), accessToken, fetchImpl)
-    const rows = items(payload)
-    for (let index = 0; index < rows.length; index += 1) await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey: nativeKey(rows[index], `page-${page}-row-${index}`), payload: rows[index], firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
-    totalPayments += rows.length
-    const paging = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>).paging : null
-    const total = typeof paging === 'object' && paging !== null && typeof (paging as Record<string, unknown>).total === 'number'
-      ? (paging as Record<string, unknown>).total as number
-      : totalPayments
-    if (rows.length === 0 || totalPayments >= total || (typeof paging !== 'object' && rows.length < 50)) break
+  const settle = async (operation: () => Promise<SourceRun>, source: Source): Promise<SourceRun> => {
+    try { return await operation() } catch { return { source, status: 'error', count: 0, errorCode: 'provider_error' } }
   }
-  const reportPayload = await getJson(`${API}/v1/account/settlement_report/list`, accessToken, fetchImpl)
-  const reportRows = items(reportPayload)
-  for (let index = 0; index < reportRows.length; index += 1) await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: nativeKey(reportRows[index], `snapshot-${started}`), payload: reportRows[index], firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
-  return { payments: totalPayments, reports: reportRows.length }
+  const [payments, reports] = await Promise.all([
+    settle(() => pullPayments({ userId, accessToken, now, fetchImpl, store, started, batchId }), 'payments_search'),
+    settle(() => pullReports({ userId, accessToken, fetchImpl, store, started, batchId }), 'account_settlement_report'),
+  ])
+  return { batchId, startedAt: started, sources: [payments, reports] as const }
 }
