@@ -12,13 +12,12 @@ export type ProbeResult = {
   diagnostic: ProbeDiagnostic
 }
 
-function dateOnly(date: Date): string {
-  return date.toISOString().slice(0, 10)
-}
-
 function probeWindow(now: Date): { from: string; to: string } {
-  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
-  return { from: dateOnly(from), to: dateOnly(now) }
+  const from = new Date(now)
+  from.setUTCHours(0, 0, 0, 0)
+  const to = new Date(now)
+  to.setUTCHours(23, 59, 59, 999)
+  return { from: from.toISOString(), to: to.toISOString() }
 }
 
 async function readPayload(response: Response): Promise<unknown> {
@@ -64,11 +63,18 @@ export async function runReadOnlyProbes(params: {
 }): Promise<ProbeResult[]> {
   const fetchImpl = params.fetchImpl ?? fetch
   const { from, to } = probeWindow(params.now ?? new Date())
-  const query = new URLSearchParams({ limit: String(PROBE_LIMIT), offset: '0', begin_date: from, end_date: to })
-  const paymentsQuery = new URLSearchParams({ limit: String(PROBE_LIMIT), offset: '0', sort: 'date_created', criteria: 'desc', date_created_from: `${from}T00:00:00Z`, date_created_to: `${to}T23:59:59Z` })
+  const paymentsQuery = new URLSearchParams({
+    sort: 'date_created',
+    criteria: 'desc',
+    range: 'date_created',
+    begin_date: from,
+    end_date: to,
+    limit: String(PROBE_LIMIT),
+    offset: '0',
+  })
   return Promise.all([
     runProbe({ name: 'user', path: '/users/me', accessToken: params.accessToken, fetchImpl }),
-    runProbe({ name: 'settlement_reports', path: `/v1/account/settlement_report/list?${query}`, accessToken: params.accessToken, fetchImpl }),
+    runProbe({ name: 'settlement_reports', path: '/v1/account/settlement_report/list', accessToken: params.accessToken, fetchImpl }),
     runProbe({ name: 'payments', path: `/v1/payments/search?${paymentsQuery}`, accessToken: params.accessToken, fetchImpl }),
   ])
 }
