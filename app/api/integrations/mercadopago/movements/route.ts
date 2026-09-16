@@ -1,8 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { normalizeMercadoPagoMovement } from '@/lib/mercadopago/provider-movement'
-import { getMercadoPagoConnection, getMercadoPagoMovementObservations } from '@/lib/mercadopago/server-repository'
-import { reconcileMercadoPagoMovements } from '@/lib/mercadopago/reconciliation'
+import { getMercadoPagoConnection, getMercadoPagoMovementObservations, getMercadoPagoMovementReviews } from '@/lib/mercadopago/server-repository'
+import { reconstructMercadoPagoCandidates, publicMercadoPagoMovement } from '@/lib/mercadopago/confirm-expense'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
 const response = (body: unknown, status = 200) => NextResponse.json(body, { status, headers })
@@ -12,15 +11,12 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return response({ error: 'unauthorized' }, 401)
-
   const connection = await getMercadoPagoConnection(user.id)
   if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
   const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
-  const reconciled = reconcileMercadoPagoMovements(observations.map((observation) => ({
-    source: observation.source,
-    nativeId: observation.native_key?.trim() || null,
-    lastSeenAt: observation.last_seen_at,
-    movement: normalizeMercadoPagoMovement({ source: observation.source, payload: observation.payload, providerUserId: connection.provider_user_id ?? '', nativeKey: observation.native_key }),
-  })))
-  return response({ aggregates: reconciled.aggregates, movements: reconciled })
+  const reconciled = reconstructMercadoPagoCandidates(connection, observations)
+  let reviews
+  try { reviews = await getMercadoPagoMovementReviews(user.id, connection.id) } catch { return response({ error: 'movements_unavailable' }, 500) }
+  const byCandidate = new Map(reviews.map((review) => [review.candidate_id, review]))
+  return response({ aggregates: reconciled.aggregates, movements: reconciled.map((candidate) => publicMercadoPagoMovement(candidate, byCandidate.get(candidate.candidateId) ?? null)) })
 }

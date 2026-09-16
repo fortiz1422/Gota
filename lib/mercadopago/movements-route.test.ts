@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), normalize: vi.fn() }))
+const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), getReviews: vi.fn(), normalize: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }))
-vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations }))
+vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations, getMercadoPagoMovementReviews: mocks.getReviews }))
 vi.mock('@/lib/mercadopago/provider-movement', () => ({ normalizeMercadoPagoMovement: mocks.normalize }))
 
 import { GET } from '@/app/api/integrations/mercadopago/movements/route'
@@ -12,6 +12,7 @@ beforeEach(() => {
   mocks.createClient.mockResolvedValue({ auth: { getUser: vi.fn().mockResolvedValue({ data: { user: { id: 'user-1' } } }) } })
   mocks.getConnection.mockResolvedValue({ id: 'connection-1', provider_user_id: 'provider-1' })
   mocks.getObservations.mockResolvedValue([{ source: 'payments_search', native_key: '101', payload: { id: 101 }, last_seen_at: '2026-09-15T12:00:00.000Z' }])
+  mocks.getReviews.mockResolvedValue([])
   mocks.normalize.mockReturnValue({ nativeId: '101', description: 'Compra sintética', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', confidence: 'confirmed' })
 })
 
@@ -35,7 +36,8 @@ describe('Mercado Pago movements route', () => {
 
     const body = await (await GET()).json()
 
-    expect(body.movements.map((movement: { nativeId: string }) => movement.nativeId)).toEqual(['c', 'a', 'b', 'd'])
+    expect(body.movements.map((movement: { candidateId: string }) => movement.candidateId)).toHaveLength(4)
+    expect(body.movements[0].candidateId).not.toContain('nativeId')
   })
 
   it('returns normalized rows and aggregate counts without provider identity or raw payload', async () => {
@@ -43,7 +45,7 @@ describe('Mercado Pago movements route', () => {
     const body = await response.json()
     expect(Array.isArray(body.movements)).toBe(true)
     expect(Object.keys(body)).toEqual(['aggregates', 'movements'])
-    expect(body).toEqual({ aggregates: { total: 1, observations: 1, crossSourceMatches: 0, paymentOnly: 1, balanceOnly: 0, expense: 1, income: 0, transfer: 0, neutral: 0, unknown: 0, partial: 0, confirmed: 1 }, movements: [expect.objectContaining({ nativeId: '101', sources: ['payments_search'], match: 'single_source', balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } } })] })
+    expect(body).toEqual({ aggregates: { total: 1, observations: 1, crossSourceMatches: 0, paymentOnly: 1, balanceOnly: 0, expense: 1, income: 0, transfer: 0, neutral: 0, unknown: 0, partial: 0, confirmed: 1 }, movements: [expect.objectContaining({ candidateId: expect.stringMatching(/^sha256:/), reviewStatus: 'pending', sources: ['payments_search'], match: 'single_source', balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } } })] })
     expect(JSON.stringify(body)).not.toMatch(/payload|provider_user_id|payer|collector|token|authorization/i)
     expect(mocks.getObservations).toHaveBeenCalledWith('user-1', 'connection-1', 100)
     expect(mocks.normalize).toHaveBeenCalledWith(expect.objectContaining({ providerUserId: 'provider-1', nativeKey: '101' }))

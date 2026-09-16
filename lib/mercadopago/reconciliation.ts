@@ -2,6 +2,8 @@ import { createHash } from 'node:crypto'
 import type { NormalizedMercadoPagoMovement } from './provider-movement'
 
 export type ReconciliationObservation = {
+  id?: string
+  nativeKey?: string
   source: 'payments_search' | 'account_settlement_report'
   nativeId: string | null
   lastSeenAt: string
@@ -52,7 +54,7 @@ const timestamp = (value: string | null) => {
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
 }
 
-function evidenceFingerprint(observation: ReconciliationObservation) {
+export function observationFingerprint(observation: ReconciliationObservation) {
   const movement = observation.movement
   const value = JSON.stringify([
     observation.source,
@@ -101,10 +103,10 @@ function candidate(observations: ReconciliationObservation[], match: ReconciledM
   const primary = payment ?? settlement as NormalizedMercadoPagoMovement
   const nativeId = primary.nativeId
   const identity = observations
-    .map((observation) => `${observation.source}:${observation.nativeId ?? `fallback:${evidenceFingerprint(observation)}`}`)
+    .map((observation) => `${observation.source}:${observation.nativeId ?? `fallback:${observationFingerprint(observation)}`}`)
     .sort()
     .join('|')
-  const stableEvidence = observations.map(evidenceFingerprint).sort().join('|')
+  const stableEvidence = observations.map(observationFingerprint).sort().join('|')
   const candidateId = `sha256:${createHash('sha256').update(`${identity}|${disambiguate ? stableEvidence : ''}`).digest('hex')}`
   return {
     ...primary,
@@ -123,7 +125,7 @@ function semanticTieBreaker(movement: ReconciledMercadoPagoMovement) {
     .map((observation) => `${observation.source}:${observation.nativeId ?? ''}`)
     .sort()
     .join('|')
-  return `${evidence}|${movement.sources.join('|')}|${movement.description ?? ''}|${movement.amount.currency ?? ''}|${movement.amount.value ?? ''}`
+  return `${evidence}|${movement.sources.join('|')}|${movement.description ?? ''}|${movement.amount?.currency ?? ''}|${movement.amount?.value ?? ''}`
 }
 
 function compare(left: ReconciledMercadoPagoMovement, right: ReconciledMercadoPagoMovement) {
