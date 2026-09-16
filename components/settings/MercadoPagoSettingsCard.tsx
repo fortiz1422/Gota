@@ -11,6 +11,8 @@ type State = {
   lastSyncAt: string | null
   sources: { payments: Source; reports: Source }
 }
+type Diagnostic = { nativeId: string | null; occurredAt: string | null; kind: string; direction: string; amount: { value: number | null; currency: string | null }; operation: { status: string | null; statusDetail: string | null }; fundingSource: { kind: string; brand?: string; issuerId?: string; lastFour?: string }; channel: string; installments: number | null; confidence: string; description: string | null }
+type DiagnosticState = { aggregates: Record<string, number>; movements: Diagnostic[] }
 
 function sourceLabel(source: Source) {
   if (source.status === 'not_run') return 'Todavía sin validación'
@@ -18,11 +20,30 @@ function sourceLabel(source: Source) {
   return `Validada · ${source.count}`
 }
 
+function formatAmount(amount: Diagnostic['amount']) {
+  if (amount.value === null) return '—'
+  try {
+    return amount.currency && /^[A-Z]{3}$/.test(amount.currency)
+      ? new Intl.NumberFormat('es-AR', { style: 'currency', currency: amount.currency }).format(amount.value)
+      : new Intl.NumberFormat('es-AR').format(amount.value)
+  } catch {
+    return new Intl.NumberFormat('es-AR').format(amount.value)
+  }
+}
+
+function fundingLabel(funding: Diagnostic['fundingSource'], label: (value: string | null | undefined) => string) {
+  const card = [funding.brand, funding.lastFour ? `•••• ${funding.lastFour}` : null].filter(Boolean).join(' ')
+  return card ? `${label(funding.kind)} · ${card}` : label(funding.kind)
+}
+
 export function MercadoPagoSettingsCard() {
   const [state, setState] = useState<State | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   const [loadError, setLoadError] = useState(false)
+  const [diagnostics, setDiagnostics] = useState<DiagnosticState | null>(null)
+  const [diagnosticsBusy, setDiagnosticsBusy] = useState(false)
+  const [diagnosticsError, setDiagnosticsError] = useState(false)
 
   const load = async () => {
     setLoadError(false)
@@ -46,12 +67,30 @@ export function MercadoPagoSettingsCard() {
       const payload = await result.json() as Pick<State, 'sources'>
       setMessage(getMercadoPagoValidationMessage(payload.sources))
       await load()
+      if (diagnostics) await loadDiagnostics()
     } catch {
       setMessage('No se pudo completar la validación.')
     } finally {
       setBusy(false)
     }
   }
+
+  const loadDiagnostics = async () => {
+    setDiagnosticsBusy(true)
+    setDiagnosticsError(false)
+    try {
+      const result = await fetch('/api/integrations/mercadopago/movements', { cache: 'no-store' })
+      if (!result.ok) throw new Error('diagnostics_failed')
+      setDiagnostics(await result.json() as DiagnosticState)
+    } catch {
+      setDiagnosticsError(true)
+    } finally {
+      setDiagnosticsBusy(false)
+    }
+  }
+
+  const labels: Record<string, string> = { expense: 'Gasto', income: 'Ingreso', transfer: 'Transferencia', neutral: 'Técnica', unknown: 'Desconocida', outflow: 'Salida', inflow: 'Entrada', internal: 'Interna', mercadopago_balance: 'Saldo MP', card: 'Tarjeta', bank_transfer: 'Cuenta externa', CHECKOUT: 'Checkout', INSTORE: 'Presencial', SUBSCRIPTIONS: 'Suscripciones', PSP_TRANSFER: 'Transferencia PSP', UNSPECIFIED: 'Sin canal' }
+  const label = (value: string | null | undefined) => value ? (labels[value] ?? value) : 'Sin dato'
 
   const current = state?.state ?? 'not_connected'
   return (
@@ -91,6 +130,21 @@ export function MercadoPagoSettingsCard() {
                 </Link>
               )}
             </div>
+            {current === 'connected' && <button type="button" onClick={() => void loadDiagnostics()} disabled={diagnosticsBusy} className="mt-3 text-[12px] font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50">{diagnosticsBusy ? 'Cargando operaciones…' : diagnosticsError ? 'Reintentar operaciones detectadas' : 'Ver operaciones detectadas'}</button>}
+            {diagnosticsError && <p className="mt-2 text-[12px] text-error" role="status">No pudimos cargar las operaciones detectadas. Podés reintentar.</p>}
+            {diagnostics && <div className="mt-3" aria-label="Diagnóstico de operaciones">
+              <p className="text-[11px] text-text-secondary">Diagnóstico; todavía no se importa.</p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(['total', 'income', 'expense', 'transfer', 'neutral', 'unknown', 'partial'] as const).map((key) => <span key={key} className="rounded-full bg-bg-secondary px-2 py-1 text-[10px] font-semibold">{key === 'total' ? 'Total' : label(key)} · {diagnostics.aggregates[key] ?? 0}</span>)}
+              </div>
+              <div className="mt-2 space-y-2">
+                {diagnostics.movements.map((movement) => <div key={`${movement.nativeId ?? 'unknown'}-${movement.occurredAt ?? 'unknown'}`} className="rounded-lg border border-border-ocean p-2 text-[11px]">
+                  <div className="flex items-start justify-between gap-2"><span className="font-semibold">{label(movement.kind)} · {label(movement.direction)}</span><span className="whitespace-nowrap">{formatAmount(movement.amount)}</span></div>
+                  <div className="mt-1 text-text-secondary">{movement.description ?? 'Sin descripción'} · {movement.occurredAt ? new Date(movement.occurredAt).toLocaleDateString('es-AR') : 'Sin fecha'} · {fundingLabel(movement.fundingSource, label)} · {label(movement.channel)}</div>
+                  <div className="mt-1 text-text-tertiary">{movement.operation.status ?? 'Sin estado'}{movement.operation.statusDetail ? ` · ${movement.operation.statusDetail}` : ''}{movement.installments ? ` · ${movement.installments} cuotas` : ''} · {movement.confidence === 'confirmed' ? 'Interpretación alta' : movement.confidence === 'partial' ? 'Interpretación parcial' : 'Interpretación sin resolver'}</div>
+                </div>)}
+              </div>
+            </div>}
             {message && <p className="mt-3 text-[12px] text-text-secondary" role="status">{message}</p>}
           </div>
         </div>
