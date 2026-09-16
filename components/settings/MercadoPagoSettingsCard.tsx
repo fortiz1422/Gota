@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react'
 import { ArrowsClockwise, ArrowSquareOut, Wallet } from '@phosphor-icons/react'
 import { getMercadoPagoValidationMessage } from '@/lib/mercadopago/sync-presentation'
 
-type Source = { status: 'success' | 'error' | 'not_run'; count: number }
+type Source = { status: 'success' | 'error' | 'pending' | 'not_run'; count: number }
 type State = {
   state: 'not_connected' | 'connected' | 'error'
   lastSyncAt: string | null
@@ -17,6 +17,7 @@ type DiagnosticState = { aggregates: Record<string, number>; movements: Diagnost
 function sourceLabel(source: Source) {
   if (source.status === 'not_run') return 'Todavía sin validación'
   if (source.status === 'error') return 'No disponible'
+  if (source.status === 'pending') return 'Preparando movimientos…'
   return `Validada · ${source.count}`
 }
 
@@ -130,7 +131,7 @@ export function MercadoPagoSettingsCard() {
                 </Link>
               )}
             </div>
-            {current === 'connected' && <button type="button" onClick={() => void loadDiagnostics()} disabled={diagnosticsBusy} className="mt-3 text-[12px] font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50">{diagnosticsBusy ? 'Cargando operaciones…' : diagnosticsError ? 'Reintentar operaciones detectadas' : 'Ver operaciones detectadas'}</button>}
+            {current === 'connected' && <button type="button" onClick={() => void loadDiagnostics()} disabled={diagnosticsBusy} className="mt-3 text-[12px] font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50">{diagnosticsBusy ? 'Cargando operaciones…' : diagnosticsError ? 'Reintentar operaciones detectadas' : 'Revisar operaciones'}</button>}
             {diagnosticsError && <p className="mt-2 text-[12px] text-error" role="status">No pudimos cargar las operaciones detectadas. Podés reintentar.</p>}
             {diagnostics && <div className="mt-3" aria-label="Diagnóstico de operaciones">
               <p className="text-[11px] text-text-secondary">Diagnóstico; todavía no se importa.</p>

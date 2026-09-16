@@ -75,4 +75,18 @@ describe('normalizeMercadoPagoMovement', () => {
     expect(result.summary).toEqual({ gross: 5500, totalPaid: 5300, netReceived: 5000, refunded: 200, fees: 100 })
     expect(JSON.stringify(result)).not.toMatch(/charges_details|payer_id|collector_id/i)
   })
+
+  it('keeps settlement report rows as partial evidence without guessing direction', () => {
+    const result = normalizeMercadoPagoMovement({
+      source: 'account_settlement_report',
+      providerUserId: '42',
+      nativeKey: 'source-1',
+      payload: {
+        SOURCE_ID: 'source-1', TRANSACTION_DATE: '2026-09-15T10:00:00-03:00', TRANSACTION_TYPE: 'SETTLEMENT',
+        TRANSACTION_AMOUNT: '5500', TRANSACTION_CURRENCY: 'ARS', DESCRIPTION: 'Shell',
+        PAYMENT_METHOD: 'VISA', PAYMENT_METHOD_TYPE: 'credit_card', FRANCHISE: 'VISA', LAST_FOUR_DIGITS: '4321',
+      },
+    })
+    expect(result).toMatchObject({ source: 'account_settlement_report', nativeId: 'source-1', kind: 'unknown', direction: 'unknown', amount: { value: 5500, currency: 'ARS' }, occurredAt: '2026-09-15T10:00:00-03:00', description: 'Shell', operation: { type: 'SETTLEMENT' }, installments: 1, summary: { gross: 5500, netReceived: 5300, fees: 200 }, confidence: 'partial', fundingSource: { kind: 'card', brand: 'visa', lastFour: '4321' } })
+  })
 })

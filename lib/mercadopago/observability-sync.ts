@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { syncMercadoPagoSettlementReport } from './settlement-report'
 
 const API = 'https://api.mercadopago.com'
 const DAY = 24 * 60 * 60 * 1000
@@ -17,7 +18,7 @@ export type RawObservation = {
   metadata: { batchId: string; syncStartedAt: string }
 }
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
-export type SourceRun = { source: Source; status: 'success' | 'error'; count: number; errorCode: 'provider_error' | null }
+export type SourceRun = { source: Source; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null }
 
 function paymentSearchUrl(now: Date, offset: number): string {
   const url = new URL(`${API}/v1/payments/search`)
@@ -67,7 +68,7 @@ function items(payload: unknown): unknown[] {
 async function getJson(url: string, token: string, fetchImpl: FetchLike): Promise<unknown> {
   const response = await fetchImpl(url, {
     method: 'GET',
-    headers: { Authorization: `Bearer ${token}`, Accept: 'application/json' },
+    headers: { Authorization: 'Bearer ' + token, Accept: 'application/json' },
     cache: 'no-store',
   })
   if (!response.ok) throw new Error('provider_error')
@@ -91,15 +92,6 @@ async function pullPayments({ userId, accessToken, now, fetchImpl, store, starte
   return { source: 'payments_search', status: 'success', count, errorCode: null }
 }
 
-async function pullReports({ userId, accessToken, fetchImpl, store, started, batchId }: { userId: string; accessToken: string; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
-  const payload = await getJson(`${API}/v1/account/settlement_report/list`, accessToken, fetchImpl)
-  const rows = items(payload)
-  for (const row of rows) {
-    await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
-  }
-  return { source: 'account_settlement_report', status: 'success', count: rows.length, errorCode: null }
-}
-
 export async function syncMercadoPagoObservations({ userId, accessToken, now = new Date(), fetchImpl = fetch, store }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store }) {
   const started = now.toISOString()
   const batchId = `mp-${now.getTime()}`
@@ -108,7 +100,7 @@ export async function syncMercadoPagoObservations({ userId, accessToken, now = n
   }
   const [payments, reports] = await Promise.all([
     settle(() => pullPayments({ userId, accessToken, now, fetchImpl, store, started, batchId }), 'payments_search'),
-    settle(() => pullReports({ userId, accessToken, fetchImpl, store, started, batchId }), 'account_settlement_report'),
+    settle(() => syncMercadoPagoSettlementReport({ userId, accessToken, now, fetchImpl, store }), 'account_settlement_report'),
   ])
   return { batchId, startedAt: started, sources: [payments, reports] as const }
 }

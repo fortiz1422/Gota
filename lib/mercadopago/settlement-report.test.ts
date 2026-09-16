@@ -1,0 +1,69 @@
+import { describe, expect, it, vi } from 'vitest'
+import { parseSettlementReportCsv, syncMercadoPagoSettlementReport, SETTLEMENT_REPORT_REQUIRED_FIELDS } from './settlement-report'
+
+const NOW = new Date('2026-09-15T12:00:00.000Z')
+const row = [
+  'source-1', 'external-1', '2026-09-15T10:00:00-03:00', '2026-09-16T10:00:00-03:00', 'SETTLEMENT', '5500', 'ARS', '5300', 'ARS', '5500', '200', 'credit_card', 'credit_card', 'Shell 5500, sucursal 1', '1', 'VISA', '4321', 'available_money', 'payments',
+].join(',')
+const header = SETTLEMENT_REPORT_REQUIRED_FIELDS.join(',')
+const response = (body: string | object, status = 200) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status })
+
+describe('Mercado Pago settlement report', () => {
+  it('parses quoted commas, BOM, CRLF and skips a blank line', () => {
+    const csv = `\ufeff${header}\r\n${row.replace('Shell 5500, sucursal 1', '"Shell 5500, sucursal 1"')}\r\n\r\n`
+    expect(parseSettlementReportCsv(csv)).toEqual([expect.objectContaining({ DESCRIPTION: 'Shell 5500, sucursal 1', SOURCE_ID: 'source-1' })])
+  })
+
+  it('fails closed when required headers or fields are missing', () => {
+    expect(() => parseSettlementReportCsv('SOURCE_ID,DESCRIPTION\nsource-1,only')).toThrow('settlement_report_invalid_headers')
+    expect(() => parseSettlementReportCsv(`${header}\n${row},extra`)).toThrow('settlement_report_malformed_row')
+  })
+
+  it('configures only after 404, lists before creating, downloads ready report and stores rows', async () => {
+    const calls: Array<{ url: string; method: string; body?: string }> = []
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      calls.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined })
+      if (url.endsWith('/config') && (init?.method ?? 'GET') === 'GET') return response({}, 404)
+      if (url.endsWith('/config') && init?.method === 'POST') return response({ ok: true }, 201)
+      if (url.endsWith('/list')) return response({ reports: [{ file_name: 'settlement-20260915.csv', status: 'processed', begin_date: '2026-09-15', end_date: '2026-09-15' }] })
+      if (url.endsWith('/settlement-20260915.csv')) return response(`${header}\n${row}`)
+      throw new Error(`unexpected ${url}`)
+    })
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store })
+
+    expect(result).toMatchObject({ source: 'account_settlement_report', status: 'success', count: 1 })
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'GET', 'GET'])
+    expect(calls[1].body).toContain('include_withdraw')
+    expect(calls[3].url).toBe('https://api.mercadopago.com/v1/account/settlement_report/settlement-20260915.csv')
+    expect(store.upsertRawObservation).toHaveBeenCalledWith(expect.objectContaining({ source: 'account_settlement_report', nativeKey: 'source-1', payload: expect.objectContaining({ DESCRIPTION: 'Shell 5500, sucursal 1' }) }))
+    expect(JSON.stringify(result)).not.toContain('secret')
+  })
+
+  it('returns pending after listing a pending report and does not create a duplicate', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response({ reports: [{ file_name: 'pending.csv', status: 'pending', begin_date: '2026-09-15', end_date: '2026-09-15' }] })
+      throw new Error(`unexpected ${url}`)
+    })
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() } })
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(fetchImpl).toHaveBeenCalledTimes(2)
+  })
+
+  it('creates once after an empty list and returns preparing, never zero-row success', async () => {
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response({ reports: [] })
+      if (url.endsWith('/settlement_report') && init?.method === 'POST') return response({}, 202)
+      throw new Error(`unexpected ${url}`)
+    })
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() } })
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(fetchImpl).toHaveBeenCalledTimes(3)
+  })
+})

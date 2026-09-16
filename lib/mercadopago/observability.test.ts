@@ -43,13 +43,14 @@ describe('Mercado Pago observability harness', () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       void init
       const value = String(url)
+      if (value.includes('settlement_report/config')) return response({ configured: true })
       if (value.includes('settlement_report/list')) return response({ message: 'down' }, 503)
       if (value.includes('offset=0')) return response({ results: Array.from({ length: 50 }, (_, index) => ({ id: `p${index}` })), paging: { total: 51 } })
       return response({ results: [{ id: 'p50' }], paging: { total: 51 } })
     })
     const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
     const result = await syncMercadoPagoObservations({ userId: 'tenant-1', accessToken: 'access-secret', now: NOW, fetchImpl, store })
-    expect(fetchImpl).toHaveBeenCalledTimes(3)
+    expect(fetchImpl).toHaveBeenCalledTimes(4)
     expect(fetchImpl.mock.calls.some(([url]) => String(url).includes('offset=50'))).toBe(true)
     expect(fetchImpl.mock.calls.some(([url]) => String(url) === 'https://api.mercadopago.com/v1/account/settlement_report/list')).toBe(true)
     expect((fetchImpl.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'Bearer access-secret' })
