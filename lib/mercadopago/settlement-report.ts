@@ -97,7 +97,7 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
-      const config = JSON.stringify({ file_name_prefix: 'gota_settlement', frequency: 'daily', columns: [...REQUIRED_FIELDS], display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en' })
+      const config = JSON.stringify({ file_name_prefix: 'gota_settlement', frequency: { hour: 0, type: 'monthly', value: 1 }, columns: REQUIRED_FIELDS.map((key) => ({ key })), display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en' })
       const created = await request(configUrl, accessToken, fetchImpl, { method: 'POST', body: config, headers: { 'Content-Type': 'application/json' } })
       if (!created.ok) throw new Error('provider_error')
     } else if (!configResponse.ok) throw new Error('provider_error')

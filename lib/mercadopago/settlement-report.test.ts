@@ -40,7 +40,9 @@ describe('Mercado Pago settlement report', () => {
     expect(result).toMatchObject({ source: 'account_settlement_report', status: 'success', count: 1 })
     expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'GET', 'GET'])
     expect(JSON.parse(calls[1].body ?? '')).toEqual({
-      file_name_prefix: 'gota_settlement', frequency: 'daily', columns: [...SETTLEMENT_REPORT_REQUIRED_FIELDS],
+      file_name_prefix: 'gota_settlement',
+      frequency: { hour: 0, type: 'monthly', value: 1 },
+      columns: SETTLEMENT_REPORT_REQUIRED_FIELDS.map((key) => ({ key })),
       display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en',
     })
     expect(calls[3].url).toBe('https://api.mercadopago.com/v1/account/settlement_report/settlement-20260915.csv')
