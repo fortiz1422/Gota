@@ -4,17 +4,18 @@ const END_DATE = '2026-09-16T02:59:59Z'
 const WINDOW = { begin_date: BEGIN_DATE, end_date: END_DATE }
 
 export type SettlementProbeConnection = { access_token_ciphertext: string | null }
-export type SettlementProbeClassification = 'none' | 'invalid_begin_date' | 'invalid_end_date' | 'end_date_before_begin_date' | 'invalid_parameters' | 'capability_denied' | 'unclassified_provider_error' | 'non_json_or_empty'
-export type SettlementProbeResult = { stage: 'connection' | 'list' | 'create'; httpStatus: number | null; accepted: boolean; classification: SettlementProbeClassification; reportStatus?: string; hasFile?: boolean; providerCode?: string }
+export type SettlementProbeClassification = 'none' | 'invalid_begin_date' | 'invalid_end_date' | 'end_date_before_begin_date' | 'invalid_parameters' | 'capability_denied' | 'unexpected_success_status' | 'unclassified_provider_error' | 'non_json_or_empty'
+export type SettlementProbeResult = { stage: 'connection' | 'list' | 'create'; httpStatus: number | null; accepted: boolean; classification: SettlementProbeClassification; hasFile?: boolean }
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 
-type ProviderError = { status: number; payload: unknown; json: boolean }
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value)
-const scalar = (value: unknown) => typeof value === 'string' || typeof value === 'number' ? String(value) : undefined
 
 function classification(payload: unknown, json: boolean): SettlementProbeClassification {
   if (!json || payload === null || payload === '') return 'non_json_or_empty'
-  const text = JSON.stringify(payload).toLowerCase()
+  const evidence = isRecord(payload)
+    ? [payload.code, payload.status, payload.message, payload.cause]
+    : [payload]
+  const text = JSON.stringify(evidence).toLowerCase()
   if (text.includes('invalid_begin_date') || text.includes('invalid begin date') || text.includes('begin_date is invalid')) return 'invalid_begin_date'
   if (text.includes('invalid_end_date') || text.includes('invalid end date') || text.includes('end_date is invalid')) return 'invalid_end_date'
   if (text.includes('end_date_before_begin_date') || text.includes('end date before begin date')) return 'end_date_before_begin_date'
@@ -29,17 +30,15 @@ async function readResponse(response: Response): Promise<{ payload: unknown; jso
   try { return { payload: JSON.parse(text), json: true } } catch { return { payload: text, json: false } }
 }
 
-async function providerResult(response: Response, stage: 'list' | 'create'): Promise<SettlementProbeResult | null> {
-  if (response.ok) return null
+async function providerResult(response: Response, stage: 'list' | 'create', expectedStatus: number): Promise<SettlementProbeResult | null> {
+  if (response.status === expectedStatus) return null
+  if (response.ok) return { stage, httpStatus: response.status, accepted: false, classification: 'unexpected_success_status' }
   const { payload, json } = await readResponse(response)
-  const error: ProviderError = { status: response.status, payload, json }
-  const record = isRecord(error.payload) ? error.payload : null
-  const providerCode = record ? scalar(record.code) : undefined
-  return { stage, httpStatus: error.status, accepted: false, classification: classification(error.payload, error.json), ...(providerCode && /^[A-Za-z0-9_.-]{1,64}$/.test(providerCode) ? { providerCode } : {}) }
+  return { stage, httpStatus: response.status, accepted: false, classification: classification(payload, json) }
 }
 
 function authInit(token: string, method = 'GET', body?: string): RequestInit {
-  return { method, cache: 'no-store', headers: { Authorization: `Bearer ${token}`, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body } : {}) }
+  return { method, cache: 'no-store', headers: { Authorization: 'Bearer ' + token, Accept: 'application/json', ...(body ? { 'Content-Type': 'application/json' } : {}) }, ...(body ? { body } : {}) }
 }
 
 function exactReport(payload: unknown): Record<string, unknown> | null {
@@ -53,20 +52,17 @@ export async function runSettlementProbe({ connections, decrypt, fetchImpl = fet
   try { token = decrypt(connections[0].access_token_ciphertext) } catch { return { stage: 'connection', httpStatus: null, accepted: false, classification: 'unclassified_provider_error' } }
 
   const listResponse = await fetchImpl(`${API}/v1/account/settlement_report/list`, authInit(token))
-  const listError = await providerResult(listResponse, 'list')
+  const listError = await providerResult(listResponse, 'list', 200)
   if (listError) return listError
   const list = await readResponse(listResponse)
   if (!list.json) return { stage: 'list', httpStatus: listResponse.status, accepted: false, classification: 'non_json_or_empty' }
   const report = exactReport(list.payload)
-  if (report) {
-    const reportStatus = scalar(report.status ?? report.state)
-    return { stage: 'list', httpStatus: listResponse.status, accepted: false, classification: 'none', ...(reportStatus ? { reportStatus } : {}), hasFile: typeof report.file_name === 'string' && report.file_name.length > 0 }
-  }
+  if (report) return { stage: 'list', httpStatus: listResponse.status, accepted: false, classification: 'none', hasFile: typeof report.file_name === 'string' && report.file_name.length > 0 }
 
   const createResponse = await fetchImpl(`${API}/v1/account/settlement_report`, authInit(token, 'POST', JSON.stringify(WINDOW)))
-  const createError = await providerResult(createResponse, 'create')
+  const createError = await providerResult(createResponse, 'create', 202)
   if (createError) return createError
-  return { stage: 'create', httpStatus: createResponse.status, accepted: createResponse.status === 202, classification: 'none' }
+  return { stage: 'create', httpStatus: 202, accepted: true, classification: 'none' }
 }
 
 export { BEGIN_DATE, END_DATE }
