@@ -22,6 +22,42 @@ describe('Mercado Pago settlement report', () => {
     expect(() => parseSettlementReportCsv(`${header}\n${row.replace('"Shell 5500, sucursal 1"', '"Shell ""5500""')}`)).toThrow('settlement_report_malformed_csv')
   })
 
+  it('logs a sanitized config_get diagnostic for a non-ok response', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const fetchImpl = vi.fn(async () => response({ error: 'invalid token', code: 'AUTH_FAILED', status: 401, Authorization: 'secret', body: 'sensitive request body' }, 401))
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
+
+    expect(result).toEqual({ source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' })
+    expect(log).toHaveBeenCalledTimes(1)
+    const serializedLog = JSON.stringify(log.mock.calls[0])
+    expect(serializedLog).toContain('config_get')
+    expect(serializedLog).toContain('401')
+    expect(serializedLog).toContain('AUTH_FAILED')
+    expect(serializedLog).not.toContain('secret')
+    expect(serializedLog).not.toContain('sensitive request body')
+    log.mockRestore()
+  })
+
+  it('logs config_create and preserves the generic result when config creation is non-ok', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const fetchImpl = vi.fn(async (_input: string | URL | Request, init?: RequestInit) => init?.method === 'POST'
+      ? response({ error: 'forbidden operation', code: 'CONFIG_DENIED', status: 403, token: 'secret', request_body: 'sensitive' }, 403)
+      : response({}, 404))
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
+
+    expect(result).toEqual({ source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' })
+    expect(log).toHaveBeenCalledTimes(1)
+    const serializedLog = JSON.stringify(log.mock.calls[0])
+    expect(serializedLog).toContain('config_create')
+    expect(serializedLog).toContain('403')
+    expect(serializedLog).toContain('CONFIG_DENIED')
+    expect(serializedLog).not.toContain('secret')
+    expect(serializedLog).not.toContain('sensitive')
+    log.mockRestore()
+  })
+
   it('configures only after 404, lists before creating, downloads ready report and stores rows', async () => {
     const calls: Array<{ url: string; method: string; body?: string }> = []
     const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
