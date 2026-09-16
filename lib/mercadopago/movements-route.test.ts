@@ -25,6 +25,16 @@ describe('Mercado Pago movements route', () => {
     expect(mocks.getObservations).not.toHaveBeenCalled()
   })
 
+  it('fails closed with a generic no-store response when a connection, raw or review read fails', async () => {
+    for (const failedRead of [mocks.getConnection, mocks.getObservations, mocks.getReviews]) {
+      failedRead.mockRejectedValueOnce(new Error('provider raw secret'))
+      const response = await GET()
+      expect(response.status).toBe(500)
+      expect(response.headers.get('cache-control')).toContain('no-store')
+      expect(await response.json()).toEqual({ error: 'movements_unavailable' })
+    }
+  })
+
   it('sorts normalized rows by occurredAt descending and native id deterministically', async () => {
     mocks.getObservations.mockResolvedValue([
       { source: 'payments_search', native_key: 'a', payload: { id: 'a' }, last_seen_at: '2026-09-15T12:00:00.000Z' },
@@ -46,7 +56,7 @@ describe('Mercado Pago movements route', () => {
     expect(Array.isArray(body.movements)).toBe(true)
     expect(Object.keys(body)).toEqual(['aggregates', 'movements'])
     expect(body).toEqual({ aggregates: { total: 1, observations: 1, crossSourceMatches: 0, paymentOnly: 1, balanceOnly: 0, expense: 1, income: 0, transfer: 0, neutral: 0, unknown: 0, partial: 0, confirmed: 1 }, movements: [expect.objectContaining({ candidateId: expect.stringMatching(/^sha256:/), reviewStatus: 'pending', sources: ['payments_search'], match: 'single_source', balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } } })] })
-    expect(JSON.stringify(body)).not.toMatch(/payload|provider_user_id|payer|collector|token|authorization/i)
+    expect(JSON.stringify(body)).not.toMatch(/payload|provider_user_id|payer|collector|token|authorization|nativeId|native_key|raw|evidence|lastSeen|issuerId|reasonCodes|settlement/i)
     expect(mocks.getObservations).toHaveBeenCalledWith('user-1', 'connection-1', 100)
     expect(mocks.normalize).toHaveBeenCalledWith(expect.objectContaining({ providerUserId: 'provider-1', nativeKey: '101' }))
   })

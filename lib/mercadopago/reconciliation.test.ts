@@ -19,6 +19,7 @@ describe('reconcileMercadoPagoMovements', () => {
     const [candidate] = reconcileMercadoPagoMovements([payment(), settlement()])
     expect(candidate).toMatchObject({ match: 'exact_native_id', sources: ['payments_search', 'account_settlement_report'], nativeId: 'same-id', kind: 'expense', direction: 'outflow', description: 'Compra', balanceImpact: { observed: true, effect: 'debit', amount: { value: -5500, currency: 'ARS' } } })
     expect(candidate.settlement).toMatchObject({ source: 'account_settlement_report', description: 'Shell' })
+    expect(candidate.balanceOccurredAt).toBe('2026-09-15T12:01:00.000Z')
   })
 
   it('does not merge different IDs even when date and amount match', () => {

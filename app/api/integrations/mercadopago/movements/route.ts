@@ -11,12 +11,13 @@ export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return response({ error: 'unauthorized' }, 401)
-  const connection = await getMercadoPagoConnection(user.id)
-  if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
-  const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
-  const reconciled = reconstructMercadoPagoCandidates(connection, observations)
-  let reviews
-  try { reviews = await getMercadoPagoMovementReviews(user.id, connection.id) } catch { return response({ error: 'movements_unavailable' }, 500) }
-  const byCandidate = new Map(reviews.map((review) => [review.candidate_id, review]))
-  return response({ aggregates: reconciled.aggregates, movements: reconciled.map((candidate) => publicMercadoPagoMovement(candidate, byCandidate.get(candidate.candidateId) ?? null)) })
+  try {
+    const connection = await getMercadoPagoConnection(user.id)
+    if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
+    const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
+    const reconciled = reconstructMercadoPagoCandidates(connection, observations)
+    const reviews = await getMercadoPagoMovementReviews(user.id, connection.id)
+    const byCandidate = new Map(reviews.map((review) => [review.candidate_id, review]))
+    return response({ aggregates: reconciled.aggregates, movements: reconciled.map((candidate) => publicMercadoPagoMovement(candidate, byCandidate.get(candidate.candidateId) ?? null)) })
+  } catch { return response({ error: 'movements_unavailable' }, 500) }
 }

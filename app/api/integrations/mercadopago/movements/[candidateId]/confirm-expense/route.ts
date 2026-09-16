@@ -25,10 +25,9 @@ export async function POST(request: Request, { params }: Params) {
     const candidate = reconstructMercadoPagoCandidates(connection, observations).find((item) => item.candidateId === candidateId)
     if (!candidate) return json({ error: 'not_found' }, 404)
     if (!eligibleMercadoPagoExpense(candidate)) return json({ error: 'ineligible' }, 422)
-    const settlement = candidate.settlement!
     const amount = Math.abs(candidate.balanceImpact.amount.value!)
     const currency = candidate.balanceImpact.amount.currency!
-    const date = new Date(settlement.occurredAt!).toISOString().slice(0, 10)
+    const date = new Date(candidate.balanceOccurredAt!).toISOString().slice(0, 10)
     const semantics = buildCanonicalSemantics()
     const admin = createAdminClient() as unknown as { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: string | string[] | null; error: unknown }> }
     const { data, error } = await admin.rpc('confirm_mercadopago_expense', {

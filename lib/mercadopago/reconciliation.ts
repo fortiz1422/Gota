@@ -18,6 +18,7 @@ type BalanceImpact = {
 
 export type ReconciledMercadoPagoMovement = NormalizedMercadoPagoMovement & {
   candidateId: string
+  balanceOccurredAt: string | null
   sources: ReconciliationObservation['source'][]
   match: 'exact_native_id' | 'single_source'
   balanceImpact: BalanceImpact
@@ -111,6 +112,7 @@ function candidate(observations: ReconciliationObservation[], match: ReconciledM
   return {
     ...primary,
     candidateId,
+    balanceOccurredAt: settlement?.occurredAt ?? null,
     nativeId,
     sources: observations.map((observation) => observation.source).sort((a, b) => sourceRank(a) - sourceRank(b)),
     match,

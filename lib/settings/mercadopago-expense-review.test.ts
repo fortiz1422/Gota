@@ -9,6 +9,7 @@ import {
 const movement = (overrides: Partial<MercadoPagoDiagnostic> = {}): MercadoPagoDiagnostic => ({
   candidateId: 'candidate/1',
   occurredAt: '2026-09-15T12:00:00.000Z',
+  balanceOccurredAt: '2026-09-15T12:00:00.000Z',
   amount: { value: -1250, currency: 'ARS' },
   description: null,
   reviewStatus: 'pending',
@@ -26,7 +27,7 @@ describe('Mercado Pago expense review contract', () => {
     expect(isReviewableMercadoPagoExpense(movement())).toBe(true)
     expect(isReviewableMercadoPagoExpense(movement({ reviewStatus: 'confirmed' }))).toBe(false)
     expect(isReviewableMercadoPagoExpense(movement({ balanceImpact: { observed: true, effect: 'credit', amount: { value: 1, currency: 'ARS' } } }))).toBe(false)
-    expect(isReviewableMercadoPagoExpense(movement({ occurredAt: 'invalid' }))).toBe(false)
+    expect(isReviewableMercadoPagoExpense(movement({ balanceOccurredAt: 'invalid' }))).toBe(false)
     expect(isReviewableMercadoPagoExpense(movement({ balanceImpact: { observed: true, effect: 'debit', amount: { value: null, currency: null } } }))).toBe(false)
   })
 

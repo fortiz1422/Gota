@@ -43,7 +43,7 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
 
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {
   const amount = candidate.balanceImpact.amount.value
-  const occurredAt = candidate.settlement?.occurredAt
+  const occurredAt = candidate.balanceOccurredAt
   return candidate.balanceImpact.observed && candidate.balanceImpact.effect === 'debit' && typeof amount === 'number' && Number.isFinite(amount) && amount !== 0 && amount < 0 && (candidate.balanceImpact.amount.currency === 'ARS' || candidate.balanceImpact.amount.currency === 'USD') && Boolean(occurredAt && Number.isFinite(Date.parse(occurredAt)))
 }
 

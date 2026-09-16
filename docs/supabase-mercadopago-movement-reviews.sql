@@ -116,7 +116,11 @@ begin
     and user_id = p_user_id and archived = false and type in ('cash', 'bank', 'digital') for update;
   if not found then raise exception 'invalid account' using errcode = 'P0002'; end if;
 
-  v_evidence := jsonb_build_object('observations', p_expected_observations);
+  select jsonb_build_object('observations', coalesce(jsonb_agg(
+    jsonb_build_object('id', value->>'id', 'source', value->>'source', 'native_key', value->>'native_key')
+    order by value->>'source', value->>'native_key', value->>'id'
+  ), '[]'::jsonb)) into v_evidence
+  from jsonb_array_elements(p_expected_observations);
   select * into v_review from public.mercadopago_movement_reviews
    where user_id = p_user_id and connection_id = p_connection_id and candidate_id = p_candidate_id
    for update;

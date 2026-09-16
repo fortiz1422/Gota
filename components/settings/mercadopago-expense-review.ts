@@ -1,6 +1,7 @@
 export type MercadoPagoDiagnostic = {
   candidateId: string
   occurredAt: string | null
+  balanceOccurredAt: string | null
   amount: { value: number | null; currency: string | null }
   description: string | null
   reviewStatus: 'pending' | 'confirmed'
@@ -31,8 +32,8 @@ export function isReviewableMercadoPagoExpense(movement: MercadoPagoDiagnostic) 
     && Number.isFinite(amount.value)
     && amount.value < 0
     && (amount.currency === 'ARS' || amount.currency === 'USD')
-    && typeof movement.occurredAt === 'string'
-    && Number.isFinite(Date.parse(movement.occurredAt))
+    && typeof movement.balanceOccurredAt === 'string'
+    && Number.isFinite(Date.parse(movement.balanceOccurredAt))
 }
 
 export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload {

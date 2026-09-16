@@ -19,7 +19,8 @@ const rawId = '30000000-0000-0000-0000-000000000001'
 const otherRaw = '30000000-0000-0000-0000-000000000002'
 const candidate = 'opaque-candidate-1'
 const fp = 'a'.repeat(64), ih = 'b'.repeat(64)
-const expected = (id = rawId) => JSON.stringify([{ id, source: 'payments_search', native_key: 'native-1', last_seen_at: '2026-09-16T10:00:00Z' }])
+let expectedLastSeen = '2026-09-16T10:00:00Z'
+const expected = (id = rawId) => JSON.stringify([{ id, source: 'payments_search', native_key: 'native-1', last_seen_at: expectedLastSeen }])
 const call = (o = {}) => `select public.confirm_mercadopago_expense('${o.user ?? user}','${o.connection ?? conn}','${o.candidate ?? candidate}','${o.fp ?? fp}','${o.ih ?? ih}','${q(o.obs ?? expected())}',${o.amount ?? '1250.50'},'${o.currency ?? 'ARS'}','${o.date ?? '2026-09-16'}','${o.category ?? 'comida'}','${o.description ?? 'MP movimiento'}',${o.isWant ?? 'false'},'${o.account ?? account}','${o.evidence ?? 'balance_debit_known'}','${q(o.semantic ?? '{"movement_kind":"purchase","merchant":"Kiosco"}')}'::jsonb);`
 const waitForReady = () => {
   let stable = 0
@@ -57,6 +58,12 @@ try {
   sql(call(), 'service_role')
   const replay = sql(call(), 'service_role')
   if (!/[0-9a-f-]{36}/.test(replay)) throw new Error('replay did not return UUID')
+  const replayExpenseId = replay.match(/[0-9a-f-]{36}/)?.[0]
+  sql(`update public.mercadopago_raw_observations set last_seen_at='2026-09-17T10:00:00Z' where id='${rawId}';`)
+  expectedLastSeen = '2026-09-17T10:00:00Z'
+  const refreshedReplay = sql(call(), 'service_role')
+  if (refreshedReplay.match(/[0-9a-f-]{36}/)?.[0] !== replayExpenseId) throw new Error('last_seen replay changed expense')
+  if (scalar(sql("select count(*) from public.expenses where user_id='" + user + "';")) !== '1' || scalar(sql("select count(*) from public.mercadopago_movement_reviews where candidate_id='" + candidate + "';")) !== '1') throw new Error('last_seen replay duplicated expense or review')
   mustFail(call({ ih: 'c'.repeat(64) }))
   mustFail(call({ isWant: 'true', semantic: '{"movement_kind":"refund"}', obs: expected().replace('native-1', 'changed-native') }))
   mustFail(call({ obs: `[${expected().slice(1, -1)},${expected().slice(1, -1)}]` }))
