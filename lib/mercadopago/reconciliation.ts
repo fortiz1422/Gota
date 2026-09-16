@@ -40,10 +40,32 @@ export type ReconciliationResult = ReconciledMercadoPagoMovement[] & {
 
 const SOURCES: ReconciliationObservation['source'][] = ['payments_search', 'account_settlement_report']
 const sourceRank = (source: ReconciliationObservation['source']) => SOURCES.indexOf(source)
-const validNativeId = (value: string | null): value is string => Boolean(value?.trim())
+const validNativeId = (value: string | null): value is string => {
+  const nativeId = value?.trim()
+  if (!nativeId) return false
+  return !/^sha256:[a-f0-9]{64}$/i.test(nativeId)
+}
 const timestamp = (value: string | null) => {
   const parsed = value ? Date.parse(value) : Number.NEGATIVE_INFINITY
   return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
+}
+
+function evidenceFingerprint(observation: ReconciliationObservation) {
+  const movement = observation.movement
+  const value = [observation.source, observation.nativeId ?? '', observation.lastSeenAt, movement.occurredAt ?? '', movement.amount.value ?? '', movement.amount.currency ?? '', movement.kind, movement.direction, movement.confidence].join('|')
+  let hash = 2166136261
+  for (let index = 0; index < value.length; index += 1) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619)
+  return (hash >>> 0).toString(16)
+}
+
+function compatibleEvidence(payment: ReconciliationObservation, settlement: ReconciliationObservation) {
+  const paymentAmount = payment.movement.amount
+  const settlementAmount = settlement.movement.amount
+  return paymentAmount.value !== null
+    && settlementAmount.value !== null
+    && paymentAmount.currency !== null
+    && paymentAmount.currency === settlementAmount.currency
+    && Math.abs(paymentAmount.value) === Math.abs(settlementAmount.value)
 }
 
 function balanceImpact(settlement: NormalizedMercadoPagoMovement | null): BalanceImpact {
@@ -56,15 +78,16 @@ function balanceImpact(settlement: NormalizedMercadoPagoMovement | null): Balanc
   }
 }
 
-function candidate(observations: ReconciliationObservation[], match: ReconciledMercadoPagoMovement['match'], ordinal: number): ReconciledMercadoPagoMovement {
+function candidate(observations: ReconciliationObservation[], match: ReconciledMercadoPagoMovement['match'], disambiguate = false): ReconciledMercadoPagoMovement {
   const payment = observations.find((observation) => observation.source === 'payments_search')?.movement ?? null
   const settlement = observations.find((observation) => observation.source === 'account_settlement_report')?.movement ?? null
   const primary = payment ?? settlement as NormalizedMercadoPagoMovement
   const nativeId = primary.nativeId
   const sourceKey = observations.map((observation) => observation.source).sort((a, b) => sourceRank(a) - sourceRank(b)).join('+')
+  const candidateId = `${sourceKey}:${nativeId ?? 'unknown'}`
   return {
     ...primary,
-    candidateId: `${sourceKey}:${nativeId ?? 'unknown'}:${ordinal}`,
+    candidateId: disambiguate ? `${candidateId}:conflict-${evidenceFingerprint(observations[0])}` : candidateId,
     nativeId,
     sources: observations.map((observation) => observation.source).sort((a, b) => sourceRank(a) - sourceRank(b)),
     match,
@@ -93,14 +116,16 @@ export function reconcileMercadoPagoMovements(observations: ReconciliationObserv
     grouped.set(observation.nativeId, group)
   }
 
-  const candidates: ReconciledMercadoPagoMovement[] = [...standalone.map((observation, index) => candidate([observation], 'single_source', index))]
+  const candidates: ReconciledMercadoPagoMovement[] = standalone.map((observation) => candidate([observation], 'single_source', true))
   for (const group of grouped.values()) {
     const payments = group.filter((observation) => observation.source === 'payments_search')
     const settlements = group.filter((observation) => observation.source === 'account_settlement_report')
-    if (payments.length <= 1 && settlements.length <= 1) {
-      candidates.push(candidate(group, payments.length && settlements.length ? 'exact_native_id' : 'single_source', candidates.length))
+    if (payments.length === 1 && settlements.length === 1 && compatibleEvidence(payments[0], settlements[0])) {
+      candidates.push(candidate(group, 'exact_native_id'))
+    } else if (payments.length === 0 || settlements.length === 0) {
+      candidates.push(candidate(group, 'single_source', group.length > 1))
     } else {
-      for (const observation of [...payments, ...settlements]) candidates.push(candidate([observation], 'single_source', candidates.length))
+      for (const observation of [...payments, ...settlements]) candidates.push(candidate([observation], 'single_source', payments.length > 1 || settlements.length > 1))
     }
   }
 

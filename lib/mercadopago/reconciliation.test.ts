@@ -33,6 +33,35 @@ describe('reconcileMercadoPagoMovements', () => {
     expect(candidates.map((candidate) => candidate.sources).sort((a, b) => a[0].localeCompare(b[0]))).toEqual([['account_settlement_report'], ['payments_search']])
   })
 
+  it('never uses sha256 fallback observation keys to merge sources', () => {
+    const fallback = `sha256:${'a'.repeat(64)}`
+    const candidates = reconcileMercadoPagoMovements([payment({ nativeId: fallback }), settlement({ nativeId: fallback })])
+
+    expect(candidates).toHaveLength(2)
+    expect(candidates.every((candidate) => candidate.match === 'single_source')).toBe(true)
+  })
+
+  it('keeps candidate IDs stable when observations are reordered or unrelated observations are added', () => {
+    const matched = [payment({ nativeId: 'stable-id' }), settlement({ nativeId: 'stable-id' })]
+    const original = reconcileMercadoPagoMovements(matched).find((candidate) => candidate.nativeId === 'stable-id')
+    const reordered = reconcileMercadoPagoMovements([...matched].reverse()).find((candidate) => candidate.nativeId === 'stable-id')
+    const expanded = reconcileMercadoPagoMovements([...matched, payment({ nativeId: 'unrelated-id' })]).find((candidate) => candidate.nativeId === 'stable-id')
+
+    expect(original?.candidateId).toBe('payments_search+account_settlement_report:stable-id')
+    expect(reordered?.candidateId).toBe(original?.candidateId)
+    expect(expanded?.candidateId).toBe(original?.candidateId)
+  })
+
+  it('does not merge a provider ID when amount or currency evidence is incompatible', () => {
+    const amountConflict = reconcileMercadoPagoMovements([payment({ nativeId: 'collision', amount: { value: 5500, currency: 'ARS' } }), settlement({ nativeId: 'collision', amount: { value: -4500, currency: 'ARS' } })])
+    const currencyConflict = reconcileMercadoPagoMovements([payment({ nativeId: 'currency-collision', amount: { value: 5500, currency: 'ARS' } }), settlement({ nativeId: 'currency-collision', amount: { value: -5500, currency: 'USD' } })])
+
+    for (const candidates of [amountConflict, currencyConflict]) {
+      expect(candidates).toHaveLength(2)
+      expect(candidates.every((candidate) => candidate.match === 'single_source')).toBe(true)
+    }
+  })
+
   it('keeps settlement-only PAYOUTS economically unknown with debit balance impact', () => {
     const [candidate] = reconcileMercadoPagoMovements([{ ...settlement(), nativeId: 'payout-1', movement: { ...settlement().movement, nativeId: 'payout-1', description: null, operation: { type: 'PAYOUTS', status: null, statusDetail: null } } }])
     expect(candidate).toMatchObject({ kind: 'unknown', direction: 'unknown', description: null, balanceImpact: { observed: true, effect: 'debit', amount: { value: -5500, currency: 'ARS' } } })

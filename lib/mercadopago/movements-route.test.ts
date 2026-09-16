@@ -41,6 +41,8 @@ describe('Mercado Pago movements route', () => {
   it('returns normalized rows and aggregate counts without provider identity or raw payload', async () => {
     const response = await GET()
     const body = await response.json()
+    expect(Array.isArray(body.movements)).toBe(true)
+    expect(Object.keys(body)).toEqual(['aggregates', 'movements'])
     expect(body).toEqual({ aggregates: { total: 1, observations: 1, crossSourceMatches: 0, paymentOnly: 1, balanceOnly: 0, expense: 1, income: 0, transfer: 0, neutral: 0, unknown: 0, partial: 0, confirmed: 1 }, movements: [expect.objectContaining({ nativeId: '101', sources: ['payments_search'], match: 'single_source', balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } } })] })
     expect(JSON.stringify(body)).not.toMatch(/payload|provider_user_id|payer|collector|token|authorization/i)
     expect(mocks.getObservations).toHaveBeenCalledWith('user-1', 'connection-1', 100)
