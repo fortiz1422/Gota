@@ -11,7 +11,7 @@ type State = {
   lastSyncAt: string | null
   sources: { payments: Source; reports: Source }
 }
-type Diagnostic = { nativeId: string | null; occurredAt: string | null; kind: string; direction: string; amount: { value: number | null; currency: string | null }; operation: { status: string | null; statusDetail: string | null }; fundingSource: { kind: string; brand?: string; issuerId?: string; lastFour?: string }; channel: string; installments: number | null; confidence: string; description: string | null }
+type Diagnostic = { candidateId: string; nativeId: string | null; occurredAt: string | null; kind: string; direction: string; amount: { value: number | null; currency: string | null }; operation: { status: string | null; statusDetail: string | null }; fundingSource: { kind: string; brand?: string; issuerId?: string; lastFour?: string }; channel: string; installments: number | null; confidence: string; description: string | null; sources: string[]; match: 'exact_native_id' | 'single_source'; balanceImpact: { observed: boolean; effect: 'debit' | 'credit' | 'zero' | 'unknown'; amount: { value: number | null; currency: string | null } }; settlement: Diagnostic | null }
 type DiagnosticState = { aggregates: Record<string, number>; movements: Diagnostic[] }
 
 function sourceLabel(source: Source) {
@@ -35,6 +35,11 @@ function formatAmount(amount: Diagnostic['amount']) {
 function fundingLabel(funding: Diagnostic['fundingSource'], label: (value: string | null | undefined) => string) {
   const card = [funding.brand, funding.lastFour ? `•••• ${funding.lastFour}` : null].filter(Boolean).join(' ')
   return card ? `${label(funding.kind)} · ${card}` : label(funding.kind)
+}
+
+function sourceBadge(movement: Diagnostic) {
+  if (movement.sources.length === 2) return 'Payments + saldo MP'
+  return movement.sources[0] === 'payments_search' ? 'Sólo Payments' : 'Sólo saldo MP'
 }
 
 export function MercadoPagoSettingsCard() {
@@ -134,12 +139,15 @@ export function MercadoPagoSettingsCard() {
             {current === 'connected' && <button type="button" onClick={() => void loadDiagnostics()} disabled={diagnosticsBusy} className="mt-3 text-[12px] font-semibold text-primary underline-offset-2 hover:underline disabled:opacity-50">{diagnosticsBusy ? 'Cargando operaciones…' : diagnosticsError ? 'Reintentar operaciones detectadas' : 'Revisar operaciones'}</button>}
             {diagnosticsError && <p className="mt-2 text-[12px] text-error" role="status">No pudimos cargar las operaciones detectadas. Podés reintentar.</p>}
             {diagnostics && <div className="mt-3" aria-label="Diagnóstico de operaciones">
-              <p className="text-[11px] text-text-secondary">Diagnóstico; todavía no se importa.</p>
+              <p className="text-[11px] text-text-secondary">Proyección de solo lectura. Nada se importa al registro financiero.</p>
               <div className="mt-2 flex flex-wrap gap-1.5">
-                {(['total', 'income', 'expense', 'transfer', 'neutral', 'unknown', 'partial'] as const).map((key) => <span key={key} className="rounded-full bg-bg-secondary px-2 py-1 text-[10px] font-semibold">{key === 'total' ? 'Total' : label(key)} · {diagnostics.aggregates[key] ?? 0}</span>)}
+                <span className="rounded-full bg-bg-secondary px-2 py-1 text-[10px] font-semibold">Operaciones · {diagnostics.aggregates.total ?? 0}</span>
+                <span className="rounded-full bg-bg-secondary px-2 py-1 text-[10px] font-semibold">{diagnostics.aggregates.observations ?? 0} observaciones · {diagnostics.aggregates.crossSourceMatches ?? 0} coincidencias entre fuentes</span>
+                {(['income', 'expense', 'transfer', 'neutral', 'unknown', 'partial'] as const).map((key) => <span key={key} className="rounded-full bg-bg-secondary px-2 py-1 text-[10px] font-semibold">{label(key)} · {diagnostics.aggregates[key] ?? 0}</span>)}
               </div>
               <div className="mt-2 space-y-2">
-                {diagnostics.movements.map((movement) => <div key={`${movement.nativeId ?? 'unknown'}-${movement.occurredAt ?? 'unknown'}`} className="rounded-lg border border-border-ocean p-2 text-[11px]">
+                {diagnostics.movements.map((movement) => <div key={movement.candidateId} className="rounded-lg border border-border-ocean p-2 text-[11px]">
+                  <div className="mb-1 flex flex-wrap gap-1"><span className="rounded-full bg-bg-secondary px-2 py-0.5 font-semibold">{sourceBadge(movement)}</span>{movement.sources.length === 1 && movement.sources[0] === 'account_settlement_report' && movement.balanceImpact.effect === 'debit' && <span className="rounded-full bg-bg-secondary px-2 py-0.5 font-semibold">Salida de saldo · Clasificación pendiente</span>}</div>
                   <div className="flex items-start justify-between gap-2"><span className="font-semibold">{label(movement.kind)} · {label(movement.direction)}</span><span className="whitespace-nowrap">{formatAmount(movement.amount)}</span></div>
                   <div className="mt-1 text-text-secondary">{movement.description ?? 'Sin descripción'} · {movement.occurredAt ? new Date(movement.occurredAt).toLocaleDateString('es-AR') : 'Sin fecha'} · {fundingLabel(movement.fundingSource, label)} · {label(movement.channel)}</div>
                   <div className="mt-1 text-text-tertiary">{movement.operation.status ?? 'Sin estado'}{movement.operation.statusDetail ? ` · ${movement.operation.statusDetail}` : ''}{movement.installments ? ` · ${movement.installments} cuotas` : ''} · {movement.confidence === 'confirmed' ? 'Interpretación alta' : movement.confidence === 'partial' ? 'Interpretación parcial' : 'Interpretación sin resolver'}</div>
