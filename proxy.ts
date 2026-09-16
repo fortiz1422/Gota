@@ -3,14 +3,13 @@ import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 
 /**
- * These exact routes authenticate independently in their route handlers;
- * no other API bypasses Supabase session auth.
+ * These exact device routes have independent bearer-token auth in their route
+ * handlers; no other API is public.
  */
-export function isIndependentlyAuthenticatedPath(pathname: string): boolean {
+export function isDeviceSnapshotPath(pathname: string): boolean {
   return (
     pathname === '/api/device/v1/snapshot' ||
-    pathname === '/api/shortcut/v1/receipts' ||
-    pathname === '/api/integrations/mercadopago/settlement-probe'
+    pathname === '/api/shortcut/v1/receipts'
   )
 }
 
@@ -65,7 +64,7 @@ export async function proxy(request: NextRequest) {
   if (
     !user &&
     !isPublicPath &&
-    !isIndependentlyAuthenticatedPath(pathname) &&
+    !isDeviceSnapshotPath(pathname) &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth/') &&
     !request.nextUrl.pathname.startsWith('/share-target')
