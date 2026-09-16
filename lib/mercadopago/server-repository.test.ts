@@ -100,7 +100,7 @@ describe('Mercado Pago server repository', () => {
     await repository.getMercadoPagoMovementObservations('user-1', 'connection-1', 100)
 
     expect(fake.database.from).toHaveBeenCalledWith('mercadopago_raw_observations')
-    expect(fake.calls).toContainEqual({ method: 'select', args: ['source,native_key,payload,last_seen_at'] })
+    expect(fake.calls).toContainEqual({ method: 'select', args: ['id,source,native_key,payload,last_seen_at'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['user_id', 'user-1'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['connection_id', 'connection-1'] })
     expect(fake.calls).toContainEqual({ method: 'order', args: ['last_seen_at', { ascending: false }] })
