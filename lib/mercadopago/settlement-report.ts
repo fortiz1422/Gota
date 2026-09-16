@@ -60,11 +60,27 @@ export function parseSettlementReportCsv(input: string): Record<string, string>[
   })
 }
 
-function dateWindow(now: Date) {
-  const toIsoSeconds = (date: Date) => date.toISOString().replace(/\.\d{3}Z$/, 'Z')
-  const beginTimestamp = toIsoSeconds(new Date(now.getTime() - 90 * DAY))
-  const endTimestamp = toIsoSeconds(now)
-  return { beginDate: beginTimestamp.slice(0, 10), endDate: endTimestamp.slice(0, 10), beginTimestamp, endTimestamp }
+export type SettlementReportWindow = { beginDate: string; endDate: string; beginTimestamp: string; endTimestamp: string }
+
+function argentinaDate(now: Date): Date {
+  const argentinaNow = new Date(now.getTime() - 3 * 60 * 60 * 1000)
+  return new Date(Date.UTC(argentinaNow.getUTCFullYear(), argentinaNow.getUTCMonth(), argentinaNow.getUTCDate()))
+}
+
+function dateWindow(beginDate: Date, endDate: Date): SettlementReportWindow {
+  const beginTimestamp = new Date(beginDate.getTime() + 3 * 60 * 60 * 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  const endTimestamp = new Date(endDate.getTime() + DAY + 3 * 60 * 60 * 1000 - 1000).toISOString().replace(/\.\d{3}Z$/, 'Z')
+  return { beginDate: beginDate.toISOString().slice(0, 10), endDate: endDate.toISOString().slice(0, 10), beginTimestamp, endTimestamp }
+}
+
+export function buildSettlementReportWindows(now: Date): SettlementReportWindow[] {
+  const lastDay = argentinaDate(now)
+  const firstDay = new Date(lastDay.getTime() - 89 * DAY)
+  return [0, 1, 2].map((chunk) => {
+    const begin = new Date(firstDay.getTime() + chunk * 30 * DAY)
+    const end = new Date(begin.getTime() + 29 * DAY)
+    return dateWindow(begin, end)
+  })
 }
 
 function authInit(token: string, method = 'GET', body?: string): RequestInit {
@@ -90,12 +106,30 @@ function value(row: Record<string, unknown>, keys: string[]) {
   return null
 }
 
-function matchesWindow(row: Record<string, unknown>, beginDate: string, endDate: string) {
-  return value(row, ['begin_date'])?.slice(0, 10) === beginDate && value(row, ['end_date'])?.slice(0, 10) === endDate
+function matchesWindow(row: Record<string, unknown>, window: SettlementReportWindow) {
+  const begin = value(row, ['begin_date'])
+  const end = value(row, ['end_date'])
+  const beginInstant = begin === null ? Number.NaN : Date.parse(begin)
+  const endInstant = end === null ? Number.NaN : Date.parse(end)
+  return Number.isFinite(beginInstant) && Number.isFinite(endInstant)
+    && beginInstant === Date.parse(window.beginTimestamp)
+    && endInstant === Date.parse(window.endTimestamp)
 }
 
 function safeFileName(valueToValidate: string | null): string | null {
   return valueToValidate && /^[A-Za-z0-9][A-Za-z0-9._-]*\.csv$/.test(valueToValidate) ? valueToValidate : null
+}
+
+function isPendingReport(report: Record<string, unknown>): boolean {
+  return ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
+}
+
+function readyFileName(reports: Record<string, unknown>[]): string | null {
+  const fileNames = reports
+    .map((report) => safeFileName(value(report, ['file_name'])))
+    .filter((name): name is string => name !== null)
+    .sort()
+  return fileNames[0] ?? null
 }
 
 async function json(response: Response): Promise<unknown> {
@@ -132,7 +166,7 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
 export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
-    const { beginDate, endDate, beginTimestamp, endTimestamp } = dateWindow(now)
+    const windows = buildSettlementReportWindows(now)
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
@@ -146,27 +180,34 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     const listResponse = await request(`${API}/v1/account/settlement_report/list`, accessToken, fetchImpl)
     if (!listResponse.ok) await providerFailure(listResponse, stage)
     stage = 'list_parse'
-    const reports = listItems(await json(listResponse)).filter((report) => matchesWindow(report, beginDate, endDate))
-    if (reports.some((report) => ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase()))) return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
-    const ready = reports.find((report) => safeFileName(value(report, ['file_name'])) !== null)
-    const fileName = safeFileName(value(ready ?? {}, ['file_name']))
-    if (!fileName) {
+    const listed = listItems(await json(listResponse))
+    const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
+    const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))
+    const readyFiles = reportsByWindow.map(readyFileName)
+    let totalCount = 0
+    for (const fileName of readyFiles.filter((name): name is string => name !== null)) {
+      stage = 'download'
+      const download = await request(`${API}/v1/account/settlement_report/${encodeURIComponent(fileName)}`, accessToken, fetchImpl, { headers: { Accept: 'text/csv' } })
+      if (!download.ok) await providerFailure(download, stage)
+      stage = 'csv_parse'
+      const rows = parseSettlementReportCsv(await download.text())
+      totalCount += rows.length
+      stage = 'raw_persist'
+      for (const row of rows) await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: row.SOURCE_ID || observationNativeKey(row), payload: row, firstSeenAt: startedAt, lastSeenAt: startedAt, metadata: { batchId, syncStartedAt: startedAt } })
+    }
+    const missingIndex = readyFiles.findIndex((name, index) => name === null && reportsByWindow[index].length === 0)
+    if (unresolved || missingIndex === -1) {
+      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
+    }
+    const missingWindow = windows[missingIndex]
+    {
       const previous = lastPendingAt ? new Date(lastPendingAt).getTime() : Number.NaN
       if (Number.isFinite(previous) && now.getTime() - previous < PENDING_COOLDOWN_MS) return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
       stage = 'create'
-      const created = await request(`${API}/v1/account/settlement_report`, accessToken, fetchImpl, { method: 'POST', body: JSON.stringify({ begin_date: beginTimestamp, end_date: endTimestamp }), headers: { 'Content-Type': 'application/json' } })
+      const created = await request(`${API}/v1/account/settlement_report`, accessToken, fetchImpl, { method: 'POST', body: JSON.stringify({ begin_date: missingWindow.beginTimestamp, end_date: missingWindow.endTimestamp }), headers: { 'Content-Type': 'application/json' } })
       if (created.status !== 202) await providerFailure(created, stage)
       return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
     }
-
-    stage = 'download'
-    const download = await request(`${API}/v1/account/settlement_report/${encodeURIComponent(fileName)}`, accessToken, fetchImpl, { headers: { Accept: 'text/csv' } })
-    if (!download.ok) await providerFailure(download, stage)
-    stage = 'csv_parse'
-    const rows = parseSettlementReportCsv(await download.text())
-    stage = 'raw_persist'
-    for (const row of rows) await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: row.SOURCE_ID || observationNativeKey(row), payload: row, firstSeenAt: startedAt, lastSeenAt: startedAt, metadata: { batchId, syncStartedAt: startedAt } })
-    return { source: 'account_settlement_report', status: 'success', count: rows.length, errorCode: null }
   } catch (error) {
     logDiagnostic(error, stage)
     return { source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' }

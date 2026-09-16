@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { parseSettlementReportCsv, syncMercadoPagoSettlementReport, SETTLEMENT_REPORT_REQUIRED_FIELDS } from './settlement-report'
+import { buildSettlementReportWindows, parseSettlementReportCsv, syncMercadoPagoSettlementReport, SETTLEMENT_REPORT_REQUIRED_FIELDS } from './settlement-report'
 
 const NOW = new Date('2026-09-15T12:00:00.000Z')
 const row = [
@@ -65,16 +65,17 @@ describe('Mercado Pago settlement report', () => {
       calls.push({ url, method: init?.method ?? 'GET', body: typeof init?.body === 'string' ? init.body : undefined })
       if (url.endsWith('/config') && (init?.method ?? 'GET') === 'GET') return response({}, 404)
       if (url.endsWith('/config') && init?.method === 'POST') return response({ ok: true }, 201)
-      if (url.endsWith('/list')) return response([{ file_name: 'settlement-20260915.csv', begin_date: '2026-06-17', end_date: '2026-09-15' }])
+      if (url.endsWith('/list')) return response([{ file_name: 'settlement-20260915.csv', begin_date: '2026-06-18T03:00:00Z', end_date: '2026-07-18T02:59:59Z' }])
       if (url.endsWith('/settlement-20260915.csv')) return response(`${header}\n${row}`)
+      if (url.includes('/v1/account/settlement_report') && init?.method === 'POST') return response({}, 202)
       throw new Error(`unexpected ${url}`)
     })
     const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
 
     const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'parent-batch', startedAt: NOW.toISOString() })
 
-    expect(result).toMatchObject({ source: 'account_settlement_report', status: 'success', count: 1 })
-    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'GET', 'GET'])
+    expect(result).toMatchObject({ source: 'account_settlement_report', status: 'pending', count: 0 })
+    expect(calls.map((call) => call.method)).toEqual(['GET', 'POST', 'GET', 'GET', 'POST'])
     expect(JSON.parse(calls[1].body ?? '')).toEqual({
       file_name_prefix: 'gota_settlement',
       frequency: { hour: 0, type: 'monthly', value: 1 },
@@ -90,7 +91,7 @@ describe('Mercado Pago settlement report', () => {
     const fetchImpl = vi.fn(async (input: string | URL | Request) => {
       const url = String(input)
       if (url.endsWith('/config')) return response({ configured: true })
-      if (url.endsWith('/list')) return response({ reports: [{ status: 'pending', begin_date: '2026-06-17', end_date: '2026-09-15' }] })
+      if (url.endsWith('/list')) return response({ reports: [{ status: 'pending', begin_date: '2026-06-18T03:00:00Z', end_date: '2026-07-18T02:59:59Z' }] })
       throw new Error(`unexpected ${url}`)
     })
     const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
@@ -167,6 +168,123 @@ describe('Mercado Pago settlement report', () => {
       throw new Error(`unexpected ${url}`)
     })
     await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
-    expect(JSON.parse(calls.find((call) => call.url.endsWith('/settlement_report'))?.body ?? '')).toEqual({ begin_date: '2026-06-17T12:00:00Z', end_date: '2026-09-15T12:00:00Z' })
+    expect(JSON.parse(calls.find((call) => call.url.endsWith('/settlement_report'))?.body ?? '')).toEqual({ begin_date: '2026-06-18T03:00:00Z', end_date: '2026-07-18T02:59:59Z' })
+  })
+
+  it('generates three contiguous Argentina calendar chunks with exact UTC second limits', () => {
+    expect(buildSettlementReportWindows(NOW)).toEqual([
+      { beginDate: '2026-06-18', endDate: '2026-07-17', beginTimestamp: '2026-06-18T03:00:00Z', endTimestamp: '2026-07-18T02:59:59Z' },
+      { beginDate: '2026-07-18', endDate: '2026-08-16', beginTimestamp: '2026-07-18T03:00:00Z', endTimestamp: '2026-08-17T02:59:59Z' },
+      { beginDate: '2026-08-17', endDate: '2026-09-15', beginTimestamp: '2026-08-17T03:00:00Z', endTimestamp: '2026-09-16T02:59:59Z' },
+    ])
+  })
+
+  it('creates the oldest missing chunk only, while downloading ready chunks', async () => {
+    const calls: string[] = []
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const windows = buildSettlementReportWindows(NOW)
+    const readyReport = (index: number, fileName: string) => ({ file_name: fileName, begin_date: windows[index].beginTimestamp, end_date: windows[index].endTimestamp })
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input); calls.push(`${init?.method ?? 'GET'} ${url}`)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([readyReport(2, 'newest.csv')])
+      if (url.endsWith('/newest.csv')) return response(`${header}\n${row}`)
+      if (url.endsWith('/settlement_report') && init?.method === 'POST') return response({}, 202)
+      throw new Error(`unexpected ${url}`)
+    })
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(calls.filter((call) => call.startsWith('GET ') && call.endsWith('.csv'))).toHaveLength(1)
+    const postCall = (fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit | undefined]>).find(([, init]) => init?.method === 'POST')
+    expect(JSON.parse(postCall?.[1]?.body as string)).toEqual({ begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp })
+  })
+
+  it('does not create when any chunk is pending, but downloads ready chunks first', async () => {
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const windows = buildSettlementReportWindows(NOW)
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([{ file_name: 'old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp }, { status: 'pending', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp }])
+      if (url.endsWith('/old.csv')) return response(`${header}\n${row}`)
+      throw new Error(`unexpected ${url}`)
+    })
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(1)
+    expect((fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit | undefined]>).some(([, init]) => init?.method === 'POST')).toBe(false)
+  })
+
+  it('fails closed for an existing window with unknown status and no file, while downloading other ready chunks', async () => {
+    const windows = buildSettlementReportWindows(NOW)
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([
+        { file_name: 'old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { status: 'unknown_provider_state', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp },
+      ])
+      if (url.endsWith('/old.csv')) return response(`${header}\n${row}`)
+      if (init?.method === 'POST') throw new Error('must not create a duplicate')
+      throw new Error(`unexpected ${url}`)
+    })
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(1)
+    expect((fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit | undefined]>).some(([, init]) => init?.method === 'POST')).toBe(false)
+  })
+
+  it('selects duplicate ready reports deterministically and rejects invalid timestamp matches', async () => {
+    const windows = buildSettlementReportWindows(NOW)
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const downloads: string[] = []
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([
+        { file_name: 'z-old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { file_name: 'a-old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { file_name: 'probe.csv', begin_date: 'invalid', end_date: windows[1].endTimestamp },
+        { file_name: 'middle.csv', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp },
+        { file_name: 'new.csv', begin_date: windows[2].beginTimestamp, end_date: windows[2].endTimestamp },
+      ])
+      if (url.endsWith('.csv')) { downloads.push(url); return response(`${header}\n${row}`) }
+      if (init?.method === 'POST') throw new Error('all windows are present')
+      throw new Error(`unexpected ${url}`)
+    })
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+
+    expect(result).toMatchObject({ status: 'success', count: 3 })
+    expect(downloads).toEqual([
+      'https://api.mercadopago.com/v1/account/settlement_report/a-old.csv',
+      'https://api.mercadopago.com/v1/account/settlement_report/middle.csv',
+      'https://api.mercadopago.com/v1/account/settlement_report/new.csv',
+    ])
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(3)
+  })
+
+  it('downloads all three ready chunks and sums their rows', async () => {
+    const windows = buildSettlementReportWindows(NOW)
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response(windows.map((window, index) => ({ file_name: `chunk-${index}.csv`, begin_date: window.beginTimestamp, end_date: window.endTimestamp })))
+      if (url.includes('/chunk-')) return response(`${header}\n${row}`)
+      throw new Error(`unexpected ${url}`)
+    })
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+    expect(result).toMatchObject({ status: 'success', count: 3 })
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(3)
+  })
+
+  it('uses calendar boundaries across month and year changes', () => {
+    expect(buildSettlementReportWindows(new Date('2025-01-15T12:00:00.000Z'))[0]).toEqual({ beginDate: '2024-10-18', endDate: '2024-11-16', beginTimestamp: '2024-10-18T03:00:00Z', endTimestamp: '2024-11-17T02:59:59Z' })
   })
 })
