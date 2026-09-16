@@ -17,6 +17,19 @@ function aggregates(movements: NormalizedMercadoPagoMovement[]) {
   return result
 }
 
+function newestFirst(left: NormalizedMercadoPagoMovement, right: NormalizedMercadoPagoMovement) {
+  const timestamp = (occurredAt: string | null) => {
+    const value = occurredAt ? Date.parse(occurredAt) : Number.NEGATIVE_INFINITY
+    return Number.isFinite(value) ? value : Number.NEGATIVE_INFINITY
+  }
+  const leftTime = timestamp(left.occurredAt)
+  const rightTime = timestamp(right.occurredAt)
+  if (leftTime !== rightTime) return rightTime - leftTime
+  const leftId = left.nativeId ?? ''
+  const rightId = right.nativeId ?? ''
+  return leftId < rightId ? -1 : leftId > rightId ? 1 : 0
+}
+
 export async function GET() {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -25,6 +38,6 @@ export async function GET() {
   const connection = await getMercadoPagoConnection(user.id)
   if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
   const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
-  const movements = observations.map((observation) => normalizeMercadoPagoMovement({ source: observation.source, payload: observation.payload, providerUserId: connection.provider_user_id ?? '' }))
+  const movements = observations.map((observation) => normalizeMercadoPagoMovement({ source: observation.source, payload: observation.payload, providerUserId: connection.provider_user_id ?? '', nativeKey: observation.native_key })).sort(newestFirst)
   return response({ aggregates: aggregates(movements), movements })
 }

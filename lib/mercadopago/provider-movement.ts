@@ -31,7 +31,7 @@ const numberValue = (value: unknown): number | null => typeof value === 'number'
 const idValue = (value: unknown): string | null => typeof value === 'string' || typeof value === 'number' ? String(value) : null
 
 function matches(value: unknown, providerUserId: string): boolean {
-  return idValue(value) === providerUserId
+  return Boolean(providerUserId) && idValue(value) === providerUserId
 }
 
 function channelValue(value: unknown): DiagnosticChannel {
@@ -50,15 +50,15 @@ function roleOf(payload: RecordValue, providerUserId: string): DiagnosticAccount
 
 function fundingOf(payload: RecordValue): NormalizedMercadoPagoMovement['fundingSource'] {
   const method = record(payload.payment_method)
-  const type = stringValue(method.type)?.toLowerCase()
-  const id = stringValue(method.id)?.toLowerCase()
+  const type = (stringValue(payload.payment_type_id) ?? stringValue(method.type))?.toLowerCase()
+  const id = (stringValue(payload.payment_method_id) ?? stringValue(method.id))?.toLowerCase()
   if (type === 'account_money' || id === 'account_money') return { kind: 'mercadopago_balance' }
   if (type === 'debin_transfer' || type === 'bank_transfer' || id === 'debin_transfer' || id === 'bank_transfer') return { kind: 'bank_transfer' }
   if (type === 'credit_card' || type === 'debit_card') {
     const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card' }
-    const brand = stringValue(method.id)?.toLowerCase()
-    const issuerId = idValue(method.issuer_id)
-    const lastFour = stringValue(method.last_four_digits)
+    const brand = id
+    const issuerId = idValue(payload.issuer_id) ?? idValue(method.issuer_id)
+    const lastFour = stringValue(record(payload.card).last_four_digits)
     if (brand === 'master' || brand === 'visa') result.brand = brand
     if (issuerId) result.issuerId = issuerId
     if (lastFour && /^\d{4}$/.test(lastFour)) result.lastFour = lastFour
@@ -67,7 +67,14 @@ function fundingOf(payload: RecordValue): NormalizedMercadoPagoMovement['funding
   return { kind: 'unknown' }
 }
 
-export function normalizeMercadoPagoMovement({ source, payload, providerUserId }: { source: NormalizedMercadoPagoMovement['source']; payload: unknown; providerUserId: string }): NormalizedMercadoPagoMovement {
+function feesOf(payload: RecordValue): number | null {
+  const charges = payload.charges_details
+  if (!Array.isArray(charges)) return null
+  const values = charges.map((charge) => numberValue(record(record(charge).amounts).original)).filter((value): value is number => value !== null)
+  return values.length ? values.reduce((total, value) => total + value, 0) : null
+}
+
+export function normalizeMercadoPagoMovement({ source, payload, providerUserId, nativeKey }: { source: NormalizedMercadoPagoMovement['source']; payload: unknown; providerUserId: string; nativeKey?: string }): NormalizedMercadoPagoMovement {
   const input = record(payload)
   const operationType = stringValue(input.operation_type)
   const role = roleOf(input, providerUserId)
@@ -84,18 +91,21 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId }
 
   let kind: DiagnosticKind = 'unknown'
   let direction: DiagnosticDirection = 'unknown'
-  if (operationType === 'card_validation' && amount === 0) { kind = 'neutral'; direction = 'neutral' }
-  else if (operationType === 'account_fund' && role === 'both') { kind = 'transfer'; direction = 'inflow' }
-  else if (operationType === 'regular_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }
-  else if (operationType === 'recurring_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }
-  else if (operationType === 'money_transfer' && role === 'payer') { kind = 'transfer'; direction = 'outflow' }
-  else if (operationType && hasKnownRole) reasonCodes.push('operation_role_unresolved')
+  if (operationStatus === 'approved') {
+    if (operationType === 'card_validation' && amount === 0) { kind = 'neutral'; direction = 'neutral' }
+    else if (operationType === 'account_fund' && role === 'both') { kind = 'transfer'; direction = 'inflow' }
+    else if (operationType === 'regular_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }
+    else if (operationType === 'regular_payment' && role === 'collector') { kind = 'income'; direction = 'inflow' }
+    else if (operationType === 'recurring_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }
+    else if (operationType === 'money_transfer' && role === 'payer') { kind = 'transfer'; direction = 'outflow' }
+    else if (operationType && hasKnownRole) reasonCodes.push('operation_role_unresolved')
+  } else if (operationStatus) reasonCodes.push('status_not_consumed')
 
   const confidence: DiagnosticConfidence = kind !== 'unknown' && amount !== null && operationStatus ? 'confirmed' : hasKnownRole || operationType ? 'partial' : 'unknown'
   const details = record(input.transaction_details)
   const fundingSource = fundingOf(input)
   return {
-    nativeId: idValue(input.id ?? input.payment_id ?? input.transaction_id),
+    nativeId: idValue(nativeKey ?? input.id ?? input.payment_id ?? input.transaction_id),
     source,
     occurredAt: stringValue(input.date_created ?? input.date),
     approvedAt: stringValue(input.date_approved),
@@ -112,8 +122,8 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId }
       gross: amount,
       totalPaid: numberValue(details.total_paid_amount),
       netReceived: numberValue(details.net_received_amount),
-      refunded: numberValue(details.total_refunded_amount),
-      fees: numberValue(details.financial_fees),
+      refunded: numberValue(input.transaction_amount_refunded),
+      fees: feesOf(input),
     },
     confidence,
     reasonCodes,
