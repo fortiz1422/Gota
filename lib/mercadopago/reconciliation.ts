@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { NormalizedMercadoPagoMovement } from './provider-movement'
 
 export type ReconciliationObservation = {
@@ -19,6 +20,7 @@ export type ReconciledMercadoPagoMovement = NormalizedMercadoPagoMovement & {
   match: 'exact_native_id' | 'single_source'
   balanceImpact: BalanceImpact
   settlement: NormalizedMercadoPagoMovement | null
+  evidence: ReconciliationObservation[]
 }
 
 export type ReconciliationResult = ReconciledMercadoPagoMovement[] & {
@@ -52,10 +54,25 @@ const timestamp = (value: string | null) => {
 
 function evidenceFingerprint(observation: ReconciliationObservation) {
   const movement = observation.movement
-  const value = [observation.source, observation.nativeId ?? '', observation.lastSeenAt, movement.occurredAt ?? '', movement.amount.value ?? '', movement.amount.currency ?? '', movement.kind, movement.direction, movement.confidence].join('|')
-  let hash = 2166136261
-  for (let index = 0; index < value.length; index += 1) hash = Math.imul(hash ^ value.charCodeAt(index), 16777619)
-  return (hash >>> 0).toString(16)
+  const value = JSON.stringify([
+    observation.source,
+    observation.nativeId ?? '',
+    movement.occurredAt,
+    movement.approvedAt,
+    movement.amount,
+    movement.kind,
+    movement.direction,
+    movement.accountRole,
+    movement.description,
+    movement.operation,
+    movement.fundingSource,
+    movement.channel,
+    movement.installments,
+    movement.summary,
+    movement.confidence,
+    movement.reasonCodes,
+  ])
+  return createHash('sha256').update(value).digest('hex')
 }
 
 function compatibleEvidence(payment: ReconciliationObservation, settlement: ReconciliationObservation) {
@@ -83,23 +100,38 @@ function candidate(observations: ReconciliationObservation[], match: ReconciledM
   const settlement = observations.find((observation) => observation.source === 'account_settlement_report')?.movement ?? null
   const primary = payment ?? settlement as NormalizedMercadoPagoMovement
   const nativeId = primary.nativeId
-  const sourceKey = observations.map((observation) => observation.source).sort((a, b) => sourceRank(a) - sourceRank(b)).join('+')
-  const candidateId = `${sourceKey}:${nativeId ?? 'unknown'}`
+  const identity = observations
+    .map((observation) => `${observation.source}:${observation.nativeId ?? `fallback:${evidenceFingerprint(observation)}`}`)
+    .sort()
+    .join('|')
+  const stableEvidence = observations.map(evidenceFingerprint).sort().join('|')
+  const candidateId = `sha256:${createHash('sha256').update(`${identity}|${disambiguate ? stableEvidence : ''}`).digest('hex')}`
   return {
     ...primary,
-    candidateId: disambiguate ? `${candidateId}:conflict-${evidenceFingerprint(observations[0])}` : candidateId,
+    candidateId,
     nativeId,
     sources: observations.map((observation) => observation.source).sort((a, b) => sourceRank(a) - sourceRank(b)),
     match,
     balanceImpact: balanceImpact(settlement),
     settlement,
+    evidence: observations,
   }
+}
+
+function semanticTieBreaker(movement: ReconciledMercadoPagoMovement) {
+  const evidence = movement.evidence
+    .map((observation) => `${observation.source}:${observation.nativeId ?? ''}`)
+    .sort()
+    .join('|')
+  return `${evidence}|${movement.sources.join('|')}|${movement.description ?? ''}|${movement.amount.currency ?? ''}|${movement.amount.value ?? ''}`
 }
 
 function compare(left: ReconciledMercadoPagoMovement, right: ReconciledMercadoPagoMovement) {
   const leftDate = timestamp(left.occurredAt ?? left.settlement?.occurredAt ?? null)
   const rightDate = timestamp(right.occurredAt ?? right.settlement?.occurredAt ?? null)
   if (leftDate !== rightDate) return rightDate - leftDate
+  const semanticOrder = semanticTieBreaker(left).localeCompare(semanticTieBreaker(right))
+  if (semanticOrder !== 0) return semanticOrder
   return left.candidateId.localeCompare(right.candidateId)
 }
 
@@ -123,7 +155,8 @@ export function reconcileMercadoPagoMovements(observations: ReconciliationObserv
     if (payments.length === 1 && settlements.length === 1 && compatibleEvidence(payments[0], settlements[0])) {
       candidates.push(candidate(group, 'exact_native_id'))
     } else if (payments.length === 0 || settlements.length === 0) {
-      candidates.push(candidate(group, 'single_source', group.length > 1))
+      if (group.length === 1) candidates.push(candidate(group, 'single_source'))
+      else for (const observation of group) candidates.push(candidate([observation], 'single_source', true))
     } else {
       for (const observation of [...payments, ...settlements]) candidates.push(candidate([observation], 'single_source', payments.length > 1 || settlements.length > 1))
     }

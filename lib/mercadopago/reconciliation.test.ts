@@ -47,11 +47,35 @@ describe('reconcileMercadoPagoMovements', () => {
     const reordered = reconcileMercadoPagoMovements([...matched].reverse()).find((candidate) => candidate.nativeId === 'stable-id')
     const expanded = reconcileMercadoPagoMovements([...matched, payment({ nativeId: 'unrelated-id' })]).find((candidate) => candidate.nativeId === 'stable-id')
 
-    expect(original?.candidateId).toBe('payments_search+account_settlement_report:stable-id')
+    expect(original?.candidateId).toMatch(/^sha256:[a-f0-9]{64}$/)
+    expect(original?.candidateId).not.toContain('stable-id')
     expect(reordered?.candidateId).toBe(original?.candidateId)
     expect(expanded?.candidateId).toBe(original?.candidateId)
   })
 
+  it('keeps fallback candidate IDs stable when only lastSeenAt changes', () => {
+    const first = { ...payment({ nativeId: null }), lastSeenAt: '2026-09-15T12:00:00.000Z' }
+    const refreshed = { ...first, lastSeenAt: '2026-09-16T12:00:00.000Z' }
+    const [before] = reconcileMercadoPagoMovements([first])
+    const [after] = reconcileMercadoPagoMovements([refreshed])
+
+    expect(after.candidateId).toBe(before.candidateId)
+    expect(after.candidateId).toMatch(/^sha256:[a-f0-9]{64}$/)
+  })
+
+  it('preserves all same-source conflicting observations as separate evidence', () => {
+    const candidates = reconcileMercadoPagoMovements([
+      payment({ nativeId: 'same-source', amount: { value: 5500, currency: 'ARS' } }),
+      payment({ nativeId: 'same-source', amount: { value: 5600, currency: 'ARS' }, occurredAt: '2026-09-15T12:01:00.000Z' }),
+    ])
+
+    expect(candidates).toHaveLength(2)
+    expect(candidates.map((candidate) => candidate.candidateId)).toEqual([
+      expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+      expect.stringMatching(/^sha256:[a-f0-9]{64}$/),
+    ])
+    expect(new Set(candidates.map((candidate) => candidate.candidateId)).size).toBe(2)
+  })
   it('does not merge a provider ID when amount or currency evidence is incompatible', () => {
     const amountConflict = reconcileMercadoPagoMovements([payment({ nativeId: 'collision', amount: { value: 5500, currency: 'ARS' } }), settlement({ nativeId: 'collision', amount: { value: -4500, currency: 'ARS' } })])
     const currencyConflict = reconcileMercadoPagoMovements([payment({ nativeId: 'currency-collision', amount: { value: 5500, currency: 'ARS' } }), settlement({ nativeId: 'currency-collision', amount: { value: -5500, currency: 'USD' } })])
