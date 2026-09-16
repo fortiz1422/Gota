@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { decryptMercadoPagoToken, encryptMercadoPagoToken } from './token-crypto'
 import { buildMercadoPagoAuthorizeUrl, getMercadoPagoOAuthReadiness, parseMercadoPagoTokenPayload, resolveMercadoPagoTokenExpiresAt } from './oauth'
-import { buildMercadoPagoPullUrls, observationNativeKey, syncMercadoPagoObservations } from './observability-sync'
+import { buildMercadoPagoPullUrls, syncMercadoPagoObservations } from './observability-sync'
+import { observationNativeKey } from './raw-observation'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
 const NOW = new Date('2026-09-15T12:00:00.000Z')
@@ -27,13 +28,13 @@ describe('Mercado Pago observability harness', () => {
     expect(getMercadoPagoOAuthReadiness({ MERCADOPAGO_CLIENT_ID: 'id', MERCADOPAGO_CLIENT_SECRET: 'secret', MERCADOPAGO_REDIRECT_URI: 'https://example.test/callback', MERCADOPAGO_TOKEN_ENCRYPTION_KEY: KEY, NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co' })).toEqual({ ok: false, missing: ['SUPABASE_SERVICE_ROLE_KEY'] })
   })
 
-  it('builds Mercado Pago official 30-day search parameters and an unfiltered report URL', () => {
+  it('builds Mercado Pago official 90-day search parameters and an unfiltered report URL', () => {
     const [payments, reports] = buildMercadoPagoPullUrls({ now: NOW })
     const url = new URL(payments)
     expect(url.searchParams.get('sort')).toBe('date_created')
     expect(url.searchParams.get('criteria')).toBe('desc')
     expect(url.searchParams.get('range')).toBe('date_created')
-    expect(url.searchParams.get('begin_date')).toBe('2026-08-16T12:00:00.000Z')
+    expect(url.searchParams.get('begin_date')).toBe('2026-06-17T12:00:00.000Z')
     expect(url.searchParams.get('end_date')).toBe('2026-09-15T12:00:00.000Z')
     expect(url.searchParams.get('offset')).toBe('0')
     expect(reports).toBe('https://api.mercadopago.com/v1/account/settlement_report/list')

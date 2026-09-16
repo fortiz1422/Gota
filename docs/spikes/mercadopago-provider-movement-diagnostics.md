@@ -4,10 +4,13 @@ Este diagnóstico es una lectura privada y de solo lectura sobre observaciones R
 
 Flujo del Settlement Report:
 
-1. Se consulta `GET /v1/account/settlement_report/config`. Sólo ante `404` se crea la configuración explícita (`GMT-03`, separador `,`, `include_withdraw=true`, `header_language=en`). Una configuración existente nunca se sobrescribe.
-2. Se consulta `GET /v1/account/settlement_report/list` antes de generar. Un reporte pendiente para la ventana no se duplica; se devuelve estado `pending`.
-3. Si no hay reporte listo para la ventana, se ejecuta una única generación manual con `POST /v1/account/settlement_report` y se devuelve `pending`; una lista vacía nunca se interpreta como cero movimientos.
-4. Un reporte listo se descarga sólo por el `file_name` validado y codificado contra `GET /v1/account/settlement_report/:file_name`. El CSV se parsea de forma determinista y cada fila se guarda como observación RAW `source=account_settlement_report`, usando `SOURCE_ID` o un hash estable.
+1. Se consulta `GET /v1/account/settlement_report/config`. Sólo ante `404` se crea la configuración explícita con `file_name_prefix=gota_settlement`, `frequency=daily`, las 19 `columns` documentadas, `display_timezone=GMT-03`, separador `,`, `include_withdraw=true` y `header_language=en`. Una configuración existente nunca se sobrescribe.
+2. Se consulta `GET /v1/account/settlement_report/list` antes de generar. Un reporte pendiente para la ventana no se duplica; si el listado sigue vacío durante la preparación, el último source run `pending` aplica un cooldown determinista de 10 minutos.
+3. Un `file_name` CSV válido para la ventana se considera listo aunque la respuesta oficial de list no incluya `status`; se descarga antes de generar otro reporte.
+4. Si no hay reporte listo ni un pending vigente, se ejecuta una única generación manual con `POST /v1/account/settlement_report` y se devuelve estado `pending`; una lista vacía nunca se interpreta como cero movimientos.
+5. Un reporte listo se descarga sólo por el `file_name` validado y codificado contra `GET /v1/account/settlement_report/:file_name`. El CSV se parsea de forma determinista y cada fila se guarda como observación RAW `source=account_settlement_report`, usando `SOURCE_ID` o un hash estable.
+
+La migración aditiva no aplicada `docs/supabase-mercadopago-pending-source-runs.sql` habilita `pending` en `mercadopago_sync_source_runs`: `success` y `pending` requieren `error_code` nulo; `error` exige `error_code` no nulo.
 
 Cobertura e interpretación:
 

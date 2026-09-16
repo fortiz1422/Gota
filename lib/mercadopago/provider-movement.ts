@@ -27,9 +27,9 @@ export type NormalizedMercadoPagoMovement = {
 type RecordValue = Record<string, unknown>
 const record = (value: unknown): RecordValue => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {}
 const stringValue = (value: unknown): string | null => typeof value === 'string' && value.trim() ? value : null
-const numberValue = (value: unknown): number | null => {
+const numberValue = (value: unknown, allowString = false): number | null => {
   if (typeof value === 'number' && Number.isFinite(value)) return value
-  if (typeof value === 'string' && value.trim() && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
+  if (allowString && typeof value === 'string' && value.trim() && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
     const parsed = Number(value)
     return Number.isFinite(parsed) ? parsed : null
   }
@@ -99,8 +99,8 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
   const isSettlement = source === 'account_settlement_report'
   const operationType = stringValue(isSettlement ? input.TRANSACTION_TYPE : input.operation_type)
   const role = roleOf(input, providerUserId)
-  const amount = numberValue(isSettlement ? input.TRANSACTION_AMOUNT : input.transaction_amount ?? input.amount)
-  const operationStatus = stringValue(isSettlement ? input.STATUS : input.status)
+  const amount = numberValue(isSettlement ? input.TRANSACTION_AMOUNT : input.transaction_amount ?? input.amount, isSettlement)
+  const operationStatus = stringValue(isSettlement ? undefined : input.status)
   const statusDetail = stringValue(isSettlement ? input.TRANSACTION_TYPE : input.status_detail)
   const channel = channelValue(record(input.point_of_interaction).type)
   const hasKnownRole = role !== 'unknown'
@@ -138,13 +138,13 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
     operation: { type: operationType, status: operationStatus, statusDetail },
     fundingSource,
     channel,
-    installments: numberValue(isSettlement ? input.INSTALLMENTS : input.installments),
+    installments: numberValue(isSettlement ? input.INSTALLMENTS : input.installments, isSettlement),
     summary: {
       gross: amount,
-      totalPaid: isSettlement ? numberValue(input.REAL_AMOUNT) : numberValue(details.total_paid_amount),
-      netReceived: isSettlement ? numberValue(input.SETTLEMENT_NET_AMOUNT) : numberValue(details.net_received_amount),
+      totalPaid: isSettlement ? numberValue(input.REAL_AMOUNT, true) : numberValue(details.total_paid_amount),
+      netReceived: isSettlement ? numberValue(input.SETTLEMENT_NET_AMOUNT, true) : numberValue(details.net_received_amount),
       refunded: isSettlement ? null : numberValue(input.transaction_amount_refunded),
-      fees: isSettlement ? numberValue(input.FEE_AMOUNT) : feesOf(input),
+      fees: isSettlement ? numberValue(input.FEE_AMOUNT, true) : feesOf(input),
     },
     confidence,
     reasonCodes,

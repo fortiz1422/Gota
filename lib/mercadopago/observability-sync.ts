@@ -1,22 +1,16 @@
-import { createHash } from 'node:crypto'
 import { syncMercadoPagoSettlementReport } from './settlement-report'
+import { observationNativeKey, type MercadoPagoSource, type RawObservation } from './raw-observation'
+
+export { observationNativeKey }
+export type { RawObservation }
 
 const API = 'https://api.mercadopago.com'
 const DAY = 24 * 60 * 60 * 1000
 export const MERCADOPAGO_PAGE_SIZE = 50
 export const MERCADOPAGO_MAX_PAGES = 10
 
-type Source = 'payments_search' | 'account_settlement_report'
+type Source = MercadoPagoSource
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-export type RawObservation = {
-  userId: string
-  source: Source
-  nativeKey: string
-  payload: unknown
-  firstSeenAt: string
-  lastSeenAt: string
-  metadata: { batchId: string; syncStartedAt: string }
-}
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 export type SourceRun = { source: Source; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null }
 
@@ -26,7 +20,7 @@ function paymentSearchUrl(now: Date, offset: number): string {
     sort: 'date_created',
     criteria: 'desc',
     range: 'date_created',
-    begin_date: new Date(now.getTime() - 30 * DAY).toISOString(),
+    begin_date: new Date(now.getTime() - 90 * DAY).toISOString(),
     end_date: now.toISOString(),
     limit: String(MERCADOPAGO_PAGE_SIZE),
     offset: String(offset),
@@ -36,23 +30,6 @@ function paymentSearchUrl(now: Date, offset: number): string {
 
 export function buildMercadoPagoPullUrls({ now }: { now: Date }) {
   return [paymentSearchUrl(now, 0), `${API}/v1/account/settlement_report/list`]
-}
-
-function canonical(value: unknown): string {
-  if (value === null || typeof value !== 'object') return JSON.stringify(value)
-  if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
-  const record = value as Record<string, unknown>
-  return `{${Object.keys(record).sort().map((key) => `${JSON.stringify(key)}:${canonical(record[key])}`).join(',')}}`
-}
-
-export function observationNativeKey(value: unknown): string {
-  if (typeof value === 'object' && value !== null) {
-    const record = value as Record<string, unknown>
-    for (const key of ['id', 'payment_id', 'transaction_id', 'external_reference']) {
-      if (typeof record[key] === 'string' || typeof record[key] === 'number') return String(record[key])
-    }
-  }
-  return `sha256:${createHash('sha256').update(canonical(value)).digest('hex')}`
 }
 
 function items(payload: unknown): unknown[] {
@@ -92,7 +69,7 @@ async function pullPayments({ userId, accessToken, now, fetchImpl, store, starte
   return { source: 'payments_search', status: 'success', count, errorCode: null }
 }
 
-export async function syncMercadoPagoObservations({ userId, accessToken, now = new Date(), fetchImpl = fetch, store }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store }) {
+export async function syncMercadoPagoObservations({ userId, accessToken, now = new Date(), fetchImpl = fetch, store, lastSettlementPendingAt }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store; lastSettlementPendingAt?: string | null }) {
   const started = now.toISOString()
   const batchId = `mp-${now.getTime()}`
   const settle = async (operation: () => Promise<SourceRun>, source: Source): Promise<SourceRun> => {
@@ -100,7 +77,7 @@ export async function syncMercadoPagoObservations({ userId, accessToken, now = n
   }
   const [payments, reports] = await Promise.all([
     settle(() => pullPayments({ userId, accessToken, now, fetchImpl, store, started, batchId }), 'payments_search'),
-    settle(() => syncMercadoPagoSettlementReport({ userId, accessToken, now, fetchImpl, store }), 'account_settlement_report'),
+    settle(() => syncMercadoPagoSettlementReport({ userId, accessToken, now, fetchImpl, store, batchId, startedAt: started, lastPendingAt: lastSettlementPendingAt }), 'account_settlement_report'),
   ])
   return { batchId, startedAt: started, sources: [payments, reports] as const }
 }
