@@ -58,9 +58,12 @@ export async function POST() {
       })
     }
 
+    const previousRuns = await getLatestMercadoPagoSourceRuns(user.id, connection.id)
+    const lastSettlementPendingAt = previousRuns.find((run) => run.source === 'account_settlement_report' && run.status === 'pending')?.started_at ?? null
     const run = await syncMercadoPagoObservations({
       userId: user.id,
       accessToken: token,
+      lastSettlementPendingAt,
       store: { upsertRawObservation: (observation) => saveRawObservation({ ...observation, connectionId: connection.id }) },
     })
     await Promise.all(run.sources.map((source) => saveMercadoPagoSourceRun({ userId: user.id, connectionId: connection.id, batchId: run.batchId, startedAt: run.startedAt, run: source })))

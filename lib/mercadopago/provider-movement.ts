@@ -27,7 +27,14 @@ export type NormalizedMercadoPagoMovement = {
 type RecordValue = Record<string, unknown>
 const record = (value: unknown): RecordValue => value !== null && typeof value === 'object' && !Array.isArray(value) ? value as RecordValue : {}
 const stringValue = (value: unknown): string | null => typeof value === 'string' && value.trim() ? value : null
-const numberValue = (value: unknown): number | null => typeof value === 'number' && Number.isFinite(value) ? value : null
+const numberValue = (value: unknown, allowString = false): number | null => {
+  if (typeof value === 'number' && Number.isFinite(value)) return value
+  if (allowString && typeof value === 'string' && value.trim() && /^-?\d+(?:\.\d+)?$/.test(value.trim())) {
+    const parsed = Number(value)
+    return Number.isFinite(parsed) ? parsed : null
+  }
+  return null
+}
 const idValue = (value: unknown): string | null => typeof value === 'string' || typeof value === 'number' ? String(value) : null
 
 function matches(value: unknown, providerUserId: string): boolean {
@@ -49,6 +56,19 @@ function roleOf(payload: RecordValue, providerUserId: string): DiagnosticAccount
 }
 
 function fundingOf(payload: RecordValue): NormalizedMercadoPagoMovement['fundingSource'] {
+  if (stringValue(payload.PAYMENT_METHOD_TYPE) || stringValue(payload.PAYMENT_METHOD)) {
+    const type = stringValue(payload.PAYMENT_METHOD_TYPE)?.toLowerCase()
+    if (type === 'account_money' || type === 'available_money') return { kind: 'mercadopago_balance' }
+    if (type === 'bank_transfer' || type === 'debin_transfer') return { kind: 'bank_transfer' }
+    if (type === 'credit_card' || type === 'debit_card') {
+      const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card' }
+      const brand = stringValue(payload.FRANCHISE)?.toLowerCase() ?? stringValue(payload.PAYMENT_METHOD)?.toLowerCase()
+      const lastFour = stringValue(payload.LAST_FOUR_DIGITS)
+      if (brand === 'master' || brand === 'mastercard' || brand === 'visa' || brand === 'amex') result.brand = brand === 'mastercard' ? 'master' : brand
+      if (lastFour && /^\d{4}$/.test(lastFour)) result.lastFour = lastFour
+      return result
+    }
+  }
   const method = record(payload.payment_method)
   const type = (stringValue(payload.payment_type_id) ?? stringValue(method.type))?.toLowerCase()
   const id = (stringValue(payload.payment_method_id) ?? stringValue(method.id))?.toLowerCase()
@@ -76,11 +96,12 @@ function feesOf(payload: RecordValue): number | null {
 
 export function normalizeMercadoPagoMovement({ source, payload, providerUserId, nativeKey }: { source: NormalizedMercadoPagoMovement['source']; payload: unknown; providerUserId: string; nativeKey?: string }): NormalizedMercadoPagoMovement {
   const input = record(payload)
-  const operationType = stringValue(input.operation_type)
+  const isSettlement = source === 'account_settlement_report'
+  const operationType = stringValue(isSettlement ? input.TRANSACTION_TYPE : input.operation_type)
   const role = roleOf(input, providerUserId)
-  const amount = numberValue(input.transaction_amount ?? input.amount)
-  const operationStatus = stringValue(input.status)
-  const statusDetail = stringValue(input.status_detail)
+  const amount = numberValue(isSettlement ? input.TRANSACTION_AMOUNT : input.transaction_amount ?? input.amount, isSettlement)
+  const operationStatus = stringValue(isSettlement ? undefined : input.status)
+  const statusDetail = stringValue(isSettlement ? input.TRANSACTION_TYPE : input.status_detail)
   const channel = channelValue(record(input.point_of_interaction).type)
   const hasKnownRole = role !== 'unknown'
   const reasonCodes: string[] = []
@@ -107,23 +128,23 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
   return {
     nativeId: idValue(nativeKey ?? input.id ?? input.payment_id ?? input.transaction_id),
     source,
-    occurredAt: stringValue(input.date_created ?? input.date),
+    occurredAt: stringValue(isSettlement ? input.TRANSACTION_DATE : input.date_created ?? input.date),
     approvedAt: stringValue(input.date_approved),
     kind,
     direction,
     accountRole: role,
-    amount: { value: amount, currency: stringValue(input.currency_id ?? input.currency) },
-    description: stringValue(input.description),
+    amount: { value: amount, currency: stringValue(isSettlement ? input.TRANSACTION_CURRENCY : input.currency_id ?? input.currency) },
+    description: stringValue(isSettlement ? input.DESCRIPTION : input.description),
     operation: { type: operationType, status: operationStatus, statusDetail },
     fundingSource,
     channel,
-    installments: numberValue(input.installments),
+    installments: numberValue(isSettlement ? input.INSTALLMENTS : input.installments, isSettlement),
     summary: {
       gross: amount,
-      totalPaid: numberValue(details.total_paid_amount),
-      netReceived: numberValue(details.net_received_amount),
-      refunded: numberValue(input.transaction_amount_refunded),
-      fees: feesOf(input),
+      totalPaid: isSettlement ? numberValue(input.REAL_AMOUNT, true) : numberValue(details.total_paid_amount),
+      netReceived: isSettlement ? numberValue(input.SETTLEMENT_NET_AMOUNT, true) : numberValue(details.net_received_amount),
+      refunded: isSettlement ? null : numberValue(input.transaction_amount_refunded),
+      fees: isSettlement ? numberValue(input.FEE_AMOUNT, true) : feesOf(input),
     },
     confidence,
     reasonCodes,

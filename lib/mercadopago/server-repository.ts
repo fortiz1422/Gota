@@ -1,7 +1,8 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import { encryptMercadoPagoToken } from './token-crypto'
 import type { TokenPayload } from './oauth'
-import type { RawObservation, SourceRun } from './observability-sync'
+import type { SourceRun } from './observability-sync'
+import type { RawObservation } from './raw-observation'
 
 type Result<T> = { data: T | null; error: unknown }
 type ConnectionRow = {

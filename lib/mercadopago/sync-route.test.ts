@@ -59,6 +59,24 @@ describe('Mercado Pago sync route', () => {
     expect(mocks.saveRaw).not.toHaveBeenCalled()
   })
 
+  it('returns pending without turning async report preparation into a fatal response', async () => {
+    mocks.sync.mockResolvedValue({ batchId: 'batch-2', startedAt: '2026-09-15T00:00:00.000Z', sources: [{ source: 'payments_search', status: 'success', count: 2, errorCode: null }, { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }] })
+
+    const response = await POST()
+
+    expect(response.status).toBe(200)
+    expect(await response.json()).toEqual({ sources: { payments: { status: 'success', count: 2 }, reports: { status: 'pending', count: 0 } } })
+    expect(mocks.updateConnection).toHaveBeenLastCalledWith('user-1', 'connection-1', { last_sync_at: '2026-09-15T00:00:00.000Z', status: 'connected', last_error_code: null })
+  })
+
+  it('passes a persisted pending report timestamp to prevent duplicate creation while list is empty', async () => {
+    mocks.getRuns.mockResolvedValue([{ source: 'account_settlement_report', status: 'pending', count: 0, error_code: null, started_at: '2026-09-15T00:00:00.000Z' }])
+
+    await POST()
+
+    expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ lastSettlementPendingAt: '2026-09-15T00:00:00.000Z' }))
+  })
+
   it('refreshes an expired token before running the sync', async () => {
     mocks.getConnection.mockResolvedValue({ ...connection, token_expires_at: '2020-01-01T00:00:00.000Z' })
     mocks.decrypt.mockReturnValueOnce('access-token').mockReturnValueOnce('refresh-token')

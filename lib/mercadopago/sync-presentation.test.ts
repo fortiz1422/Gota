@@ -10,4 +10,8 @@ describe('Mercado Pago validation presentation', () => {
   it('uses completed wording only when both sources succeed', () => {
     expect(getMercadoPagoValidationMessage({ payments: { status: 'success', count: 3 }, reports: { status: 'success', count: 1 } })).toBe('Validación completada. Nada se importó al registro financiero.')
   })
+
+  it('keeps a pending settlement report human and non-successful', () => {
+    expect(getMercadoPagoValidationMessage({ payments: { status: 'success', count: 3 }, reports: { status: 'pending', count: 0 } })).toBe('Preparando movimientos de tu saldo… Nada se importó al registro financiero.')
+  })
 })

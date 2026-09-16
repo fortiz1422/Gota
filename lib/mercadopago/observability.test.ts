@@ -2,7 +2,8 @@ import { describe, expect, it, vi } from 'vitest'
 
 import { decryptMercadoPagoToken, encryptMercadoPagoToken } from './token-crypto'
 import { buildMercadoPagoAuthorizeUrl, getMercadoPagoOAuthReadiness, parseMercadoPagoTokenPayload, resolveMercadoPagoTokenExpiresAt } from './oauth'
-import { buildMercadoPagoPullUrls, observationNativeKey, syncMercadoPagoObservations } from './observability-sync'
+import { buildMercadoPagoPullUrls, syncMercadoPagoObservations } from './observability-sync'
+import { observationNativeKey } from './raw-observation'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
 const NOW = new Date('2026-09-15T12:00:00.000Z')
@@ -27,13 +28,13 @@ describe('Mercado Pago observability harness', () => {
     expect(getMercadoPagoOAuthReadiness({ MERCADOPAGO_CLIENT_ID: 'id', MERCADOPAGO_CLIENT_SECRET: 'secret', MERCADOPAGO_REDIRECT_URI: 'https://example.test/callback', MERCADOPAGO_TOKEN_ENCRYPTION_KEY: KEY, NEXT_PUBLIC_SUPABASE_URL: 'https://project.supabase.co' })).toEqual({ ok: false, missing: ['SUPABASE_SERVICE_ROLE_KEY'] })
   })
 
-  it('builds Mercado Pago official 30-day search parameters and an unfiltered report URL', () => {
+  it('builds Mercado Pago official 90-day search parameters and an unfiltered report URL', () => {
     const [payments, reports] = buildMercadoPagoPullUrls({ now: NOW })
     const url = new URL(payments)
     expect(url.searchParams.get('sort')).toBe('date_created')
     expect(url.searchParams.get('criteria')).toBe('desc')
     expect(url.searchParams.get('range')).toBe('date_created')
-    expect(url.searchParams.get('begin_date')).toBe('2026-08-16T12:00:00.000Z')
+    expect(url.searchParams.get('begin_date')).toBe('2026-06-17T12:00:00.000Z')
     expect(url.searchParams.get('end_date')).toBe('2026-09-15T12:00:00.000Z')
     expect(url.searchParams.get('offset')).toBe('0')
     expect(reports).toBe('https://api.mercadopago.com/v1/account/settlement_report/list')
@@ -43,13 +44,14 @@ describe('Mercado Pago observability harness', () => {
     const fetchImpl = vi.fn(async (url: string | URL | Request, init?: RequestInit) => {
       void init
       const value = String(url)
+      if (value.includes('settlement_report/config')) return response({ configured: true })
       if (value.includes('settlement_report/list')) return response({ message: 'down' }, 503)
       if (value.includes('offset=0')) return response({ results: Array.from({ length: 50 }, (_, index) => ({ id: `p${index}` })), paging: { total: 51 } })
       return response({ results: [{ id: 'p50' }], paging: { total: 51 } })
     })
     const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
     const result = await syncMercadoPagoObservations({ userId: 'tenant-1', accessToken: 'access-secret', now: NOW, fetchImpl, store })
-    expect(fetchImpl).toHaveBeenCalledTimes(3)
+    expect(fetchImpl).toHaveBeenCalledTimes(4)
     expect(fetchImpl.mock.calls.some(([url]) => String(url).includes('offset=50'))).toBe(true)
     expect(fetchImpl.mock.calls.some(([url]) => String(url) === 'https://api.mercadopago.com/v1/account/settlement_report/list')).toBe(true)
     expect((fetchImpl.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'Bearer access-secret' })
