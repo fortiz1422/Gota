@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildConfirmExpensePayload,
+  getDisplayExpenseDescription,
+  getMercadoPagoDisplayAmount,
   getInitialExpenseDescription,
   isReviewableMercadoPagoExpense,
   type MercadoPagoDiagnostic,
@@ -14,6 +16,7 @@ const movement = (overrides: Partial<MercadoPagoDiagnostic> = {}): MercadoPagoDi
   description: null,
   reviewStatus: 'pending',
   balanceImpact: { observed: true, effect: 'debit', amount: { value: -1250, currency: 'ARS' } },
+  statementDescriptor: null,
   ...overrides,
 })
 
@@ -21,6 +24,20 @@ describe('Mercado Pago expense review contract', () => {
   it('leaves Shell empty when Mercado Pago did not provide a description', () => {
     expect(getInitialExpenseDescription(movement())).toBe('')
     expect(getInitialExpenseDescription(movement({ description: 'Shell' }))).toBe('Shell')
+  })
+
+  it('uses the provider amount for payment-only candidates when balance amount is null', () => {
+    const paymentOnly = movement({
+      amount: { value: 1700, currency: 'ARS' },
+      balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } },
+    })
+    expect(getMercadoPagoDisplayAmount(paymentOnly)).toEqual({ value: 1700, currency: 'ARS' })
+  })
+
+  it('uses a safe descriptor as display label without replacing raw provider evidence', () => {
+    const candidate = movement({ description: 'Producto genérico · 123', statementDescriptor: 'MERPAGO*KITOFFICE' })
+    expect(getDisplayExpenseDescription(candidate)).toBe('KITOFFICE')
+    expect(getInitialExpenseDescription(candidate)).toBe('KITOFFICE')
   })
 
   it('allows the CTA only for pending observed debits with valid evidence', () => {

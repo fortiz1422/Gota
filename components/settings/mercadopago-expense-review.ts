@@ -4,6 +4,7 @@ export type MercadoPagoDiagnostic = {
   balanceOccurredAt: string | null
   amount: { value: number | null; currency: string | null }
   description: string | null
+  statementDescriptor: string | null
   reviewStatus: 'pending' | 'confirmed'
   balanceImpact: {
     observed: boolean
@@ -20,7 +21,21 @@ export type ConfirmExpensePayload = {
 }
 
 export function getInitialExpenseDescription(movement: MercadoPagoDiagnostic) {
-  return movement.description ?? ''
+  return getDisplayExpenseDescription(movement)
+}
+
+export function getMercadoPagoDisplayAmount(movement: MercadoPagoDiagnostic) {
+  const primary = movement.amount
+  if (typeof primary.value === 'number' && Number.isFinite(primary.value) && primary.currency) return primary
+  return movement.balanceImpact.amount
+}
+
+export function getDisplayExpenseDescription(movement: MercadoPagoDiagnostic) {
+  const description = movement.description ?? ''
+  if (/^Producto genérico/.test(description) && movement.statementDescriptor) {
+    return movement.statementDescriptor.replace(/^MERPAGO\*/i, '').trim() || description
+  }
+  return description
 }
 
 export function isReviewableMercadoPagoExpense(movement: MercadoPagoDiagnostic) {

@@ -36,6 +36,12 @@ describe('normalizeMercadoPagoMovement', () => {
     expect(JSON.stringify(result)).not.toMatch(/payer_id|collector_id|token|pan|email|name/i)
   })
 
+  it('normalizes only a trimmed safe statement descriptor', () => {
+    const result = normalize({ ...base, description: 'Producto genérico · 123', statement_descriptor: '  MERPAGO*KITOFFICE  ' })
+    expect(result).toMatchObject({ statementDescriptor: 'MERPAGO*KITOFFICE' })
+    expect(JSON.stringify(result)).not.toMatch(/statement_descriptor|payer_id|Producto genérico · 123.*RAW/i)
+  })
+
   it('supports nested funding variants and only retains safe card metadata', () => {
     expect(normalize({ ...base, payment_method_id: undefined, payment_type_id: undefined, issuer_id: undefined, payment_method: { type: 'account_money', id: 'account_money' }, card: undefined })).toMatchObject({ fundingSource: { kind: 'mercadopago_balance' } })
     expect(normalize({ ...base, payment_method_id: 'debin_transfer', payment_type_id: 'bank_transfer', payment_method: { id: 'debin_transfer', type: 'bank_transfer' }, card: undefined })).toMatchObject({ fundingSource: { kind: 'bank_transfer' } })
