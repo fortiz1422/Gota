@@ -217,6 +217,58 @@ describe('Mercado Pago settlement report', () => {
     expect((fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit | undefined]>).some(([, init]) => init?.method === 'POST')).toBe(false)
   })
 
+  it('fails closed for an existing window with unknown status and no file, while downloading other ready chunks', async () => {
+    const windows = buildSettlementReportWindows(NOW)
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([
+        { file_name: 'old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { status: 'unknown_provider_state', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp },
+      ])
+      if (url.endsWith('/old.csv')) return response(`${header}\n${row}`)
+      if (init?.method === 'POST') throw new Error('must not create a duplicate')
+      throw new Error(`unexpected ${url}`)
+    })
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+
+    expect(result).toMatchObject({ status: 'pending', count: 0 })
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(1)
+    expect((fetchImpl.mock.calls as unknown as Array<[unknown, RequestInit | undefined]>).some(([, init]) => init?.method === 'POST')).toBe(false)
+  })
+
+  it('selects duplicate ready reports deterministically and rejects invalid timestamp matches', async () => {
+    const windows = buildSettlementReportWindows(NOW)
+    const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }
+    const downloads: string[] = []
+    const fetchImpl = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+      const url = String(input)
+      if (url.endsWith('/config')) return response({ configured: true })
+      if (url.endsWith('/list')) return response([
+        { file_name: 'z-old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { file_name: 'a-old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
+        { file_name: 'probe.csv', begin_date: 'invalid', end_date: windows[1].endTimestamp },
+        { file_name: 'middle.csv', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp },
+        { file_name: 'new.csv', begin_date: windows[2].beginTimestamp, end_date: windows[2].endTimestamp },
+      ])
+      if (url.endsWith('.csv')) { downloads.push(url); return response(`${header}\n${row}`) }
+      if (init?.method === 'POST') throw new Error('all windows are present')
+      throw new Error(`unexpected ${url}`)
+    })
+
+    const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString() })
+
+    expect(result).toMatchObject({ status: 'success', count: 3 })
+    expect(downloads).toEqual([
+      'https://api.mercadopago.com/v1/account/settlement_report/a-old.csv',
+      'https://api.mercadopago.com/v1/account/settlement_report/middle.csv',
+      'https://api.mercadopago.com/v1/account/settlement_report/new.csv',
+    ])
+    expect(store.upsertRawObservation).toHaveBeenCalledTimes(3)
+  })
+
   it('downloads all three ready chunks and sums their rows', async () => {
     const windows = buildSettlementReportWindows(NOW)
     const store = { upsertRawObservation: vi.fn().mockResolvedValue(undefined) }

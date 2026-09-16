@@ -109,11 +109,27 @@ function value(row: Record<string, unknown>, keys: string[]) {
 function matchesWindow(row: Record<string, unknown>, window: SettlementReportWindow) {
   const begin = value(row, ['begin_date'])
   const end = value(row, ['end_date'])
-  return begin !== null && end !== null && Date.parse(begin) === Date.parse(window.beginTimestamp) && Date.parse(end) === Date.parse(window.endTimestamp)
+  const beginInstant = begin === null ? Number.NaN : Date.parse(begin)
+  const endInstant = end === null ? Number.NaN : Date.parse(end)
+  return Number.isFinite(beginInstant) && Number.isFinite(endInstant)
+    && beginInstant === Date.parse(window.beginTimestamp)
+    && endInstant === Date.parse(window.endTimestamp)
 }
 
 function safeFileName(valueToValidate: string | null): string | null {
   return valueToValidate && /^[A-Za-z0-9][A-Za-z0-9._-]*\.csv$/.test(valueToValidate) ? valueToValidate : null
+}
+
+function isPendingReport(report: Record<string, unknown>): boolean {
+  return ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
+}
+
+function readyFileName(reports: Record<string, unknown>[]): string | null {
+  const fileNames = reports
+    .map((report) => safeFileName(value(report, ['file_name'])))
+    .filter((name): name is string => name !== null)
+    .sort()
+  return fileNames[0] ?? null
 }
 
 async function json(response: Response): Promise<unknown> {
@@ -166,8 +182,8 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     stage = 'list_parse'
     const listed = listItems(await json(listResponse))
     const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
-    const pending = reportsByWindow.some((reports) => reports.some((report) => ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())))
-    const readyFiles = reportsByWindow.map((reports) => safeFileName(value(reports.find((report) => safeFileName(value(report, ['file_name'])) !== null) ?? {}, ['file_name'])))
+    const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))
+    const readyFiles = reportsByWindow.map(readyFileName)
     let totalCount = 0
     for (const fileName of readyFiles.filter((name): name is string => name !== null)) {
       stage = 'download'
@@ -179,9 +195,9 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
       stage = 'raw_persist'
       for (const row of rows) await store.upsertRawObservation({ userId, source: 'account_settlement_report', nativeKey: row.SOURCE_ID || observationNativeKey(row), payload: row, firstSeenAt: startedAt, lastSeenAt: startedAt, metadata: { batchId, syncStartedAt: startedAt } })
     }
-    const missingIndex = readyFiles.findIndex((name, index) => name === null && !reportsByWindow[index].some((report) => ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())))
-    if (pending || missingIndex === -1) {
-      return pending ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
+    const missingIndex = readyFiles.findIndex((name, index) => name === null && reportsByWindow[index].length === 0)
+    if (unresolved || missingIndex === -1) {
+      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
     }
     const missingWindow = windows[missingIndex]
     {
