@@ -103,6 +103,12 @@ export function createMercadoPagoRepository(database: MercadoPagoDatabase) {
 const repository = () => createMercadoPagoRepository(db())
 export const saveMercadoPagoConnection = (userId: string, token: TokenPayload, encryptionKey: string) => repository().saveMercadoPagoConnection(userId, token, encryptionKey)
 export const getMercadoPagoConnection = (userId: string) => repository().getMercadoPagoConnection(userId)
+export const getMercadoPagoConnections = async () => {
+  const database = createAdminClient() as unknown as { from: (table: string) => { select: (columns: string) => { eq: (column: string, value: string) => Promise<Result<Array<{ access_token_ciphertext: string | null }>>> } } }
+  const result = await database.from('mercadopago_connections').select('access_token_ciphertext').eq('provider', 'mercadopago')
+  if (result.error || !result.data) throw new Error('connections_read_failed')
+  return result.data
+}
 export const saveRawObservation = (observation: RawObservation & { connectionId: string }) => repository().saveRawObservation(observation)
 export const saveMercadoPagoSourceRun = (input: { userId: string; connectionId: string; batchId: string; startedAt: string; run: SourceRun }) => repository().saveMercadoPagoSourceRun(input)
 export const getLatestMercadoPagoSourceRuns = (userId: string, connectionId: string) => repository().getLatestMercadoPagoSourceRuns(userId, connectionId)
