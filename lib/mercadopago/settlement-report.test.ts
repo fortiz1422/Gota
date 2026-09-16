@@ -33,7 +33,7 @@ describe('Mercado Pago settlement report', () => {
     const serializedLog = JSON.stringify(log.mock.calls[0])
     expect(serializedLog).toContain('config_get')
     expect(serializedLog).toContain('401')
-    expect(serializedLog).not.toContain('AUTH_FAILED')
+    expect(serializedLog).toContain('AUTH_FAILED')
     expect(serializedLog).not.toContain('secret')
     expect(serializedLog).not.toContain('sensitive request body')
     log.mockRestore()
@@ -52,7 +52,7 @@ describe('Mercado Pago settlement report', () => {
     const serializedLog = JSON.stringify(log.mock.calls[0])
     expect(serializedLog).toContain('config_create')
     expect(serializedLog).toContain('403')
-    expect(serializedLog).not.toContain('CONFIG_DENIED')
+    expect(serializedLog).toContain('CONFIG_DENIED')
     expect(serializedLog).not.toContain('secret')
     expect(serializedLog).not.toContain('sensitive')
     log.mockRestore()
@@ -117,7 +117,7 @@ describe('Mercado Pago settlement report', () => {
       const url = String(input)
       if (url.endsWith('/config')) return response({ configured: true })
       if (url.endsWith('/list')) return response([])
-      if (url.endsWith('/settlement_report') && init?.method === 'POST') return response({}, 203)
+      if (url.endsWith('/settlement_report') && init?.method === 'POST') return response('not-json', 203)
       throw new Error(`unexpected ${url}`)
     })
 
@@ -125,6 +125,22 @@ describe('Mercado Pago settlement report', () => {
 
     expect(result).toEqual({ source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' })
     expect(log).toHaveBeenCalledWith('mercadopago_settlement_report_error', '{"stage":"create","httpStatus":203}')
+    log.mockRestore()
+  })
+
+  it('prefers a safe provider code and excludes hostile non-code fields', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+    const fetchImpl = vi.fn(async () => response({ code: 'SAFE.CODE-1', error: 'provider message', status: 'HOSTILE_STATUS', extra: 'secret', token: 'secret-token', body: 'request body', userId: 'user-1' }, 400))
+
+    await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret-token', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
+
+    const serializedLog = JSON.stringify(log.mock.calls[0])
+    expect(serializedLog).toContain('SAFE.CODE-1')
+    expect(serializedLog).not.toContain('provider message')
+    expect(serializedLog).not.toContain('HOSTILE_STATUS')
+    expect(serializedLog).not.toContain('secret')
+    expect(serializedLog).not.toContain('request body')
+    expect(serializedLog).not.toContain('user-1')
     log.mockRestore()
   })
 
@@ -151,6 +167,6 @@ describe('Mercado Pago settlement report', () => {
       throw new Error(`unexpected ${url}`)
     })
     await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'parent-batch', startedAt: NOW.toISOString() })
-    expect(JSON.parse(calls.find((call) => call.url.endsWith('/settlement_report'))?.body ?? '')).toEqual({ begin_date: '2026-06-17T12:00:00.000Z', end_date: '2026-09-15T12:00:00.000Z' })
+    expect(JSON.parse(calls.find((call) => call.url.endsWith('/settlement_report'))?.body ?? '')).toEqual({ begin_date: '2026-06-17T12:00:00Z', end_date: '2026-09-15T12:00:00Z' })
   })
 })
