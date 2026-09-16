@@ -14,7 +14,7 @@ export const SETTLEMENT_REPORT_REQUIRED_FIELDS = REQUIRED_FIELDS
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
-type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null; providerCode?: string }
+type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null }
 export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null }
 
 class SettlementReportDiagnosticError extends Error {
@@ -61,7 +61,9 @@ export function parseSettlementReportCsv(input: string): Record<string, string>[
 }
 
 function dateWindow(now: Date) {
-  return { beginDate: new Date(now.getTime() - 90 * DAY).toISOString().slice(0, 10), endDate: now.toISOString().slice(0, 10) }
+  const beginTimestamp = new Date(now.getTime() - 90 * DAY).toISOString()
+  const endTimestamp = now.toISOString()
+  return { beginDate: beginTimestamp.slice(0, 10), endDate: endTimestamp.slice(0, 10), beginTimestamp, endTimestamp }
 }
 
 function authInit(token: string, method = 'GET', body?: string): RequestInit {
@@ -99,21 +101,8 @@ async function json(response: Response): Promise<unknown> {
   return response.json().catch(() => { throw new Error('provider_error') })
 }
 
-function sanitizeProviderCode(payload: unknown): string | undefined {
-  if (!payload || typeof payload !== 'object') return undefined
-  const record = payload as Record<string, unknown>
-  for (const key of ['error', 'code', 'status']) {
-    const candidate = record[key]
-    const value = typeof candidate === 'string' || typeof candidate === 'number' ? String(candidate) : ''
-    if (/^[A-Za-z0-9_.-]{1,64}$/.test(value)) return value
-  }
-  return undefined
-}
-
-async function providerFailure(response: Response, stage: SettlementReportStage): Promise<never> {
-  let providerCode: string | undefined
-  try { providerCode = sanitizeProviderCode(await response.clone().json()) } catch { /* non-JSON error bodies are expected */ }
-  throw new SettlementReportDiagnosticError({ stage, httpStatus: response.status, ...(providerCode ? { providerCode } : {}) })
+function providerFailure(response: Response, stage: SettlementReportStage): never {
+  throw new SettlementReportDiagnosticError({ stage, httpStatus: response.status })
 }
 
 function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
@@ -126,19 +115,19 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
 export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
-    const { beginDate, endDate } = dateWindow(now)
+    const { beginDate, endDate, beginTimestamp, endTimestamp } = dateWindow(now)
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
       stage = 'config_create'
       const config = JSON.stringify({ file_name_prefix: 'gota_settlement', frequency: { hour: 0, type: 'monthly', value: 1 }, columns: REQUIRED_FIELDS.map((key) => ({ key })), display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en' })
       const created = await request(configUrl, accessToken, fetchImpl, { method: 'POST', body: config, headers: { 'Content-Type': 'application/json' } })
-      if (!created.ok) await providerFailure(created, stage)
-    } else if (!configResponse.ok) await providerFailure(configResponse, stage)
+      if (!created.ok) providerFailure(created, stage)
+    } else if (!configResponse.ok) providerFailure(configResponse, stage)
 
     stage = 'list'
     const listResponse = await request(`${API}/v1/account/settlement_report/list`, accessToken, fetchImpl)
-    if (!listResponse.ok) await providerFailure(listResponse, stage)
+    if (!listResponse.ok) providerFailure(listResponse, stage)
     stage = 'list_parse'
     const reports = listItems(await json(listResponse)).filter((report) => matchesWindow(report, beginDate, endDate))
     if (reports.some((report) => ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase()))) return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
@@ -148,14 +137,14 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
       const previous = lastPendingAt ? new Date(lastPendingAt).getTime() : Number.NaN
       if (Number.isFinite(previous) && now.getTime() - previous < PENDING_COOLDOWN_MS) return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
       stage = 'create'
-      const created = await request(`${API}/v1/account/settlement_report`, accessToken, fetchImpl, { method: 'POST', body: JSON.stringify({ begin_date: beginDate, end_date: endDate }), headers: { 'Content-Type': 'application/json' } })
-      if (created.status !== 202) await providerFailure(created, stage)
+      const created = await request(`${API}/v1/account/settlement_report`, accessToken, fetchImpl, { method: 'POST', body: JSON.stringify({ begin_date: beginTimestamp, end_date: endTimestamp }), headers: { 'Content-Type': 'application/json' } })
+      if (created.status !== 202) providerFailure(created, stage)
       return { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }
     }
 
     stage = 'download'
     const download = await request(`${API}/v1/account/settlement_report/${encodeURIComponent(fileName)}`, accessToken, fetchImpl, { headers: { Accept: 'text/csv' } })
-    if (!download.ok) await providerFailure(download, stage)
+    if (!download.ok) providerFailure(download, stage)
     stage = 'csv_parse'
     const rows = parseSettlementReportCsv(await download.text())
     stage = 'raw_persist'
