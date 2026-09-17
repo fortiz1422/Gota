@@ -15,6 +15,7 @@ export type NormalizedMercadoPagoMovement = {
   accountRole: DiagnosticAccountRole
   amount: { value: number | null; currency: string | null }
   description: string | null
+  statementDescriptor: string | null
   operation: { type: string | null; status: string | null; statusDetail: string | null }
   fundingSource: { kind: FundingSourceKind; brand?: string; issuerId?: string; lastFour?: string }
   channel: DiagnosticChannel
@@ -135,6 +136,7 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
     accountRole: role,
     amount: { value: amount, currency: stringValue(isSettlement ? input.TRANSACTION_CURRENCY : input.currency_id ?? input.currency) },
     description: stringValue(isSettlement ? input.DESCRIPTION : input.description),
+    statementDescriptor: isSettlement ? null : stringValue(input.statement_descriptor)?.trim() ?? null,
     operation: { type: operationType, status: operationStatus, statusDetail },
     fundingSource,
     channel,

@@ -9,22 +9,51 @@ interface ModalProps {
   open: boolean
   onClose: () => void
   children: React.ReactNode
+  title?: string
+  closeLabel?: string
 }
 
-export function Modal(props: ModalProps) {
+export function Modal({
+  title = 'Editar datos',
+  closeLabel = 'Volver',
+  ...props
+}: ModalProps) {
   const nested = useContext(NestedSettingsModalContext)
   const id = useId()
   const initialFocusRef = useRef<HTMLInputElement | null>(null)
   if (!nested) return <LegacyModal {...props} />
-  return <FullScreenSheet open={props.open} onClose={props.onClose} labelledBy={id} initialFocusRef={initialFocusRef}>
-    <div className="p-6" ref={(node) => { initialFocusRef.current = node?.querySelector<HTMLInputElement>('input:not([disabled]):not([type="hidden"])') ?? null }}>
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <h2 id={id} className="text-base font-semibold">Editar datos</h2>
-        <button type="button" onClick={props.onClose} className="min-h-11 px-3 text-sm text-primary">Volver</button>
+  return (
+    <FullScreenSheet
+      open={props.open}
+      onClose={props.onClose}
+      labelledBy={id}
+      initialFocusRef={initialFocusRef}
+    >
+      <div
+        className="p-6"
+        ref={(node) => {
+          initialFocusRef.current =
+            node?.querySelector<HTMLInputElement>(
+              'input:not([disabled]):not([type="hidden"])'
+            ) ?? null
+        }}
+      >
+        <div className="mb-4 flex items-center justify-between gap-4">
+          <h2 id={id} className="text-base font-semibold">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={props.onClose}
+            className="text-primary min-h-11 px-3 text-sm"
+          >
+            {closeLabel}
+          </button>
+        </div>
+        {props.children}
       </div>
-      {props.children}
-    </div>
-  </FullScreenSheet>
+    </FullScreenSheet>
+  )
 }
 
 function LegacyModal({ open, onClose, children }: ModalProps) {
@@ -68,7 +97,7 @@ function LegacyModal({ open, onClose, children }: ModalProps) {
       {/* Modal */}
       <div
         ref={contentRef}
-        className="slide-up relative w-full max-w-md max-h-[85dvh] overflow-y-auto overscroll-contain rounded-t-3xl sm:rounded-card-lg bg-bg-secondary border border-border-ocean p-6"
+        className="slide-up sm:rounded-card-lg bg-bg-secondary border-border-ocean relative max-h-[85dvh] w-full max-w-md overflow-y-auto overscroll-contain rounded-t-3xl border p-6"
         style={{ WebkitOverflowScrolling: 'touch' } as React.CSSProperties}
       >
         {children}
