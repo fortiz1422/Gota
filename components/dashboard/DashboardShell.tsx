@@ -45,7 +45,9 @@ import {
   highestUnreadSignalTone,
   loadReadSignalVersions,
   markSignalVersionsRead,
+  toneWithOperationalReviews,
 } from '@/lib/intelligence/signals-read-state'
+import { classifyMercadoPagoMovements, type MercadoPagoMovement } from '@/lib/mercadopago/review'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
@@ -243,7 +245,14 @@ export function DashboardShell({
     staleTime: 30_000,
   })
   const pendingReceipts = sharedReceiptsQuery.data ?? []
-  const notificationTone = signalsTone === 'none' && pendingReceipts.length > 0 ? 'watch' : signalsTone
+  const mercadoPagoQuery = useQuery<{ movements: MercadoPagoMovement[] }>({
+    queryKey: ['mercadopago', 'movements'],
+    queryFn: async () => { const response = await fetch('/api/integrations/mercadopago/movements', { cache: 'no-store' }); if (!response.ok) throw new Error('mercadopago movements failed'); return response.json() },
+    enabled: FF_SIGNALS_CENTER_V1,
+    staleTime: 30_000,
+  })
+  const mercadoPago = classifyMercadoPagoMovements(mercadoPagoQuery.data?.movements ?? [])
+  const notificationTone = toneWithOperationalReviews(signalsTone, pendingReceipts.length > 0, mercadoPago.eligible.length + mercadoPago.cardPending.length > 0)
 
   useEffect(() => {
     if (dashboardLoadedTrackedRef.current || !data) return
@@ -848,6 +857,8 @@ export function DashboardShell({
           onAsk={askFromSignal}
           pendingReceipts={pendingReceipts}
           onReceiptSelected={openSharedReceiptFromSignals}
+          mercadoPago={mercadoPago}
+          onMercadoPagoSelected={() => { setSignalsOpen(false); router.push('/mercadopago/review') }}
         />
       )}
 

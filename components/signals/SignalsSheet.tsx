@@ -5,6 +5,7 @@ import { X } from '@phosphor-icons/react'
 import { FullScreenSheet } from '@/components/ui/FullScreenSheet'
 import type { SignalCenterModel, SignalOccurrence } from '@/lib/intelligence/signal-center'
 import type { SharedReceiptSummary } from '@/lib/shared-receipts-ui'
+import type { MercadoPagoReviewBuckets } from '@/lib/mercadopago/review'
 import { nextSignalTab, type SignalCenterTab } from '@/lib/intelligence/signal-center-display'
 import { SignalDetailView } from './SignalDetailView'
 import { SignalsCoverageView } from './SignalsCoverageView'
@@ -28,6 +29,8 @@ interface Props {
   pendingReceipts?: SharedReceiptSummary[]
   onReceiptSelected?: (receipt: SharedReceiptSummary) => void
   surface?: 'modal' | 'drawer'
+  mercadoPago?: MercadoPagoReviewBuckets
+  onMercadoPagoSelected?: () => void
 }
 
 const TABS: Array<{ value: SignalCenterTab; label: string }> = [
@@ -53,6 +56,8 @@ export function SignalsSheet({
   pendingReceipts = [],
   onReceiptSelected,
   surface = 'modal',
+  mercadoPago,
+  onMercadoPagoSelected,
 }: Props) {
   const titleId = useId()
   const tabsId = useId()
@@ -186,6 +191,8 @@ export function SignalsSheet({
                   closeSheet()
                   onReceiptSelected?.(receipt)
                 }}
+                mercadoPago={mercadoPago}
+                onMercadoPagoSelected={onMercadoPagoSelected}
               />
             ) : loading ? (
               <p role="status" className="px-6 py-12 text-center text-sm font-semibold text-text-secondary">Cargando cobertura…</p>
