@@ -30,7 +30,7 @@ export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnecti
   return reconcileMercadoPagoMovements(internal)
 }
 
-export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | null) {
+export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null) {
   const { evidence, settlement, nativeId, reasonCodes, ...visible } = candidate
   void evidence; void settlement; void nativeId; void reasonCodes
   if (visible.fundingSource && 'issuerId' in visible.fundingSource) {
@@ -38,7 +38,7 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
     void issuerId
     visible.fundingSource = fundingSource
   }
-  return { ...visible, reviewStatus: review?.status ?? 'pending', ...(review ? { expenseId: review.expense_id } : {}) }
+  return { ...visible, reviewStatus: review?.status ?? 'pending', ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}) }
 }
 
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {

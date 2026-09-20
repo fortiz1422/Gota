@@ -10,10 +10,12 @@ import {
   Wallet,
 } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import {
   buildConfirmExpensePayload,
   classifyMercadoPagoMovements,
+  pendingMercadoPagoMovementCount,
   getDisplayExpenseDescription,
   getInitialExpenseDescription,
   getMercadoPagoDisplayAmount,
@@ -84,6 +86,9 @@ export function MercadoPagoReviewClient() {
   const [accountId, setAccountId] = useState('')
   const [submitError, setSubmitError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [dismissed, setDismissed] = useState<MercadoPagoMovement | null>(null)
+  const [dismissing, setDismissing] = useState(false)
+  const [dismissError, setDismissError] = useState(false)
   const descriptionRef = useRef<HTMLInputElement>(null)
   const movementsRequest = useRef(0)
   const accountsRequest = useRef(0)
@@ -203,8 +208,29 @@ export function MercadoPagoReviewClient() {
     }
   }
 
+  const dismiss = async () => {
+    if (!dismissed || dismissing) return
+    setDismissing(true)
+    setDismissError(false)
+    try {
+      const response = await fetch(`/api/integrations/mercadopago/movements/${encodeURIComponent(dismissed.candidateId)}/dismiss`, { method: 'POST' })
+      if (!response.ok) throw new Error('dismissal failed')
+      setDismissed(null)
+      await load()
+    } catch {
+      setDismissError(true)
+    } finally {
+      setDismissing(false)
+    }
+  }
+
+  const requestDismissal = (movement: MercadoPagoMovement) => {
+    setDismissError(false)
+    setDismissed(movement)
+  }
+
   const buckets = classifyMercadoPagoMovements(state?.movements ?? [])
-  const pendingCount = buckets.eligible.length + buckets.cardPending.length
+  const pendingCount = pendingMercadoPagoMovementCount(state?.movements ?? [])
 
   return (
     <main className="mx-auto min-h-app max-w-md bg-bg-primary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
@@ -262,12 +288,12 @@ export function MercadoPagoReviewClient() {
             </p>
             <div className="mt-3 space-y-3">
               {buckets.eligible.map((movement) => (
-                <button
-                  key={movement.candidateId}
-                  type="button"
-                  onClick={() => open(movement)}
-                  className="card-s5 flex min-h-20 w-full items-start gap-3 p-4 text-left"
-                >
+                <div key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
+                  <button
+                    type="button"
+                    onClick={() => open(movement)}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
+                  >
                   <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">
                     <Wallet size={19} />
                   </span>
@@ -279,7 +305,9 @@ export function MercadoPagoReviewClient() {
                       {formatMoney(movement)} · {formatObservedDate(movement.balanceOccurredAt)} · {fundingSource(movement)}
                     </span>
                   </span>
-                </button>
+                  </button>
+                  <button type="button" onClick={() => requestDismissal(movement)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                </div>
               ))}
               {buckets.eligible.length === 0 && (
                 <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">
@@ -306,6 +334,7 @@ export function MercadoPagoReviewClient() {
                   <p className="mt-2 text-xs text-text-secondary">
                     {formatObservedDate(movement.occurredAt)} · Pagado con tarjeta / falta elegir tarjeta y ciclo
                   </p>
+                  <button type="button" onClick={() => requestDismissal(movement)} className="mt-3 min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
                 </article>
               ))}
             </div>
@@ -314,9 +343,15 @@ export function MercadoPagoReviewClient() {
           {buckets.unknown.length > 0 && (
             <section className="mt-8">
               <h2 className="text-base font-bold">Otras operaciones</h2>
-              <p className="mt-1 text-sm text-text-secondary">
-                {buckets.unknown.length} operación{buckets.unknown.length === 1 ? '' : 'es'} sin clasificación suficiente. Sin acción financiera disponible.
-              </p>
+              <div className="mt-3 space-y-3">
+              {buckets.unknown.map((movement) => (
+                <article key={movement.candidateId} className="card-s5 p-4">
+                  <p className="font-semibold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</p>
+                  <p className="mt-1 text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt)}</p>
+                  <button type="button" onClick={() => requestDismissal(movement)} className="mt-3 min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                </article>
+              ))}
+            </div>
             </section>
           )}
 
@@ -327,6 +362,21 @@ export function MercadoPagoReviewClient() {
           )}
         </>
       )}
+
+      <ConfirmationSurface
+        open={dismissed !== null}
+        onClose={() => { if (!dismissing) setDismissed(null) }}
+        onConfirm={() => void dismiss()}
+        title="Desestimar operación"
+        description="Esta decisión queda guardada y la operación no se incorpora a tus movimientos financieros."
+        confirmLabel="Desestimar"
+        destructive
+        busy={dismissing}
+        appearance="compact"
+      >
+        <p>{dismissed ? `${getDisplayExpenseDescription(dismissed) || 'Operación de Mercado Pago'} · ${formatMoney(dismissed)}` : ''}</p>
+        {dismissError && <p role="alert" className="mt-3 text-danger">No pudimos desestimar la operación. La bandeja no cambió.</p>}
+      </ConfirmationSurface>
 
       <TaskSurface
         open={selected !== null}

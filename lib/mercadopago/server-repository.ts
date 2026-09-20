@@ -17,6 +17,7 @@ export type MercadoPagoConnection = {
 type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; count: number; error_code: SourceRun['errorCode']; started_at: string }
 export type MercadoPagoMovementObservation = { id: string; source: RawObservation['source']; native_key: string; payload: unknown; last_seen_at: string }
 export type MercadoPagoMovementReview = { candidate_id: string; status: 'confirmed'; expense_id: string }
+export type MercadoPagoMovementDismissal = { candidate_id: string; status: 'dismissed' }
 type Query<T> = {
   upsert: (values: Record<string, unknown>, options: { onConflict: string }) => { select: (columns: string) => { single: () => Promise<Result<T>> } }
   select: (columns: string) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<Result<T>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>> }; eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<Result<T>> } } } } }
@@ -123,4 +124,9 @@ export async function getMercadoPagoMovementReviews(userId: string, connectionId
   const result = await (createAdminClient() as unknown as ReviewDatabase).from('mercadopago_movement_reviews').select('candidate_id,status,expense_id').eq('user_id', userId).eq('connection_id', connectionId)
   if (result.error || !result.data) throw new Error('movement_reviews_read_failed')
   return result.data
+}
+export async function getMercadoPagoMovementDismissals(userId: string, connectionId: string): Promise<MercadoPagoMovementDismissal[]> {
+  const result = await (createAdminClient() as unknown as ReviewDatabase).from('mercadopago_movement_dismissals').select('candidate_id,status').eq('user_id', userId).eq('connection_id', connectionId)
+  if (result.error || !result.data) throw new Error('movement_dismissals_read_failed')
+  return result.data as unknown as MercadoPagoMovementDismissal[]
 }
