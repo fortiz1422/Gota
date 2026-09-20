@@ -78,6 +78,36 @@ function AccountIcon({ type }: { type: Account['type'] }) {
   return <Bank size={15} />
 }
 
+type MercadoPagoReviewDetailProps = {
+  movement: MercadoPagoMovement
+}
+
+export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailProps) {
+  const isCard = movement.fundingSource?.kind === 'card'
+
+  return (
+    <div className="space-y-4">
+      <section className="rounded-input border border-border-subtle bg-primary/[0.03] p-4">
+        <p className="type-micro text-text-secondary">EVIDENCIA OBSERVADA</p>
+        <p className="mt-3 text-sm font-semibold">
+          {getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}
+        </p>
+        <p className="mt-1 text-sm text-text-secondary">
+          {formatMoney(movement)} · {formatObservedDate(movement.occurredAt)} · {fundingSource(movement)}
+        </p>
+      </section>
+      <p className="text-sm text-text-secondary">
+        {isCard
+          ? 'Falta elegir tarjeta y ciclo para poder registrar esta operación.'
+          : 'No hay evidencia suficiente para registrarla automáticamente.'}
+      </p>
+      <p className="rounded-input bg-bg-secondary p-3 text-sm font-semibold text-text-secondary">
+        Esta operación todavía no se puede confirmar.
+      </p>
+    </div>
+  )
+}
+
 export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInboxProps) {
   const pendingCount = pendingMercadoPagoReviewBucketCount(buckets)
 
@@ -118,7 +148,10 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
             <article key={movement.candidateId} className="card-s5 p-4">
               <div className="flex justify-between gap-3"><h3 className="font-bold">{getDisplayExpenseDescription(movement) || 'Compra con tarjeta'}</h3><span className="whitespace-nowrap font-semibold">{formatMoney(movement)}</span></div>
               <p className="mt-2 text-xs text-text-secondary">{formatObservedDate(movement.occurredAt)} · Pagado con tarjeta / falta elegir tarjeta y ciclo</p>
-              <button type="button" onClick={() => onDismiss(movement)} className="mt-3 min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+              <div className="mt-3 flex gap-2">
+                <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
+                <button type="button" onClick={() => onDismiss(movement)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+              </div>
             </article>
           ))}
         </div>
@@ -132,7 +165,10 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
               <article key={movement.candidateId} className="card-s5 p-4">
                 <p className="font-semibold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</p>
                 <p className="mt-1 text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt)}</p>
-                <button type="button" onClick={() => onDismiss(movement)} className="mt-3 min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                <div className="mt-3 flex gap-2">
+                  <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
+                  <button type="button" onClick={() => onDismiss(movement)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                </div>
               </article>
             ))}
           </div>
@@ -239,7 +275,7 @@ export function MercadoPagoReviewClient() {
     setIsWant(null)
     setAccountId('')
     setSubmitError(false)
-    void loadAccounts()
+    if (isReviewableMercadoPagoExpense(movement)) void loadAccounts()
   }
 
   const confirm = async (event: FormEvent) => {
@@ -362,7 +398,39 @@ export function MercadoPagoReviewClient() {
       </ConfirmationSurface>
 
       <TaskSurface
-        open={selected !== null}
+        open={selected !== null && !isReviewableMercadoPagoExpense(selected)}
+        onClose={() => {
+          if (!dismissing) resetReview()
+        }}
+        eyebrow="MERCADO PAGO"
+        title="Revisar operación"
+        description="Revisá la evidencia disponible y decidí si querés mantenerla pendiente o desestimarla."
+        appearance="compact"
+        canvasTone="standard"
+        footer={(
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={resetReview}
+              className="min-h-11 flex-1 rounded-button border border-border-subtle px-3 py-3 text-sm font-semibold"
+            >
+              Mantener pendiente
+            </button>
+            <button
+              type="button"
+              onClick={() => selected && requestDismissal(selected)}
+              className="min-h-11 flex-1 rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger"
+            >
+              Desestimar
+            </button>
+          </div>
+        )}
+      >
+        {selected && <MercadoPagoReviewDetail movement={selected} />}
+      </TaskSurface>
+
+      <TaskSurface
+        open={selected !== null && isReviewableMercadoPagoExpense(selected)}
         onClose={() => {
           if (!submitting) resetReview()
         }}
