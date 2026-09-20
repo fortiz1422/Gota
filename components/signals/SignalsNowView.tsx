@@ -4,6 +4,7 @@ import { ArrowClockwise, CaretRight, CheckCircle, CircleNotch, Receipt } from '@
 import type { DataQuality } from '@/lib/intelligence/types'
 import type { SignalCoverage, SignalOccurrence } from '@/lib/intelligence/signal-center'
 import type { SharedReceiptSummary } from '@/lib/shared-receipts-ui'
+import type { MercadoPagoReviewBuckets } from '@/lib/mercadopago/review'
 import {
   DATA_QUALITY_COPY,
   maskSignalOccurrence,
@@ -23,6 +24,8 @@ interface Props {
   onSelectSignal: (signal: SignalOccurrence) => void
   pendingReceipts?: SharedReceiptSummary[]
   onSelectReceipt?: (receipt: SharedReceiptSummary) => void
+  mercadoPago?: MercadoPagoReviewBuckets
+  onMercadoPagoSelected?: () => void
 }
 
 export function SignalsNowView({
@@ -37,8 +40,11 @@ export function SignalsNowView({
   onSelectSignal,
   pendingReceipts = [],
   onSelectReceipt,
+  mercadoPago = { eligible: [], cardPending: [], unknown: [] },
+  onMercadoPagoSelected,
 }: Props) {
-  if (loading) {
+  const mercadoPagoPending = mercadoPago.eligible.length + mercadoPago.cardPending.length
+  if (loading && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
     return (
       <div role="status" className="grid min-h-56 place-items-center px-6 text-center">
         <div>
@@ -49,7 +55,7 @@ export function SignalsNowView({
     )
   }
 
-  if (error && pendingReceipts.length === 0) {
+  if (error && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
     return (
       <div role="alert" className="mx-5 mt-6 rounded-[18px] border border-danger/15 bg-danger-soft p-5">
         <p className="font-bold text-text-primary">No pudimos cargar tus señales</p>
@@ -64,7 +70,7 @@ export function SignalsNowView({
   }
 
 
-  if (signals.length === 0 && pendingReceipts.length === 0) {
+  if (signals.length === 0 && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
     const emptyState = resolveSignalsEmptyState({ coverage, dataQuality })
     return <EmptyState {...emptyState} />
   }
@@ -95,6 +101,14 @@ export function SignalsNowView({
         </button>
       )}
       {signals.length > 0 && <p className="mb-3 text-xs font-medium text-text-tertiary">{DATA_QUALITY_COPY[dataQuality]}</p>}
+      {mercadoPagoPending > 0 && (
+        <button type="button" onClick={onMercadoPagoSelected} className="card-s5 mb-3 flex min-h-20 w-full items-start gap-3 p-4 text-left transition-transform active:scale-[0.99]">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">$</span>
+          <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold leading-snug text-text-primary">{mercadoPagoPending} {mercadoPagoPending === 1 ? 'operación' : 'operaciones'} de Mercado Pago</span><span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">{mercadoPago.eligible.length} listas para revisar · {mercadoPago.cardPending.length} pagadas con tarjeta</span></span>
+          <CaretRight size={16} className="mt-2 shrink-0 text-text-tertiary" aria-hidden="true" />
+        </button>
+      )}
+
       <div className="space-y-3">
         {signals.map((rawSignal) => {
           const signal = maskSignalOccurrence(rawSignal, amountsVisible)

@@ -77,3 +77,11 @@ export function highestUnreadSignalTone(
 
   return tone
 }
+
+export function toneWithOperationalReviews(
+  tone: SignalBellTone,
+  hasPendingReceipts: boolean,
+  hasPendingMercadoPago: boolean,
+): SignalBellTone {
+  return tone === 'none' && (hasPendingReceipts || hasPendingMercadoPago) ? 'watch' : tone
+}

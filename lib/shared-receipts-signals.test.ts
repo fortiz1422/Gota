@@ -42,6 +42,46 @@ describe('shared receipts in Signals', () => {
     expect(html).toContain('1 comprobante pendiente')
   })
 
+  it('keeps Mercado Pago review visible while Signals loads or fails, without inventing a Signal', () => {
+    const mercadoPago = {
+      eligible: [{ candidateId: 'balance-debit' }],
+      cardPending: [{ candidateId: 'card-purchase' }],
+      unknown: [{ candidateId: 'unknown' }],
+    } as never
+
+    for (const props of [{ loading: true }, { error: 'signals unavailable' }]) {
+      const html = renderToStaticMarkup(createElement(SignalsNowView, {
+        signals: [],
+        coverage: [],
+        dataQuality: 'insufficient',
+        amountsVisible: false,
+        mercadoPago,
+        onSelectSignal: () => undefined,
+        onMercadoPagoSelected: () => undefined,
+        ...props,
+      }))
+
+      expect(html).toContain('2 operaciones de Mercado Pago')
+      expect(html).toContain('1 listas para revisar · 1 pagadas con tarjeta')
+      expect(html).not.toContain('Todo tranquilo')
+      expect(html).not.toContain('signals unavailable')
+    }
+  })
+
+  it('does not surface unknown Mercado Pago rows as actionable work', () => {
+    const html = renderToStaticMarkup(createElement(SignalsNowView, {
+      signals: [],
+      coverage: [],
+      dataQuality: 'ok',
+      amountsVisible: true,
+      mercadoPago: { eligible: [], cardPending: [], unknown: [{ candidateId: 'unknown' }] } as never,
+      onSelectSignal: () => undefined,
+      onMercadoPagoSelected: () => undefined,
+    }))
+
+    expect(html).not.toContain('Mercado Pago')
+  })
+
   it('removes the receipt CTA from Home and routes pending receipts through Signals', () => {
     const dashboard = readFileSync(
       new URL('../components/dashboard/DashboardShell.tsx', import.meta.url),

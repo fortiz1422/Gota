@@ -5,6 +5,7 @@ import {
   getMercadoPagoDisplayAmount,
   getInitialExpenseDescription,
   isReviewableMercadoPagoExpense,
+  classifyMercadoPagoMovements,
   type MercadoPagoDiagnostic,
 } from '@/components/settings/mercadopago-expense-review'
 
@@ -27,6 +28,17 @@ const movement = (
 })
 
 describe('Mercado Pago expense review contract', () => {
+  it('classifies pending balance, card and unknown movements without confirmed rows', () => {
+    const result = classifyMercadoPagoMovements([
+      movement(),
+      movement({ candidateId: 'card', fundingSource: { kind: 'card', lastFour: '1234' }, balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } } }),
+      movement({ candidateId: 'confirmed', reviewStatus: 'confirmed' }),
+      movement({ candidateId: 'unknown', balanceImpact: { observed: true, effect: 'credit', amount: { value: 1, currency: 'ARS' } } }),
+    ])
+    expect(result.eligible.map(({ candidateId }) => candidateId)).toEqual(['candidate/1'])
+    expect(result.cardPending.map(({ candidateId }) => candidateId)).toEqual(['card'])
+    expect(result.unknown.map(({ candidateId }) => candidateId)).toEqual(['unknown'])
+  })
   it('leaves Shell empty when Mercado Pago did not provide a description', () => {
     expect(getInitialExpenseDescription(movement())).toBe('')
     expect(
