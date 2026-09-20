@@ -839,7 +839,11 @@ export function DashboardShell({
           open={signalsOpen}
           onClose={() => setSignalsOpen(false)}
           model={signalsQuery.data ?? null}
-          loading={signalsQuery.isPending && pendingReceipts.length === 0}
+          loading={
+            signalsQuery.isPending &&
+            pendingReceipts.length === 0 &&
+            mercadoPago.eligible.length + mercadoPago.cardPending.length === 0
+          }
           error={signalsError}
           amountsVisible={amountsVisible}
           isHistoricalContext={!isCurrentMonth}

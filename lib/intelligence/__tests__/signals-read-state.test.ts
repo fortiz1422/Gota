@@ -5,6 +5,7 @@ import {
   highestUnreadSignalTone,
   loadReadSignalVersions,
   markSignalVersionsRead,
+  toneWithOperationalReviews,
 } from '../signals-read-state'
 
 function version(index: number): string {
@@ -44,6 +45,13 @@ describe('estado local de lectura de señales', () => {
     expect(highestUnreadSignalTone(signals, [version(3), version(4)])).toBe('new')
     expect(highestUnreadSignalTone(signals, signals.map(({ version }) => version))).toBe('none')
     expect(highestUnreadSignalTone([], [])).toBe('none')
+  })
+
+  it('eleva sólo revisiones operativas accionables cuando no hay una Señal más fuerte', () => {
+    expect(toneWithOperationalReviews('none', false, false)).toBe('none')
+    expect(toneWithOperationalReviews('none', false, true)).toBe('watch')
+    expect(toneWithOperationalReviews('none', true, false)).toBe('watch')
+    expect(toneWithOperationalReviews('risk', true, true)).toBe('risk')
   })
 
   it('persiste solo versiones opacas, deduplicadas y recientes', () => {

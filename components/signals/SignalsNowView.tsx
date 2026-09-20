@@ -44,7 +44,7 @@ export function SignalsNowView({
   onMercadoPagoSelected,
 }: Props) {
   const mercadoPagoPending = mercadoPago.eligible.length + mercadoPago.cardPending.length
-  if (loading) {
+  if (loading && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
     return (
       <div role="status" className="grid min-h-56 place-items-center px-6 text-center">
         <div>
