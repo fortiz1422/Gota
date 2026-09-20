@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), getReviews: vi.fn(), normalize: vi.fn() }))
+const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), getReviews: vi.fn(), getDismissals: vi.fn(), normalize: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }))
-vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations, getMercadoPagoMovementReviews: mocks.getReviews }))
+vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations, getMercadoPagoMovementReviews: mocks.getReviews, getMercadoPagoMovementDismissals: mocks.getDismissals }))
 vi.mock('@/lib/mercadopago/provider-movement', () => ({ normalizeMercadoPagoMovement: mocks.normalize }))
 
 import { GET } from '@/app/api/integrations/mercadopago/movements/route'
@@ -13,6 +13,7 @@ beforeEach(() => {
   mocks.getConnection.mockResolvedValue({ id: 'connection-1', provider_user_id: 'provider-1' })
   mocks.getObservations.mockResolvedValue([{ source: 'payments_search', native_key: '101', payload: { id: 101 }, last_seen_at: '2026-09-15T12:00:00.000Z' }])
   mocks.getReviews.mockResolvedValue([])
+  mocks.getDismissals.mockResolvedValue([])
   mocks.normalize.mockReturnValue({ nativeId: '101', description: 'Compra sintética', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', confidence: 'confirmed' })
 })
 
@@ -26,7 +27,7 @@ describe('Mercado Pago movements route', () => {
   })
 
   it('fails closed with a generic no-store response when a connection, raw or review read fails', async () => {
-    for (const failedRead of [mocks.getConnection, mocks.getObservations, mocks.getReviews]) {
+    for (const failedRead of [mocks.getConnection, mocks.getObservations, mocks.getReviews, mocks.getDismissals]) {
       failedRead.mockRejectedValueOnce(new Error('provider raw secret'))
       const response = await GET()
       expect(response.status).toBe(500)
@@ -59,5 +60,17 @@ describe('Mercado Pago movements route', () => {
     expect(JSON.stringify(body)).not.toMatch(/payload|provider_user_id|payer|collector|token|authorization|nativeId|native_key|raw|evidence|lastSeen|issuerId|reasonCodes|settlement/i)
     expect(mocks.getObservations).toHaveBeenCalledWith('user-1', 'connection-1', 100)
     expect(mocks.normalize).toHaveBeenCalledWith(expect.objectContaining({ providerUserId: 'provider-1', nativeKey: '101' }))
+  })
+
+  it('projects a server dismissal without exposing its storage fields', async () => {
+    const first = await (await GET()).json()
+    mocks.getDismissals.mockResolvedValue([{ candidate_id: first.movements[0].candidateId, status: 'dismissed' }])
+    const body = await (await GET()).json()
+    expect(body.movements[0].reviewStatus).toBe('dismissed')
+    expect(body.movements[0]).not.toHaveProperty('expenseId')
+    expect(body.movements[0]).not.toHaveProperty('evidence')
+    expect(body.movements[0]).not.toHaveProperty('nativeId')
+    expect(body.movements[0]).not.toHaveProperty('candidateFingerprint')
+    expect(body.movements[0]).not.toHaveProperty('last_seen_at')
   })
 })

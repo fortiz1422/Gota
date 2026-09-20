@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getMercadoPagoConnection, getMercadoPagoMovementObservations, getMercadoPagoMovementReviews } from '@/lib/mercadopago/server-repository'
+import { getMercadoPagoConnection, getMercadoPagoMovementDismissals, getMercadoPagoMovementObservations, getMercadoPagoMovementReviews } from '@/lib/mercadopago/server-repository'
 import { reconstructMercadoPagoCandidates, publicMercadoPagoMovement } from '@/lib/mercadopago/confirm-expense'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
@@ -16,8 +16,8 @@ export async function GET() {
     if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
     const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
     const reconciled = reconstructMercadoPagoCandidates(connection, observations)
-    const reviews = await getMercadoPagoMovementReviews(user.id, connection.id)
-    const byCandidate = new Map(reviews.map((review) => [review.candidate_id, review]))
+    const [reviews, dismissals] = await Promise.all([getMercadoPagoMovementReviews(user.id, connection.id), getMercadoPagoMovementDismissals(user.id, connection.id)])
+    const byCandidate = new Map<string, { status: 'confirmed'; expense_id: string } | { status: 'dismissed' }>([...reviews.map((review) => [review.candidate_id, review] as const), ...dismissals.map((dismissal) => [dismissal.candidate_id, dismissal] as const)])
     return response({ aggregates: reconciled.aggregates, movements: reconciled.map((candidate) => publicMercadoPagoMovement(candidate, byCandidate.get(candidate.candidateId) ?? null)) })
   } catch { return response({ error: 'movements_unavailable' }, 500) }
 }

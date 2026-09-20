@@ -5,7 +5,7 @@ export type MercadoPagoMovement = {
   amount: { value: number | null; currency: string | null }
   description: string | null
   statementDescriptor: string | null
-  reviewStatus: 'pending' | 'confirmed'
+  reviewStatus: 'pending' | 'confirmed' | 'dismissed'
   balanceImpact: { observed: boolean; effect: 'debit' | 'credit' | 'zero' | 'unknown'; amount: { value: number | null; currency: string | null } }
   fundingSource?: { kind?: string; brand?: string; lastFour?: string }
 }
@@ -30,11 +30,18 @@ export function isReviewableMercadoPagoExpense(movement: MercadoPagoMovement) {
 export function classifyMercadoPagoMovements(movements: readonly MercadoPagoMovement[]): MercadoPagoReviewBuckets {
   const buckets: MercadoPagoReviewBuckets = { eligible: [], cardPending: [], unknown: [] }
   for (const movement of movements) {
-    if (movement.reviewStatus === 'confirmed') continue
+    if (movement.reviewStatus !== 'pending') continue
     if (isReviewableMercadoPagoExpense(movement)) buckets.eligible.push(movement)
     else if (movement.fundingSource?.kind === 'card' && movement.reviewStatus === 'pending') buckets.cardPending.push(movement)
     else buckets.unknown.push(movement)
   }
   return buckets
+}
+
+export function pendingMercadoPagoMovementCount(movements: readonly MercadoPagoMovement[]) {
+  return pendingMercadoPagoReviewBucketCount(classifyMercadoPagoMovements(movements))
+}
+export function pendingMercadoPagoReviewBucketCount(buckets: MercadoPagoReviewBuckets) {
+  return buckets.eligible.length + buckets.cardPending.length + buckets.unknown.length
 }
 export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload { return { description: input.description.trim(), category: input.category, isWant: input.isWant, accountId: input.accountId } }

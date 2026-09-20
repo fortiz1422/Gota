@@ -33,6 +33,32 @@ alter table public.mercadopago_movement_reviews alter column is_want set not nul
 create index if not exists mercadopago_movement_reviews_user_idx
   on public.mercadopago_movement_reviews(user_id, confirmed_at desc);
 
+create table if not exists public.mercadopago_movement_dismissals (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  connection_id uuid not null references public.mercadopago_connections(id) on delete cascade,
+  candidate_id text not null check (char_length(candidate_id) between 1 and 256),
+  candidate_fingerprint text not null check (candidate_fingerprint ~ '^[a-f0-9]{64}$'),
+  status text not null default 'dismissed' check (status = 'dismissed'),
+  evidence jsonb not null check (jsonb_typeof(evidence) = 'object'),
+  dismissed_at timestamptz not null default now(),
+  unique (user_id, connection_id, candidate_id),
+  unique (user_id, connection_id, candidate_fingerprint)
+);
+
+alter table public.mercadopago_movement_dismissals
+  add column if not exists status text;
+update public.mercadopago_movement_dismissals set status = 'dismissed' where status is null;
+alter table public.mercadopago_movement_dismissals alter column status set default 'dismissed';
+alter table public.mercadopago_movement_dismissals alter column status set not null;
+
+create index if not exists mercadopago_movement_dismissals_user_idx
+  on public.mercadopago_movement_dismissals(user_id, dismissed_at desc);
+
+alter table public.mercadopago_movement_dismissals enable row level security;
+revoke all on table public.mercadopago_movement_dismissals from public, anon, authenticated;
+grant select, insert, update, delete on table public.mercadopago_movement_dismissals to service_role;
+
 alter table public.mercadopago_movement_reviews enable row level security;
 revoke all on table public.mercadopago_movement_reviews from public, anon, authenticated;
 grant select, insert, update, delete on table public.mercadopago_movement_reviews to service_role;
@@ -146,6 +172,11 @@ begin
                and candidate_fingerprint = p_candidate_fingerprint) then
     raise exception 'candidate fingerprint conflict' using errcode = '23505';
   end if;
+  if exists (select 1 from public.mercadopago_movement_dismissals
+             where user_id = p_user_id and connection_id = p_connection_id
+               and (candidate_id = p_candidate_id or candidate_fingerprint = p_candidate_fingerprint)) then
+    raise exception 'candidate already dismissed' using errcode = '55000';
+  end if;
 
   insert into public.expenses(user_id, amount, currency, category, description,
     is_want, payment_method, account_id, date)
@@ -167,6 +198,58 @@ $$;
 
 revoke all on function public.confirm_mercadopago_expense(uuid,uuid,text,text,text,jsonb,numeric,text,date,text,text,boolean,uuid,text,jsonb) from public, anon, authenticated;
 grant execute on function public.confirm_mercadopago_expense(uuid,uuid,text,text,text,jsonb,numeric,text,date,text,text,boolean,uuid,text,jsonb) to service_role;
+
+drop function if exists public.dismiss_mercadopago_movement(uuid,uuid,text,text,jsonb);
+create or replace function public.dismiss_mercadopago_movement(
+  p_user_id uuid, p_connection_id uuid, p_candidate_id text,
+  p_candidate_fingerprint text, p_expected_observations jsonb
+) returns text
+language plpgsql security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_existing public.mercadopago_movement_dismissals%rowtype;
+  v_expected jsonb;
+  v_count integer;
+  v_evidence jsonb;
+begin
+  if p_user_id is null or p_connection_id is null
+     or p_candidate_id is null or char_length(p_candidate_id) not between 1 and 256
+     or p_candidate_fingerprint !~ '^[a-f0-9]{64}$'
+     or p_expected_observations is null or jsonb_typeof(p_expected_observations) <> 'array'
+     or jsonb_array_length(p_expected_observations) < 1 then
+    raise exception 'invalid dismissal' using errcode = '22023';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('mp-confirm:connection:' || p_connection_id::text || ':user:' || p_user_id::text, 0));
+  perform 1 from public.mercadopago_connections where id = p_connection_id and user_id = p_user_id and provider = 'mercadopago' and status = 'connected' for update;
+  if not found then raise exception 'foreign or inactive connection' using errcode = 'P0002'; end if;
+  if exists (select 1 from public.mercadopago_movement_reviews where user_id = p_user_id and connection_id = p_connection_id and (candidate_id = p_candidate_id or candidate_fingerprint = p_candidate_fingerprint)) then
+    raise exception 'candidate already confirmed' using errcode = '55000';
+  end if;
+  select count(*) into v_count from jsonb_array_elements(p_expected_observations);
+  if (select count(distinct value->>'id') from jsonb_array_elements(p_expected_observations)) <> v_count then raise exception 'duplicate observation id' using errcode = '22023'; end if;
+  for v_expected in select value from jsonb_array_elements(p_expected_observations) loop
+    if not (v_expected ? 'id' and v_expected ? 'source' and v_expected ? 'native_key' and v_expected ? 'last_seen_at')
+       or (v_expected->>'source') not in ('payments_search', 'account_settlement_report') then raise exception 'incomplete evidence' using errcode = '22023'; end if;
+    perform 1 from public.mercadopago_raw_observations r where r.id = (v_expected->>'id')::uuid and r.user_id = p_user_id and r.connection_id = p_connection_id and r.source = v_expected->>'source' and r.native_key = v_expected->>'native_key' and r.last_seen_at = (v_expected->>'last_seen_at')::timestamptz for update;
+    if not found then raise exception 'missing, foreign or mismatched evidence' using errcode = 'P0002'; end if;
+  end loop;
+  select jsonb_build_object('observations', coalesce(jsonb_agg(jsonb_build_object('id', value->>'id', 'source', value->>'source', 'native_key', value->>'native_key') order by value->>'source', value->>'native_key', value->>'id'), '[]'::jsonb)) into v_evidence from jsonb_array_elements(p_expected_observations);
+  select * into v_existing from public.mercadopago_movement_dismissals where user_id = p_user_id and connection_id = p_connection_id and candidate_id = p_candidate_id for update;
+  if found then
+    if v_existing.candidate_fingerprint <> p_candidate_fingerprint or v_existing.evidence <> v_evidence then raise exception 'replay invariant conflict' using errcode = '23505'; end if;
+    return 'dismissed';
+  end if;
+  if exists (select 1 from public.mercadopago_movement_dismissals where user_id = p_user_id and connection_id = p_connection_id and candidate_fingerprint = p_candidate_fingerprint) then
+    raise exception 'candidate fingerprint conflict' using errcode = '23505';
+  end if;
+  insert into public.mercadopago_movement_dismissals(user_id, connection_id, candidate_id, candidate_fingerprint, evidence)
+  values (p_user_id, p_connection_id, p_candidate_id, p_candidate_fingerprint, v_evidence);
+  return 'dismissed';
+end;
+$$;
+revoke all on function public.dismiss_mercadopago_movement(uuid,uuid,text,text,jsonb) from public, anon, authenticated;
+grant execute on function public.dismiss_mercadopago_movement(uuid,uuid,text,text,jsonb) to service_role;
 
 comment on table public.mercadopago_movement_reviews is 'Server-only human confirmations with canonical replay evidence; never stores raw provider payloads or tokens.';
 commit;
