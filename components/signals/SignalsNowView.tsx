@@ -4,7 +4,7 @@ import { ArrowClockwise, CaretRight, CheckCircle, CircleNotch, Receipt } from '@
 import type { DataQuality } from '@/lib/intelligence/types'
 import type { SignalCoverage, SignalOccurrence } from '@/lib/intelligence/signal-center'
 import type { SharedReceiptSummary } from '@/lib/shared-receipts-ui'
-import type { MercadoPagoReviewBuckets } from '@/lib/mercadopago/review'
+import { pendingMercadoPagoReviewBucketCount, type MercadoPagoReviewBuckets } from '@/lib/mercadopago/review'
 import {
   DATA_QUALITY_COPY,
   maskSignalOccurrence,
@@ -43,7 +43,7 @@ export function SignalsNowView({
   mercadoPago = { eligible: [], cardPending: [], unknown: [] },
   onMercadoPagoSelected,
 }: Props) {
-  const mercadoPagoPending = mercadoPago.eligible.length + mercadoPago.cardPending.length
+  const mercadoPagoPending = pendingMercadoPagoReviewBucketCount(mercadoPago)
   if (loading && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
     return (
       <div role="status" className="grid min-h-56 place-items-center px-6 text-center">
@@ -104,7 +104,7 @@ export function SignalsNowView({
       {mercadoPagoPending > 0 && (
         <button type="button" onClick={onMercadoPagoSelected} className="card-s5 mb-3 flex min-h-20 w-full items-start gap-3 p-4 text-left transition-transform active:scale-[0.99]">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-primary-soft text-primary">$</span>
-          <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold leading-snug text-text-primary">{mercadoPagoPending} {mercadoPagoPending === 1 ? 'operación' : 'operaciones'} de Mercado Pago</span><span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">{mercadoPago.eligible.length} listas para revisar · {mercadoPago.cardPending.length} pagadas con tarjeta</span></span>
+          <span className="min-w-0 flex-1"><span className="block text-[15px] font-bold leading-snug text-text-primary">{mercadoPagoPending} {mercadoPagoPending === 1 ? 'operación' : 'operaciones'} de Mercado Pago</span><span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">{mercadoPago.eligible.length} listas para revisar · {mercadoPago.cardPending.length} pagadas con tarjeta · {mercadoPago.unknown.length} {mercadoPago.unknown.length === 1 ? 'pendiente' : 'pendientes'} de clasificar</span></span>
           <CaretRight size={16} className="mt-2 shrink-0 text-text-tertiary" aria-hidden="true" />
         </button>
       )}

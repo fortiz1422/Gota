@@ -39,7 +39,9 @@ export function classifyMercadoPagoMovements(movements: readonly MercadoPagoMove
 }
 
 export function pendingMercadoPagoMovementCount(movements: readonly MercadoPagoMovement[]) {
-  const buckets = classifyMercadoPagoMovements(movements)
+  return pendingMercadoPagoReviewBucketCount(classifyMercadoPagoMovements(movements))
+}
+export function pendingMercadoPagoReviewBucketCount(buckets: MercadoPagoReviewBuckets) {
   return buckets.eligible.length + buckets.cardPending.length + buckets.unknown.length
 }
 export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload { return { description: input.description.trim(), category: input.category, isWant: input.isWant, accountId: input.accountId } }

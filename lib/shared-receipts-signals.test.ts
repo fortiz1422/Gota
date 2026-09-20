@@ -3,6 +3,8 @@ import { readFileSync } from 'node:fs'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { SignalsNowView } from '@/components/signals/SignalsNowView'
+import { toneWithOperationalReviews } from '@/lib/intelligence/signals-read-state'
+import { pendingMercadoPagoReviewBucketCount } from '@/lib/mercadopago/review'
 
 const receipt = {
   id: 'receipt-1',
@@ -61,14 +63,14 @@ describe('shared receipts in Signals', () => {
         ...props,
       }))
 
-      expect(html).toContain('2 operaciones de Mercado Pago')
-      expect(html).toContain('1 listas para revisar · 1 pagadas con tarjeta')
+      expect(html).toContain('3 operaciones de Mercado Pago')
+      expect(html).toContain('1 listas para revisar · 1 pagadas con tarjeta · 1 pendiente de clasificar')
       expect(html).not.toContain('Todo tranquilo')
       expect(html).not.toContain('signals unavailable')
     }
   })
 
-  it('does not surface unknown Mercado Pago rows as actionable work', () => {
+  it('surfaces unknown Mercado Pago rows as actionable work', () => {
     const html = renderToStaticMarkup(createElement(SignalsNowView, {
       signals: [],
       coverage: [],
@@ -79,7 +81,21 @@ describe('shared receipts in Signals', () => {
       onMercadoPagoSelected: () => undefined,
     }))
 
-    expect(html).not.toContain('Mercado Pago')
+    expect(html).toContain('1 operación de Mercado Pago')
+    expect(html).toContain('1 pendiente de clasificar')
+    expect(html).not.toContain('Todo tranquilo')
+    expect(html).not.toContain('No pudimos cargar tus señales')
+  })
+
+  it('counts every pending Mercado Pago review bucket for the notification tone', () => {
+    const buckets = {
+      eligible: [{ candidateId: 'eligible' }],
+      cardPending: [{ candidateId: 'card' }],
+      unknown: [{ candidateId: 'unknown' }],
+    } as never
+
+    expect(pendingMercadoPagoReviewBucketCount(buckets)).toBe(3)
+    expect(toneWithOperationalReviews('none', false, pendingMercadoPagoReviewBucketCount(buckets) > 0)).toBe('watch')
   })
 
   it('removes the receipt CTA from Home and routes pending receipts through Signals', () => {

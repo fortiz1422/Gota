@@ -47,7 +47,7 @@ import {
   markSignalVersionsRead,
   toneWithOperationalReviews,
 } from '@/lib/intelligence/signals-read-state'
-import { classifyMercadoPagoMovements, type MercadoPagoMovement } from '@/lib/mercadopago/review'
+import { classifyMercadoPagoMovements, pendingMercadoPagoReviewBucketCount, type MercadoPagoMovement } from '@/lib/mercadopago/review'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { getHomeEmptyState } from '@/lib/home-empty-state'
 import { readPendingSharedReceipt, type PendingSharedReceipt } from '@/lib/share-target'
@@ -252,7 +252,8 @@ export function DashboardShell({
     staleTime: 30_000,
   })
   const mercadoPago = classifyMercadoPagoMovements(mercadoPagoQuery.data?.movements ?? [])
-  const notificationTone = toneWithOperationalReviews(signalsTone, pendingReceipts.length > 0, mercadoPago.eligible.length + mercadoPago.cardPending.length > 0)
+  const mercadoPagoPending = pendingMercadoPagoReviewBucketCount(mercadoPago)
+  const notificationTone = toneWithOperationalReviews(signalsTone, pendingReceipts.length > 0, mercadoPagoPending > 0)
 
   useEffect(() => {
     if (dashboardLoadedTrackedRef.current || !data) return
@@ -842,7 +843,7 @@ export function DashboardShell({
           loading={
             signalsQuery.isPending &&
             pendingReceipts.length === 0 &&
-            mercadoPago.eligible.length + mercadoPago.cardPending.length === 0
+            mercadoPagoPending === 0
           }
           error={signalsError}
           amountsVisible={amountsVisible}
