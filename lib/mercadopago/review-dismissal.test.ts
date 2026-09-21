@@ -1,7 +1,7 @@
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
-import { MercadoPagoReviewInbox, MercadoPagoReviewDetail } from '@/components/mercadopago/MercadoPagoReviewClient'
+import { getMercadoPagoFundingSourceLabel, MercadoPagoReviewInbox, MercadoPagoReviewDetail } from '@/components/mercadopago/MercadoPagoReviewClient'
 import { classifyMercadoPagoMovements, pendingMercadoPagoMovementCount, type MercadoPagoMovement } from './review'
 
 const movement = (reviewStatus: MercadoPagoMovement['reviewStatus']): MercadoPagoMovement => ({
@@ -69,5 +69,21 @@ describe('Mercado Pago review statuses', () => {
     expect(unknownHtml).toContain('No hay evidencia suficiente para registrarla automáticamente.')
     expect(unknownHtml).toContain('Esta operación todavía no se puede confirmar')
     expect(unknownHtml).not.toContain('Confirmar gasto')
+  })
+
+  it('only labels the funding source as Mercado Pago balance when provider evidence says so', () => {
+    const unknown = {
+      ...movement('pending'),
+      candidateId: 'sha256:unknown-funding',
+      fundingSource: undefined,
+    }
+    const observedBalance = {
+      ...movement('pending'),
+      candidateId: 'payment:balance-funding',
+      fundingSource: { kind: 'mercadopago_balance' },
+    }
+
+    expect(getMercadoPagoFundingSourceLabel(unknown)).toBe('Medio de pago no identificado')
+    expect(getMercadoPagoFundingSourceLabel(observedBalance)).toBe('Saldo de Mercado Pago')
   })
 })

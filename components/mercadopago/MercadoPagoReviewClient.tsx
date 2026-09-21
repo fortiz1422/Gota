@@ -38,7 +38,7 @@ type State = {
 type ReviewInboxProps = {
   buckets: ReturnType<typeof classifyMercadoPagoMovements>
   onOpen: (movement: MercadoPagoMovement) => void
-  onDismiss: (movement: MercadoPagoMovement) => void
+  onDismiss: (movement: MercadoPagoMovement, triggerElement?: HTMLElement) => void
 }
 
 function formatMoney(movement: MercadoPagoMovement) {
@@ -63,13 +63,18 @@ function formatObservedDate(value: string | null) {
   return new Date(value).toLocaleDateString('es-AR')
 }
 
-function fundingSource(movement: MercadoPagoMovement) {
-  if (movement.fundingSource?.kind !== 'card') return 'Saldo de Mercado Pago'
-  return `Pagado con tarjeta${
-    movement.fundingSource.lastFour
-      ? ` · •••• ${movement.fundingSource.lastFour}`
-      : ''
-  }`
+export function getMercadoPagoFundingSourceLabel(movement: MercadoPagoMovement) {
+  if (movement.fundingSource?.kind === 'mercadopago_balance') {
+    return 'Saldo de Mercado Pago'
+  }
+  if (movement.fundingSource?.kind === 'card') {
+    return `Pagado con tarjeta${
+      movement.fundingSource.lastFour
+        ? ` · •••• ${movement.fundingSource.lastFour}`
+        : ''
+    }`
+  }
+  return 'Medio de pago no identificado'
 }
 
 function AccountIcon({ type }: { type: Account['type'] }) {
@@ -93,7 +98,7 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
           {getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}
         </p>
         <p className="mt-1 text-sm text-text-secondary">
-          {formatMoney(movement)} · {formatObservedDate(movement.occurredAt)} · {fundingSource(movement)}
+          {formatMoney(movement)} · {formatObservedDate(movement.occurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}
         </p>
       </section>
       <p className="text-sm text-text-secondary">
@@ -131,9 +136,9 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
             <div key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Movimiento de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.balanceOccurredAt)} · {fundingSource(movement)}</span></span>
+                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Movimiento de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.balanceOccurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}</span></span>
               </button>
-              <button type="button" onClick={() => onDismiss(movement)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+              <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
             </div>
           ))}
           {buckets.eligible.length === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay débitos de saldo pendientes.</p>}
@@ -150,7 +155,7 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
               <p className="mt-2 text-xs text-text-secondary">{formatObservedDate(movement.occurredAt)} · Pagado con tarjeta / falta elegir tarjeta y ciclo</p>
               <div className="mt-3 flex gap-2">
                 <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
-                <button type="button" onClick={() => onDismiss(movement)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
               </div>
             </article>
           ))}
@@ -167,7 +172,7 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
                 <p className="mt-1 text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt)}</p>
                 <div className="mt-3 flex gap-2">
                   <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
-                  <button type="button" onClick={() => onDismiss(movement)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
+                  <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
                 </div>
               </article>
             ))}
@@ -198,6 +203,8 @@ export function MercadoPagoReviewClient() {
   const [dismissing, setDismissing] = useState(false)
   const [dismissError, setDismissError] = useState(false)
   const descriptionRef = useRef<HTMLInputElement>(null)
+  const dismissTriggerRef = useRef<HTMLElement | null>(null)
+  const dismissingRef = useRef(false)
   const movementsRequest = useRef(0)
   const accountsRequest = useRef(0)
 
@@ -317,22 +324,27 @@ export function MercadoPagoReviewClient() {
   }
 
   const dismiss = async () => {
-    if (!dismissed || dismissing) return
+    if (!dismissed || dismissingRef.current) return
+    dismissingRef.current = true
     setDismissing(true)
     setDismissError(false)
     try {
       const response = await fetch(`/api/integrations/mercadopago/movements/${encodeURIComponent(dismissed.candidateId)}/dismiss`, { method: 'POST' })
       if (!response.ok) throw new Error('dismissal failed')
+      resetReview()
       setDismissed(null)
       await load()
     } catch {
       setDismissError(true)
     } finally {
+      dismissingRef.current = false
       setDismissing(false)
     }
   }
 
-  const requestDismissal = (movement: MercadoPagoMovement) => {
+  const requestDismissal = (movement: MercadoPagoMovement, triggerElement?: HTMLElement) => {
+    if (dismissing) return
+    dismissTriggerRef.current = triggerElement ?? null
     setDismissError(false)
     setDismissed(movement)
   }
@@ -386,6 +398,7 @@ export function MercadoPagoReviewClient() {
         open={dismissed !== null}
         onClose={() => { if (!dismissing) setDismissed(null) }}
         onConfirm={() => void dismiss()}
+        triggerElement={dismissTriggerRef.current}
         title="Desestimar operación"
         description="Esta decisión queda guardada y la operación no se incorpora a tus movimientos financieros."
         confirmLabel="Desestimar"
@@ -418,8 +431,9 @@ export function MercadoPagoReviewClient() {
             </button>
             <button
               type="button"
-              onClick={() => selected && requestDismissal(selected)}
-              className="min-h-11 flex-1 rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger"
+              onClick={(event) => selected && requestDismissal(selected, event.currentTarget)}
+              disabled={dismissing || dismissed !== null}
+              className="min-h-11 flex-1 rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50"
             >
               Desestimar
             </button>
