@@ -55,8 +55,9 @@ interface ParsePreviewProps {
   onCancel: () => void
   onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<unknown>
   embedded?: boolean
-  aliasSource?: 'receipt' | 'parser'
+  aliasSource?: 'receipt' | 'parser' | 'mercadopago'
   confirmLabel?: string
+  immutableProviderEvidence?: boolean
 }
 
 type CounterpartyProfileOption = {
@@ -149,6 +150,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
+  immutableProviderEvidence = false,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -368,21 +370,24 @@ export function ParsePreview({
               type="number"
               inputMode="decimal"
               value={form.amount}
+              readOnly={immutableProviderEvidence}
               onChange={(e) => set('amount', Number(e.target.value))}
               className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((currency) => (
-                <button
-                  key={currency}
-                  onClick={() => set('currency', currency)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
-                  }`}
-                >
-                  {currency}
-                </button>
-              ))}
+              {immutableProviderEvidence
+                ? <span className="px-3 py-1.5 text-sm font-medium text-text-secondary">{form.currency}</span>
+                : (['ARS', 'USD'] as const).map((currency) => (
+                  <button
+                    key={currency}
+                    onClick={() => set('currency', currency)}
+                    className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
+                      form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                ))}
             </div>
           </div>
         </div>
@@ -556,6 +561,7 @@ export function ParsePreview({
           <input
             type="date"
             value={form.date}
+            readOnly={immutableProviderEvidence}
             onChange={(e) => set('date', e.target.value)}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           />

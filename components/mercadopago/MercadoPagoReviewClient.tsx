@@ -1,17 +1,15 @@
 'use client'
 
 import Link from 'next/link'
-import { useCallback, useEffect, useRef, useState, type FormEvent } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowClockwise,
-  Bank,
-  DeviceMobileSpeaker,
   Wallet,
 } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
-import { CATEGORIES } from '@/lib/validation/schemas'
+
 import {
   buildConfirmExpensePayload,
   classifyMercadoPagoMovements,
@@ -23,6 +21,8 @@ import {
   sortMercadoPagoPendingMovements,
   type MercadoPagoMovement,
 } from '@/lib/mercadopago/review'
+import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
+import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 
 type Account = {
   id: string
@@ -78,11 +78,6 @@ export function getMercadoPagoFundingSourceLabel(movement: MercadoPagoMovement) 
   return 'Medio de pago no identificado'
 }
 
-function AccountIcon({ type }: { type: Account['type'] }) {
-  if (type === 'cash') return <Wallet size={15} />
-  if (type === 'digital') return <DeviceMobileSpeaker size={15} />
-  return <Bank size={15} />
-}
 
 type MercadoPagoReviewDetailProps = {
   movement: MercadoPagoMovement
@@ -152,18 +147,11 @@ export function MercadoPagoReviewClient() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
-  const [accountsLoading, setAccountsLoading] = useState(false)
-  const [accountsError, setAccountsError] = useState(false)
-  const [description, setDescription] = useState('')
-  const [category, setCategory] = useState('')
-  const [isWant, setIsWant] = useState<boolean | null>(null)
-  const [accountId, setAccountId] = useState('')
-  const [submitError, setSubmitError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [dismissed, setDismissed] = useState<MercadoPagoMovement | null>(null)
   const [dismissing, setDismissing] = useState(false)
   const [dismissError, setDismissError] = useState(false)
-  const descriptionRef = useRef<HTMLInputElement>(null)
+  const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
   const dismissTriggerRef = useRef<HTMLElement | null>(null)
   const dismissingRef = useRef(false)
   const movementsRequest = useRef(0)
@@ -192,19 +180,11 @@ export function MercadoPagoReviewClient() {
     accountsRequest.current += 1
     setSelected(null)
     setAccounts([])
-    setAccountsLoading(false)
-    setAccountsError(false)
-    setDescription('')
-    setCategory('')
-    setIsWant(null)
-    setAccountId('')
-    setSubmitError(false)
+    setAliasMatch(null)
   }, [])
 
   const loadAccounts = useCallback(async () => {
     const request = ++accountsRequest.current
-    setAccountsLoading(true)
-    setAccountsError(false)
     setAccounts([])
 
     try {
@@ -222,9 +202,7 @@ export function MercadoPagoReviewClient() {
         ),
       )
     } catch {
-      if (request === accountsRequest.current) setAccountsError(true)
-    } finally {
-      if (request === accountsRequest.current) setAccountsLoading(false)
+      if (request === accountsRequest.current) setAccounts([])
     }
   }, [])
 
@@ -238,47 +216,48 @@ export function MercadoPagoReviewClient() {
 
   const open = (movement: MercadoPagoMovement) => {
     setSelected(movement)
-    setDescription(getInitialExpenseDescription(movement))
-    setCategory('')
-    setIsWant(null)
-    setAccountId('')
-    setSubmitError(false)
-    if (isReviewableMercadoPagoExpense(movement)) void loadAccounts()
+    setAliasMatch(null)
+    if (isReviewableMercadoPagoExpense(movement)) {
+      void loadAccounts()
+      void fetch('/api/counterparty-aliases/resolve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alias_value: getInitialExpenseDescription(movement) }),
+      }).then(async (response) => {
+        if (!response.ok) return null
+        const body = await response.json() as { match?: CounterpartyAliasMatch | null }
+        return body.match ?? null
+      }).then((match) => setAliasMatch(match)).catch(() => undefined)
+    }
   }
 
-  const confirm = async (event: FormEvent) => {
-    event.preventDefault()
-    if (
-      !selected ||
-      !isReviewableMercadoPagoExpense(selected) ||
-      !description.trim() ||
-      !category ||
-      isWant === null ||
-      !accountId ||
-      accountsLoading ||
-      accountsError
-    ) {
-      return
-    }
-
+  const confirm = async (payload: ParsePreviewConfirmPayload) => {
+    if (!selected || !isReviewableMercadoPagoExpense(selected)) throw new Error('ineligible')
     setSubmitting(true)
-    setSubmitError(false)
     try {
       const response = await fetch(
         `/api/integrations/mercadopago/movements/${encodeURIComponent(selected.candidateId)}/confirm-expense`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(
-            buildConfirmExpensePayload({ description, category, isWant, accountId }),
-          ),
+          body: JSON.stringify(buildConfirmExpensePayload({
+            description: payload.description,
+            category: payload.category,
+            isWant: payload.is_want === true,
+            accountId: payload.account_id ?? '',
+          })),
         },
       )
       if (!response.ok) throw new Error('confirmation failed')
+      const next = sortMercadoPagoPendingMovements(
+        (state?.movements ?? []).filter((movement) => movement.candidateId !== selected.candidateId),
+      )[0]
       resetReview()
       await load()
+      if (next) open(next)
+      return await response.json()
     } catch {
-      setSubmitError(true)
+      throw new Error('confirmation failed')
     } finally {
       setSubmitting(false)
     }
@@ -414,117 +393,30 @@ export function MercadoPagoReviewClient() {
         description="Completá los datos para registrar este débito observado."
         appearance="compact"
         canvasTone="standard"
-        initialFocusRef={descriptionRef}
-        footer={(
-          <button
-            type="submit"
-            form="mp-review-form"
-            disabled={
-              submitting ||
-              accountsLoading ||
-              accountsError ||
-              !description.trim() ||
-              !category ||
-              isWant === null ||
-              !accountId ||
-              accounts.length === 0
-            }
-            className="min-h-11 w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50"
-          >
-            {submitting ? 'Registrando…' : 'Confirmar gasto'}
-          </button>
-        )}
       >
-        <form id="mp-review-form" onSubmit={confirm} className="space-y-5">
-          <section className="rounded-input border border-border-subtle bg-primary/[0.03] p-4">
-            <p className="type-micro text-text-secondary">EVIDENCIA OBSERVADA</p>
-            <p className="mt-3 text-sm font-semibold">
-              {selected ? getDisplayExpenseDescription(selected) || 'Movimiento de Mercado Pago' : ''}
-            </p>
-            <p className="mt-1 text-sm text-text-secondary">
-              {selected
-                ? `${formatMoney(selected)} · ${formatObservedDate(selected.balanceOccurredAt)} · Saldo de Mercado Pago`
-                : ''}
-            </p>
-          </section>
-
-          <label className="block text-sm font-semibold">
-            Descripción
-            <input
-              ref={descriptionRef}
-              required
-              value={description}
-              onChange={(event) => setDescription(event.target.value)}
-              className="mt-2 w-full rounded-input border border-border-subtle bg-white px-4 py-3 text-sm"
-            />
-          </label>
-
-          <label className="block text-sm font-semibold">
-            Categoría
-            <select
-              required
-              value={category}
-              onChange={(event) => setCategory(event.target.value)}
-              className="mt-2 min-h-11 w-full rounded-input border border-border-subtle bg-white px-4 text-sm"
-            >
-              <option value="">Elegí una categoría</option>
-              {CATEGORIES.filter((item) => item !== 'Pago de Tarjetas').map((item) => (
-                <option key={item} value={item}>{item}</option>
-              ))}
-            </select>
-          </label>
-
-          <fieldset>
-            <legend className="text-sm font-semibold">Necesidad o deseo</legend>
-            <div className="mt-2 flex gap-2">
-              <button type="button" onClick={() => setIsWant(false)} aria-pressed={isWant === false} className="min-h-11 rounded-button border px-4 text-sm">Necesidad</button>
-              <button type="button" onClick={() => setIsWant(true)} aria-pressed={isWant === true} className="min-h-11 rounded-button border px-4 text-sm">Deseo</button>
-            </div>
-          </fieldset>
-
-          <fieldset>
-            <legend className="text-sm font-semibold">Cuenta</legend>
-            <p className="mt-1 text-xs text-text-secondary">
-              Elegí la cuenta de Gota que representa tu saldo de Mercado Pago.
-            </p>
-            {accountsLoading && <p role="status" className="mt-2 text-sm text-text-secondary">Cargando cuentas…</p>}
-            {accountsError && (
-              <div role="alert" className="mt-2 rounded-input bg-danger-soft p-3 text-sm text-danger">
-                <p>No pudimos cargar las cuentas. No confirmamos el gasto sin que elijas su origen.</p>
-                <button
-                  type="button"
-                  onClick={() => selected && void loadAccounts()}
-                  className="mt-2 min-h-11 font-semibold underline"
-                >
-                  Reintentar cuentas
-                </button>
-              </div>
-            )}
-            {!accountsLoading && !accountsError && accounts.length === 0 && (
-              <p className="mt-2 text-sm text-text-secondary">No hay cuentas activas disponibles.</p>
-            )}
-            <div className="mt-2 flex flex-wrap gap-2">
-              {accounts.map((account) => (
-                <button
-                  key={account.id}
-                  type="button"
-                  onClick={() => setAccountId(account.id)}
-                  aria-pressed={accountId === account.id}
-                  className="inline-flex min-h-11 items-center gap-2 rounded-button border px-3 text-sm"
-                >
-                  <AccountIcon type={account.type} />
-                  {account.name}
-                </button>
-              ))}
-            </div>
-          </fieldset>
-
-          {submitError && (
-            <p role="alert" className="text-sm text-danger">
-              No pudimos registrar el gasto. Revisá los datos e intentá de nuevo.
-            </p>
-          )}
-        </form>
+        {selected && <ParsePreview
+          key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
+          data={{
+            amount: Math.abs(selected.balanceImpact.amount.value ?? 0),
+            currency: selected.balanceImpact.amount.currency === 'USD' ? 'USD' : 'ARS',
+            category: aliasMatch?.default_category ?? '',
+            description: getInitialExpenseDescription(selected),
+            is_want: false,
+            payment_method: 'DEBIT',
+            card_id: null,
+            date: selected.balanceOccurredAt ?? '',
+            detected_alias: getInitialExpenseDescription(selected),
+            alias_match: aliasMatch,
+          }}
+          cards={[]}
+          accounts={accounts}
+          onConfirm={confirm}
+          onSave={() => undefined}
+          onCancel={resetReview}
+          aliasSource="mercadopago"
+          immutableProviderEvidence
+          embedded
+        />}
       </TaskSurface>
     </main>
   )

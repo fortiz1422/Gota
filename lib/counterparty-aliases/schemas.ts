@@ -4,7 +4,7 @@ import { normalizeCounterpartyAlias } from './normalize'
 
 const DisplayName = z.string().trim().min(1).max(100)
 const DefaultCategory = z.enum(CATEGORIES).nullable().optional()
-const AliasSource = z.enum(['manual', 'receipt', 'parser'])
+const AliasSource = z.enum(['manual', 'receipt', 'parser', 'mercadopago'])
 const AliasValue = z.string().trim().min(1).max(160)
 
 export const ProfileCreateSchema = z.object({
