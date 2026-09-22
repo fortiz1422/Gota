@@ -1,4 +1,5 @@
 import { observationNativeKey, type RawObservation } from './raw-observation'
+import { windowFromDates, type SyncWindow } from './sync-window'
 
 const API = 'https://api.mercadopago.com'
 const DAY = 24 * 60 * 60 * 1000
@@ -73,12 +74,13 @@ function dateWindow(beginDate: Date, endDate: Date): SettlementReportWindow {
   return { beginDate: beginDate.toISOString().slice(0, 10), endDate: endDate.toISOString().slice(0, 10), beginTimestamp, endTimestamp }
 }
 
-export function buildSettlementReportWindows(now: Date): SettlementReportWindow[] {
-  const lastDay = argentinaDate(now)
-  const firstDay = new Date(lastDay.getTime() - 89 * DAY)
-  return [0, 1, 2].map((chunk) => {
+export function buildSettlementReportWindows(now: Date, requestedWindow?: SyncWindow): SettlementReportWindow[] {
+  const lastDay = requestedWindow ? new Date(`${requestedWindow.endDate}T00:00:00.000Z`) : argentinaDate(now)
+  const firstDay = requestedWindow ? new Date(`${requestedWindow.beginDate}T00:00:00.000Z`) : new Date(lastDay.getTime() - 89 * DAY)
+  const chunkCount = Math.ceil((lastDay.getTime() - firstDay.getTime() + DAY) / (30 * DAY))
+  return Array.from({ length: chunkCount }, (_, chunk) => {
     const begin = new Date(firstDay.getTime() + chunk * 30 * DAY)
-    const end = new Date(begin.getTime() + 29 * DAY)
+    const end = new Date(Math.min(begin.getTime() + 29 * DAY, lastDay.getTime()))
     return dateWindow(begin, end)
   })
 }
@@ -163,10 +165,11 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
   console.error('mercadopago_settlement_report_error', JSON.stringify(diagnostic))
 }
 
-export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
+export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
-    const windows = buildSettlementReportWindows(now)
+    const effectiveWindow = window ?? windowFromDates(new Date(now.getTime() - 89 * DAY), now, 'custom')
+    const windows = buildSettlementReportWindows(now, effectiveWindow)
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
