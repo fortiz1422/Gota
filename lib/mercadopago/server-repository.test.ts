@@ -48,7 +48,7 @@ describe('Mercado Pago server repository', () => {
     await repository.getMercadoPagoConnection('user-1')
 
     expect(fake.database.from).toHaveBeenCalledWith('mercadopago_connections')
-    expect(fake.calls).toContainEqual({ method: 'select', args: ['id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at'] })
+    expect(fake.calls).toContainEqual({ method: 'select', args: ['id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at,linked_account_id,linked_account_version'] })
     expect(fake.calls.filter((call) => call.method === 'eq')).toEqual([
       { method: 'eq', args: ['user_id', 'user-1'] },
       { method: 'eq', args: ['provider', 'mercadopago'] },

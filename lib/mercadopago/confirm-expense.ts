@@ -14,8 +14,8 @@ export function buildCanonicalSemantics() {
   return { classification: 'human_confirmed_expense', provider_effect: 'balance_debit' } as const
 }
 
-export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean; accountId: string }) {
-  return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant, accountId: input.accountId }))
+export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean }) {
+  return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant }))
 }
 
 export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnection, observations: MercadoPagoMovementObservation[]) {

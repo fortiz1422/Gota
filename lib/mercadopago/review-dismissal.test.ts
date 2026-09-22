@@ -50,10 +50,10 @@ describe('Mercado Pago review statuses', () => {
     }))
 
     expect(html).toContain('Pendientes')
-    expect(html).toContain('Una lista cronológica')
-    expect(html).toContain('sólo evidencia 2')
+    expect(html).toContain('Ordenadas por fecha')
     expect(html).toContain('Revisar')
-    expect(html).toContain('Desestimar')
+    expect(html).not.toContain('Desestimar seleccionadas')
+    expect(html).not.toContain('Seleccionar anteriores a')
     expect(html).not.toContain('No hay operaciones pendientes para revisar.')
   })
 
@@ -72,10 +72,10 @@ describe('Mercado Pago review statuses', () => {
     const cardHtml = renderToStaticMarkup(createElement(MercadoPagoReviewDetail, { movement: card }))
     const unknownHtml = renderToStaticMarkup(createElement(MercadoPagoReviewDetail, { movement: unknown }))
 
-    expect(cardHtml).toContain('Falta elegir tarjeta y ciclo')
+    expect(cardHtml).toContain('Todavía no disponible para registrar con la información disponible.')
     expect(cardHtml).toContain('Esta operación todavía no se puede confirmar')
     expect(cardHtml).not.toContain('Confirmar gasto')
-    expect(unknownHtml).toContain('No hay evidencia suficiente para registrarla automáticamente.')
+    expect(unknownHtml).toContain('Todavía no disponible para registrar: no hay evidencia suficiente.')
     expect(unknownHtml).toContain('Esta operación todavía no se puede confirmar')
     expect(unknownHtml).not.toContain('Confirmar gasto')
   })

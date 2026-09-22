@@ -28,8 +28,8 @@ vi.mock('@/lib/mercadopago/confirm-expense', () => ({
 
 import { POST } from '@/app/api/integrations/mercadopago/movements/[candidateId]/confirm-expense/route'
 
-const accountId = '00000000-0000-4000-8000-000000000011'
-const body = { description: '  Shell  ', category: 'Alimentos', isWant: false, accountId }
+const linkedAccountId = '00000000-0000-4000-8000-000000000011'
+const body = { description: '  Shell  ', category: 'Alimentos', isWant: false, expectedLinkedAccountId: linkedAccountId, expectedLinkedAccountVersion: 4 }
 const candidate = {
   candidateId: 'sha256:candidate',
   balanceOccurredAt: '2026-09-15T11:00:00.000Z',
@@ -61,8 +61,8 @@ describe('Mercado Pago confirm expense route', () => {
     expect(mocks.getConnection).not.toHaveBeenCalled()
   })
 
-  it('rejects strict body fields before repository reads', async () => {
-    expect((await post({ ...body, amount: 5500, date: '2026-09-15', currency: 'ARS' })).status).toBe(422)
+  it('rejects strict body fields including hostile accountId before repository reads', async () => {
+    expect((await post({ ...body, amount: 5500, accountId: linkedAccountId })).status).toBe(422)
     expect(mocks.getConnection).not.toHaveBeenCalled()
   })
 
@@ -89,7 +89,8 @@ describe('Mercado Pago confirm expense route', () => {
       p_candidate_fingerprint: 'f'.repeat(64), p_intent_hash: 'i'.repeat(64),
       p_expected_observations: [{ id: 'raw-1', source: 'account_settlement_report', native_key: 'native-1', last_seen_at: '2026-09-16T00:00:00.000Z' }],
       p_amount: 5500, p_currency: 'ARS', p_date: '2026-09-15',
-      p_category: 'Alimentos', p_description: 'Shell', p_is_want: false, p_account_id: accountId,
+      p_category: 'Alimentos', p_description: 'Shell', p_is_want: false,
+      p_expected_linked_account_id: linkedAccountId, p_expected_linked_account_version: 4,
     }))
   })
 

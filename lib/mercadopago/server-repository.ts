@@ -7,6 +7,8 @@ import type { RawObservation } from './raw-observation'
 type Result<T> = { data: T | null; error: unknown }
 export type MercadoPagoConnection = {
   id: string
+  linked_account_id: string | null
+  linked_account_version: number
   provider_user_id: string | null
   status: 'connected' | 'expired' | 'error' | 'revoked'
   access_token_ciphertext: string | null
@@ -48,7 +50,7 @@ export function createMercadoPagoRepository(database: MercadoPagoDatabase) {
     },
 
     async getMercadoPagoConnection(userId: string): Promise<MercadoPagoConnection | null> {
-      const result = await database.from<MercadoPagoConnection>('mercadopago_connections').select('id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at').eq('user_id', userId).eq('provider', 'mercadopago').maybeSingle()
+      const result = await database.from<MercadoPagoConnection>('mercadopago_connections').select('id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at,linked_account_id,linked_account_version').eq('user_id', userId).eq('provider', 'mercadopago').maybeSingle()
       if (result.error) throw new Error('connection_read_failed')
       return result.data
     },

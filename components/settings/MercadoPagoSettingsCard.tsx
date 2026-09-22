@@ -1,13 +1,21 @@
 'use client'
 
 import Link from 'next/link'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { ArrowsClockwise, ArrowSquareOut, Wallet } from '@phosphor-icons/react'
 import { getMercadoPagoValidationMessage } from '@/lib/mercadopago/sync-presentation'
 
 type Source = { status: 'success' | 'error' | 'pending' | 'not_run'; count: number; observedInRun?: number; lastCompleteDate?: string | null }
 type State = { state: 'not_connected' | 'connected' | 'error'; lastSyncAt: string | null; sources: { payments: Source; reports: Source }; sinceLastFullSync?: { available: boolean; beginDate: string | null } }
-function sourceLabel(source: Source) { if (source.status === 'not_run') return 'Todavía sin validación'; if (source.status === 'error') return 'No disponible'; if (source.status === 'pending') return 'Preparando movimientos…'; return `Validada · ${source.count}` }
+
+type AccountLink = { linkedAccountId: string | null; linkedAccountVersion: number; accounts: Array<{ id: string; name: string }> }
+
+function sourceLabel(source: Source) {
+  if (source.status === 'not_run') return 'Todavía sin validación'
+  if (source.status === 'error') return 'No disponible'
+  if (source.status === 'pending') return 'Preparando movimientos…'
+  return `Validada · ${source.count}`
+}
 
 export function MercadoPagoSettingsCard() {
   const [state, setState] = useState<State | null>(null)
@@ -17,23 +25,139 @@ export function MercadoPagoSettingsCard() {
   const [preset, setPreset] = useState('7d')
   const [beginDate, setBeginDate] = useState('')
   const [endDate, setEndDate] = useState('')
+  const [accountLink, setAccountLink] = useState<AccountLink | null>(null)
+  const [linkedAccountId, setLinkedAccountId] = useState('')
+  const [linkLoading, setLinkLoading] = useState(true)
+  const [linkError, setLinkError] = useState(false)
+
   const load = async () => {
     setError(false)
-    try { const response = await fetch('/api/integrations/mercadopago/sync', { cache: 'no-store' }); if (!response.ok) throw new Error(); setState(await response.json() as State) } catch { setError(true) }
+    try {
+      const response = await fetch('/api/integrations/mercadopago/sync', { cache: 'no-store' })
+      if (!response.ok) throw new Error()
+      setState(await response.json() as State)
+    } catch {
+      setError(true)
+    }
   }
-  useEffect(() => { void load() }, [])
+
+  const loadLink = useCallback(async () => {
+    setLinkLoading(true)
+    setLinkError(false)
+    try {
+      const response = await fetch('/api/integrations/mercadopago/account-link', { cache: 'no-store' })
+      if (!response.ok) throw new Error()
+      const link = await response.json() as AccountLink
+      setAccountLink(link)
+      setLinkedAccountId(link.linkedAccountId ?? '')
+    } catch {
+      setAccountLink(null)
+      setLinkedAccountId('')
+      setLinkError(true)
+    } finally {
+      setLinkLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { void load(); void loadLink() }, [loadLink])
+
+  const saveLink = async () => {
+    if (!linkedAccountId) return
+    setBusy(true)
+    setLinkError(false)
+    try {
+      const response = await fetch('/api/integrations/mercadopago/account-link', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ accountId: linkedAccountId }),
+      })
+      if (!response.ok) throw new Error()
+      await loadLink()
+      setMessage('La cuenta elegida se usará sólo para confirmaciones nuevas.')
+    } catch {
+      setLinkError(true)
+      setMessage('No pudimos guardar la cuenta elegida.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
   const sync = async () => {
-    setBusy(true); setMessage(null)
-    try { const payload = preset === 'custom' ? { preset, beginDate, endDate } : { preset }; const response = await fetch('/api/integrations/mercadopago/sync', { method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }); const result = await response.json() as Pick<State, 'sources'> & { range?: { beginDate: string; endDate: string } }; if (!response.ok) throw new Error(); setMessage(`${getMercadoPagoValidationMessage(result.sources)}${result.range ? ` Rango: ${result.range.beginDate} a ${result.range.endDate}.` : ''}`); await load() } catch { setMessage('No se pudo validar ese rango.') } finally { setBusy(false) }
+    setBusy(true)
+    setMessage(null)
+    try {
+      const payload = preset === 'custom' ? { preset, beginDate, endDate } : { preset }
+      const response = await fetch('/api/integrations/mercadopago/sync', {
+        method: 'POST', cache: 'no-store', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload),
+      })
+      const result = await response.json() as Pick<State, 'sources'> & { range?: { beginDate: string; endDate: string } }
+      if (!response.ok) throw new Error()
+      setMessage(`${getMercadoPagoValidationMessage(result.sources)}${result.range ? ` Rango: ${result.range.beginDate} a ${result.range.endDate}.` : ''}`)
+      await load()
+    } catch {
+      setMessage('No se pudo validar ese rango.')
+    } finally {
+      setBusy(false)
+    }
   }
+
   const current = state?.state ?? 'not_connected'
-  return <section className="mt-8" aria-labelledby="mercadopago-title"><div className="card-s5 p-4"><div className="flex items-start gap-3"><Wallet size={22} className="text-primary" /><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-3"><div><h3 id="mercadopago-title" className="text-[14px] font-bold">Mercado Pago</h3><p className="mt-1 text-[12px] text-text-tertiary">Conexión y sincronización de tus fuentes de Mercado Pago.</p></div><span className="rounded-[20px] bg-bg-secondary px-2.5 py-1 text-[11px] font-semibold">{current === 'connected' ? 'Conectado' : current === 'error' ? 'Con error' : 'No conectado'}</span></div>
-    {state === null && !error && <p className="mt-3 text-[12px] text-text-secondary">Cargando estado de conexión…</p>}
-    {error && <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-error"><span>No pudimos cargar el estado.</span><button type="button" onClick={() => void load()} className="min-h-11 font-semibold underline">Reintentar</button></div>}
-    {state?.lastSyncAt && <p className="mt-3 text-[12px] text-text-secondary">Última sincronización: {new Date(state.lastSyncAt).toLocaleString('es-AR')}</p>}
-    <div className="mt-3 overflow-hidden rounded-lg border border-border-ocean"><div className="grid grid-cols-2 border-b border-border-ocean px-3 py-2 text-[11px] font-semibold"><span>Fuente</span><span>Estado · cantidad</span></div><div className="grid grid-cols-2 px-3 py-2 text-[12px]"><span>Movimientos</span><span>{state ? sourceLabel(state.sources.payments) : '—'}</span></div><div className="grid grid-cols-2 border-t border-border-ocean px-3 py-2 text-[12px]"><span>Saldo disponible</span><span>{state ? sourceLabel(state.sources.reports) : '—'}</span></div></div>
-    {current !== 'not_connected' && <div className="mt-4 space-y-2"><label className="block text-[12px] font-semibold" htmlFor="mercadopago-sync-range">Período de consulta</label><select id="mercadopago-sync-range" value={preset} onChange={(event) => setPreset(event.target.value)} className="min-h-11 w-full rounded-button border border-border-ocean bg-white px-3 text-[13px]"><option value="7d">Últimos 7 días</option><option value="30d">Últimos 30 días</option><option value="60d">Últimos 60 días</option>{state?.sinceLastFullSync?.available && <option value="since_last_full_sync">Desde última sincronización completa ({state.sinceLastFullSync.beginDate})</option>}<option value="custom">Rango personalizado</option></select>{preset === 'custom' && <div className="grid grid-cols-2 gap-2"><label className="text-[12px]">Desde<input type="date" value={beginDate} onChange={(event) => setBeginDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border-ocean px-2" /></label><label className="text-[12px]">Hasta<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border-ocean px-2" /></label></div>}<div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => void sync()} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-50"><ArrowsClockwise size={14} />{busy ? 'Preparando…' : 'Sincronizar ahora'}</button><Link href="/mercadopago/review" className="inline-flex min-h-11 items-center rounded-button px-2 text-[13px] font-semibold text-primary underline-offset-2 hover:underline">Revisar operaciones</Link></div></div>}
-    {current === 'not_connected' && <div className="mt-4 flex flex-wrap items-center gap-3"><Link href="/api/integrations/mercadopago/connect" className="inline-flex min-h-11 items-center gap-2 rounded-button bg-primary px-4 text-[13px] font-semibold text-white"><ArrowSquareOut size={14} />Conectar Mercado Pago</Link></div>}
-    {message && <p className="mt-3 text-[12px] text-text-secondary" role="status">{message}</p>}
-  </div></div></div></section>
+  return (
+    <section className="mt-8" aria-labelledby="mercadopago-title">
+      <div className="card-s5 p-4">
+        <div className="flex items-start gap-3">
+          <Wallet size={22} className="text-primary" />
+          <div className="min-w-0 flex-1">
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 id="mercadopago-title" className="text-[14px] font-bold">Mercado Pago</h3>
+                <p className="mt-1 text-[12px] text-text-tertiary">Conexión y sincronización de tus fuentes de Mercado Pago.</p>
+              </div>
+              <span className="rounded-[20px] bg-bg-secondary px-2.5 py-1 text-[11px] font-semibold">{current === 'connected' ? 'Conectado' : current === 'error' ? 'Con error' : 'No conectado'}</span>
+            </div>
+            {state === null && !error && <p className="mt-3 text-[12px] text-text-secondary">Cargando estado de conexión…</p>}
+            {error && <div className="mt-3 flex items-center justify-between gap-3 text-[12px] text-error"><span>No pudimos cargar el estado.</span><button type="button" onClick={() => void load()} className="min-h-11 font-semibold underline">Reintentar</button></div>}
+            {state?.lastSyncAt && <p className="mt-3 text-[12px] text-text-secondary">Última sincronización: {new Date(state.lastSyncAt).toLocaleString('es-AR')}</p>}
+
+            <details className="mt-4 border-t border-border-subtle pt-3">
+              <summary className="cursor-pointer text-[12px] font-semibold text-text-secondary">Fuentes y detalle de validación</summary>
+              <div className="mt-3 overflow-hidden rounded-lg border border-border-ocean">
+                <div className="grid grid-cols-2 border-b border-border-ocean px-3 py-2 text-[11px] font-semibold"><span>Fuente</span><span>Estado · cantidad</span></div>
+                <div className="grid grid-cols-2 px-3 py-2 text-[12px]"><span>Movimientos</span><span>{state ? sourceLabel(state.sources.payments) : '—'}</span></div>
+                <div className="grid grid-cols-2 border-t border-border-ocean px-3 py-2 text-[12px]"><span>Saldo disponible</span><span>{state ? sourceLabel(state.sources.reports) : '—'}</span></div>
+              </div>
+            </details>
+
+            {current === 'connected' && <section className="mt-4 border-t border-border-subtle pt-4" aria-labelledby="mercadopago-account-title">
+              <p id="mercadopago-account-title" className="text-[11px] font-bold uppercase tracking-wide text-text-tertiary">Cuenta vinculada</p>
+              <div className="mt-3 rounded-lg border border-border-ocean p-3">
+                <label htmlFor="mercadopago-linked-account" className="block text-[12px] font-semibold">Cuenta que representa tu saldo de Mercado Pago</label>
+                <p className="mt-1 text-[12px] text-text-secondary">Elegila explícitamente. Los cambios sólo aplican a confirmaciones futuras.</p>
+                {linkLoading && <p className="mt-2 text-[12px] text-text-secondary" role="status">Cargando cuentas elegibles…</p>}
+                {linkError && <div className="mt-2 flex items-center justify-between gap-3 text-[12px] text-error" role="alert"><span>No pudimos cargar el vínculo.</span><button type="button" onClick={() => void loadLink()} className="min-h-11 font-semibold underline">Reintentar</button></div>}
+                {!linkLoading && !linkError && <>
+                  <select id="mercadopago-linked-account" value={linkedAccountId} onChange={(event) => setLinkedAccountId(event.target.value)} className="mt-3 min-h-11 w-full rounded-button border border-border-ocean bg-white px-3 text-[13px]"><option value="">Elegí una cuenta digital</option>{accountLink?.accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}</select>
+                  {accountLink?.accounts.length === 0 && <p className="mt-2 text-[12px] text-text-secondary">No tenés cuentas digitales activas para vincular.</p>}
+                  <div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" onClick={() => void saveLink()} disabled={busy || !linkedAccountId || linkedAccountId === accountLink?.linkedAccountId} className="min-h-11 rounded-button bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-50">{busy ? 'Guardando…' : 'Guardar cuenta'}</button><Link href="/web/settings?section=cuentas" className="min-h-11 py-3 text-[13px] font-semibold text-primary underline">Gestionar cuentas</Link></div>
+                  {accountLink?.linkedAccountId && <p className="mt-2 text-[12px] text-text-secondary">Vínculo actual: {accountLink.accounts.find((account) => account.id === accountLink.linkedAccountId)?.name ?? 'cuenta digital'}</p>}
+                </>}
+              </div>
+            </section>}
+
+            {current !== 'not_connected' && <section className="mt-4 border-t border-border-subtle pt-4" aria-labelledby="mercadopago-sync-title">
+              <p id="mercadopago-sync-title" className="text-[11px] font-bold uppercase tracking-wide text-text-tertiary">Sincronización</p>
+              <div className="mt-3 space-y-2">
+                <label className="block text-[12px] font-semibold" htmlFor="mercadopago-sync-range">Período de consulta</label>
+                <select id="mercadopago-sync-range" value={preset} onChange={(event) => setPreset(event.target.value)} className="min-h-11 w-full rounded-button border border-border-ocean bg-white px-3 text-[13px]"><option value="7d">Últimos 7 días</option><option value="30d">Últimos 30 días</option><option value="60d">Últimos 60 días</option>{state?.sinceLastFullSync?.available && <option value="since_last_full_sync">Desde última sincronización completa ({state.sinceLastFullSync.beginDate})</option>}<option value="custom">Rango personalizado</option></select>
+                {preset === 'custom' && <div className="grid grid-cols-2 gap-2"><label className="text-[12px]">Desde<input type="date" value={beginDate} onChange={(event) => setBeginDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border-ocean px-2" /></label><label className="text-[12px]">Hasta<input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="mt-1 min-h-11 w-full rounded-button border border-border-ocean px-2" /></label></div>}
+                <div className="flex flex-wrap items-center gap-3"><button type="button" onClick={() => void sync()} disabled={busy} className="inline-flex min-h-11 items-center gap-2 rounded-button bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-50"><ArrowsClockwise size={14} />{busy ? 'Preparando…' : 'Sincronizar ahora'}</button><Link href="/mercadopago/review" className="inline-flex min-h-11 items-center rounded-button px-2 text-[13px] font-semibold text-primary underline-offset-2 hover:underline">Revisar operaciones</Link></div>
+              </div>
+            </section>}
+            {current === 'not_connected' && <div className="mt-4 flex flex-wrap items-center gap-3"><Link href="/api/integrations/mercadopago/connect" className="inline-flex min-h-11 items-center gap-2 rounded-button bg-primary px-4 text-[13px] font-semibold text-white"><ArrowSquareOut size={14} />Conectar Mercado Pago</Link></div>}
+            {message && <p className="mt-3 text-[12px] text-text-secondary" role="status">{message}</p>}
+          </div>
+        </div>
+      </div>
+    </section>
+  )
 }

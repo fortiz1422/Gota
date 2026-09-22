@@ -11,7 +11,7 @@ export type MercadoPagoMovement = {
   reviewSnapshot?: { fingerprint: string; observations: Array<{ id: string; source: string; key: string | null; seenAt: string }> }
 }
 export type MercadoPagoDiagnostic = MercadoPagoMovement
-export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; accountId: string }
+export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; expectedLinkedAccountId: string; expectedLinkedAccountVersion: number }
 export type MercadoPagoReviewBuckets = { eligible: MercadoPagoMovement[]; cardPending: MercadoPagoMovement[]; unknown: MercadoPagoMovement[] }
 export type MercadoPagoReviewCapability = { mode: 'confirmable' | 'evidence-only'; reason: 'complete_balance_debit' | 'card_funding_incomplete' | 'financial_class_unresolved' }
 
@@ -71,7 +71,7 @@ export function pendingMercadoPagoMovementCount(movements: readonly MercadoPagoM
 export function pendingMercadoPagoReviewBucketCount(buckets: MercadoPagoReviewBuckets) {
   return buckets.eligible.length + buckets.cardPending.length + buckets.unknown.length
 }
-export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload { return { description: input.description.trim(), category: input.category, isWant: input.isWant, accountId: input.accountId } }
+export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload { return { description: input.description.trim(), category: input.category, isWant: input.isWant, expectedLinkedAccountId: input.expectedLinkedAccountId, expectedLinkedAccountVersion: input.expectedLinkedAccountVersion } }
 
 export function getArgentinaBusinessDate(value: string | null) {
   if (!value || !Number.isFinite(Date.parse(value))) return null

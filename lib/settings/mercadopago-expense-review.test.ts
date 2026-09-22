@@ -108,13 +108,15 @@ describe('Mercado Pago expense review contract', () => {
         description: '  Shell  ',
         category: 'Alimentos',
         isWant: false,
-        accountId: 'account-1',
+        expectedLinkedAccountId: 'account-1',
+        expectedLinkedAccountVersion: 1,
       })
     ).toEqual({
       description: 'Shell',
       category: 'Alimentos',
       isWant: false,
-      accountId: 'account-1',
+      expectedLinkedAccountId: 'account-1',
+      expectedLinkedAccountVersion: 1,
     })
   })
 })

@@ -7,7 +7,7 @@ import { getMercadoPagoConnection, getMercadoPagoMovementObservations } from '@/
 import { buildCanonicalSemantics, buildConfirmationIntentHash, candidateFingerprint, eligibleMercadoPagoExpense, expectedObservations, reconstructMercadoPagoCandidates } from '@/lib/mercadopago/confirm-expense'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
-const bodySchema = z.object({ description: z.string().trim().min(1).max(100), category: z.enum(CATEGORIES), isWant: z.boolean(), accountId: z.string().uuid() }).strict()
+const bodySchema = z.object({ description: z.string().trim().min(1).max(100), category: z.enum(CATEGORIES), isWant: z.boolean(), expectedLinkedAccountId: z.string().uuid(), expectedLinkedAccountVersion: z.number().int().nonnegative() }).strict()
 const json = (body: unknown, status: number) => NextResponse.json(body, { status, headers })
 
 type Params = { params: Promise<{ candidateId: string }> }
@@ -37,7 +37,8 @@ export async function POST(request: Request, { params }: Params) {
       p_expected_observations: expectedObservations(candidate),
       p_amount: amount, p_currency: currency, p_date: date,
       p_category: parsed.category, p_description: parsed.description, p_is_want: parsed.isWant,
-      p_account_id: parsed.accountId, p_evidence_kind: 'balance_debit_known', p_canonical_semantics: semantics,
+      p_expected_linked_account_id: parsed.expectedLinkedAccountId, p_expected_linked_account_version: parsed.expectedLinkedAccountVersion,
+      p_evidence_kind: 'balance_debit_known', p_canonical_semantics: semantics,
     })
     if (error || !data) {
       const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : ''

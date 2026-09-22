@@ -58,6 +58,7 @@ interface ParsePreviewProps {
   aliasSource?: 'receipt' | 'parser' | 'mercadopago'
   confirmLabel?: string
   immutableProviderEvidence?: boolean
+  fixedAccount?: { id: string; name: string } | null
 }
 
 type CounterpartyProfileOption = {
@@ -150,7 +151,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
-  immutableProviderEvidence = false,
+  immutableProviderEvidence = false, fixedAccount = null,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -159,7 +160,7 @@ export function ParsePreview({
     is_recurring: data.is_recurring ?? false,
     is_extraordinary: data.is_extraordinary ?? false,
   })
-  const [source, setSource] = useState<SourceKey>(() => getDefaultSource(data, accounts))
+  const [source, setSource] = useState<SourceKey>(() => fixedAccount?.id ?? getDefaultSource(data, accounts))
   const [installments, setInstallments] = useState(data.installments ?? 1)
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -411,7 +412,8 @@ export function ParsePreview({
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             De donde sale
           </label>
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
+          <div className={fixedAccount ? 'hidden' : 'flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
             {bankDigital.map((account) => (
               <button
                 key={account.id}

@@ -8,8 +8,8 @@ describe('Mercado Pago expense confirmation canonical contract', () => {
     expect(candidateFingerprint({ ...candidate, evidence: [{ ...candidate.evidence[0], last_seen_at: '2026-02-01' }] })).toBe(candidateFingerprint(candidate))
   })
 
-  it('hashes canonical human intent and uses narrow semantics', () => {
+  it('hashes only canonical human intent, never a browser-selected account', () => {
     expect(buildCanonicalSemantics()).toEqual({ classification: 'human_confirmed_expense', provider_effect: 'balance_debit' })
-    expect(buildConfirmationIntentHash({ description: ' Shell ', category: 'Otros', isWant: false, accountId: '00000000-0000-0000-0000-000000000001' })).toMatch(/^[a-f0-9]{64}$/)
+    expect(buildConfirmationIntentHash({ description: ' Shell ', category: 'Otros', isWant: false })).toMatch(/^[a-f0-9]{64}$/)
   })
 })

@@ -32,13 +32,18 @@ type State = {
   aggregates: Record<string, number>
 }
 
+type AccountLink = { linkedAccountId: string | null; linkedAccountVersion: number; accounts: Array<Pick<Account, 'id' | 'name' | 'type'>> }
+
 type ReviewInboxProps = {
   buckets: ReturnType<typeof classifyMercadoPagoMovements>
+  selectionMode?: boolean
+  onEnterSelection?: () => void
+  onCancelSelection?: () => void
   selectedIds?: Set<string>
   onToggle?: (movement: MercadoPagoMovement) => void
   onSelectAll?: () => void
   onOpen: (movement: MercadoPagoMovement) => void
-  onDismiss: (movement: MercadoPagoMovement, triggerElement?: HTMLElement) => void
+  onDismiss?: (movement: MercadoPagoMovement, triggerElement?: HTMLElement) => void
   onBulkDismiss?: () => void
   cutoff?: string
   onCutoffChange?: (value: string) => void
@@ -101,8 +106,8 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
       </section>
       <p className="text-sm text-text-secondary">
         {isCard
-          ? 'Falta elegir tarjeta y ciclo para poder registrar esta operación.'
-          : 'No hay evidencia suficiente para registrarla automáticamente.'}
+          ? 'Todavía no disponible para registrar con la información disponible.'
+          : 'Todavía no disponible para registrar: no hay evidencia suficiente.'}
       </p>
       <p className="rounded-input bg-bg-secondary p-3 text-sm font-semibold text-text-secondary">
         Esta operación todavía no se puede confirmar.
@@ -111,41 +116,44 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
   )
 }
 
-export function MercadoPagoReviewInbox({ buckets, selectedIds = new Set(), onToggle = () => undefined, onSelectAll = () => undefined, onOpen, onDismiss, onBulkDismiss = () => undefined, cutoff = '', onCutoffChange = () => undefined }: ReviewInboxProps) {
+export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnterSelection = () => undefined, onCancelSelection = () => undefined, selectedIds = new Set(), onToggle = () => undefined, onSelectAll = () => undefined, onOpen, onBulkDismiss = () => undefined, cutoff = '', onCutoffChange = () => undefined }: ReviewInboxProps) {
   const pendingCount = pendingMercadoPagoReviewBucketCount(buckets)
   const movements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
   const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
   return (
     <>
-      <section className="card-s5 mt-6 p-4">
+      <section className="mt-6 border-b border-border-subtle pb-4">
         <p className="text-xs font-semibold text-text-secondary">Pendientes</p>
         <p className="mt-1 text-2xl font-extrabold text-text-primary">{pendingCount}</p>
-        <p className="mt-1 text-xs text-text-tertiary">Una lista cronológica · confirmables {buckets.eligible.length} · sólo evidencia {buckets.cardPending.length + buckets.unknown.length}</p>
+        <p className="mt-1 text-xs text-text-tertiary">Ordenadas por fecha, con el importe y el medio de pago.</p>
       </section>
 
       <section className="mt-7" aria-labelledby="pending-title">
-        <h2 id="pending-title" className="text-lg font-bold">Todas las operaciones pendientes</h2>
-        <p className="mt-1 text-sm text-text-secondary">La selección pertenece a esta carga del servidor. Una operación nueva que aparezca después no entra en este lote.</p>
-        <div className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-4">
-          <label className="block text-sm font-semibold" htmlFor="mp-cutoff">Seleccionar anteriores a</label>
-          <p className="mt-1 text-xs text-text-secondary">Fecha de negocio argentina, inclusiva hasta ese día. Sólo marca operaciones visibles en esta carga.</p>
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="pending-title" className="text-lg font-bold">Todas las operaciones pendientes</h2>
+          {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Cancelar</button> : <button type="button" onClick={onEnterSelection} className="min-h-11 rounded-button border border-primary px-3 text-sm font-semibold text-primary">Seleccionar</button>}
+        </div>
+        <p className="mt-1 text-sm text-text-secondary">Revisá cualquier operación para ver su detalle.</p>
+        {selectionMode && <div className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-4">
+          <label className="block text-sm font-semibold" htmlFor="mp-cutoff">Seleccionar por fecha</label>
+          <p className="mt-1 text-xs text-text-secondary">Hasta esta fecha (inclusive)</p>
           <div className="mt-2 flex gap-2">
             <input id="mp-cutoff" type="date" value={cutoff} onChange={(event) => onCutoffChange(event.target.value)} className="min-h-11 flex-1 rounded-input border border-border-subtle bg-white px-3 text-sm" />
             <button type="button" onClick={onSelectAll} disabled={!cutoff} className="min-h-11 rounded-button border border-border-subtle px-3 text-xs font-semibold disabled:opacity-50">Aplicar</button>
           </div>
           <p className="mt-2 text-xs text-text-secondary">{visibleSelected} seleccionada{visibleSelected === 1 ? '' : 's'}</p>
           <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Desestimar seleccionadas</button>
-        </div>
+          <p className="mt-2 text-xs text-text-secondary">Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.</p>
+        </div>}
         <div className="mt-3 space-y-3">
           {movements.map((movement) => (
             <article key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
-              <input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="mt-2 h-5 w-5 accent-primary" />
+              {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
+                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="min-w-0 font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span></span><span className="mt-1 block text-xs text-text-secondary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
               </button>
-              <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
             </article>
           ))}
           {pendingCount === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay operaciones pendientes para revisar.</p>}
@@ -161,6 +169,9 @@ export function MercadoPagoReviewClient() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [accountLink, setAccountLink] = useState<AccountLink | null>(null)
+  const [accountLinkLoading, setAccountLinkLoading] = useState(false)
+  const [accountLinkError, setAccountLinkError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [dismissed, setDismissed] = useState<MercadoPagoMovement | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
@@ -169,12 +180,14 @@ export function MercadoPagoReviewClient() {
   const [bulkBusy, setBulkBusy] = useState(false)
   const [cutoff, setCutoff] = useState('')
   const [dismissing, setDismissing] = useState(false)
+  const [selectionMode, setSelectionMode] = useState(false)
   const [dismissError, setDismissError] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
   const dismissTriggerRef = useRef<HTMLElement | null>(null)
   const dismissingRef = useRef(false)
   const movementsRequest = useRef(0)
   const accountsRequest = useRef(0)
+  const selectionRequest = useRef(0)
 
   const load = useCallback(async () => {
     const request = ++movementsRequest.current
@@ -200,31 +213,39 @@ export function MercadoPagoReviewClient() {
 
   const resetReview = useCallback(() => {
     accountsRequest.current += 1
+    selectionRequest.current += 1
     setSelected(null)
     setAccounts([])
+    setAccountLink(null)
+    setAccountLinkError(false)
+    setAccountLinkLoading(false)
     setAliasMatch(null)
   }, [])
 
   const loadAccounts = useCallback(async () => {
     const request = ++accountsRequest.current
     setAccounts([])
+    setAccountLink(null)
+    setAccountLinkError(false)
+    setAccountLinkLoading(true)
 
     try {
-      const response = await fetch('/api/accounts?include_archived=false', {
+      const response = await fetch('/api/integrations/mercadopago/account-link', {
         cache: 'no-store',
       })
       if (!response.ok) throw new Error('accounts failed')
-      const nextAccounts = (await response.json()) as Account[]
+      const link = (await response.json()) as AccountLink
       if (request !== accountsRequest.current) return
-      setAccounts(
-        nextAccounts.filter(
-          (account) =>
-            !account.archived &&
-            ['cash', 'bank', 'digital'].includes(account.type),
-        ),
-      )
+      setAccountLink(link)
+      setAccounts(link.accounts as Account[])
     } catch {
-      if (request === accountsRequest.current) setAccounts([])
+      if (request === accountsRequest.current) {
+        setAccounts([])
+        setAccountLink(null)
+        setAccountLinkError(true)
+      }
+    } finally {
+      if (request === accountsRequest.current) setAccountLinkLoading(false)
     }
   }, [])
 
@@ -237,6 +258,7 @@ export function MercadoPagoReviewClient() {
   }, [load])
 
   const open = (movement: MercadoPagoMovement) => {
+    const request = ++selectionRequest.current
     setSelected(movement)
     setAliasMatch(null)
     if (isReviewableMercadoPagoExpense(movement)) {
@@ -249,7 +271,7 @@ export function MercadoPagoReviewClient() {
         if (!response.ok) return null
         const body = await response.json() as { match?: CounterpartyAliasMatch | null }
         return body.match ?? null
-      }).then((match) => setAliasMatch(match)).catch(() => undefined)
+      }).then((match) => { if (request === selectionRequest.current) setAliasMatch(match) }).catch(() => undefined)
     }
   }
 
@@ -266,7 +288,8 @@ export function MercadoPagoReviewClient() {
             description: payload.description,
             category: payload.category,
             isWant: payload.is_want === true,
-            accountId: payload.account_id ?? '',
+            expectedLinkedAccountId: accountLink?.linkedAccountId ?? '',
+            expectedLinkedAccountVersion: accountLink?.linkedAccountVersion ?? -1,
           })),
         },
       )
@@ -354,6 +377,12 @@ export function MercadoPagoReviewClient() {
     setSelectedIds(new Set(selectMovementsOnOrBefore(pendingMovements, cutoff).map((movement) => movement.candidateId)))
   }
 
+  const cancelSelection = () => {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+    setCutoff('')
+  }
+
   return (
     <main className="mx-auto min-h-app max-w-md bg-bg-primary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
@@ -396,11 +425,13 @@ export function MercadoPagoReviewClient() {
       {!loading && !error && state && (
         <MercadoPagoReviewInbox
           buckets={buckets}
+          selectionMode={selectionMode}
+          onEnterSelection={() => setSelectionMode(true)}
+          onCancelSelection={cancelSelection}
           selectedIds={selectedIds}
           onToggle={toggleSelection}
           onSelectAll={selectBeforeCutoff}
           onOpen={open}
-          onDismiss={requestDismissal}
           onBulkDismiss={requestBulkDismissal}
           cutoff={cutoff}
           onCutoffChange={setCutoff}
@@ -414,7 +445,7 @@ export function MercadoPagoReviewClient() {
         onClose={() => { if (!bulkBusy) setBulkPreview(null) }}
         onConfirm={() => void bulkDismiss()}
         title="Desestimar operaciones seleccionadas"
-        description={`${bulkPreview?.length ?? 0} operación${bulkPreview?.length === 1 ? '' : 'es'} seleccionada${bulkPreview?.length === 1 ? '' : 's'}. Esta decisión no las incorpora a tus movimientos financieros.`}
+        description={`${bulkPreview?.length ?? 0} operación${bulkPreview?.length === 1 ? '' : 'es'} seleccionada${bulkPreview?.length === 1 ? '' : 's'}. Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.`}
         confirmLabel="Confirmar desestimación"
         destructive
         busy={bulkBusy}
@@ -484,9 +515,16 @@ export function MercadoPagoReviewClient() {
         description="Completá los datos para registrar este débito observado."
         appearance="compact"
         canvasTone="standard"
-        footer={null}
+        footer={(
+          <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
+            Desestimar operación
+          </button>
+        )}
       >
-        {selected && <ParsePreview
+        {selected && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
+        {selected && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
+        {selected && !accountLinkLoading && !accountLinkError && !accountLink?.linkedAccountId && <div className="space-y-3"><p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Para confirmar un débito de saldo, primero elegí la cuenta que representa tu saldo de Mercado Pago.</p><Link href="/settings" className="inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Configurar vínculo</Link></div>}
+        {selected && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
           data={{
             amount: Math.abs(selected.balanceImpact.amount.value ?? 0),
@@ -502,6 +540,7 @@ export function MercadoPagoReviewClient() {
           }}
           cards={[]}
           accounts={accounts}
+          fixedAccount={accountLink?.linkedAccountId ? accountLink.accounts.find((account) => account.id === accountLink.linkedAccountId) ?? null : null}
           onConfirm={confirm}
           onSave={() => undefined}
           onCancel={resetReview}
