@@ -8,6 +8,7 @@ export type MercadoPagoMovement = {
   reviewStatus: 'pending' | 'confirmed' | 'dismissed'
   balanceImpact: { observed: boolean; effect: 'debit' | 'credit' | 'zero' | 'unknown'; amount: { value: number | null; currency: string | null } }
   fundingSource?: { kind?: string; brand?: string; lastFour?: string }
+  reviewSnapshot?: { fingerprint: string; observations: Array<{ id: string; source: string; key: string | null; seenAt: string }> }
 }
 export type MercadoPagoDiagnostic = MercadoPagoMovement
 export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; accountId: string }
@@ -59,3 +60,15 @@ export function pendingMercadoPagoReviewBucketCount(buckets: MercadoPagoReviewBu
   return buckets.eligible.length + buckets.cardPending.length + buckets.unknown.length
 }
 export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload { return { description: input.description.trim(), category: input.category, isWant: input.isWant, accountId: input.accountId } }
+
+export function getArgentinaBusinessDate(value: string | null) {
+  if (!value || !Number.isFinite(Date.parse(value))) return null
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Argentina/Buenos_Aires' }).format(new Date(value))
+}
+
+export function selectMovementsOnOrBefore(movements: readonly MercadoPagoMovement[], cutoff: string) {
+  return movements.filter((movement) => {
+    const date = getArgentinaBusinessDate(movement.occurredAt ?? movement.balanceOccurredAt)
+    return date !== null && date <= cutoff
+  })
+}

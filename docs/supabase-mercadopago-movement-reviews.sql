@@ -251,5 +251,70 @@ $$;
 revoke all on function public.dismiss_mercadopago_movement(uuid,uuid,text,text,jsonb) from public, anon, authenticated;
 grant execute on function public.dismiss_mercadopago_movement(uuid,uuid,text,text,jsonb) to service_role;
 
+drop function if exists public.dismiss_mercadopago_movements_bulk(uuid,uuid,jsonb);
+create or replace function public.dismiss_mercadopago_movements_bulk(
+  p_user_id uuid, p_connection_id uuid, p_candidates jsonb
+) returns jsonb
+language plpgsql security definer
+set search_path = public, pg_temp
+as $$
+declare
+  v_item jsonb;
+  v_result jsonb := '[]'::jsonb;
+  v_status text;
+  v_candidate_id text;
+  v_fingerprint text;
+  v_expected jsonb;
+  v_invalid boolean;
+  v_count integer;
+begin
+  if p_user_id is null or p_connection_id is null or p_candidates is null
+     or jsonb_typeof(p_candidates) <> 'array'
+     or jsonb_array_length(p_candidates) < 1 or jsonb_array_length(p_candidates) > 50 then
+    raise exception 'invalid bulk dismissal' using errcode = '22023';
+  end if;
+  perform pg_advisory_xact_lock(hashtextextended('mp-confirm:connection:' || p_connection_id::text || ':user:' || p_user_id::text, 0));
+  perform 1 from public.mercadopago_connections where id = p_connection_id and user_id = p_user_id and provider = 'mercadopago' and status = 'connected' for update;
+  if not found then raise exception 'foreign or inactive connection' using errcode = 'P0002'; end if;
+  select count(*) into v_count from jsonb_array_elements(p_candidates);
+  if (select count(distinct value->>'candidateId') from jsonb_array_elements(p_candidates)) <> v_count then
+    raise exception 'duplicate candidate id' using errcode = '22023';
+  end if;
+  for v_item in select value from jsonb_array_elements(p_candidates) loop
+    v_candidate_id := v_item->>'candidateId';
+    v_fingerprint := v_item->>'fingerprint';
+    v_expected := v_item->'expectedObservations';
+    v_invalid := coalesce((v_item->>'invalid')::boolean, false);
+    if v_invalid then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'stale'));
+      continue;
+    end if;
+    if exists (select 1 from public.mercadopago_movement_reviews where user_id = p_user_id and connection_id = p_connection_id and (candidate_id = v_candidate_id or candidate_fingerprint = v_fingerprint)) then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'conflict'));
+      continue;
+    end if;
+    if exists (select 1 from public.mercadopago_movement_dismissals where user_id = p_user_id and connection_id = p_connection_id and (candidate_id = v_candidate_id or candidate_fingerprint = v_fingerprint)) then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'already_dismissed'));
+      continue;
+    end if;
+    begin
+      select public.dismiss_mercadopago_movement(p_user_id, p_connection_id, v_candidate_id, v_fingerprint, v_expected) into v_status;
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', v_status));
+    exception when sqlstate 'P0002' then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'stale'));
+    when sqlstate '23505' or sqlstate '55000' then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'conflict'));
+    when sqlstate '22023' then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'failed'));
+    when others then
+      v_result := v_result || jsonb_build_array(jsonb_build_object('candidateId', v_candidate_id, 'status', 'failed'));
+    end;
+  end loop;
+  return v_result;
+end;
+$$;
+revoke all on function public.dismiss_mercadopago_movements_bulk(uuid,uuid,jsonb) from public, anon, authenticated;
+grant execute on function public.dismiss_mercadopago_movements_bulk(uuid,uuid,jsonb) to service_role;
+
 comment on table public.mercadopago_movement_reviews is 'Server-only human confirmations with canonical replay evidence; never stores raw provider payloads or tokens.';
 commit;

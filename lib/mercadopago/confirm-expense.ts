@@ -38,7 +38,15 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
     void issuerId
     visible.fundingSource = fundingSource
   }
-  return { ...visible, reviewStatus: review?.status ?? 'pending', ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}) }
+  return {
+    ...visible,
+    reviewStatus: review?.status ?? 'pending',
+    ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}),
+    reviewSnapshot: review ? undefined : {
+      fingerprint: candidateFingerprint(candidate),
+      observations: expectedObservations(candidate).map((observation) => ({ id: observation.id, source: observation.source, key: observation.native_key, seenAt: observation.last_seen_at })),
+    },
+  }
 }
 
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {

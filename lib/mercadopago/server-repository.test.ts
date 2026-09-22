@@ -9,7 +9,7 @@ function fakeDatabase(result: { data: unknown; error: unknown }) {
   const single = vi.fn(async () => result)
   const maybeSingle = vi.fn(async () => result)
   const limit = vi.fn(async () => result)
-  const range = vi.fn(async () => result)
+  const range = vi.fn(async (...args: number[]) => { void args; return result })
   const selectAgain = (...args: unknown[]) => {
     calls.push({ method: 'select', args })
     return { single }

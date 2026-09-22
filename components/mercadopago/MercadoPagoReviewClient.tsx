@@ -20,16 +20,11 @@ import {
   isReviewableMercadoPagoExpense,
   sortMercadoPagoPendingMovements,
   type MercadoPagoMovement,
+  selectMovementsOnOrBefore,
 } from '@/lib/mercadopago/review'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
-
-type Account = {
-  id: string
-  name: string
-  type: 'cash' | 'bank' | 'digital'
-  archived?: boolean
-}
+import type { Account } from '@/types/database'
 
 type State = {
   movements: MercadoPagoMovement[]
@@ -38,8 +33,14 @@ type State = {
 
 type ReviewInboxProps = {
   buckets: ReturnType<typeof classifyMercadoPagoMovements>
+  selectedIds?: Set<string>
+  onToggle?: (movement: MercadoPagoMovement) => void
+  onSelectAll?: () => void
   onOpen: (movement: MercadoPagoMovement) => void
   onDismiss: (movement: MercadoPagoMovement, triggerElement?: HTMLElement) => void
+  onBulkDismiss?: () => void
+  cutoff?: string
+  onCutoffChange?: (value: string) => void
 }
 
 function formatMoney(movement: MercadoPagoMovement) {
@@ -109,9 +110,10 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
   )
 }
 
-export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInboxProps) {
+export function MercadoPagoReviewInbox({ buckets, selectedIds = new Set(), onToggle = () => undefined, onSelectAll = () => undefined, onOpen, onDismiss, onBulkDismiss = () => undefined, cutoff = '', onCutoffChange = () => undefined }: ReviewInboxProps) {
   const pendingCount = pendingMercadoPagoReviewBucketCount(buckets)
   const movements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
+  const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
   return (
     <>
@@ -123,10 +125,21 @@ export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInb
 
       <section className="mt-7" aria-labelledby="pending-title">
         <h2 id="pending-title" className="text-lg font-bold">Todas las operaciones pendientes</h2>
-        <p className="mt-1 text-sm text-text-secondary">Ordenadas por fecha observada. Revisá cada una; las no confirmables quedan sólo como evidencia.</p>
+        <p className="mt-1 text-sm text-text-secondary">La selección pertenece a esta carga del servidor. Una operación nueva que aparezca después no entra en este lote.</p>
+        <div className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-4">
+          <label className="block text-sm font-semibold" htmlFor="mp-cutoff">Seleccionar anteriores a</label>
+          <p className="mt-1 text-xs text-text-secondary">Fecha de negocio argentina, inclusiva hasta ese día. Sólo marca operaciones visibles en esta carga.</p>
+          <div className="mt-2 flex gap-2">
+            <input id="mp-cutoff" type="date" value={cutoff} onChange={(event) => onCutoffChange(event.target.value)} className="min-h-11 flex-1 rounded-input border border-border-subtle bg-white px-3 text-sm" />
+            <button type="button" onClick={onSelectAll} disabled={!cutoff} className="min-h-11 rounded-button border border-border-subtle px-3 text-xs font-semibold disabled:opacity-50">Aplicar</button>
+          </div>
+          <p className="mt-2 text-xs text-text-secondary">{visibleSelected} seleccionada{visibleSelected === 1 ? '' : 's'}</p>
+          <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Desestimar seleccionadas</button>
+        </div>
         <div className="mt-3 space-y-3">
           {movements.map((movement) => (
             <article key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
+              <input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="mt-2 h-5 w-5 accent-primary" />
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
                 <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt ?? movement.balanceOccurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
@@ -149,6 +162,11 @@ export function MercadoPagoReviewClient() {
   const [accounts, setAccounts] = useState<Account[]>([])
   const [submitting, setSubmitting] = useState(false)
   const [dismissed, setDismissed] = useState<MercadoPagoMovement | null>(null)
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
+  const [bulkPreview, setBulkPreview] = useState<MercadoPagoMovement[] | null>(null)
+  const [bulkError, setBulkError] = useState<string | null>(null)
+  const [bulkBusy, setBulkBusy] = useState(false)
+  const [cutoff, setCutoff] = useState('')
   const [dismissing, setDismissing] = useState(false)
   const [dismissError, setDismissError] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
@@ -168,7 +186,10 @@ export function MercadoPagoReviewClient() {
       })
       if (!response.ok) throw new Error('mercadopago movements failed')
       const nextState = (await response.json()) as State
-      if (request === movementsRequest.current) setState(nextState)
+      if (request === movementsRequest.current) {
+        setState(nextState)
+        setSelectedIds((current) => new Set([...current].filter((id) => nextState.movements.some((movement) => movement.candidateId === id && movement.reviewStatus === 'pending'))))
+      }
     } catch {
       if (request === movementsRequest.current) setError(true)
     } finally {
@@ -289,7 +310,48 @@ export function MercadoPagoReviewClient() {
     setDismissed(movement)
   }
 
+  const requestBulkDismissal = () => {
+    const movements = sortMercadoPagoPendingMovements(state?.movements ?? []).filter((movement) => selectedIds.has(movement.candidateId))
+    if (movements.length > 0) {
+      setBulkError(null)
+      setBulkPreview(movements)
+    }
+  }
+
+  const bulkDismiss = async () => {
+    if (!bulkPreview || bulkBusy) return
+    setBulkBusy(true)
+    setBulkError(null)
+    try {
+      const response = await fetch('/api/integrations/mercadopago/movements/bulk-dismiss', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ candidates: bulkPreview.map((movement) => ({ candidateId: movement.candidateId, snapshot: movement.reviewSnapshot })) }),
+      })
+      const body = await response.json() as { results?: Array<{ candidateId: string; status: string }> }
+      if (!response.ok || !body.results) throw new Error('bulk dismissal failed')
+      const successes = body.results.filter((result) => result.status === 'dismissed' || result.status === 'already_dismissed').map((result) => result.candidateId)
+      const failures = body.results.filter((result) => result.status !== 'dismissed' && result.status !== 'already_dismissed')
+      setSelectedIds((current) => new Set([...current].filter((id) => !successes.includes(id))))
+      if (successes.length > 0) await load()
+      if (failures.length > 0) setBulkError(`${successes.length} desestimada${successes.length === 1 ? '' : 's'}; ${failures.length} quedó${failures.length === 1 ? '' : 'aron'} sin cambios para revisar.`)
+      if (successes.length > 0 || failures.length === 0) setBulkPreview(null)
+    } catch {
+      setBulkError('No pudimos desestimar el lote. Las operaciones siguen seleccionadas y pendientes.')
+    } finally { setBulkBusy(false) }
+  }
+
   const buckets = classifyMercadoPagoMovements(state?.movements ?? [])
+  const pendingMovements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
+  const toggleSelection = (movement: MercadoPagoMovement) => setSelectedIds((current) => {
+    const next = new Set(current)
+    if (next.has(movement.candidateId)) next.delete(movement.candidateId)
+    else next.add(movement.candidateId)
+    return next
+  })
+  const selectBeforeCutoff = () => {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(cutoff)) return
+    setSelectedIds(new Set(selectMovementsOnOrBefore(pendingMovements, cutoff).map((movement) => movement.candidateId)))
+  }
 
   return (
     <main className="mx-auto min-h-app max-w-md bg-bg-primary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
@@ -331,8 +393,36 @@ export function MercadoPagoReviewClient() {
       )}
 
       {!loading && !error && state && (
-        <MercadoPagoReviewInbox buckets={buckets} onOpen={open} onDismiss={requestDismissal} />
+        <MercadoPagoReviewInbox
+          buckets={buckets}
+          selectedIds={selectedIds}
+          onToggle={toggleSelection}
+          onSelectAll={selectBeforeCutoff}
+          onOpen={open}
+          onDismiss={requestDismissal}
+          onBulkDismiss={requestBulkDismissal}
+          cutoff={cutoff}
+          onCutoffChange={setCutoff}
+        />
       )}
+
+      {bulkError && <p role="alert" className="mt-4 rounded-input bg-danger-soft p-3 text-sm text-danger">{bulkError}</p>}
+
+      <ConfirmationSurface
+        open={bulkPreview !== null}
+        onClose={() => { if (!bulkBusy) setBulkPreview(null) }}
+        onConfirm={() => void bulkDismiss()}
+        title="Desestimar operaciones seleccionadas"
+        description={`${bulkPreview?.length ?? 0} operación${bulkPreview?.length === 1 ? '' : 'es'} seleccionada${bulkPreview?.length === 1 ? '' : 's'}. Esta decisión no las incorpora a tus movimientos financieros.`}
+        confirmLabel="Confirmar desestimación"
+        destructive
+        busy={bulkBusy}
+        appearance="compact"
+      >
+        <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
+          {bulkPreview?.map((movement) => <p key={movement.candidateId} className="border-b border-border-subtle pb-2">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'} · {formatMoney(movement)} · {formatObservedDate(movement.occurredAt ?? movement.balanceOccurredAt)}</p>)}
+        </div>
+      </ConfirmationSurface>
 
       <ConfirmationSurface
         open={dismissed !== null}
@@ -393,6 +483,7 @@ export function MercadoPagoReviewClient() {
         description="Completá los datos para registrar este débito observado."
         appearance="compact"
         canvasTone="standard"
+        footer={null}
       >
         {selected && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
