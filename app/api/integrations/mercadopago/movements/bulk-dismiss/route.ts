@@ -16,6 +16,10 @@ const snapshotSchema = z.object({
 const bodySchema = z.object({
   candidates: z.array(z.object({ candidateId: z.string().regex(/^sha256:[a-f0-9]{64}$/), snapshot: snapshotSchema }).strict()).min(1).max(50),
 }).strict()
+const rpcResultSchema = z.array(z.object({
+  candidateId: z.string().regex(/^sha256:[a-f0-9]{64}$/),
+  status: z.enum(['dismissed', 'already_dismissed', 'conflict', 'stale', 'failed']),
+}).strict())
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers })
 
 export async function POST(request: Request) {
@@ -44,6 +48,10 @@ export async function POST(request: Request) {
       p_user_id: user.id, p_connection_id: connection.id, p_candidates: candidates,
     })
     if (error) return json({ error: 'bulk_dismissal_failed' }, 500)
-    return json({ results: data ?? [] })
+    const results = rpcResultSchema.safeParse(data)
+    if (!results.success || results.data.length !== ids.length || new Set(results.data.map((result) => result.candidateId)).size !== ids.length || results.data.some((result) => !ids.includes(result.candidateId))) {
+      return json({ error: 'bulk_dismissal_failed' }, 500)
+    }
+    return json({ results: results.data })
   } catch { return json({ error: 'bulk_dismissal_failed' }, 500) }
 }

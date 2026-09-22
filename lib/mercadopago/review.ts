@@ -34,10 +34,22 @@ export function getMercadoPagoReviewCapability(movement: MercadoPagoMovement): M
   if (movement.fundingSource?.kind === 'card') return { mode: 'evidence-only', reason: 'card_funding_incomplete' }
   return { mode: 'evidence-only', reason: 'financial_class_unresolved' }
 }
+export function getMercadoPagoReviewDate(movement: MercadoPagoMovement) {
+  // A confirmable movement must always be shown and bulk-selected by the same
+  // provider balance date the authoritative endpoint writes to the ledger.
+  return isReviewableMercadoPagoExpense(movement)
+    ? movement.balanceOccurredAt
+    : movement.occurredAt ?? movement.balanceOccurredAt
+}
 export function sortMercadoPagoPendingMovements(movements: readonly MercadoPagoMovement[]) {
   return [...movements].filter((movement) => movement.reviewStatus === 'pending').sort((left, right) => {
-    const leftTime = left.occurredAt ? Date.parse(left.occurredAt) : Number.NEGATIVE_INFINITY
-    const rightTime = right.occurredAt ? Date.parse(right.occurredAt) : Number.NEGATIVE_INFINITY
+    const toTime = (movement: MercadoPagoMovement) => {
+      const value = getMercadoPagoReviewDate(movement)
+      const parsed = value ? Date.parse(value) : Number.NaN
+      return Number.isFinite(parsed) ? parsed : Number.NEGATIVE_INFINITY
+    }
+    const leftTime = toTime(left)
+    const rightTime = toTime(right)
     if (leftTime !== rightTime) return rightTime - leftTime
     return left.candidateId.localeCompare(right.candidateId)
   })
@@ -68,7 +80,7 @@ export function getArgentinaBusinessDate(value: string | null) {
 
 export function selectMovementsOnOrBefore(movements: readonly MercadoPagoMovement[], cutoff: string) {
   return movements.filter((movement) => {
-    const date = getArgentinaBusinessDate(movement.occurredAt ?? movement.balanceOccurredAt)
+    const date = getArgentinaBusinessDate(getMercadoPagoReviewDate(movement))
     return date !== null && date <= cutoff
   })
 }

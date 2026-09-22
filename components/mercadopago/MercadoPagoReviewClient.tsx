@@ -17,6 +17,7 @@ import {
   getDisplayExpenseDescription,
   getInitialExpenseDescription,
   getMercadoPagoDisplayAmount,
+  getMercadoPagoReviewDate,
   isReviewableMercadoPagoExpense,
   sortMercadoPagoPendingMovements,
   type MercadoPagoMovement,
@@ -95,7 +96,7 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
           {getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}
         </p>
         <p className="mt-1 text-sm text-text-secondary">
-          {formatMoney(movement)} · {formatObservedDate(movement.occurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}
+          {formatMoney(movement)} · {formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}
         </p>
       </section>
       <p className="text-sm text-text-secondary">
@@ -142,7 +143,7 @@ export function MercadoPagoReviewInbox({ buckets, selectedIds = new Set(), onTog
               <input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="mt-2 h-5 w-5 accent-primary" />
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt ?? movement.balanceOccurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
+                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
               </button>
               <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
             </article>
@@ -420,7 +421,7 @@ export function MercadoPagoReviewClient() {
         appearance="compact"
       >
         <div className="max-h-64 space-y-2 overflow-y-auto text-sm">
-          {bulkPreview?.map((movement) => <p key={movement.candidateId} className="border-b border-border-subtle pb-2">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'} · {formatMoney(movement)} · {formatObservedDate(movement.occurredAt ?? movement.balanceOccurredAt)}</p>)}
+          {bulkPreview?.map((movement) => <p key={movement.candidateId} className="border-b border-border-subtle pb-2">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'} · {formatMoney(movement)} · {formatObservedDate(getMercadoPagoReviewDate(movement))}</p>)}
         </div>
       </ConfirmationSurface>
 
