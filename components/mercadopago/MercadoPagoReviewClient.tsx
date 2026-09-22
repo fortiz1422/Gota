@@ -20,6 +20,7 @@ import {
   getInitialExpenseDescription,
   getMercadoPagoDisplayAmount,
   isReviewableMercadoPagoExpense,
+  sortMercadoPagoPendingMovements,
   type MercadoPagoMovement,
 } from '@/lib/mercadopago/review'
 
@@ -115,72 +116,32 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
 
 export function MercadoPagoReviewInbox({ buckets, onOpen, onDismiss }: ReviewInboxProps) {
   const pendingCount = pendingMercadoPagoReviewBucketCount(buckets)
+  const movements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
 
   return (
     <>
       <section className="card-s5 mt-6 p-4">
         <p className="text-xs font-semibold text-text-secondary">Pendientes</p>
         <p className="mt-1 text-2xl font-extrabold text-text-primary">{pendingCount}</p>
-        <p className="mt-1 text-xs text-text-tertiary">
-          {buckets.eligible.length} listas para revisar · {buckets.cardPending.length} pagadas con tarjeta · {buckets.unknown.length} {buckets.unknown.length === 1 ? 'pendiente' : 'pendientes'} de clasificar
-        </p>
+        <p className="mt-1 text-xs text-text-tertiary">Una lista cronológica · confirmables {buckets.eligible.length} · sólo evidencia {buckets.cardPending.length + buckets.unknown.length}</p>
       </section>
 
-      <section className="mt-7" aria-labelledby="eligible-title">
-        <h2 id="eligible-title" className="text-lg font-bold">Listas para revisar</h2>
-        <p className="mt-1 text-sm text-text-secondary">
-          Débitos observados de tu saldo de Mercado Pago.
-        </p>
+      <section className="mt-7" aria-labelledby="pending-title">
+        <h2 id="pending-title" className="text-lg font-bold">Todas las operaciones pendientes</h2>
+        <p className="mt-1 text-sm text-text-secondary">Ordenadas por fecha observada. Revisá cada una; las no confirmables quedan sólo como evidencia.</p>
         <div className="mt-3 space-y-3">
-          {buckets.eligible.map((movement) => (
-            <div key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
+          {movements.map((movement) => (
+            <article key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Movimiento de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.balanceOccurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}</span></span>
+                <span className="min-w-0 flex-1"><span className="block font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="mt-1 block text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt ?? movement.balanceOccurredAt)} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
               </button>
               <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 shrink-0 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
-            </div>
-          ))}
-          {buckets.eligible.length === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay débitos de saldo pendientes.</p>}
-        </div>
-      </section>
-
-      <section className="mt-8" aria-labelledby="card-title">
-        <h2 id="card-title" className="text-lg font-bold">Pagadas con tarjeta</h2>
-        <p className="mt-1 text-sm text-text-secondary">Se muestran para que no pierdas contexto. Todavía no se pueden confirmar: falta elegir tarjeta y ciclo.</p>
-        <div className="mt-3 space-y-3">
-          {buckets.cardPending.map((movement) => (
-            <article key={movement.candidateId} className="card-s5 p-4">
-              <div className="flex justify-between gap-3"><h3 className="font-bold">{getDisplayExpenseDescription(movement) || 'Compra con tarjeta'}</h3><span className="whitespace-nowrap font-semibold">{formatMoney(movement)}</span></div>
-              <p className="mt-2 text-xs text-text-secondary">{formatObservedDate(movement.occurredAt)} · Pagado con tarjeta / falta elegir tarjeta y ciclo</p>
-              <div className="mt-3 flex gap-2">
-                <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
-                <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
-              </div>
             </article>
           ))}
+          {pendingCount === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay operaciones pendientes para revisar.</p>}
         </div>
       </section>
-
-      {buckets.unknown.length > 0 && (
-        <section className="mt-8">
-          <h2 className="text-base font-bold">Otras operaciones</h2>
-          <div className="mt-3 space-y-3">
-            {buckets.unknown.map((movement) => (
-              <article key={movement.candidateId} className="card-s5 p-4">
-                <p className="font-semibold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</p>
-                <p className="mt-1 text-xs text-text-secondary">{formatMoney(movement)} · {formatObservedDate(movement.occurredAt)}</p>
-                <div className="mt-3 flex gap-2">
-                  <button type="button" onClick={() => onOpen(movement)} className="min-h-11 rounded-button bg-primary px-3 text-xs font-semibold text-white">Revisar</button>
-                  <button type="button" onClick={(event) => onDismiss(movement, event.currentTarget)} className="min-h-11 rounded-button border border-danger/30 px-3 text-xs font-semibold text-danger">Desestimar</button>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {pendingCount === 0 && <p className="mt-10 text-center text-sm text-text-secondary">No hay operaciones pendientes para revisar.</p>}
     </>
   )
 }

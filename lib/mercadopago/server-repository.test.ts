@@ -9,6 +9,7 @@ function fakeDatabase(result: { data: unknown; error: unknown }) {
   const single = vi.fn(async () => result)
   const maybeSingle = vi.fn(async () => result)
   const limit = vi.fn(async () => result)
+  const range = vi.fn(async () => result)
   const selectAgain = (...args: unknown[]) => {
     calls.push({ method: 'select', args })
     return { single }
@@ -19,7 +20,13 @@ function fakeDatabase(result: { data: unknown; error: unknown }) {
   }
   const secondEq = (...args: unknown[]) => {
     calls.push({ method: 'eq', args })
-    return { maybeSingle, order: (...orderArgs: unknown[]) => { calls.push({ method: 'order', args: orderArgs }); return { limit } }, eq: thirdEq }
+    return { maybeSingle, order: (...orderArgs: unknown[]) => {
+      calls.push({ method: 'order', args: orderArgs })
+      return { limit, range, order: (...nestedOrderArgs: unknown[]) => {
+        calls.push({ method: 'order', args: nestedOrderArgs })
+        return { limit, range }
+      } }
+    }, eq: thirdEq }
   }
   const firstEq = (...args: unknown[]) => {
     calls.push({ method: 'eq', args })
@@ -30,7 +37,7 @@ function fakeDatabase(result: { data: unknown; error: unknown }) {
     select: (...args: unknown[]) => { calls.push({ method: 'select', args }); return { eq: firstEq } },
     update: (...args: unknown[]) => { calls.push({ method: 'update', args }); return { eq: firstEq } },
   }
-  return { database: { from: vi.fn(() => query) }, calls }
+  return { database: { from: vi.fn(() => query) }, calls, range }
 }
 
 describe('Mercado Pago server repository', () => {
@@ -104,5 +111,24 @@ describe('Mercado Pago server repository', () => {
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['user_id', 'user-1'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['connection_id', 'connection-1'] })
     expect(fake.calls).toContainEqual({ method: 'order', args: ['last_seen_at', { ascending: false }] })
+    expect(fake.calls).toContainEqual({ method: 'order', args: ['id', { ascending: false }] })
+  })
+
+  it('paginates the complete canonical set beyond 100 rows with stable ranges', async () => {
+    const fake = fakeDatabase({ data: [], error: null })
+    fake.range.mockImplementation(async (from: number) => ({
+      data: Array.from({ length: from === 0 ? 100 : 1 }, (_, index) => ({ id: String(from + index), source: 'payments_search', native_key: String(from + index), payload: {}, last_seen_at: '2026-09-15T00:00:00.000Z' })),
+      error: null,
+    }))
+    const repository = createMercadoPagoRepository(fake.database as unknown as MercadoPagoDatabase)
+    const rows = await repository.getMercadoPagoMovementObservations('user-1', 'connection-1', 100)
+    expect(rows).toHaveLength(101)
+    expect(fake.calls).toContainEqual({ method: 'order', args: ['id', { ascending: false }] })
+  })
+
+  it('fails closed when the explicit pagination cap is reached', async () => {
+    const fake = fakeDatabase({ data: Array.from({ length: 100 }, (_, index) => ({ id: String(index), source: 'payments_search', native_key: String(index), payload: {}, last_seen_at: '2026-09-15T00:00:00.000Z' })), error: null })
+    const repository = createMercadoPagoRepository(fake.database as unknown as MercadoPagoDatabase)
+    await expect(repository.getMercadoPagoMovementObservations('user-1', 'connection-1', 100)).rejects.toThrow('movement_observations_limit_exceeded')
   })
 })

@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { getMercadoPagoFundingSourceLabel, MercadoPagoReviewInbox, MercadoPagoReviewDetail } from '@/components/mercadopago/MercadoPagoReviewClient'
-import { classifyMercadoPagoMovements, pendingMercadoPagoMovementCount, type MercadoPagoMovement } from './review'
+import { classifyMercadoPagoMovements, getMercadoPagoReviewCapability, pendingMercadoPagoMovementCount, sortMercadoPagoPendingMovements, type MercadoPagoMovement } from './review'
 
 const movement = (reviewStatus: MercadoPagoMovement['reviewStatus']): MercadoPagoMovement => ({
   candidateId: `sha256:${reviewStatus}`, occurredAt: '2026-09-16T00:00:00Z', balanceOccurredAt: '2026-09-16T00:00:00Z',
@@ -19,6 +19,16 @@ describe('Mercado Pago review statuses', () => {
     const card = { ...movement('pending'), candidateId: 'sha256:card', balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } }, fundingSource: { kind: 'card' } }
     const unknown = { ...movement('pending'), candidateId: 'sha256:unknown', balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } } }
     expect(pendingMercadoPagoMovementCount([movement('pending'), card, unknown, movement('dismissed')])).toBe(3)
+  })
+
+  it('exposes the explicit capability matrix and stable chronological order', () => {
+    const eligible = movement('pending')
+    const card = { ...movement('pending'), candidateId: 'sha256:card', fundingSource: { kind: 'card' }, balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } } }
+    const unknown = { ...movement('pending'), candidateId: 'sha256:unknown', occurredAt: null, balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } } }
+    expect(getMercadoPagoReviewCapability(eligible)).toEqual({ mode: 'confirmable', reason: 'complete_balance_debit' })
+    expect(getMercadoPagoReviewCapability(card)).toEqual({ mode: 'evidence-only', reason: 'card_funding_incomplete' })
+    expect(getMercadoPagoReviewCapability(unknown)).toEqual({ mode: 'evidence-only', reason: 'financial_class_unresolved' })
+    expect(sortMercadoPagoPendingMovements([unknown, eligible, card]).map(({ candidateId }) => candidateId)).toEqual(['sha256:card', 'sha256:pending', 'sha256:unknown'])
   })
 
   it('renders unknown pending operations in the review inbox with a review action and matching count copy', () => {
@@ -40,9 +50,8 @@ describe('Mercado Pago review statuses', () => {
     }))
 
     expect(html).toContain('Pendientes')
-    expect(html).toContain('1 pagadas con tarjeta')
-    expect(html).toContain('2')
-    expect(html).toContain('Otras operaciones')
+    expect(html).toContain('Una lista cronológica')
+    expect(html).toContain('sólo evidencia 2')
     expect(html).toContain('Revisar')
     expect(html).toContain('Desestimar')
     expect(html).not.toContain('No hay operaciones pendientes para revisar.')
