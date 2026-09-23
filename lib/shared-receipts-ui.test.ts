@@ -98,6 +98,7 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('href={SHARED_RECEIPT_ROUTES.review(receipt.id)}')
     expect(review).not.toContain('href={SHARED_RECEIPT_ROUTES.apiDetail')
     expect(review).toContain('Comprobantes pendientes')
+    expect(review).toContain('{(queue.length > 1 || Boolean(queue[0]?.image_url)) && <section aria-label="Comprobantes pendientes"')
     expect(review).toContain('receipt.image_url')
     expect(review).toContain('Ampliar comprobante')
     expect(review).toContain('Vista completa del comprobante')
