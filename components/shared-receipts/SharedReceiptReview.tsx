@@ -153,8 +153,11 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
         if (!isCurrentLoad()) return
-        setQueue(summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary))
-        void Promise.all(summaries.map(async (summary) => {
+        const queueWithCurrentReceipt = summaries.some((summary) => summary.id === loadedReceipt?.id)
+          ? summaries.map((summary) => summary.id === loadedReceipt?.id ? loadedReceipt : summary)
+          : loadedReceipt ? [loadedReceipt, ...summaries] : summaries
+        setQueue(queueWithCurrentReceipt)
+        void Promise.all(queueWithCurrentReceipt.map(async (summary) => {
           if (summary.id === loadedReceipt?.id) return loadedReceipt
           try {
             const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(summary.id), { cache: 'no-store' })
@@ -313,7 +316,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   return (
     <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe pb-tab-bar">
       <header className="flex items-center justify-between py-4"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} />Bandeja</Link><Receipt size={22} className="text-primary" /></header>
-      {(queue.length > 1 || Boolean(queue[0]?.image_url)) && <section aria-label="Comprobantes pendientes" className="mb-4">
+      {(queue.length > 1 || Boolean(queue.find((item) => item.id === activeReceiptId)?.image_url)) && <section aria-label="Comprobantes pendientes" className="mb-4">
         <div className="mb-2 flex items-center justify-between px-1">
           <p className="text-xs font-semibold text-text-primary">Comprobantes pendientes</p>
           <p className="text-xs tabular-nums text-text-tertiary">{queuePosition.current} de {queuePosition.total}</p>
