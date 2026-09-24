@@ -14,8 +14,19 @@ export function buildCanonicalSemantics() {
   return { classification: 'human_confirmed_expense', provider_effect: 'balance_debit' } as const
 }
 
-export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean }) {
-  return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant }))
+export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean; cardId?: string; installments?: number }) {
+  return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant, ...(input.cardId ? { cardId: input.cardId, installments: input.installments ?? null } : {}) }))
+}
+
+export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPagoMovement, 'kind' | 'direction' | 'accountRole' | 'operation' | 'fundingSource' | 'amount' | 'occurredAt' | 'installments' | 'summary'>) {
+  return candidate.kind === 'expense' && candidate.direction === 'outflow' && candidate.accountRole === 'payer'
+    && ['regular_payment', 'recurring_payment'].includes(candidate.operation.type ?? '')
+    && candidate.operation.status === 'approved' && !['charged_back', 'in_mediation', 'refunded'].includes(candidate.operation.statusDetail ?? '') && candidate.fundingSource.kind === 'card'
+    && candidate.fundingSource.cardType === 'credit' && typeof candidate.amount.value === 'number'
+    && Number.isFinite(candidate.amount.value) && candidate.amount.value > 0
+    && ['ARS', 'USD'].includes(candidate.amount.currency ?? '')
+    && Boolean(candidate.occurredAt && Number.isFinite(Date.parse(candidate.occurredAt)))
+    && (candidate.summary.refunded === null || candidate.summary.refunded === 0) && candidate.installments === 1
 }
 
 export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnection, observations: MercadoPagoMovementObservation[]) {
@@ -31,8 +42,8 @@ export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnecti
 }
 
 export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null) {
-  const { evidence, settlement, nativeId, reasonCodes, ...visible } = candidate
-  void evidence; void settlement; void nativeId; void reasonCodes
+  const { evidence, settlement, nativeId, reasonCodes, accountRole, ...visible } = candidate
+  void evidence; void settlement; void nativeId; void reasonCodes; void accountRole
   if (visible.fundingSource && 'issuerId' in visible.fundingSource) {
     const { issuerId, ...fundingSource } = visible.fundingSource
     void issuerId
@@ -40,6 +51,8 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
   }
   return {
     ...visible,
+    cardPurchaseEligible: isEligibleCreditCardPurchase(candidate),
+    cardType: candidate.fundingSource.cardType ?? null,
     reviewStatus: review?.status ?? 'pending',
     ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}),
     reviewSnapshot: review ? undefined : {

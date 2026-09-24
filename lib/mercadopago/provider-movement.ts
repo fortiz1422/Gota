@@ -17,7 +17,7 @@ export type NormalizedMercadoPagoMovement = {
   description: string | null
   statementDescriptor: string | null
   operation: { type: string | null; status: string | null; statusDetail: string | null }
-  fundingSource: { kind: FundingSourceKind; brand?: string; issuerId?: string; lastFour?: string }
+  fundingSource: { kind: FundingSourceKind; brand?: string; issuerId?: string; lastFour?: string; cardType?: 'credit' | 'debit' }
   channel: DiagnosticChannel
   installments: number | null
   summary: { gross: number | null; totalPaid: number | null; netReceived: number | null; refunded: number | null; fees: number | null }
@@ -62,7 +62,7 @@ function fundingOf(payload: RecordValue): NormalizedMercadoPagoMovement['funding
     if (type === 'account_money' || type === 'available_money') return { kind: 'mercadopago_balance' }
     if (type === 'bank_transfer' || type === 'debin_transfer') return { kind: 'bank_transfer' }
     if (type === 'credit_card' || type === 'debit_card') {
-      const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card' }
+      const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card', cardType: type === 'credit_card' ? 'credit' : 'debit' }
       const brand = stringValue(payload.FRANCHISE)?.toLowerCase() ?? stringValue(payload.PAYMENT_METHOD)?.toLowerCase()
       const lastFour = stringValue(payload.LAST_FOUR_DIGITS)
       if (brand === 'master' || brand === 'mastercard' || brand === 'visa' || brand === 'amex') result.brand = brand === 'mastercard' ? 'master' : brand
@@ -76,7 +76,7 @@ function fundingOf(payload: RecordValue): NormalizedMercadoPagoMovement['funding
   if (type === 'account_money' || id === 'account_money') return { kind: 'mercadopago_balance' }
   if (type === 'debin_transfer' || type === 'bank_transfer' || id === 'debin_transfer' || id === 'bank_transfer') return { kind: 'bank_transfer' }
   if (type === 'credit_card' || type === 'debit_card') {
-    const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card' }
+    const result: NormalizedMercadoPagoMovement['fundingSource'] = { kind: 'card', cardType: type === 'credit_card' ? 'credit' : 'debit' }
     const brand = id
     const issuerId = idValue(payload.issuer_id) ?? idValue(method.issuer_id)
     const lastFour = stringValue(record(payload.card).last_four_digits)

@@ -19,13 +19,14 @@ import {
   getMercadoPagoDisplayAmount,
   getMercadoPagoReviewDate,
   isReviewableMercadoPagoExpense,
+  isReviewableMercadoPagoCardPurchase,
   sortMercadoPagoPendingMovements,
   type MercadoPagoMovement,
   selectMovementsOnOrBefore,
 } from '@/lib/mercadopago/review'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
-import type { Account } from '@/types/database'
+import type { Account, Card } from '@/types/database'
 
 type State = {
   movements: MercadoPagoMovement[]
@@ -169,6 +170,9 @@ export function MercadoPagoReviewClient() {
   const [loading, setLoading] = useState(true)
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
+  const [cards, setCards] = useState<Card[]>([])
+  const [cardsLoading, setCardsLoading] = useState(false)
+  const [cardsError, setCardsError] = useState(false)
   const [accountLink, setAccountLink] = useState<AccountLink | null>(null)
   const [accountLinkLoading, setAccountLinkLoading] = useState(false)
   const [accountLinkError, setAccountLinkError] = useState(false)
@@ -249,6 +253,20 @@ export function MercadoPagoReviewClient() {
     }
   }, [])
 
+  const loadCards = useCallback(async () => {
+    setCardsLoading(true)
+    setCardsError(false)
+    try {
+      const response = await fetch('/api/cards', { cache: 'no-store' })
+      if (!response.ok) throw new Error('cards unavailable')
+      const loaded = await response.json() as Card[]
+      setCards(loaded.filter((card) => !card.archived))
+    } catch {
+      setCards([])
+      setCardsError(true)
+    } finally { setCardsLoading(false) }
+  }, [])
+
   useEffect(() => {
     void load()
     return () => {
@@ -272,11 +290,12 @@ export function MercadoPagoReviewClient() {
         const body = await response.json() as { match?: CounterpartyAliasMatch | null }
         return body.match ?? null
       }).then((match) => { if (request === selectionRequest.current) setAliasMatch(match) }).catch(() => undefined)
-    }
+    } else if (isReviewableMercadoPagoCardPurchase(movement)) void loadCards()
   }
 
   const confirm = async (payload: ParsePreviewConfirmPayload) => {
-    if (!selected || !isReviewableMercadoPagoExpense(selected)) throw new Error('ineligible')
+    const isCardPurchase = Boolean(selected && isReviewableMercadoPagoCardPurchase(selected))
+    if (!selected || (!isReviewableMercadoPagoExpense(selected) && !isCardPurchase)) throw new Error('ineligible')
     setSubmitting(true)
     try {
       const response = await fetch(
@@ -290,6 +309,7 @@ export function MercadoPagoReviewClient() {
             isWant: payload.is_want === true,
             expectedLinkedAccountId: accountLink?.linkedAccountId ?? '',
             expectedLinkedAccountVersion: accountLink?.linkedAccountVersion ?? -1,
+            ...(isCardPurchase ? { cardId: payload.card_id ?? '', installments: payload.installments } : {}),
           })),
         },
       )
@@ -473,7 +493,7 @@ export function MercadoPagoReviewClient() {
       </ConfirmationSurface>
 
       <TaskSurface
-        open={selected !== null && !isReviewableMercadoPagoExpense(selected)}
+        open={selected !== null && !isReviewableMercadoPagoExpense(selected) && !isReviewableMercadoPagoCardPurchase(selected)}
         onClose={() => {
           if (!dismissing) resetReview()
         }}
@@ -506,13 +526,13 @@ export function MercadoPagoReviewClient() {
       </TaskSurface>
 
       <TaskSurface
-        open={selected !== null && isReviewableMercadoPagoExpense(selected)}
+        open={selected !== null && (isReviewableMercadoPagoExpense(selected) || isReviewableMercadoPagoCardPurchase(selected))}
         onClose={() => {
           if (!submitting) resetReview()
         }}
         eyebrow="MERCADO PAGO"
-        title="Confirmar gasto"
-        description="Completá los datos para registrar este débito observado."
+        title={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Confirmar compra con tarjeta' : 'Confirmar gasto'}
+        description={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Compra aprobada en Mercado Pago. Elegí la tarjeta para registrarla; esta compra no representa un débito del saldo.' : 'Completá los datos para registrar este débito observado.'}
         appearance="compact"
         canvasTone="standard"
         footer={(
@@ -521,10 +541,19 @@ export function MercadoPagoReviewClient() {
           </button>
         )}
       >
-        {selected && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
-        {selected && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
-        {selected && !accountLinkLoading && !accountLinkError && !accountLink?.linkedAccountId && <div className="space-y-3"><p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Para confirmar un débito de saldo, primero elegí la cuenta que representa tu saldo de Mercado Pago.</p><Link href="/settings" className="inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Configurar vínculo</Link></div>}
-        {selected && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && <ParsePreview
+        {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
+        {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
+        {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && !accountLink?.linkedAccountId && <div className="space-y-3"><p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Para confirmar un débito de saldo, primero elegí la cuenta que representa tu saldo de Mercado Pago.</p><Link href="/settings" className="inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Configurar vínculo</Link></div>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsLoading && <p role="status" className="text-sm text-text-secondary">Cargando tus tarjetas…</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No hay tarjetas activas para elegir. La compra sigue pendiente.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && <ParsePreview
+          key={`${selected.candidateId}:${cards.length}:credit`}
+          data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: null }}
+          cards={cards} accounts={[]} onConfirm={confirm} onSave={() => undefined} onCancel={resetReview}
+          aliasSource="mercadopago" immutableProviderEvidence embedded
+        />}
+        {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
           data={{
             amount: Math.abs(selected.balanceImpact.amount.value ?? 0),

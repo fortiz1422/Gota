@@ -45,8 +45,8 @@ describe('normalizeMercadoPagoMovement', () => {
   it('supports nested funding variants and only retains safe card metadata', () => {
     expect(normalize({ ...base, payment_method_id: undefined, payment_type_id: undefined, issuer_id: undefined, payment_method: { type: 'account_money', id: 'account_money' }, card: undefined })).toMatchObject({ fundingSource: { kind: 'mercadopago_balance' } })
     expect(normalize({ ...base, payment_method_id: 'debin_transfer', payment_type_id: 'bank_transfer', payment_method: { id: 'debin_transfer', type: 'bank_transfer' }, card: undefined })).toMatchObject({ fundingSource: { kind: 'bank_transfer' } })
-    expect(normalize({ ...base, payment_method_id: undefined, payment_type_id: undefined, issuer_id: undefined, payment_method: { type: 'credit_card', id: 'visa', issuer_id: { secret: 'x' } }, card: { last_four_digits: '123456789' } }).fundingSource).toEqual({ kind: 'card', brand: 'visa' })
-    expect(normalize({ ...base, payment_method_id: {}, payment_type_id: {}, issuer_id: {}, payment_method: { type: 'credit_card', id: 'visa', issuer_id: '456' }, card: { last_four_digits: '9999' } }).fundingSource).toEqual({ kind: 'card', brand: 'visa', issuerId: '456', lastFour: '9999' })
+    expect(normalize({ ...base, payment_method_id: undefined, payment_type_id: undefined, issuer_id: undefined, payment_method: { type: 'credit_card', id: 'visa', issuer_id: { secret: 'x' } }, card: { last_four_digits: '123456789' } }).fundingSource).toEqual({ kind: 'card', cardType: 'credit', brand: 'visa' })
+    expect(normalize({ ...base, payment_method_id: {}, payment_type_id: {}, issuer_id: {}, payment_method: { type: 'credit_card', id: 'visa', issuer_id: '456' }, card: { last_four_digits: '9999' } }).fundingSource).toEqual({ kind: 'card', cardType: 'credit', brand: 'visa', issuerId: '456', lastFour: '9999' })
   })
 
   it('uses the server-side native key when the payload has no provider id', () => {
