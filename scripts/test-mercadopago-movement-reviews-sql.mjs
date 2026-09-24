@@ -80,6 +80,16 @@ try {
   mustFail(dismiss())
   expectedLastSeen = '2026-09-18T10:00:00Z'
   if (!sql(dismiss(), 'service_role').includes('dismissed')) throw new Error('last_seen-only dismissal replay failed')
+  const bulkExpected = JSON.stringify([{ id: rawId, source: 'payments_search', native_key: 'native-1', last_seen_at: expectedLastSeen }])
+  const bulkCandidates = q(JSON.stringify([
+    { candidateId: 'bulk-candidate', fingerprint: '8'.repeat(64), expectedObservations: JSON.parse(bulkExpected), invalid: false },
+    { candidateId: 'stale-bulk', fingerprint: '9'.repeat(64), expectedObservations: JSON.parse(bulkExpected), invalid: true },
+  ]))
+  const bulkResult = sql(`select public.dismiss_mercadopago_movements_bulk('${user}','${conn}','${bulkCandidates}'::jsonb);`, 'service_role')
+  if (!bulkResult.includes('dismissed') || !bulkResult.includes('stale')) throw new Error('bulk result statuses missing')
+  if (!sql(`select public.dismiss_mercadopago_movements_bulk('${user}','${conn}','${bulkCandidates}'::jsonb);`, 'service_role').includes('already_dismissed')) throw new Error('bulk retry was not idempotent')
+  mustFail(`select public.dismiss_mercadopago_movements_bulk('${user}','${conn}','${bulkCandidates.replace('stale-bulk', 'bulk-candidate')}'::jsonb);`, 'service_role')
+  mustFail(`select public.dismiss_mercadopago_movements_bulk('${user}','${conn}','${bulkCandidates}'::jsonb);`, 'anon')
   mustFail(call({ ih: 'c'.repeat(64) }))
   mustFail(call({ isWant: 'true', semantic: '{"movement_kind":"refund"}', obs: expected().replace('native-1', 'changed-native') }))
   mustFail(call({ obs: `[${expected().slice(1, -1)},${expected().slice(1, -1)}]` }))

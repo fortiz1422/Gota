@@ -2,7 +2,10 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 
-vi.mock('next/navigation', () => ({ useRouter: () => ({ refresh: vi.fn() }) }))
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ refresh: vi.fn() }),
+  useSearchParams: () => new URLSearchParams(),
+}))
 vi.mock('@/components/auth/PasskeysPanel', () => ({ PasskeysPanel: () => createElement('div') }))
 vi.mock('@/components/settings/CuentasSubSheet', () => ({
   CuentasSubSheet: ({ onChanged }: { onChanged?: () => void }) => createElement('div', {

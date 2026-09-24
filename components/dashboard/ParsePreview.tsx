@@ -55,8 +55,10 @@ interface ParsePreviewProps {
   onCancel: () => void
   onConfirm?: (payload: ParsePreviewConfirmPayload) => Promise<unknown>
   embedded?: boolean
-  aliasSource?: 'receipt' | 'parser'
+  aliasSource?: 'receipt' | 'parser' | 'mercadopago'
   confirmLabel?: string
+  immutableProviderEvidence?: boolean
+  fixedAccount?: { id: string; name: string } | null
 }
 
 type CounterpartyProfileOption = {
@@ -149,6 +151,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
+  immutableProviderEvidence = false, fixedAccount = null,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -157,7 +160,7 @@ export function ParsePreview({
     is_recurring: data.is_recurring ?? false,
     is_extraordinary: data.is_extraordinary ?? false,
   })
-  const [source, setSource] = useState<SourceKey>(() => getDefaultSource(data, accounts))
+  const [source, setSource] = useState<SourceKey>(() => fixedAccount?.id ?? getDefaultSource(data, accounts))
   const [installments, setInstallments] = useState(data.installments ?? 1)
   const [installmentsInput, setInstallmentsInput] = useState('')
   const [isSaving, setIsSaving] = useState(false)
@@ -175,6 +178,7 @@ export function ParsePreview({
   const [profilesError, setProfilesError] = useState<string | null>(null)
 
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
+  const isProviderCardPurchase = immutableProviderEvidence && aliasSource === 'mercadopago' && data.payment_method === 'CREDIT'
   const isCredit = source === 'credit' || isPagoTarjetas
   const needsCard = isCredit
 
@@ -355,8 +359,8 @@ export function ParsePreview({
     <div data-parse-preview-inline={embedded ? 'true' : undefined}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
-      <h2 className="text-lg font-semibold text-text-primary">Confirmar gasto</h2>
-      <p className="mb-5 mt-1 text-xs text-text-tertiary">Revisa los datos antes de guardar</p>
+      <h2 className="text-lg font-semibold text-text-primary">{isProviderCardPurchase ? 'Confirmar compra con tarjeta' : 'Confirmar gasto'}</h2>
+      <p className="mb-5 mt-1 text-xs text-text-tertiary">{isProviderCardPurchase ? 'Compra aprobada en Mercado Pago. Revisá la tarjeta y completá los datos antes de registrarla.' : 'Revisa los datos antes de guardar'}</p>
 
       <div className="space-y-5">
         <div>
@@ -368,21 +372,24 @@ export function ParsePreview({
               type="number"
               inputMode="decimal"
               value={form.amount}
+              readOnly={immutableProviderEvidence}
               onChange={(e) => set('amount', Number(e.target.value))}
-              className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+              className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
             />
             <div className="flex rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((currency) => (
-                <button
-                  key={currency}
-                  onClick={() => set('currency', currency)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
-                    form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
-                  }`}
-                >
-                  {currency}
-                </button>
-              ))}
+              {immutableProviderEvidence
+                ? <span className="px-3 py-1.5 text-sm font-medium text-text-secondary">{form.currency}</span>
+                : (['ARS', 'USD'] as const).map((currency) => (
+                  <button
+                    key={currency}
+                    onClick={() => set('currency', currency)}
+                    className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
+                      form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
+                    }`}
+                  >
+                    {currency}
+                  </button>
+                ))}
             </div>
           </div>
         </div>
@@ -406,7 +413,9 @@ export function ParsePreview({
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             De donde sale
           </label>
-          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
+          {isProviderCardPurchase && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Tarjeta de crédito · compra en Mercado Pago</p>}
+          <div className={fixedAccount || immutableProviderEvidence ? 'hidden' : 'flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
             {bankDigital.map((account) => (
               <button
                 key={account.id}
@@ -472,7 +481,12 @@ export function ParsePreview({
           </div>
         )}
 
-        {source === 'credit' && !isPagoTarjetas && (
+        {isProviderCardPurchase ? (
+          <div>
+            <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">Cuotas</label>
+            <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Una cuota · según Mercado Pago</p>
+          </div>
+        ) : source === 'credit' && !isPagoTarjetas && (
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               Cuotas
@@ -541,7 +555,7 @@ export function ParsePreview({
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           >
             <option value="">Elegí una categoría</option>
-            {CATEGORIES.map((category) => (
+            {CATEGORIES.filter((category) => !isProviderCardPurchase || category !== 'Pago de Tarjetas').map((category) => (
               <option key={category} value={category}>
                 {category}
               </option>
@@ -556,6 +570,7 @@ export function ParsePreview({
           <input
             type="date"
             value={form.date}
+            readOnly={immutableProviderEvidence}
             onChange={(e) => set('date', e.target.value)}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
           />
@@ -574,20 +589,22 @@ export function ParsePreview({
               >
                 Deseo
               </button>
-              <button
-                type="button"
-                onClick={() => set('is_recurring', !form.is_recurring)}
-                className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
-              >
-                Recurrente
-              </button>
-              <button
-                type="button"
-                onClick={() => set('is_extraordinary', !form.is_extraordinary)}
-                className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
-              >
-                Extraordinario
-              </button>
+              {!isProviderCardPurchase && <>
+                <button
+                  type="button"
+                  onClick={() => set('is_recurring', !form.is_recurring)}
+                  className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
+                >
+                  Recurrente
+                </button>
+                <button
+                  type="button"
+                  onClick={() => set('is_extraordinary', !form.is_extraordinary)}
+                  className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
+                >
+                  Extraordinario
+                </button>
+              </>}
             </div>
           </div>
         )}

@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Bank,
   CaretRight,
@@ -25,6 +25,10 @@ type Props = {
   heroBalanceMode: HeroBalanceMode
   accounts: Account[]
   cards: Card[]
+}
+
+export function shouldOpenAccountManagement(section: string | null) {
+  return section === 'cuentas'
 }
 
 function AccountTypeIcon({ type }: { type: Account['type'] }) {
@@ -76,6 +80,7 @@ export function WebSettingsPage({
   cards,
 }: Props) {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [currency, setCurrency] = useState<'ARS' | 'USD'>(initialCurrency)
   const [heroBalanceMode, setHeroBalanceMode] = useState<HeroBalanceMode>(initialHeroBalanceMode)
   const [isSavingConfig, setIsSavingConfig] = useState(false)
@@ -83,6 +88,10 @@ export function WebSettingsPage({
   const [accountsOpen, setAccountsOpen] = useState(false)
   const hasGoogle = authProviders.includes('google')
   const hasEmailProvider = authProviders.includes('email')
+
+  useEffect(() => {
+    if (shouldOpenAccountManagement(searchParams.get('section'))) setAccountsOpen(true)
+  }, [searchParams])
 
   const saveConfig = async (next: {
     default_currency?: 'ARS' | 'USD'

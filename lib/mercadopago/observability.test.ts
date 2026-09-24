@@ -4,6 +4,7 @@ import { decryptMercadoPagoToken, encryptMercadoPagoToken } from './token-crypto
 import { buildMercadoPagoAuthorizeUrl, getMercadoPagoOAuthReadiness, parseMercadoPagoTokenPayload, resolveMercadoPagoTokenExpiresAt } from './oauth'
 import { buildMercadoPagoPullUrls, syncMercadoPagoObservations } from './observability-sync'
 import { observationNativeKey } from './raw-observation'
+import { parseSyncWindow } from './sync-window'
 
 const KEY = Buffer.alloc(32, 7).toString('base64')
 const NOW = new Date('2026-09-15T12:00:00.000Z')
@@ -29,13 +30,13 @@ describe('Mercado Pago observability harness', () => {
   })
 
   it('builds Mercado Pago official 90-day search parameters and an unfiltered report URL', () => {
-    const [payments, reports] = buildMercadoPagoPullUrls({ now: NOW })
+    const [payments, reports] = buildMercadoPagoPullUrls({ now: NOW, window: parseSyncWindow({ preset: '60d' }, NOW) })
     const url = new URL(payments)
     expect(url.searchParams.get('sort')).toBe('date_created')
     expect(url.searchParams.get('criteria')).toBe('desc')
     expect(url.searchParams.get('range')).toBe('date_created')
-    expect(url.searchParams.get('begin_date')).toBe('2026-06-17T12:00:00.000Z')
-    expect(url.searchParams.get('end_date')).toBe('2026-09-15T12:00:00.000Z')
+    expect(url.searchParams.get('begin_date')).toBe('2026-07-18T03:00:00Z')
+    expect(url.searchParams.get('end_date')).toBe('2026-09-16T02:59:59Z')
     expect(url.searchParams.get('offset')).toBe('0')
     expect(reports).toBe('https://api.mercadopago.com/v1/account/settlement_report/list')
   })
@@ -56,8 +57,8 @@ describe('Mercado Pago observability harness', () => {
     expect(fetchImpl.mock.calls.some(([url]) => String(url) === 'https://api.mercadopago.com/v1/account/settlement_report/list')).toBe(true)
     expect((fetchImpl.mock.calls[0][1] as RequestInit).headers).toMatchObject({ Authorization: 'Bearer access-secret' })
     expect(result.sources).toEqual([
-      { source: 'payments_search', status: 'success', count: 51, errorCode: null },
-      { source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' },
+      expect.objectContaining({ source: 'payments_search', status: 'success', count: 51, errorCode: null }),
+      expect.objectContaining({ source: 'account_settlement_report', status: 'error', count: 0, errorCode: 'provider_error' }),
     ])
     expect(store.upsertRawObservation).toHaveBeenCalledTimes(51)
     expect(JSON.stringify(result)).not.toContain('access-secret')

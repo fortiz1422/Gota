@@ -7,6 +7,8 @@ import type { RawObservation } from './raw-observation'
 type Result<T> = { data: T | null; error: unknown }
 export type MercadoPagoConnection = {
   id: string
+  linked_account_id: string | null
+  linked_account_version: number
   provider_user_id: string | null
   status: 'connected' | 'expired' | 'error' | 'revoked'
   access_token_ciphertext: string | null
@@ -14,13 +16,13 @@ export type MercadoPagoConnection = {
   token_expires_at: string | null
   last_sync_at: string | null
 }
-type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; count: number; error_code: SourceRun['errorCode']; started_at: string }
+type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; count: number; error_code: SourceRun['errorCode']; started_at: string; begin_date: string | null; end_date: string | null }
 export type MercadoPagoMovementObservation = { id: string; source: RawObservation['source']; native_key: string; payload: unknown; last_seen_at: string }
 export type MercadoPagoMovementReview = { candidate_id: string; status: 'confirmed'; expense_id: string }
 export type MercadoPagoMovementDismissal = { candidate_id: string; status: 'dismissed' }
 type Query<T> = {
   upsert: (values: Record<string, unknown>, options: { onConflict: string }) => { select: (columns: string) => { single: () => Promise<Result<T>> } }
-  select: (columns: string) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<Result<T>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>> }; eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<Result<T>> } } } } }
+  select: (columns: string) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<Result<T>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>>; range: (from: number, to: number) => Promise<Result<T[]>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>>; range: (from: number, to: number) => Promise<Result<T[]>> } }; eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<Result<T>> } } } } }
   update: (values: Record<string, unknown>) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<Result<T>> } } } } }
 }
 export type MercadoPagoDatabase = { from: <T>(table: 'mercadopago_connections' | 'mercadopago_raw_observations' | 'mercadopago_sync_source_runs') => Query<T> }
@@ -48,7 +50,7 @@ export function createMercadoPagoRepository(database: MercadoPagoDatabase) {
     },
 
     async getMercadoPagoConnection(userId: string): Promise<MercadoPagoConnection | null> {
-      const result = await database.from<MercadoPagoConnection>('mercadopago_connections').select('id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at').eq('user_id', userId).eq('provider', 'mercadopago').maybeSingle()
+      const result = await database.from<MercadoPagoConnection>('mercadopago_connections').select('id,status,provider_user_id,access_token_ciphertext,refresh_token_ciphertext,token_expires_at,last_sync_at,linked_account_id,linked_account_version').eq('user_id', userId).eq('provider', 'mercadopago').maybeSingle()
       if (result.error) throw new Error('connection_read_failed')
       return result.data
     },
@@ -79,20 +81,36 @@ export function createMercadoPagoRepository(database: MercadoPagoDatabase) {
         error_code: run.errorCode,
         started_at: startedAt,
         completed_at: startedAt,
+        begin_date: run.beginDate ?? null,
+        end_date: run.endDate ?? null,
       }, { onConflict: 'user_id,connection_id,batch_id,source' }).select('id').single()
       exactlyOne(result, 'source_run_write_failed')
     },
 
     async getLatestMercadoPagoSourceRuns(userId: string, connectionId: string): Promise<SourceRunRow[]> {
-      const result = await database.from<SourceRunRow>('mercadopago_sync_source_runs').select('source,status,count,error_code,started_at').eq('user_id', userId).eq('connection_id', connectionId).order('started_at', { ascending: false }).limit(2)
+      const result = await database.from<SourceRunRow>('mercadopago_sync_source_runs').select('source,status,count,error_code,started_at,begin_date,end_date').eq('user_id', userId).eq('connection_id', connectionId).order('started_at', { ascending: false }).limit(20)
       if (result.error || !result.data) throw new Error('source_runs_read_failed')
       return result.data
     },
 
     async getMercadoPagoMovementObservations(userId: string, connectionId: string, limit: number): Promise<MercadoPagoMovementObservation[]> {
-      const result = await database.from<MercadoPagoMovementObservation>('mercadopago_raw_observations').select('id,source,native_key,payload,last_seen_at').eq('user_id', userId).eq('connection_id', connectionId).order('last_seen_at', { ascending: false }).limit(Math.min(Math.max(limit, 1), 100))
-      if (result.error || !result.data) throw new Error('movement_observations_read_failed')
-      return result.data
+      const pageSize = Math.min(Math.max(Math.floor(limit), 1), 100)
+      const maxPages = 100
+      const observations: MercadoPagoMovementObservation[] = []
+      for (let page = 0; page < maxPages; page += 1) {
+        const from = page * pageSize
+        const result = await database.from<MercadoPagoMovementObservation>('mercadopago_raw_observations')
+          .select('id,source,native_key,payload,last_seen_at')
+          .eq('user_id', userId)
+          .eq('connection_id', connectionId)
+          .order('last_seen_at', { ascending: false })
+          .order('id', { ascending: false })
+          .range(from, from + pageSize - 1)
+        if (result.error || !result.data) throw new Error('movement_observations_read_failed')
+        observations.push(...result.data)
+        if (result.data.length < pageSize) return observations
+      }
+      throw new Error('movement_observations_limit_exceeded')
     },
 
     async updateMercadoPagoConnection(userId: string, connectionId: string, patch: Record<string, unknown>) {

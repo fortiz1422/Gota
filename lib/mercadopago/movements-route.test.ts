@@ -14,7 +14,7 @@ beforeEach(() => {
   mocks.getObservations.mockResolvedValue([{ source: 'payments_search', native_key: '101', payload: { id: 101 }, last_seen_at: '2026-09-15T12:00:00.000Z' }])
   mocks.getReviews.mockResolvedValue([])
   mocks.getDismissals.mockResolvedValue([])
-  mocks.normalize.mockReturnValue({ nativeId: '101', description: 'Compra sintética', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', confidence: 'confirmed' })
+  mocks.normalize.mockReturnValue({ nativeId: '101', description: 'Compra sintética', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', accountRole: 'payer', operation: { type: 'regular_payment', status: 'approved', statusDetail: null }, fundingSource: { kind: 'unknown', cardType: null }, confidence: 'confirmed', installments: 1, summary: { refunded: null }, occurredAt: '2026-09-15T12:00:00.000Z', approvedAt: null, channel: null, reasonCodes: [] })
 })
 
 describe('Mercado Pago movements route', () => {
@@ -43,7 +43,7 @@ describe('Mercado Pago movements route', () => {
       { source: 'payments_search', native_key: 'b', payload: { id: 'b' }, last_seen_at: '2026-09-15T12:00:00.000Z' },
       { source: 'payments_search', native_key: 'c', payload: { id: 'c' }, last_seen_at: '2026-09-15T12:00:00.000Z' },
     ])
-    mocks.normalize.mockImplementation(({ nativeKey }: { nativeKey: string }) => ({ nativeId: nativeKey, occurredAt: nativeKey === 'c' ? '2026-09-16T00:00:00.000Z' : nativeKey === 'd' ? 'not-a-date' : '2026-09-15T00:00:00.000Z', kind: 'expense', confidence: 'confirmed' }))
+    mocks.normalize.mockImplementation(({ nativeKey }: { nativeKey: string }) => ({ nativeId: nativeKey, occurredAt: nativeKey === 'c' ? '2026-09-16T00:00:00.000Z' : nativeKey === 'd' ? 'not-a-date' : '2026-09-15T00:00:00.000Z', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', accountRole: 'payer', operation: { type: 'regular_payment', status: 'approved', statusDetail: null }, fundingSource: { kind: 'unknown', cardType: null }, confidence: 'confirmed', installments: 1, summary: { refunded: null }, description: 'Compra', approvedAt: null, channel: null, reasonCodes: [] }))
 
     const body = await (await GET()).json()
 

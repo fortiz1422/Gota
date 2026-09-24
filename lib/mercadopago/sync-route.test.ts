@@ -46,14 +46,14 @@ describe('Mercado Pago sync route', () => {
 
     const response = await GET()
 
-    expect(await response.json()).toEqual({ state: 'not_connected', lastSyncAt: null, sources: { payments: { status: 'not_run', count: 0 }, reports: { status: 'not_run', count: 0 } } })
+    expect(await response.json()).toMatchObject({ state: 'not_connected', lastSyncAt: null, sources: { payments: { status: 'not_run', count: 0 }, reports: { status: 'not_run', count: 0 } } })
   })
 
   it('persists partial source summaries and returns their narrow status without ledger calls', async () => {
     const response = await POST()
 
     expect(response.status).toBe(207)
-    expect(await response.json()).toEqual({ sources: { payments: { status: 'success', count: 2 }, reports: { status: 'error', count: 0 } } })
+    expect(await response.json()).toMatchObject({ range: { preset: '7d' }, sources: { payments: { status: 'success', count: 2, coverageComplete: true }, reports: { status: 'error', count: 0, coverageComplete: false } } })
     expect(mocks.saveRun).toHaveBeenCalledTimes(2)
     expect(mocks.updateConnection).toHaveBeenLastCalledWith('user-1', 'connection-1', { last_sync_at: partial.startedAt, status: 'error', last_error_code: 'provider_error' })
     expect(mocks.saveRaw).not.toHaveBeenCalled()
@@ -65,7 +65,7 @@ describe('Mercado Pago sync route', () => {
     const response = await POST()
 
     expect(response.status).toBe(200)
-    expect(await response.json()).toEqual({ sources: { payments: { status: 'success', count: 2 }, reports: { status: 'pending', count: 0 } } })
+    expect(await response.json()).toMatchObject({ range: { preset: '7d' }, sources: { payments: { status: 'success', count: 2, coverageComplete: true }, reports: { status: 'pending', count: 0, coverageComplete: false } } })
     expect(mocks.updateConnection).toHaveBeenLastCalledWith('user-1', 'connection-1', { last_sync_at: '2026-09-15T00:00:00.000Z', status: 'connected', last_error_code: null })
   })
 
