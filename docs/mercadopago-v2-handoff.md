@@ -136,3 +136,18 @@ La prueba de captura real sigue pendiente: resolver acceso/entorno de hosting, d
 - Se detectó y corrigió un bloqueo adicional en código: proxy redirigía el cron a login porque exigía sesión de Supabase. La excepción ahora coincide sólo con `/api/cron/mercadopago-sync` y deja la autorización a su handler con CRON_SECRET. No se abre un prefijo de rutas ni los endpoints de setup/sync.
 - Tests verifican llegada al handler sin sesión/dependencia auth, protección de rutas vecinas, rechazo de secreto ausente/incorrecto y modo disabled con secreto válido. No hay schedule añadido ni job activado.
 - La configuración del entorno de prueba y la prueba autenticada del endpoint siguen pendientes de acceso al panel o herramienta de gestión de entornos. No solicitar una nueva reconexión genérica: la lectura ya funciona.
+
+## Handoff para Hermes — configuración de Preview, 1 octubre 2026
+
+Este registro conserva el estado del trabajo realizado por ChatGPT Work; no delega la implementación.
+
+- Decisión autorizada por el usuario: extender a Production y Preview las variables existentes `MERCADOPAGO_CLIENT_ID`, `MERCADOPAGO_CLIENT_SECRET`, `MERCADOPAGO_TOKEN_ENCRYPTION_KEY`, `MERCADOPAGO_REDIRECT_URI` y `CRON_SECRET`. Se guardó cada cambio desde el panel de Vercel y se verificó su alcance. Los secretos no se revelaron, copiaron al workspace ni rotaron. El permiso aplica a todos los previews del proyecto, no sólo a esta rama.
+- Se agregó `MERCADOPAGO_BACKGROUND_SYNC_ENABLED=true` como Config exclusivamente para la rama `feat/mercadopago-integration-v2`, en Preview. Production no recibió el flag. Las credenciales por sí solas no habilitan conexiones ni auto-post.
+- El callback conserva `https://gota-arg.vercel.app/api/integrations/mercadopago/callback`. Sirve como configuración requerida para usar la conexión existente; no valida OAuth nuevo desde Preview. Ese recorrido requiere un callback y sesión coherentes con el host de prueba.
+- Plan observado en el panel: Hobby. No se contrató infraestructura ni se agregó cron de MP; la cadencia inicial del scheduler sigue pendiente y debe respetar el plan.
+- Se solicitó un redeploy del commit `e6143216fafec35d339c970c07ca7de9252118f4`, verificando destino Preview, rama correcta y dominio de rama. Deployment: `dpl_3EbnCJn5PGZDBUnppEfNPXLJwQdP`.
+- Supabase después de configurar Preview: cero conexiones con `background_sync_enabled=true` y cero imports iniciados. No se invocó setup, refresh, captura ni posting.
+- Riesgo: Preview usa la base existente y ahora puede descifrar las credenciales de MP. La protección del deployment se conservó. Mantener shadow sin escrituras de ledger; los previews de otras ramas también tienen las cinco variables ampliadas.
+- Redeploy verificado READY mediante plugin y panel, duración 1m52s. URL del deployment: `https://gota-gvi0kz6o5-facundos-projects-11ee7eb5.vercel.app`. Conserva el commit `e614321` y destino Preview. No se promovió producción.
+- Intento de navegación del navegador a `/api/cron/mercadopago-sync` sin secreto: `net::ERR_BLOCKED_BY_CLIENT`. Es un bloqueo del cliente, no una respuesta HTTP del handler; no demuestra 401, readiness ni ejecución. No se leyó el secreto para intentar sortearlo.
+- Pendientes: probar límites de autenticación en el host nuevo con un cliente autorizado, elegir explícitamente período de importación para la cuenta autorizada, ejecutar captura real, comparar RAW/decisiones y completar la matriz controlada. La suite previa sigue en 143 archivos/916 tests; estas acciones son configuración y documentación, no nuevas pruebas de negocio.
