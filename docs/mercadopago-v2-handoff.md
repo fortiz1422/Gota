@@ -6,7 +6,7 @@ Rama de trabajo: `feat/mercadopago-integration-v2`. Checkout inicial limpio. No 
 ## Alcance entregado
 
 Este cambio incluye plumbing/shadow, setup e importación inicial; **MP v2 no está terminado ni activado**.
-No se aplicaron migraciones ni se alteró el canon financiero de producción.
+Se aplicaron las dos migraciones v2 el 1 octubre 2026 con autorización del usuario. No se alteró el canon financiero ni se habilitaron conexiones, cron o auto-post.
 
 - Refresh/decrypt/encrypt compartidos en `access-token.ts`; persistencia protegida por lease cuando se utiliza el job.
 - Motor de sincronización manual extraído a `sync-service.ts`; contrato y UI existentes conservados.
@@ -55,9 +55,9 @@ PGLITE_MODULE_PATH=/tmp/gota-pg-validation/node_modules/@electric-sql/pglite/dis
 ## Activación pendiente — entorno controlado primero
 
 1. Confirmar hosting, plan, límites de ejecución, frecuencia cron y entorno de prueba separado. No asumir Vercel Pro.
-2. Revisar/aplicar `docs/supabase-mercadopago-background-sync.sql` en ese entorno y verificar constraints/roles reales.
+2. Background-sync ya aplicado y verificado en la base existente; revisar el mismo esquema al preparar un entorno de prueba separado.
 3. Configurar el flag `MERCADOPAGO_BACKGROUND_SYNC_ENABLED=true` solamente allí; `CRON_SECRET` queda server-side. No pegar ni guardar secretos en handoffs.
-4. Aplicar también `docs/supabase-mercadopago-initial-import.sql` después de background-sync y account-link. El endpoint de setup habilita una conexión sólo al aceptar el período elegido por el usuario; las migraciones no habilitan conexiones.
+4. Initial-import también aplicado y verificado en la base existente. El endpoint de setup habilita una conexión sólo al aceptar el período elegido por el usuario; las migraciones no habilitan conexiones.
 5. Invocar el endpoint con autenticación de cron y comprobar RAW, watermark, leases, auditoría y reintento sin duplicación con tráfico real.
 6. Definir el schedule después de medir duración y carga. Una conexión por invocación implica que la latencia crece con cantidad de conexiones; no prometer diez minutos por usuario.
 7. Mantener auto-post bloqueado. La auditoría shadow no es una aprobación para activar escrituras.
@@ -65,7 +65,7 @@ PGLITE_MODULE_PATH=/tmp/gota-pg-validation/node_modules/@electric-sql/pglite/dis
 ## Pendientes respecto del handoff original
 
 P0 implementado en código y SQL: setup today/30/90, cuenta automática inequívoca, onboarding al volver de OAuth, Settings sin fuentes/rangos de sync en el modo nuevo, desconexión y reanudación.
-P0 pendiente real: aplicar migraciones en entorno controlado, activar scheduler según plan/hosting, validar captura con cuenta MP autorizada, estado de salud y reconciliación diaria.
+P0 pendiente real: resolver entorno de prueba, activar scheduler según plan/hosting, validar captura con cuenta MP autorizada, estado de salud y reconciliación diaria.
 P1 pendiente: matching contra ledger, auditoría de posting, auto-post saldo y exception inbox.
 P2/P3 pendiente: mapping de tarjetas, 1/N cuotas con motor canónico, merchant learning, refunds, enriquecimiento ML/servicios y transfers propios.
 No se alteró la configuración externa de Settlement ni se agregó webhook, Apple Pay o infraestructura externa.
@@ -75,7 +75,7 @@ La matriz original de 16 operaciones sigue pendiente completa. Obtener fixtures 
 ## Verificación directa pendiente
 
 El handoff original provino de ChatGPT. El trabajo lo continúa ChatGPT Work; no se requiere intervención ni un handoff de Hermes.
-Supabase y Vercel fueron conectados. Se inspeccionó Supabase directamente en modo lectura. La sesión no expuso herramientas de Vercel tras la conexión; se verificó el deployment del segundo commit mediante el estado de GitHub (success). No se conoce todavía el plan ni la cadencia cron disponible.
+Supabase y Vercel fueron conectados. Se inspeccionó Supabase y se aplicaron las migraciones preparadas. Las herramientas de Vercel ahora están expuestas, pero `get_project` devuelve 403: el token no está autorizado para el equipo `facundos-projects-11ee7eb5`. Se requiere reautenticar con acceso a ese equipo. No se conoce todavía el plan ni la cadencia cron disponible.
 No copiar ni persistir credenciales en el repo o chat.
 Para la prueba OAuth personal puede ser necesaria la autorización del titular; esa autorización no se sustituye por mocks.
 
@@ -104,7 +104,7 @@ Supuestos no demostrados: cobertura completa personal de Payments Search, metada
 ## Inspección real y regresión histórica — 1 octubre 2026
 
 - Supabase: un proyecto activo, organización Free, sin ramas de base de datos. La lista de migraciones está vacía, pero el esquema existe; no confundir historial vacío con esquema vacío.
-- Las dos migraciones v2 siguen pendientes. No se aplicó DDL ni se modificaron datos en producción.
+- Las dos migraciones v2 se aplicaron posteriormente, con autorización explícita para avanzar manteniendo cron/auto-post apagados. No se modificaron datos financieros en producción.
 - Hay dos conexiones, una activa. La última captura registrada fue el 17 septiembre UTC (16 septiembre en Argentina). Total histórico: 108 RAW; conexión activa: 36 Payments + 18 Settlement.
 - Existen protecciones adicionales de identidad en producción ausentes del repo principal: `mercadopago_operation_decisions`, triggers de identidad y locks sobre RAW. No ejecutar de nuevo migraciones antiguas de confirmación que puedan sobrescribirlas. Las migraciones v2 no reemplazan esas funciones.
 - Shadow consulta las tablas existentes de confirmaciones y descartes, paginadas y filtradas por usuario/conexión. Compara las native keys de sus snapshots, además del candidate ID. Así conserva decisiones previas cuando cambia el candidate al incorporar una segunda fuente, sin exigir la tabla adicional de producción.
@@ -114,10 +114,16 @@ Supuestos no demostrados: cobertura completa personal de Payments Search, metada
 - Evaluación histórica con dedupe simulado como completado: 41 candidatos, 7 elegibles según la política de saldo, 32 review, 1 ignore, 1 espera de reconciliación. Es un ejercicio de reglas, no una tasa real de automatización. El runner real conserva `ledgerDedupeChecked=false`, no escribe ledger y no habilita auto-post.
 - No hay evidencia controlada de 3/6 cuotas, refunds, Mercado Libre, servicios ni matching de cuentas propias. La matriz de 16 operaciones continúa pendiente.
 
-## Próximo cambio de base preparado
+## Cambio de base aplicado y verificado — 1 octubre 2026
 
-Aplicar en orden `docs/supabase-mercadopago-background-sync.sql` y `docs/supabase-mercadopago-initial-import.sql` agrega columnas, auditoría shadow y RPCs de servicio. El primer script prepara lease/watermark; el segundo prepara setup, identidad, desconexión y reanudación.
+Se aplicaron en orden `docs/supabase-mercadopago-background-sync.sql` y `docs/supabase-mercadopago-initial-import.sql`, con el MCP `apply_migration`. Versiones registradas: `20261001103546` (`mercadopago_v2_background_sync`) y `20261001103602` (`mercadopago_v2_initial_import`). Agregan columnas, auditoría shadow y RPCs de servicio; preparan lease/watermark, setup, identidad, desconexión y reanudación.
 
-La aplicación de SQL no crea cuentas ni gastos, no modifica saldos ni compromisos y no habilita conexiones. La creación/reutilización de cuenta y selección de período sólo ocurren al invocar setup; no se invocará durante la aplicación. No se activará el flag, cron ni auto-post en este paso. No se solicitará una rama paga de Supabase sin autorización de coste.
+La aplicación no creó cuentas ni gastos y no invocó setup ni rutinas de ledger. Los conteos de accounts, expenses, RAW y decisiones quedaron iguales antes/después. Hay cero conexiones habilitadas, ambos imports `not_started` y cero filas shadow. No se activó el flag, cron ni auto-post. No se creó infraestructura paga.
 
-La revisión final de este paso requiere confirmar la aplicación a la única base disponible. Después deben verificarse esquema y privilegios; la prueba de captura real requiere por separado resolver entorno/hosting, desplegar la rama y autorizar el período de importación.
+- Verificación de privilegios: los cinco RPCs nuevos de servicio no son ejecutables por anon/authenticated, sí por service_role; tienen search_path vacío. Auditoría shadow con RLS y sin permisos de lectura/escritura para clientes.
+- Huellas de definición de las seis funciones protegidas existentes (confirmaciones y protecciones de identidad) idénticas antes/después. No se sobrescribieron protecciones ajenas a v2.
+- Advisors antes/después: única observación nueva INFO `rls_enabled_no_policy` sobre shadow. Es intencional: tabla sólo backend, sin acceso cliente. [Referencia del advisor](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
+- Existen alertas previas fuera del cambio: vista `user_active_cards` con security definer y RPCs legacy públicamente ejecutables. No se modificaron en estas migraciones; requieren revisar uso y permisos antes de endurecerlos. [Vista](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view), [RPCs](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable).
+- Bloqueo para probar captura en hosting: el plugin Vercel devuelve 403 para el equipo que aloja Gota. Reautenticar ese scope antes de inspeccionar/configurar entorno, plan y cron. No se intentó eludirlo ni se usaron credenciales alternativas.
+
+La prueba de captura real sigue pendiente: resolver acceso/entorno de hosting, desplegar la rama en prueba y autorizar el período de importación. No se requiere otra aprobación para estas migraciones ya aplicadas.
