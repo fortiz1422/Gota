@@ -163,3 +163,37 @@ Este registro conserva el estado del trabajo realizado por ChatGPT Work; no dele
 - Deploy verificado READY: `dpl_E8XpCUHZL4ua79fWmMeoZWmZwwo8`, commit `2867f6c2db2055cd3c0ac9909d706af275e117a5`, URL `https://gota-qa9hll0nu-facundos-projects-11ee7eb5.vercel.app`. El alias de rama llega al login de Gota sin el bloqueo de navegación del endpoint anterior.
 - Login de Gota mediante Google iniciado con formularios seguros. Google informó explícitamente que el intento terminó por inactividad; no se verificó sesión de Gota ni se ejecutó capture-probe. No se debe inferir que se enviaron credenciales a partir de un formulario que venció.
 - Pendiente real: completar ingreso a Gota en el navegador compartido y ejecutar la prueba para el dueño de la conexión. No requiere reconectar MP, activar setup ni escoger un período de importación. Los mocks y el build no constituyen evidencia de una llamada real a MP ni validan la matriz de operaciones.
+
+## Handoff para Hermes — bloqueo de autenticación, 1 octubre 2026
+
+### Hechos y evidencia
+
+- El usuario informó que el email de Supabase contiene un magic link, mientras la UI solicita seis dígitos. No se leyó el correo ni se recibió su enlace/credencial por chat. `sendOtpEmail` usa `signInWithOtp`; la documentación oficial confirma que el contenido del template determina magic link versus OTP: https://supabase.com/docs/guides/auth/auth-email-passwordless.
+- Google completó el ingreso de email/contraseña mediante browserAuth y el usuario informó aprobar la notificación en su teléfono. La navegación de retorno intentó acceder a `gota-arg.vercel.app`, fuera del Preview entonces autorizado; auto-review la bloqueó. El usuario autorizó después verificar producción sólo en lectura.
+- En producción se observó el banner **Modo exploración**, no una sesión permanente confirmada. El Preview volvió a `/login`. No se puede afirmar que la cuenta del usuario quedó autenticada en ninguno de los dos hosts. No se ejecutó capture-probe.
+- La petición OAuth visible sí incluía `redirect_to` al callback del Preview. Hipótesis principal: ese callback no está permitido en Supabase y el retorno cae al Site URL. No se verificó el allowlist y no debe presentarse como hecho. Referencia: https://supabase.com/docs/guides/auth/redirect-urls.
+- Auto-review rechazó una consulta SQL a `auth.users`/`auth.sessions` y abrir el dashboard de Supabase por ser una fuente administrativa privada no cubierta por la autorización específica. No se eludieron los rechazos. La consulta agregada de fuentes de logs sólo devolvió conteos, no datos de sesión ni credenciales.
+
+### Cambios concretos preparados
+
+- `/auth/callback` ahora falla explícitamente si falta code, hay error de proveedor, falla el intercambio, falla `getUser`, no hay usuario o sólo hay usuario anónimo. No propaga detalles de proveedor/códigos al cliente y no da por exitoso un callback fallido. Telemetría de linking sólo después de validar el usuario; su fallo no invalida un login correcto.
+- Destinos `next` quedan dentro del origen que inició el callback; se rechazan URLs externas, protocol-relative y backslashes. Conserva rutas locales y el destino create-password del upgrade por email.
+- `/auth/error` explica que el ingreso no se completó y que podría haber vencido o vuelto al entorno equivocado; no afirma una causa sin evidencia.
+- Template exacto preparado en `docs/auth-magic-link-otp-template.html`: incluye `{{ .Token }}`, sin enlace, para que el email Magic Link coincida con el OTP de la UI. **No aplicado en Supabase**. Revisar también Confirm Signup antes de afirmar que el primer registro por email está validado.
+- Pruebas: 12 casos de callback; suite completa **146 archivos / 942 tests**, TypeScript, ESLint focalizado y `git diff --check` pasan. Son pruebas locales; no prueban login real ni llamadas a MP.
+
+### Propuesta administrativa limitada, pendiente de autorización
+
+1. Leer sólo Auth URL Configuration y el template Magic Link del proyecto `wfwkrenyoxiswaeafpjc`, para confirmar la causa. No leer claves, registros de usuarios ni sesiones privadas.
+2. Con aprobación de cambio de acceso a tiempo de acción, agregar únicamente el callback exacto del alias estable de la rama: `https://gota-git-feat-mercadopago-int-19f03c-facundos-projects-11ee7eb5.vercel.app/auth/callback`. No usar wildcard ni cambiar Site URL de producción. Alias observado en el deployment `dpl_6RD5NofM3ZtvyLBRGszsg9ZtKZog`, SHA `29ca34f`.
+3. Reemplazar sólo template Magic Link por el archivo preparado. Riesgo: template compartido entre producción y Preview; cambiaría los correos passwordless de ambos. Conservar expiración, MFA y límites existentes.
+4. Probar una vez OTP en el mismo alias, mediante browserAuth; confirmar sesión permanente en ese host antes de tocar captura.
+5. Ejecutar capture-probe de un día con operaciones existentes, repetir y comparar los conteos. No registrar ledger, no habilitar conexión/import ni auto-post. Si hay cero eventos, deduplicación sigue inconclusa.
+
+### Decisiones y pendientes
+
+- No insistir con más rondas Google sin corregir/confirmar el retorno. No copiar sesión, cookies o tokens entre hosts ni abrir endpoint de captura en producción.
+- Producción no recibió cambios de código ni configuración; PR #124 sigue draft. Auto-post apagado. No hay resultado real de captura/deduplicación que reportar.
+- Falta autorización para inspeccionar la configuración administrativa y, luego, aplicar el alcance exacto propuesto. El usuario puede aprobar sin delegar el trabajo a Hermes; este handoff es registro de continuidad.
+- El push por CLI falló por falta de credenciales de GitHub en este entorno. El intento posterior de crear el primer blob mediante el conector fue rechazado por auto-review: consideró que publicar código privado en `fortiz1422/Gota` no estaba explícitamente autorizado en este turno. No se eludió ni se subió ningún archivo por ese camino. La corrección permanece **local**, pendiente de permiso de publicación en la rama existente del PR #124. No hay nuevo deployment para esta corrección y no se verificó su UI desplegada.
+- Permisos concretos pendientes: publicar los cinco archivos preparados en `feat/mercadopago-integration-v2` (sin merge ni producción), y abrir en lectura únicamente Auth URL Configuration / template Magic Link en el dashboard de Supabase. Cualquier cambio que agregue un callback se confirmará con el alcance exacto a tiempo de acción.
