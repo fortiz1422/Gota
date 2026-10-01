@@ -20,6 +20,7 @@ export type NormalizedMercadoPagoMovement = {
   fundingSource: { kind: FundingSourceKind; brand?: string; issuerId?: string; lastFour?: string; cardType?: 'credit' | 'debit' }
   channel: DiagnosticChannel
   installments: number | null
+  providerContext?: { businessUnit: string | null; subUnit: string | null }
   summary: { gross: number | null; totalPaid: number | null; netReceived: number | null; refunded: number | null; fees: number | null }
   confidence: DiagnosticConfidence
   reasonCodes: string[]
@@ -120,6 +121,7 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
     else if (operationType === 'regular_payment' && role === 'collector') { kind = 'income'; direction = 'inflow' }
     else if (operationType === 'recurring_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }
     else if (operationType === 'money_transfer' && role === 'payer') { kind = 'transfer'; direction = 'outflow' }
+    else if (operationType === 'money_transfer' && role === 'collector') { kind = 'transfer'; direction = 'inflow' }
     else if (operationType && hasKnownRole) reasonCodes.push('operation_role_unresolved')
   } else if (operationStatus) reasonCodes.push('status_not_consumed')
 
@@ -141,6 +143,7 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
     fundingSource,
     channel,
     installments: numberValue(isSettlement ? input.INSTALLMENTS : input.installments, isSettlement),
+    providerContext: { businessUnit: stringValue(isSettlement ? input.BUSINESS_UNIT : null), subUnit: stringValue(isSettlement ? input.SUB_UNIT : null) },
     summary: {
       gross: amount,
       totalPaid: isSettlement ? numberValue(input.REAL_AMOUNT, true) : numberValue(details.total_paid_amount),

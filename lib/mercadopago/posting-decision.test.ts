@@ -20,10 +20,11 @@ describe('shadow posting policy', () => {
   it('allows only fully evidenced balance expense independent of category', () => {
     const e = event()
     expect(e.confidence.category).toBe(0)
-    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 1 })
+    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 2 })
     expect(decideProviderEvent(e, { ...context, ledgerDedupeChecked: false }).reasons).toContain('ledger_dedupe_pending')
     expect(decideProviderEvent(e, { ...context, possibleLedgerDuplicate: true }).decision).toBe('review')
     expect(decideProviderEvent(e, { ...context, alreadyPosted: true }).decision).toBe('ignore')
+    expect(decideProviderEvent(e, { ...context, alreadyDismissed: true }).reasons).toEqual(['already_dismissed'])
   })
   it('waits for evidence of balance effect instead of assuming it from the funding label', () => {
     expect(decideProviderEvent(event({}, null), context).decision).toBe('wait_for_reconciliation')
@@ -46,6 +47,12 @@ describe('shadow posting policy', () => {
   })
   it('does not invent QR from INSTORE', () => {
     expect(event({ point_of_interaction: { type: 'INSTORE' } }).channel).toBe('unknown')
+  })
+  it('does not hide a zero-value validation if a second source reports money moving', () => {
+    const validation = event({ operation_type: 'card_validation', transaction_amount: 0 }, null)
+    const debit = event({}, -35000).evidence.evidence.find(e => e.source === 'account_settlement_report')!
+    validation.evidence.evidence.push(debit)
+    expect(decideProviderEvent(validation, context).decision).toBe('review')
   })
   it('blocks conflicting settlement evidence and failed purchases', () => {
     expect(decideProviderEvent(event({}, 35000), context).reasons).toContain('balance_conflict')

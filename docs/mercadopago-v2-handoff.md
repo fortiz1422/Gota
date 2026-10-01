@@ -36,14 +36,14 @@ El lease dura diez minutos y los GET de Payments Search tienen timeout de ocho s
 
 ## Pruebas ejecutadas
 
-- Suite completa actualizada: 140 archivos, 898 tests verdes.
+- Suite completa actualizada: 142 archivos, 911 tests verdes (incluye regresión histórica y decisiones entre fuentes).
 - Después del hardening final: regresión focalizada de sync route, incremental, policy y gates del job; TypeScript sin errores.
 - ESLint sobre los archivos TypeScript modificados: sin errores ni advertencias.
 - Migración ejecutada dos veces en PostgreSQL efímero (PGlite): replay seguro, pertenencia de usuario, exclusión de segundo worker, reclaim de lease, fencing, CAS del watermark, bloqueo tras desconexión y permisos exclusivos de service role.
 - `git diff --check` limpio.
 - Build local de producción **no validado**: primer intento falló por TLS al descargar Google Fonts. Segundo intento con certificados del sistema fue bloqueado por revisión automática porque disparaba tráfico a Sentry con payload no autorizado. No se reintentó ni se eludió el bloqueo.
 - El deployment automático de Vercel para el primer commit `1e6c5d6` quedó Ready, verificado mediante estado de GitHub. Esto no demuestra OAuth ni RAW/ledger real.
-- No hubo operaciones reales de Mercado Pago. Todos los escenarios de los nuevos unit tests son sintéticos; no equivalen a fixtures reales ni verifican saldo, compromisos o Disponible real en producción.
+- No se realizaron nuevas operaciones controladas de Mercado Pago. La validación inicial fue sintética; posteriormente se incorporó evidencia histórica sanitizada, detallada abajo. Ninguna de esas pruebas verifica efectos reales en saldo, compromisos o Disponible real.
 
 Reproducir PostgreSQL efímero sin agregar dependencia a Gota:
 
@@ -75,8 +75,8 @@ La matriz original de 16 operaciones sigue pendiente completa. Obtener fixtures 
 ## Verificación directa pendiente
 
 El handoff original provino de ChatGPT. El trabajo lo continúa ChatGPT Work; no se requiere intervención ni un handoff de Hermes.
-Se buscaron integraciones nativas disponibles: Supabase y Vercel existen y fueron sugeridas, pero no estaban conectadas al momento de esta actualización.
-Con acceso autorizado, Work puede inspeccionar esquema/migraciones/hosting y preparar la aplicación en un entorno controlado. No copiar ni persistir credenciales en el repo o chat.
+Supabase y Vercel fueron conectados. Se inspeccionó Supabase directamente en modo lectura. La sesión no expuso herramientas de Vercel tras la conexión; se verificó el deployment del segundo commit mediante el estado de GitHub (success). No se conoce todavía el plan ni la cadencia cron disponible.
+No copiar ni persistir credenciales en el repo o chat.
 Para la prueba OAuth personal puede ser necesaria la autorización del titular; esa autorización no se sustituye por mocks.
 
 ## Tramo de setup e importación inicial
@@ -99,4 +99,25 @@ Para repetir la prueba de setup con la misma dependencia temporal PGlite:
 PGLITE_MODULE_PATH=/tmp/gota-pg-validation/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-mercadopago-initial-import-sql.mjs
 ```
 
-Supuestos no demostrados: cobertura personal de Payments Search, metadata buyer/QR/cuotas/issuer, operaciones tardías y huecos sólo visibles en Settlement.
+Supuestos no demostrados: cobertura completa personal de Payments Search, metadata buyer/issuer, operaciones tardías y huecos sólo visibles en Settlement. La evidencia parcial histórica no prueba cobertura universal.
+
+## Inspección real y regresión histórica — 1 octubre 2026
+
+- Supabase: un proyecto activo, organización Free, sin ramas de base de datos. La lista de migraciones está vacía, pero el esquema existe; no confundir historial vacío con esquema vacío.
+- Las dos migraciones v2 siguen pendientes. No se aplicó DDL ni se modificaron datos en producción.
+- Hay dos conexiones, una activa. La última captura registrada fue el 17 septiembre UTC (16 septiembre en Argentina). Total histórico: 108 RAW; conexión activa: 36 Payments + 18 Settlement.
+- Existen protecciones adicionales de identidad en producción ausentes del repo principal: `mercadopago_operation_decisions`, triggers de identidad y locks sobre RAW. No ejecutar de nuevo migraciones antiguas de confirmación que puedan sobrescribirlas. Las migraciones v2 no reemplazan esas funciones.
+- Shadow consulta las tablas existentes de confirmaciones y descartes, paginadas y filtradas por usuario/conexión. Compara las native keys de sus snapshots, además del candidate ID. Así conserva decisiones previas cuando cambia el candidate al incorporar una segunda fuente, sin exigir la tabla adicional de producción.
+- `lib/mercadopago/fixtures/personal-history.sanitized.json` proviene de los 54 registros de la conexión activa. La sanitización se hizo en SQL antes de devolver datos: identidades remapeadas, nombres/issuer/last4 reemplazados, montos por rangos sintéticos, fechas fijas. Conserva roles, signos, igualdad de importes, identidad entre fuentes, estados, instrumentos, cuotas y contexto de canal. No es RAW exacto ni sirve para validar totales, temporalidad, similitud de merchants o saldo original.
+- Evidencia observada: transferencias entrante/saliente, cinco cargas de cuenta bancaria, 18 compras de crédito (tres en dos cuotas), validación de tarjeta con importe cero y seis QR con contexto explícito Mercado Pago/QR en Settlement por native ID exacto. `INSTORE` aislado sigue sin establecer QR.
+- Se corrigió la transferencia recibida a `transfer/inflow`; no se convierte a ingreso. Una validación aprobada de tarjeta con importe cero se ignora. Ninguna compra de tarjeta se convierte en débito de MP.
+- Evaluación histórica con dedupe simulado como completado: 41 candidatos, 7 elegibles según la política de saldo, 32 review, 1 ignore, 1 espera de reconciliación. Es un ejercicio de reglas, no una tasa real de automatización. El runner real conserva `ledgerDedupeChecked=false`, no escribe ledger y no habilita auto-post.
+- No hay evidencia controlada de 3/6 cuotas, refunds, Mercado Libre, servicios ni matching de cuentas propias. La matriz de 16 operaciones continúa pendiente.
+
+## Próximo cambio de base preparado
+
+Aplicar en orden `docs/supabase-mercadopago-background-sync.sql` y `docs/supabase-mercadopago-initial-import.sql` agrega columnas, auditoría shadow y RPCs de servicio. El primer script prepara lease/watermark; el segundo prepara setup, identidad, desconexión y reanudación.
+
+La aplicación de SQL no crea cuentas ni gastos, no modifica saldos ni compromisos y no habilita conexiones. La creación/reutilización de cuenta y selección de período sólo ocurren al invocar setup; no se invocará durante la aplicación. No se activará el flag, cron ni auto-post en este paso. No se solicitará una rama paga de Supabase sin autorización de coste.
+
+La revisión final de este paso requiere confirmar la aplicación a la única base disponible. Después deben verificarse esquema y privilegios; la prueba de captura real requiere por separado resolver entorno/hosting, desplegar la rama y autorizar el período de importación.

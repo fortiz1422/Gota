@@ -21,13 +21,15 @@ export function toFinancialEvent(candidate: ReconciledMercadoPagoMovement): Fina
   const refunded = candidate.summary.refunded
   // Preserve uncertainty; the existing normalizer does not establish refund/reversal semantics.
   const economicType = refunded !== null && refunded > 0 ? 'adjustment' : candidate.kind === 'neutral' ? 'unknown' : candidate.kind
+  const reportContext = candidate.match === 'exact_native_id' ? candidate.settlement?.providerContext : null
+  const qrEvidence = reportContext?.businessUnit === 'Mercado Pago' && reportContext?.subUnit === 'QR'
   const direction = candidate.direction === 'neutral' ? 'none' : candidate.direction
   return {
     provider: 'mercadopago', providerEventId: candidate.nativeId, candidateId: candidate.candidateId,
     occurredAt: candidate.occurredAt, economicType, direction, amount: candidate.amount,
     funding: funding.kind === 'mercadopago_balance' ? 'mp_balance' : funding.kind === 'bank_transfer' ? 'bank_transfer' : funding.kind === 'card' && funding.cardType ? funding.cardType === 'credit' ? 'credit_card' : 'debit_card' : 'unknown',
-    // INSTORE does not establish QR: retain unknown until real provider evidence validates it.
-    channel: candidate.channel === 'CHECKOUT' ? 'checkout' : candidate.channel === 'SUBSCRIPTIONS' ? 'subscription' : candidate.channel === 'PSP_TRANSFER' ? 'transfer' : 'unknown',
+    // INSTORE alone remains unknown. Exact-ID settlement metadata can establish QR.
+    channel: qrEvidence ? 'qr' : candidate.channel === 'CHECKOUT' ? 'checkout' : candidate.channel === 'SUBSCRIPTIONS' ? 'subscription' : candidate.channel === 'PSP_TRANSFER' ? 'transfer' : 'unknown',
     installments: candidate.installments,
     confidence: { economicType: candidate.confidence === 'confirmed' && economicType !== 'unknown' ? 1 : 0, funding: funding.kind !== 'unknown' ? 1 : 0, merchant: 0, category: 0 },
     evidence: candidate,

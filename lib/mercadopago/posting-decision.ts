@@ -1,6 +1,6 @@
 import type { FinancialEvent } from './financial-event'
 
-export const MP_DECISION_RULE_VERSION = 1
+export const MP_DECISION_RULE_VERSION = 2
 export type PostingDecision = {
   decision: 'auto_post' | 'review' | 'ignore' | 'wait_for_reconciliation'
   reasons: string[]
@@ -9,6 +9,7 @@ export type PostingDecision = {
 export type PostingContext = {
   linkedAccountId: string | null
   alreadyPosted: boolean
+  alreadyDismissed?: boolean
   possibleLedgerDuplicate: boolean
   /** A completed search against manual/provider ledger entries is required. */
   ledgerDedupeChecked: boolean
@@ -19,6 +20,8 @@ export function decideProviderEvent(event: FinancialEvent, context: PostingConte
   const result = (decision: PostingDecision['decision'], reasons: string[]): PostingDecision => ({ decision, reasons, ruleVersion: MP_DECISION_RULE_VERSION })
   const c = event.evidence
   if (context.alreadyPosted) return result('ignore', ['already_posted'])
+  if (context.alreadyDismissed) return result('ignore', ['already_dismissed'])
+  if (c.kind === 'neutral' && c.operation.type === 'card_validation' && c.operation.status === 'approved' && c.amount.value === 0 && c.evidence.every(e => e.movement.amount.value === 0 && !(e.movement.summary.refunded! > 0))) return result('ignore', ['zero_card_validation'])
   const statuses = c.evidence.map(e => e.movement.operation.status).filter(Boolean)
   if (statuses.length > 0 && statuses.every(s => ['rejected', 'cancelled'].includes(s!))) return result('ignore', ['not_approved'])
   const reasons: string[] = []
