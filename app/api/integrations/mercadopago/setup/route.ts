@@ -31,7 +31,7 @@ export async function GET() {
       if (account.error) throw new Error('account_read_failed')
       accountName = account.data?.name ?? null
     }
-    return json({ available: true, state: connection.status === 'revoked' || connection.status === 'expired' || !connection.access_token_ciphertext ? 'needs_reconnect' : 'connected', mode: 'shadow', enabled: data.background_sync_enabled,
+    return json({ available: true, probeAvailable: process.env.VERCEL_ENV === 'preview', state: connection.status === 'revoked' || connection.status === 'expired' || !connection.access_token_ciphertext ? 'needs_reconnect' : 'connected', mode: 'shadow', enabled: data.background_sync_enabled,
       initialImport: { status: data.initial_import_status, preset: data.initial_import_preset, startedAt: data.initial_import_started_at, completedAt: data.initial_import_completed_at },
       lastUpdateAt: data.last_incremental_success_at, lastAttemptAt: data.last_incremental_attempt_at, accountName })
   } catch { return json({ error: 'setup_unavailable' }, 503) }

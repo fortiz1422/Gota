@@ -3,11 +3,13 @@
 import Link from 'next/link'
 import { useCallback, useEffect, useState } from 'react'
 import type { InitialImportPreset } from '@/lib/mercadopago/initial-import'
+import { MercadoPagoCaptureProbe } from './MercadoPagoCaptureProbe'
 
 export type MercadoPagoSetupState = {
   available: boolean
   state?: 'not_connected' | 'connected' | 'needs_reconnect'
   mode?: 'shadow'
+  probeAvailable?: boolean
   enabled?: boolean
   initialImport?: { status: 'not_started' | 'running' | 'completed' | 'error'; preset: InitialImportPreset | null; startedAt: string | null; completedAt: string | null }
   lastUpdateAt?: string | null
@@ -57,6 +59,7 @@ export function MercadoPagoSetupView({ state, preset, setPreset, busy, error, on
           )}
           <details className="mt-5 border-t border-border-subtle pt-3">
             <summary className="cursor-pointer text-[13px] text-text-secondary">Opciones avanzadas</summary>
+            {state.probeAvailable && <MercadoPagoCaptureProbe />}
             <p className="mt-3 text-[12px] text-text-secondary">Al desconectar se detiene la captura y se eliminan las credenciales guardadas por Gota. Las cuentas y los movimientos ya registrados se conservan.</p>
             <button type="button" onClick={onDisconnect} disabled={busy} className="mt-2 min-h-11 text-[13px] font-semibold text-error disabled:opacity-50">Desconectar Mercado Pago</button>
           </details>
