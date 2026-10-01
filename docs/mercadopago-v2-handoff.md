@@ -36,7 +36,7 @@ El lease dura diez minutos y los GET de Payments Search tienen timeout de ocho s
 
 ## Pruebas ejecutadas
 
-- Suite completa actualizada: 142 archivos, 911 tests verdes (incluye regresión histórica y decisiones entre fuentes).
+- Suite completa actualizada: 143 archivos, 916 tests verdes (incluye regresión histórica, decisiones entre fuentes y límite de autenticación del cron).
 - Después del hardening final: regresión focalizada de sync route, incremental, policy y gates del job; TypeScript sin errores.
 - ESLint sobre los archivos TypeScript modificados: sin errores ni advertencias.
 - Migración ejecutada dos veces en PostgreSQL efímero (PGlite): replay seguro, pertenencia de usuario, exclusión de segundo worker, reclaim de lease, fencing, CAS del watermark, bloqueo tras desconexión y permisos exclusivos de service role.
@@ -75,7 +75,7 @@ La matriz original de 16 operaciones sigue pendiente completa. Obtener fixtures 
 ## Verificación directa pendiente
 
 El handoff original provino de ChatGPT. El trabajo lo continúa ChatGPT Work; no se requiere intervención ni un handoff de Hermes.
-Supabase y Vercel fueron conectados. Se inspeccionó Supabase y se aplicaron las migraciones preparadas. Las herramientas de Vercel ahora están expuestas, pero `get_project` devuelve 403: el token no está autorizado para el equipo `facundos-projects-11ee7eb5`. Se requiere reautenticar con acceso a ese equipo. No se conoce todavía el plan ni la cadencia cron disponible.
+Supabase y Vercel fueron conectados. Se inspeccionó Supabase y se aplicaron las migraciones preparadas. Vercel devuelve 403 al enviar `teamId`, pero permite leer Gota y sus deployments usando el contexto predeterminado de la misma conexión (sin `teamId`). No requiere otra reconexión para esas lecturas. No se conoce todavía el plan ni la cadencia cron disponible.
 No copiar ni persistir credenciales en el repo o chat.
 Para la prueba OAuth personal puede ser necesaria la autorización del titular; esa autorización no se sustituye por mocks.
 
@@ -124,6 +124,15 @@ La aplicación no creó cuentas ni gastos y no invocó setup ni rutinas de ledge
 - Huellas de definición de las seis funciones protegidas existentes (confirmaciones y protecciones de identidad) idénticas antes/después. No se sobrescribieron protecciones ajenas a v2.
 - Advisors antes/después: única observación nueva INFO `rls_enabled_no_policy` sobre shadow. Es intencional: tabla sólo backend, sin acceso cliente. [Referencia del advisor](https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy).
 - Existen alertas previas fuera del cambio: vista `user_active_cards` con security definer y RPCs legacy públicamente ejecutables. No se modificaron en estas migraciones; requieren revisar uso y permisos antes de endurecerlos. [Vista](https://supabase.com/docs/guides/database/database-linter?lint=0010_security_definer_view), [RPCs](https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable).
-- Bloqueo para probar captura en hosting: el plugin Vercel devuelve 403 para el equipo que aloja Gota. Reautenticar ese scope antes de inspeccionar/configurar entorno, plan y cron. No se intentó eludirlo ni se usaron credenciales alternativas.
+- Lectura de hosting resuelta usando el contexto predeterminado autorizado de la conexión. La obtención del preview protegido aún falla por permisos; no se intentó quitar protección ni usar credenciales alternativas.
 
 La prueba de captura real sigue pendiente: resolver acceso/entorno de hosting, desplegar la rama en prueba y autorizar el período de importación. No se requiere otra aprobación para estas migraciones ya aplicadas.
+
+## Hosting y entrada del cron — 1 octubre 2026
+
+- Proyecto Vercel Gota inspeccionado: Next.js, Node 24, región de deployment iad1. El preview del commit `7546aa6` está READY; producción sigue en `ee8ed25`. No se promovió ni fusionó el PR.
+- El wrapper de herramientas anuncia `projectId`, pero el endpoint real de get_project requiere `idOrName`. Enviar teamId explícito causa 403 y list_teams devuelve vacío. Consultar el proyecto conocido por nombre con el contexto predeterminado funciona; list_deployments y get_deployment también. No fue necesario pedir ni obtener otro token.
+- Las peticiones del plugin a las URLs del preview protegido fueron rechazadas por Vercel. No constituyen una respuesta del handler de Gota ni prueban su funcionamiento. La conexión ofrece lectura de deployments pero no expone herramientas para gestionar variables de entorno.
+- Se detectó y corrigió un bloqueo adicional en código: proxy redirigía el cron a login porque exigía sesión de Supabase. La excepción ahora coincide sólo con `/api/cron/mercadopago-sync` y deja la autorización a su handler con CRON_SECRET. No se abre un prefijo de rutas ni los endpoints de setup/sync.
+- Tests verifican llegada al handler sin sesión/dependencia auth, protección de rutas vecinas, rechazo de secreto ausente/incorrecto y modo disabled con secreto válido. No hay schedule añadido ni job activado.
+- La configuración del entorno de prueba y la prueba autenticada del endpoint siguen pendientes de acceso al panel o herramienta de gestión de entornos. No solicitar una nueva reconexión genérica: la lectura ya funciona.
