@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { MercadoPagoSetupCard, type MercadoPagoSetupState } from './MercadoPagoSetupCard'
 import { useCallback, useEffect, useState } from 'react'
 import { ArrowsClockwise, ArrowSquareOut, Wallet } from '@phosphor-icons/react'
 import { getMercadoPagoValidationMessage } from '@/lib/mercadopago/sync-presentation'
@@ -18,6 +19,23 @@ function sourceLabel(source: Source) {
 }
 
 export function MercadoPagoSettingsCard() {
+  const [setup, setSetup] = useState<MercadoPagoSetupState | null>(null)
+  const [failed, setFailed] = useState(false)
+  useEffect(() => {
+    let active = true
+    fetch('/api/integrations/mercadopago/setup', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error()
+      const state = await response.json() as MercadoPagoSetupState
+      if (active) setSetup(state)
+    }).catch(() => { if (active) setFailed(true) })
+    return () => { active = false }
+  }, [])
+  if (setup?.available) return <MercadoPagoSetupCard initialState={setup} />
+  if (setup || failed) return <LegacyMercadoPagoSettingsCard />
+  return <p className="mt-6 text-[13px] text-text-secondary" role="status">Cargando Mercado Pago…</p>
+}
+
+function LegacyMercadoPagoSettingsCard() {
   const [state, setState] = useState<State | null>(null)
   const [busy, setBusy] = useState(false)
   const [message, setMessage] = useState<string | null>(null)

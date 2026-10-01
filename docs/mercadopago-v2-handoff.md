@@ -1,11 +1,11 @@
-# Handoff para Hermes — Mercado Pago v2: captura incremental y shadow
+# Registro de implementación — Mercado Pago v2
 
 Fecha: 30/09/2026. Base verificada: `main` en `ee8ed25abc5ad6b0f71693d96ea8934e0c3da635`.
 Rama de trabajo: `feat/mercadopago-integration-v2`. Checkout inicial limpio. No se encontraron AGENTS.md.
 
 ## Alcance entregado
 
-Este cambio es el primer tramo de plumbing/shadow; **MP v2 no está terminado ni activado**.
+Este cambio incluye plumbing/shadow, setup e importación inicial; **MP v2 no está terminado ni activado**.
 No se aplicaron migraciones ni se alteró el canon financiero de producción.
 
 - Refresh/decrypt/encrypt compartidos en `access-token.ts`; persistencia protegida por lease cuando se utiliza el job.
@@ -36,12 +36,13 @@ El lease dura diez minutos y los GET de Payments Search tienen timeout de ocho s
 
 ## Pruebas ejecutadas
 
-- Suite completa: 137 archivos, 878 tests verdes.
+- Suite completa actualizada: 140 archivos, 898 tests verdes.
 - Después del hardening final: regresión focalizada de sync route, incremental, policy y gates del job; TypeScript sin errores.
 - ESLint sobre los archivos TypeScript modificados: sin errores ni advertencias.
 - Migración ejecutada dos veces en PostgreSQL efímero (PGlite): replay seguro, pertenencia de usuario, exclusión de segundo worker, reclaim de lease, fencing, CAS del watermark, bloqueo tras desconexión y permisos exclusivos de service role.
 - `git diff --check` limpio.
-- Build de producción **no validado**: primer intento falló por TLS al descargar Google Fonts. Segundo intento con certificados del sistema fue bloqueado por revisión automática porque disparaba tráfico a Sentry con payload no autorizado. No se reintentó ni se eludió el bloqueo.
+- Build local de producción **no validado**: primer intento falló por TLS al descargar Google Fonts. Segundo intento con certificados del sistema fue bloqueado por revisión automática porque disparaba tráfico a Sentry con payload no autorizado. No se reintentó ni se eludió el bloqueo.
+- El deployment automático de Vercel para el primer commit `1e6c5d6` quedó Ready, verificado mediante estado de GitHub. Esto no demuestra OAuth ni RAW/ledger real.
 - No hubo operaciones reales de Mercado Pago. Todos los escenarios de los nuevos unit tests son sintéticos; no equivalen a fixtures reales ni verifican saldo, compromisos o Disponible real en producción.
 
 Reproducir PostgreSQL efímero sin agregar dependencia a Gota:
@@ -56,24 +57,46 @@ PGLITE_MODULE_PATH=/tmp/gota-pg-validation/node_modules/@electric-sql/pglite/dis
 1. Confirmar hosting, plan, límites de ejecución, frecuencia cron y entorno de prueba separado. No asumir Vercel Pro.
 2. Revisar/aplicar `docs/supabase-mercadopago-background-sync.sql` en ese entorno y verificar constraints/roles reales.
 3. Configurar el flag `MERCADOPAGO_BACKGROUND_SYNC_ENABLED=true` solamente allí; `CRON_SECRET` queda server-side. No pegar ni guardar secretos en handoffs.
-4. Una conexión de prueba debe tener `background_sync_enabled=true` y `incremental_watermark` definido deliberadamente según el período autorizado. La migración no habilita ninguna ni elige la fecha.
+4. Aplicar también `docs/supabase-mercadopago-initial-import.sql` después de background-sync y account-link. El endpoint de setup habilita una conexión sólo al aceptar el período elegido por el usuario; las migraciones no habilitan conexiones.
 5. Invocar el endpoint con autenticación de cron y comprobar RAW, watermark, leases, auditoría y reintento sin duplicación con tráfico real.
 6. Definir el schedule después de medir duración y carga. Una conexión por invocación implica que la latencia crece con cantidad de conexiones; no prometer diez minutos por usuario.
 7. Mantener auto-post bloqueado. La auditoría shadow no es una aprobación para activar escrituras.
 
 ## Pendientes respecto del handoff original
 
-P0 pendiente: importación inicial today/30/90, creación/vínculo automático de cuenta, UX de conexión, estado humano de salud, reconciliación diaria y polling programado real.
+P0 implementado en código y SQL: setup today/30/90, cuenta automática inequívoca, onboarding al volver de OAuth, Settings sin fuentes/rangos de sync en el modo nuevo, desconexión y reanudación.
+P0 pendiente real: aplicar migraciones en entorno controlado, activar scheduler según plan/hosting, validar captura con cuenta MP autorizada, estado de salud y reconciliación diaria.
 P1 pendiente: matching contra ledger, auditoría de posting, auto-post saldo y exception inbox.
 P2/P3 pendiente: mapping de tarjetas, 1/N cuotas con motor canónico, merchant learning, refunds, enriquecimiento ML/servicios y transfers propios.
 No se alteró la configuración externa de Settlement ni se agregó webhook, Apple Pay o infraestructura externa.
 
 La matriz original de 16 operaciones sigue pendiente completa. Obtener fixtures reales sanitizados y resultados sobre ledger/compromisos/disponible real antes de habilitar auto-post.
 
-## Próximo handoff necesario de Hermes
+## Verificación directa pendiente
 
-- Hosting/plan, entorno de prueba, mecanismo de deploy y estado de migraciones aplicadas.
-- Disponibilidad de una cuenta MP OAuth para pruebas y forma de observar RAW sin revelar credenciales.
-- Responsables de ejecutar las operaciones controladas y evidencia sanitizada por escenario.
+El handoff original provino de ChatGPT. El trabajo lo continúa ChatGPT Work; no se requiere intervención ni un handoff de Hermes.
+Se buscaron integraciones nativas disponibles: Supabase y Vercel existen y fueron sugeridas, pero no estaban conectadas al momento de esta actualización.
+Con acceso autorizado, Work puede inspeccionar esquema/migraciones/hosting y preparar la aplicación en un entorno controlado. No copiar ni persistir credenciales en el repo o chat.
+Para la prueba OAuth personal puede ser necesaria la autorización del titular; esa autorización no se sustituye por mocks.
+
+## Tramo de setup e importación inicial
+
+- `POST /api/integrations/mercadopago/setup` acepta exactamente today/30d/90d para el usuario autenticado. No admite rangos, user IDs ni connection IDs aportados por el cliente.
+- La RPC transaccional conserva una cuenta ya vinculada válida. Sin vínculo, sólo reutiliza una cuenta digital activa marcada como Mercado Pago o con nombre exacto Mercado Pago/Mercadopago. Si hay dos, pide selección explícita; no elige arbitrariamente.
+- No hay duplicación ni reset del watermark/version al repetir el mismo setup. Cambiar el período después de empezar requiere un flujo de reimportación todavía no implementado.
+- Cuenta nueva: digital, no primaria, saldos iniciales 0 **provisionales**. No representa evidencia de saldo MP; el UI lo informa y el auto-post sigue bloqueado. Resolver baseline antes de activar ledger automático.
+- La selección explícita de cuenta ante ambigüedad reutiliza el account-link existente.
+- El job termina el import inicial sólo al alcanzar el target temporal persistido. Overlap nunca consulta antes del período autorizado.
+- Desconectar elimina access/refresh locales, expiry y lease; detiene captura y conserva cuenta, RAW, auditoría y ledger.
+- Reanudar después de OAuth conserva watermark y período, sin reimportación silenciosa.
+- Trigger impide cambiar a otra identidad MP en una conexión existente; queda pendiente diseñar un flujo explícito de reemplazo de identidad.
+- UI nueva gated por el flag backend. Informa que la captura está en validación y aún requiere revisar movimientos; no promete auto-post.
+- PostgreSQL efímero verificó reaplicación, períodos, creación/reuso, balances existentes, ambigüedad, idempotencia, identity guard, finalización, disconnect/resume y permisos. Se agregaron tests funcionales de endpoint y render del contrato de UI; no se probó interacción de navegador con OAuth real.
+
+Para repetir la prueba de setup con la misma dependencia temporal PGlite:
+
+```sh
+PGLITE_MODULE_PATH=/tmp/gota-pg-validation/node_modules/@electric-sql/pglite/dist/index.js node scripts/test-mercadopago-initial-import-sql.mjs
+```
 
 Supuestos no demostrados: cobertura personal de Payments Search, metadata buyer/QR/cuotas/issuer, operaciones tardías y huecos sólo visibles en Settlement.

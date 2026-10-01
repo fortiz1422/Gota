@@ -7,10 +7,12 @@ const OVERLAP_MS = 5 * 60 * 1000
 const MAX_WINDOW_MS = 24 * 60 * 60 * 1000
 
 /** Limit each run to one day; incomplete runs retry the same slice. */
-export function incrementalWindow(watermark: string, now: Date): SyncWindow {
+export function incrementalWindow(watermark: string, now: Date, earliestTimestamp?: string): SyncWindow {
   const previous = Date.parse(watermark)
   if (!Number.isFinite(previous) || previous > now.getTime()) throw new Error('invalid_watermark')
-  const begin = new Date(previous - OVERLAP_MS)
+  const earliest = earliestTimestamp ? Date.parse(earliestTimestamp) : Number.NEGATIVE_INFINITY
+  if (earliestTimestamp && (!Number.isFinite(earliest) || earliest > previous)) throw new Error('invalid_import_boundary')
+  const begin = new Date(Math.max(previous - OVERLAP_MS, earliest))
   const end = new Date(Math.min(now.getTime(), previous + MAX_WINDOW_MS))
   return {
     preset: 'custom', beginDate: begin.toISOString().slice(0, 10), endDate: end.toISOString().slice(0, 10),
@@ -26,10 +28,10 @@ export type IncrementalStore = {
 }
 
 /** Capture only: no ledger dependency, no settlement configuration requests. */
-export async function syncMercadoPagoIncremental({ userId, accessToken, watermark, store, now = new Date(), fetchImpl = fetch }: {
-  userId: string; accessToken: string; watermark: string; store: IncrementalStore; now?: Date; fetchImpl?: typeof fetch
+export async function syncMercadoPagoIncremental({ userId, accessToken, watermark, store, earliestTimestamp, now = new Date(), fetchImpl = fetch }: {
+  userId: string; accessToken: string; watermark: string; earliestTimestamp?: string; store: IncrementalStore; now?: Date; fetchImpl?: typeof fetch
 }) {
-  const window = incrementalWindow(watermark, now)
+  const window = incrementalWindow(watermark, now, earliestTimestamp)
   const batchId = `mp-${randomUUID()}`
   const startedAt = now.toISOString()
   let source: SourceRun

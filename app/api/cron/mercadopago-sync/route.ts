@@ -30,13 +30,13 @@ export async function GET(request: Request) {
     const result = await withMercadoPagoSyncLease(row.user_id, row.id, async leaseId => {
       const connection = await getMercadoPagoConnection(row.user_id)
       if (!connection || connection.id !== row.id) throw new Error('not_connected')
-      const { data: state, error: stateError } = await admin.from('mercadopago_connections').select('incremental_watermark,background_sync_enabled').eq('id', row.id).eq('user_id', row.user_id).single()
+      const { data: state, error: stateError } = await admin.from('mercadopago_connections').select('incremental_watermark,background_sync_enabled,initial_import_started_at').eq('id', row.id).eq('user_id', row.user_id).single()
       if (stateError || !state?.incremental_watermark || !state.background_sync_enabled) throw new Error('not_enabled')
       const { error: attemptError } = await admin.from('mercadopago_connections').update({ last_incremental_attempt_at: new Date().toISOString() }).eq('id', row.id).eq('user_id', row.user_id).eq('sync_lease_id', leaseId)
       if (attemptError) throw new Error('attempt_write_failed')
       const accessToken = await getValidMercadoPagoAccessToken(row.user_id, connection, readiness.config, leaseId)
       const run = await syncMercadoPagoIncremental({
-        userId: row.user_id, accessToken, watermark: state.incremental_watermark,
+        userId: row.user_id, accessToken, watermark: state.incremental_watermark, earliestTimestamp: state.initial_import_started_at ?? undefined,
         fetchImpl: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(8000) }),
         store: {
           upsertRawObservation: observation => saveRawObservation({ ...observation, connectionId: row.id }),
