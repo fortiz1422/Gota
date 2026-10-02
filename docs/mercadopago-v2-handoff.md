@@ -239,8 +239,26 @@ Este registro conserva el estado del trabajo realizado por ChatGPT Work; no dele
 - Verificación: 41 tests focalizados, TypeScript y ESLint pasan; sólo Preview, PR draft y sin merge. Conteos globales expenses 1835, accounts 58, RAW Payments 72, RAW Settlement 36 antes de nueva prueba.
 
 
-## Causa confirmada: reporte delayed — 2026-10-01 23:04 Argentina
+## Estado observado: reporte delayed — 2026-10-01 23:04 Argentina
 - Prueba real en deploy 4c61f75: estado de tarea devuelto por MP delayed, referencias a report_id 0, búsqueda devuelve 5 reportes y 1 período exacto, pero ningún archivo descargable para ese período. No se afirma que MP entregue la transferencia ni que se haya normalizado correctamente.
 - Ajuste basado en observación: delayed es pending, no generar un reporte duplicado ni repetir búsquedas mientras se mantenga ese estado. Test de regresión con metadatos sanitizados (sin ID ni datos del movimiento).
-- Bloqueo externo actual: no hay RAW nuevo para el escenario MP → BBVA ARS 1.000. Para validar monto/tipo/dirección se necesita el CSV efectivo. No hace falta nueva transferencia ni login.
+- Evidencia faltante: no hay RAW nuevo para el escenario MP → BBVA ARS 1.000. Para validar monto/tipo/dirección se necesita el CSV efectivo. No hace falta nueva transferencia ni login.
 - Canon sigue sin cambios por la prueba. Próxima verificación: repetir Consultar reporte de saldo para 2026-10-01, cuando MP termine la tarea; conservar sesión Preview. No se activó scheduler ni auto-post.
+
+
+## Handoff para Hermes — comparación de roles y período cerrado, 1 octubre 2026
+Registro de continuidad; implementación y prueba ejecutadas por ChatGPT Work, sin delegación.
+
+- Decisión: comparar Payments Search sin filtro, payer.id=me y collector.id=me exclusivamente en diagnóstico autenticado de Preview. No activar importación, background ni auto-post por una referencia histórica del SDK.
+- Artefacto: commit e98804092f8797b96a5a9a85b732d6274668150d, PR draft #124, deploy dpl_EJqKJyENqeauAMJmgrcvQwkHzsPp READY. Rama feat/mercadopago-integration-v2; main intacta.
+- Verificación: 147 archivos / 960 tests pasan; TypeScript, ESLint de archivos modificados y git diff --check pasan. Sin migraciones nuevas.
+- Evidencia real 23:36 Argentina: consultas default/payer/collector aceptadas por proveedor, las tres success con 0 filas. Ventana 2026-10-01T03:00:00Z → 2026-10-02T02:36:04.972Z. Tres source runs persistidos e identificables por prefijo de batch; cero RAW nuevo.
+- Settlement diagnostic ahora respeta límites exactos y cierra en la última hora completa; repetición dentro de la hora mantiene el mismo rango. Imports existentes conservan ventanas de calendario. Config externa no se crea ni modifica desde el probe.
+- Evidencia real posterior: primera consulta cerrada 2026-10-01T03:00:00Z → 2026-10-02T01:59:59Z devolvió pending sin archivo. No confirma el movimiento ni una demora diaria obligatoria. La ventana contiene el horario aproximado de la transferencia (22:27 Argentina).
+- RAW de la conexión del escenario: Payments 36, Settlement 18, sin nuevos desde la prueba. Ningún posting/ledger/account/watermark requerido por los probes.
+- Hipótesis: el fin futuro de las consultas previas podría influir en delayed. No se confirmó causalidad. Estado delayed por sí solo no demuestra un SLA diario.
+- Pendientes: obtener evidencia real monto ARS 1.000, fecha, tipo y dirección; verificar período cerrado luego de generación; evaluar activities_withdraw sólo después de comprobar permisos y ownership de config, sin mutar config externa.
+- Riesgo: éxito de HTTP o conteos vacíos no demuestra cobertura de Payments Search para transferencias personales. No ampliar auto-post ni anunciar MP v2 terminado.
+
+- Segunda consulta del mismo período cerrado sigue pending, sin disponibilidad descargable; no se observó delayed para este nuevo rango en UI. Se preserva cooldown de generación y no se afirma que el rango cerrado haya solucionado la demora.
+- Seguimiento existente actualizado con resultado real, connection/user acotados y nuevo corte temporal; no se creó una segunda automatización. Sesión Preview conservada.
