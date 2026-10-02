@@ -12,14 +12,19 @@ Ledger matcher y repository read-only conectados a shadow: moneda/importe exacto
 
 Pruebas: suite completa 996 / 151 archivos incluyendo matcher y servicio shadow; tsc y ESLint de archivos editados verdes. SQL real read-only verificó expenses.date timestamptz y ausencia de gasto de ARS1000 en ventana consultada, lo que NO confirma la transferencia MP.
 
+### Card matcher determinístico
+
+Implementado sobre el editor canónico de compras con tarjeta. Requiere tarjeta de crédito y últimos cuatro válidos; marca sola nunca alcanza. Una única coincidencia activa por últimos cuatro se preselecciona. Si varias tarjetas comparten dígitos, la marca del proveedor sólo puede desambiguar contra una marca reconocible en el nombre libre de Gota. Cero o múltiples coincidencias no eligen arbitrariamente y muestran una explicación al usuario; la selección sigue siendo editable antes de confirmar.
+
+No se agregaron columnas brand/issuer ni se leyó metadata sensible real para simular identidad. El schema actual de cards sólo tiene name y last_four, por lo que issuer no puede participar de forma determinística todavía. Sin escrituras de ledger o DB. Suite completa: 1001 tests / 152 archivos; TypeScript, ESLint y build productivo Next verdes. El primer build encontró TLS al descargar Google Fonts; la opción oficial de certificados del sistema permitió completar compilación, typecheck, 75 páginas estáticas y optimización.
+
 ## Orden siguiente
 
 1. Llevar posibles duplicados a revisión con explicación útil; vincular existente requiere audit/stale/ownership/idempotencia transaccionales. No habilitar vínculo parcial inseguro.
-2. Card matcher determinístico con metadata realmente disponible. Tarjetas Gota tienen last_four pero no brand/issuer estructurados: no inventar identidad financiera desde nombre libre. Binding explícito de tarjeta elegida puede servir para operaciones futuras; evaluar con garantías y schema revisable.
-3. Merchant/category learning: reutilizar aliases/preferencias existentes antes de otra tabla. Primera corrección sugiere; no confundir categoría con tipo financiero.
-4. N cuotas: leer motor canónico de ciclos/asignaciones y confirmación actual SQL antes de extender. Bloque actual installments===1 existe también en RPC; cambiar sólo UI/gate rompe integridad. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
-5. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
-6. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Ninguna prueba mock equivale a operación controlada real.
+2. Merchant/category learning: reutilizar aliases/preferencias existentes antes de otra tabla. Primera corrección sugiere; no confundir categoría con tipo financiero.
+3. N cuotas: leer motor canónico de ciclos/asignaciones y confirmación actual SQL antes de extender. Bloque actual installments===1 existe también en RPC; cambiar sólo UI/gate rompe integridad. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
+4. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
+5. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Ninguna prueba mock equivale a operación controlada real.
 
 ## Accesos y publicación
 

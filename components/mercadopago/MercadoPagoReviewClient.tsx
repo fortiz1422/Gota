@@ -28,6 +28,7 @@ import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dash
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import type { Account, Card } from '@/types/database'
 import { getMercadoPagoReviewPresentation, formatMercadoPagoObservedDate as formatObservedDate } from '@/lib/mercadopago/review-presentation'
+import { matchMercadoPagoCard } from '@/lib/mercadopago/card-matcher'
 
 type State = {
   movements: MercadoPagoMovement[]
@@ -193,6 +194,9 @@ export function MercadoPagoReviewClient() {
   const [dismissError, setDismissError] = useState(false)
   const [aliasLoading, setAliasLoading] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
+  const cardMatch = selected && isReviewableMercadoPagoCardPurchase(selected)
+    ? matchMercadoPagoCard(selected.fundingSource, cards)
+    : { status: 'insufficient' as const, cardIds: [] as const }
   const dismissTriggerRef = useRef<HTMLElement | null>(null)
   const dismissingRef = useRef(false)
   const movementsRequest = useRef(0)
@@ -579,9 +583,12 @@ export function MercadoPagoReviewClient() {
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsLoading && <p role="status" className="text-sm text-text-secondary">Cargando tus tarjetas…</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No hay tarjetas activas para elegir. La compra sigue pendiente.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'exact' && <p className="rounded-input bg-primary/[0.06] p-3 text-sm text-text-secondary">Encontramos una única tarjeta compatible por sus últimos cuatro dígitos. Podés cambiarla antes de registrar.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'ambiguous' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Hay más de una tarjeta compatible. Elegí cuál usaste; Gota no selecciona una arbitrariamente.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'unmatched' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No encontramos una tarjeta con esos últimos cuatro dígitos. Elegila manualmente o agregala desde Configuración.</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
-          key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:credit`}
-          data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
+          key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
+          data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
           cards={cards} accounts={[]} onConfirm={confirm} onSave={() => undefined} onCancel={resetReview}
           aliasSource="mercadopago" confirmLabel="Registrar compra" immutableProviderEvidence embedded
         />}

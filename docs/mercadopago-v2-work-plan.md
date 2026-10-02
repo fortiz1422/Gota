@@ -12,7 +12,7 @@ Conectar una vez, capturar sin abrir Gota, incorporar lo inequívoco y consultar
 - Implementados: refresh común, extracción de sync manual, polling incremental acotado con watermark/overlap/lease, endpoint cron, setup today/30d/90d, vinculación/creación de cuenta, interfaz FinancialEvent y decisiones shadow.
 - Parcial: FinancialEvent deriva del normalizador existente; merchant/category confidence siguen en cero. El shadow ahora consulta gastos existentes por importe/moneda y ventana de un día, sin escribir ni vincular ledger; UX de resolución de duplicados sigue pendiente.
 - Shadow usa búsqueda read-only contra ledger para gastos con saldo MP. Consulta fallida, truncada o sin count exacto mantiene ledgerDedupeChecked=false; coincidencias compatibles producen review. auto_post sigue siendo sólo una decisión auditada, sin escritura automática.
-- Primera mejora de revisión/edición/confirmación publicada y verificada visualmente en Preview: detalles abajo. Aprendizaje nuevo de categorías por comercio, card matcher y cuotas múltiples siguen pendientes.
+- Primera mejora de revisión/edición/confirmación publicada y verificada visualmente en Preview: detalles abajo. Card matcher determinístico implementado con los últimos cuatro disponibles; aprendizaje nuevo de categorías por comercio y cuotas múltiples siguen pendientes.
 - Evidencia reciente: 960 tests verdes, TypeScript y ESLint. Prueba real de consultas default/payer/collector para transferencia MP→BBVA: 0 resultados en las tres. Reporte de período pasado pendiente. Estos hechos no validan compras QR ni cobertura personal completa.
 - Desvío: una transferencia propia, ubicada en P3 por el handoff, consumió el camino crítico de P0/P1. Las correcciones de diagnóstico tienen valor, pero no completan el producto.
 
@@ -78,3 +78,9 @@ Consulta read-only de gastos existentes con scope explícito de usuario, importe
 Resultados completos requieren count exacto consistente y máximo 100 filas. Errores, excepciones, count ausente o resultados parciales mantienen el gate cerrado. Shadow registra possible_ledger_duplicate o ledger_dedupe_pending; regla versión 3 conserva auditoría previa. Los IDs/descripciones del ledger no se duplican en el audit.
 
 Verificación: suite completa 996 tests / 151 archivos incluyendo integración shadow, TypeScript y ESLint. Verificado por lectura de schema real que expenses.date es timestamptz: query de ventana usa comienzo UTC inclusivo y fin siguiente día exclusivo; el matcher preserva el calendario que el editor canónico guarda a medianoche UTC. Prueba SQL read-only scoped al usuario, sin escritura. Esta mejora no prueba cobertura del proveedor ni hace auto-post.
+
+## Card matcher — 2026-10-02
+
+El editor de compra MP preselecciona una tarjeta únicamente con señal determinística: crédito + últimos cuatro válidos + exactamente una tarjeta activa compatible. Marca nunca identifica por sí sola; sólo desambigua tarjetas con iguales últimos cuatro cuando el nombre libre de Gota contiene una marca reconocible. Cero/múltiples matches muestran revisión manual y nunca eligen arbitrariamente. La elección queda editable.
+
+El schema actual no conserva brand/issuer de manera estructurada, por lo que no se afirma un match por issuer. Sin migración ni escritura real. Verificación local: 1001 tests / 152 archivos, TypeScript, ESLint y build productivo Next verdes. Es cobertura sintética de reglas, no prueba de consistencia de last4/issuer en operaciones reales de Mercado Pago.
