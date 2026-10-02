@@ -3,10 +3,10 @@ import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { mercadoPagoBackgroundEnabled } from '@/lib/mercadopago/sync-lease'
 import { getMercadoPagoOAuthReadiness } from '@/lib/mercadopago/oauth'
-import { captureProbeStart, runMercadoPagoCaptureProbe } from '@/lib/mercadopago/capture-probe'
+import { captureProbeStart, runMercadoPagoCaptureProbe, runMercadoPagoSettlementProbe } from '@/lib/mercadopago/capture-probe'
 
 export const maxDuration = 120
-const schema = z.object({ day: z.string() }).strict()
+const schema = z.object({ day: z.string(), source: z.enum(['payments', 'settlement']).optional() }).strict()
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } })
 
 export async function POST(request: Request) {
@@ -22,7 +22,8 @@ export async function POST(request: Request) {
   const readiness = getMercadoPagoOAuthReadiness()
   if (!readiness.ok) return json({ error: 'oauth_not_ready' }, 503)
   try {
-    return json(await runMercadoPagoCaptureProbe(user.id, body.data.day, readiness.config))
+    const probe = body.data.source === 'settlement' ? runMercadoPagoSettlementProbe : runMercadoPagoCaptureProbe
+    return json(await probe(user.id, body.data.day, readiness.config))
   } catch (error) {
     const code = error instanceof Error && ['sync_busy', 'not_connected', 'probe_capture_incomplete'].includes(error.message) ? error.message : 'probe_failed'
     return json({ error: code }, code === 'sync_busy' || code === 'not_connected' ? 409 : 502)

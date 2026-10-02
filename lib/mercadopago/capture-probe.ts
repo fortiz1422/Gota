@@ -1,5 +1,8 @@
+import { randomUUID } from 'node:crypto'
+import { syncMercadoPagoSettlementReport } from './settlement-report'
+import { parseSyncWindow } from './sync-window'
 import { backgroundDatabase, withMercadoPagoSyncLease } from './sync-lease'
-import { getMercadoPagoConnection, saveRawObservation, saveMercadoPagoSourceRun } from './server-repository'
+import { getMercadoPagoConnection, saveRawObservation, saveMercadoPagoSourceRun, getLatestMercadoPagoSourceRuns } from './server-repository'
 import { getValidMercadoPagoAccessToken } from './access-token'
 import { syncMercadoPagoIncremental } from './incremental-sync'
 import { runMercadoPagoShadow } from './shadow-service'
@@ -54,5 +57,32 @@ export async function runMercadoPagoCaptureProbe(userId: string, day: string, co
     return { mode: 'shadow' as const, day, observed, rawBefore: before, rawAfter: totals,
       replay: !keys[0].size ? 'no_events' : sameNativeKeys && totals[0] === totals[1] ? 'stable' : 'inconclusive',
       shadowCount, ledgerWrites: 0, importStarted: false }
+  })
+}
+
+/** Report diagnostic: preserves existing provider config and never changes import/ledger. */
+export async function runMercadoPagoSettlementProbe(userId: string, day: string, config: OAuthConfig) {
+  const now = new Date()
+  captureProbeStart(day, now)
+  const initial = await getMercadoPagoConnection(userId)
+  if (!initial?.access_token_ciphertext || !initial.provider_user_id || !['connected', 'error'].includes(initial.status)) throw new Error('not_connected')
+  return withMercadoPagoSyncLease(userId, initial.id, async leaseId => {
+    const connection = await getMercadoPagoConnection(userId)
+    if (!connection || connection.id !== initial.id || connection.provider_user_id !== initial.provider_user_id) throw new Error('not_connected')
+    const accessToken = await getValidMercadoPagoAccessToken(userId, connection, config, leaseId)
+    const previous = await getLatestMercadoPagoSourceRuns(userId, connection.id)
+    const window = parseSyncWindow({ preset: 'custom', beginDate: day, endDate: day }, now)
+    const batchId = `mp-${randomUUID()}`
+    const startedAt = now.toISOString()
+    const deadline = AbortSignal.timeout(45000)
+    const run = await syncMercadoPagoSettlementReport({ userId, accessToken, now, window, batchId, startedAt,
+      allowConfigCreation: false,
+      lastPendingAt: previous.find(r => r.source === 'account_settlement_report' && r.status === 'pending')?.started_at,
+      fetchImpl: (input, init) => fetch(input, { ...init, signal: AbortSignal.any([deadline, AbortSignal.timeout(8000)]) }),
+      store: { upsertRawObservation: observation => saveRawObservation({ ...observation, connectionId: connection.id }) },
+    })
+    await saveMercadoPagoSourceRun({ userId, connectionId: connection.id, batchId, startedAt, run: { ...run, beginDate: day, endDate: day } })
+    const shadowCount = run.status === 'success' ? await runMercadoPagoShadow(userId, connection.id, connection.provider_user_id!, connection.linked_account_id) : 0
+    return { mode: 'settlement' as const, day, status: run.status, observed: run.count, shadowCount, ledgerWrites: 0, importStarted: false }
   })
 }

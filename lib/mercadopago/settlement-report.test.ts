@@ -288,3 +288,14 @@ describe('Mercado Pago settlement report', () => {
     expect(buildSettlementReportWindows(new Date('2025-01-15T12:00:00.000Z'))[0]).toEqual({ beginDate: '2024-10-18', endDate: '2024-11-16', beginTimestamp: '2024-10-18T03:00:00Z', endTimestamp: '2024-11-17T02:59:59Z' })
   })
 })
+
+it('never creates report config in diagnostic mode when missing', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const fetchImpl = vi.fn(async () => response({}, 404))
+  const store = { upsertRawObservation: vi.fn() }
+  const result = await syncMercadoPagoSettlementReport({ userId: 'user-1', accessToken: 'secret', now: NOW, fetchImpl, store, batchId: 'batch', startedAt: NOW.toISOString(), allowConfigCreation: false })
+  expect(result.status).toBe('error')
+  expect(fetchImpl).toHaveBeenCalledTimes(1)
+  expect(store.upsertRawObservation).not.toHaveBeenCalled()
+  log.mockRestore()
+})

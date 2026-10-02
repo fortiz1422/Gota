@@ -197,3 +197,32 @@ Este registro conserva el estado del trabajo realizado por ChatGPT Work; no dele
 - Falta autorización para inspeccionar la configuración administrativa y, luego, aplicar el alcance exacto propuesto. El usuario puede aprobar sin delegar el trabajo a Hermes; este handoff es registro de continuidad.
 - El push por CLI falló por falta de credenciales de GitHub en este entorno. El intento posterior de crear el primer blob mediante el conector fue rechazado por auto-review: consideró que publicar código privado en `fortiz1422/Gota` no estaba explícitamente autorizado en este turno. No se eludió ni se subió ningún archivo por ese camino. La corrección permanece **local**, pendiente de permiso de publicación en la rama existente del PR #124. No hay nuevo deployment para esta corrección y no se verificó su UI desplegada.
 - Permisos concretos pendientes: publicar los cinco archivos preparados en `feat/mercadopago-integration-v2` (sin merge ni producción), y abrir en lectura únicamente Auth URL Configuration / template Magic Link en el dashboard de Supabase. Cualquier cambio que agregue un callback se confirmará con el alcance exacto a tiempo de acción.
+
+
+## Verificación real de Preview — 2026-10-01 (Argentina)
+
+- Usuario informó haber agregado el callback exacto de Preview en Supabase Redirect URLs. No se inspeccionó el panel; la plantilla Magic Link sigue pendiente.
+- Login Google probado desde la Preview: retorno al mismo origen y sesión permanente verificada en Configuración (Cuenta personal / acceso con Google), sin otro ingreso de credenciales en esta prueba.
+- Capture probe de 2026-10-01: 0 / 0 operaciones, RAW Payments Search 36 → 36 → 36, 41 evaluaciones shadow. No valida dedupe con operaciones.
+- Capture probe de 2026-09-16: 2 / 2 operaciones, RAW Payments Search 36 → 36 → 36, repetición estable y 41 evaluaciones shadow. UI reporta Gastos registrados: 0. No se inició importación, no se pulsó Continuar ni acciones de pago.
+- Interacción: fill automatizado de input date cambió DOM pero no estado React; se repitió accidentalmente el rango de hoy. Entrada por teclado nativo corrigió la fecha; valor 2026-09-16 confirmado durante ejecución. No se atribuye aún a bug de producto.
+- Evidencia visual: gota-mp-replay-20261001.jpg en conversación.
+- Alcance: valida login y replay sobre dos operaciones ya observadas; no valida captura de nuevas filas, cron desplegado, matriz de 16 escenarios, auto-post ni efecto sobre disponible real.
+- Pendientes: revisar semántica por escenario y fixture sanitizado, probar operación nueva controlada, configurar cadencia de captura cuando corresponda. Producción y canon siguen sin habilitar auto-post.
+
+
+## Escenario controlado: MP → BBVA ARS 1.000 — 2026-10-01
+
+- Usuario informó transferencia propia de MP a BBVA aproximadamente 22:27 Argentina. Verdad esperada del escenario: transferencia propia saliente; nunca gasto automático. No se recibió comprobante ni se ejecutó la transferencia desde el agente.
+- Probe ejecutado 22:29:10 Argentina sobre día 2026-10-01. Dos source runs Payments Search success, count 0 / 0. UI RAW de conexión 36 → 36 → 36 y 41 evaluaciones históricas shadow. Ninguna evidencia nueva de la transferencia.
+- Conteos globales antes/después: expenses 1835 / 1835, accounts 58 / 58, RAW Payments Search 72 / 72. Consulta de RAW Payments Search date_created desde 2026-10-01T03:00Z: 0 observaciones.
+- Resultado: captura técnicamente completada, cobertura/normalización/clasificación del escenario NO validadas. No existe evento recibido para afirmar transferencia correctamente clasificada. Hipótesis: demora o ausencia de cobertura Payments Search para retiro/transferencia bancaria.
+- Próximo chequeo: reconciliación Settlement para misma ventana, sin apropiarse de config externa. El probe actual captura únicamente Payments Search; aún no se ejecutó Settlement para este escenario. No hace falta que el usuario mueva más dinero para repetir la consulta.
+- Evidencia: gota-mp-transfer-probe-20261001.jpg en conversación. Canon sin modificaciones de esta prueba.
+
+
+## Diagnóstico Settlement en Preview
+- Endpoint de captura acepta source settlement explícito, con mismos límites de Preview, sesión, origen y lease. Consulta un día argentino, no cambia import/opt-in/watermark/cuentas/ledger.
+- Reusa Settlement Report y refresh común; allowConfigCreation=false impide crear configuración cuando falta y no hay PUT de configuración. Puede solicitar generación de un reporte del día, conserva cooldown y estado pending.
+- UI avanzada: Consultar reporte de saldo; distingue pending/error/success, no afirma que el evento esté confirmado sólo por recibir un reporte.
+- Verificación: 146 archivos / 947 tests verdes, TypeScript y eslint de archivos modificados pasan. Prueba real Settlement todavía pendiente al publicar.

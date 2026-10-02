@@ -165,7 +165,7 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
   console.error('mercadopago_settlement_report_error', JSON.stringify(diagnostic))
 }
 
-export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
+export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt, allowConfigCreation = true }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null; allowConfigCreation?: boolean }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
     const effectiveWindow = window ?? windowFromDates(new Date(now.getTime() - 89 * DAY), now, 'custom')
@@ -173,6 +173,7 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
+      if (!allowConfigCreation) throw new Error('report_config_missing')
       stage = 'config_create'
       const config = JSON.stringify({ file_name_prefix: 'gota_settlement', frequency: { hour: 0, type: 'monthly', value: 1 }, columns: REQUIRED_FIELDS.map((key) => ({ key })), display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en' })
       const created = await request(configUrl, accessToken, fetchImpl, { method: 'POST', body: config, headers: { 'Content-Type': 'application/json' } })

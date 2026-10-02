@@ -1,11 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ connection: vi.fn(), saveRaw: vi.fn(), saveRun: vi.fn(), token: vi.fn(), shadow: vi.fn(), sync: vi.fn(), database: vi.fn() }))
-vi.mock('./server-repository', () => ({ getMercadoPagoConnection: mocks.connection, saveRawObservation: mocks.saveRaw, saveMercadoPagoSourceRun: mocks.saveRun }))
+const mocks = vi.hoisted(() => ({ connection: vi.fn(), saveRaw: vi.fn(), saveRun: vi.fn(), token: vi.fn(), shadow: vi.fn(), sync: vi.fn(), database: vi.fn(), settlement: vi.fn(), runs: vi.fn() }))
+vi.mock('./server-repository', () => ({ getMercadoPagoConnection: mocks.connection, saveRawObservation: mocks.saveRaw, saveMercadoPagoSourceRun: mocks.saveRun, getLatestMercadoPagoSourceRuns: mocks.runs }))
 vi.mock('./access-token', () => ({ getValidMercadoPagoAccessToken: mocks.token }))
+vi.mock('./settlement-report', () => ({ syncMercadoPagoSettlementReport: mocks.settlement }))
 vi.mock('./incremental-sync', () => ({ syncMercadoPagoIncremental: mocks.sync }))
 vi.mock('./shadow-service', () => ({ runMercadoPagoShadow: mocks.shadow }))
 vi.mock('./sync-lease', () => ({ backgroundDatabase: mocks.database, withMercadoPagoSyncLease: (_user: string, _connection: string, run: (lease: string) => unknown) => run('lease-1') }))
-import { captureProbeStart, runMercadoPagoCaptureProbe } from './capture-probe'
+import { captureProbeStart, runMercadoPagoCaptureProbe, runMercadoPagoSettlementProbe } from './capture-probe'
 import type { OAuthConfig } from './oauth'
 const config = {} as OAuthConfig
 beforeEach(() => {
@@ -14,6 +15,7 @@ beforeEach(() => {
   mocks.connection.mockResolvedValue({ id: 'conn-1', provider_user_id: 'owner-1', status: 'connected', access_token_ciphertext: 'encrypted', linked_account_id: null })
   mocks.token.mockResolvedValue('never-return-this-token')
   mocks.shadow.mockResolvedValue(2)
+  mocks.runs.mockResolvedValue([])
   let total = 0
   const nativeKeys = new Set<string>()
   mocks.saveRaw.mockImplementation(async o => { nativeKeys.add(o.nativeKey); total = nativeKeys.size })
@@ -54,5 +56,21 @@ describe('bounded capture diagnostic', () => {
   })
   it.each(['2026-02-30', '2026-10-02', '2026-06-01', '2026-9-1', 'invalid'])('rejects %s before touching credentials', day => {
     expect(() => captureProbeStart(day)).toThrow('invalid_probe_day')
+  })
+})
+
+describe('settlement diagnostic', () => {
+  it.each(['pending', 'error'])('persists %s without claiming a completed evaluation', async status => {
+    mocks.settlement.mockResolvedValue({ source: 'account_settlement_report', status, count: 0, errorCode: status === 'error' ? 'provider_error' : null })
+    expect(await runMercadoPagoSettlementProbe('user-1', '2026-09-16', config)).toMatchObject({ status, shadowCount: 0, ledgerWrites: 0, importStarted: false })
+    expect(mocks.shadow).not.toHaveBeenCalled()
+    expect(mocks.saveRun).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', connectionId: 'conn-1', run: expect.objectContaining({ beginDate: '2026-09-16', endDate: '2026-09-16' }) }))
+    expect(mocks.settlement.mock.calls[0][0].allowConfigCreation).toBe(false)
+  })
+  it('captures the requested single Argentine day and evaluates only a complete report', async () => {
+    mocks.settlement.mockResolvedValue({ source: 'account_settlement_report', status: 'success', count: 1, errorCode: null })
+    expect(await runMercadoPagoSettlementProbe('user-1', '2026-09-16', config)).toMatchObject({ observed: 1, shadowCount: 2, ledgerWrites: 0 })
+    expect(mocks.settlement.mock.calls[0][0].window).toMatchObject({ beginTimestamp: '2026-09-16T03:00:00Z', endTimestamp: '2026-09-17T02:59:59Z' })
+    expect(mocks.shadow).toHaveBeenCalledTimes(1)
   })
 })

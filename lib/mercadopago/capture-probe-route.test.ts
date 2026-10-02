@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ session: vi.fn(), user: vi.fn(), enabled: vi.fn(), readiness: vi.fn(), probe: vi.fn(), start: vi.fn() }))
+const mocks = vi.hoisted(() => ({ session: vi.fn(), user: vi.fn(), enabled: vi.fn(), readiness: vi.fn(), probe: vi.fn(), settlement: vi.fn(), start: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.session }))
 vi.mock('@/lib/mercadopago/sync-lease', () => ({ mercadoPagoBackgroundEnabled: mocks.enabled }))
 vi.mock('@/lib/mercadopago/oauth', () => ({ getMercadoPagoOAuthReadiness: mocks.readiness }))
-vi.mock('@/lib/mercadopago/capture-probe', () => ({ captureProbeStart: mocks.start, runMercadoPagoCaptureProbe: mocks.probe }))
+vi.mock('@/lib/mercadopago/capture-probe', () => ({ captureProbeStart: mocks.start, runMercadoPagoCaptureProbe: mocks.probe, runMercadoPagoSettlementProbe: mocks.settlement }))
 import { POST } from '@/app/api/integrations/mercadopago/capture-probe/route'
 const request = (body: unknown = { day: '2026-09-16' }, origin = 'https://gota.test') => new Request('https://gota.test/api/integrations/mercadopago/capture-probe', { method: 'POST', headers: { origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 beforeEach(() => {
@@ -36,6 +36,13 @@ describe('preview capture boundary', () => {
     expect(response.status).toBe(200)
     expect(mocks.probe).toHaveBeenCalledWith('session-owner', '2026-09-16', { server: 'config' })
     expect(await response.json()).toEqual({ mode: 'shadow', ledgerWrites: 0 })
+  })
+  it('routes settlement only for the verified session owner and rejects arbitrary sources', async () => {
+    mocks.settlement.mockResolvedValue({ mode: 'settlement', status: 'pending', ledgerWrites: 0 })
+    expect((await POST(request({ day: '2026-09-16', source: 'settlement' }))).status).toBe(200)
+    expect(mocks.settlement).toHaveBeenCalledWith('session-owner', '2026-09-16', { server: 'config' })
+    expect(mocks.probe).not.toHaveBeenCalled()
+    expect((await POST(request({ day: '2026-09-16', source: 'anything' }))).status).toBe(422)
   })
   it('does not reflect provider errors or tokens to the client', async () => {
     mocks.probe.mockRejectedValue(new Error('secret-token-in-provider-error'))
