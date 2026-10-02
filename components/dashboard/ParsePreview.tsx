@@ -542,7 +542,7 @@ export function ParsePreview({
 
         <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Categoria
+            Categoría
           </label>
           <select
             value={form.category}
@@ -561,6 +561,10 @@ export function ParsePreview({
               </option>
             ))}
           </select>
+          {immutableProviderEvidence && aliasSource === 'mercadopago' && <p className="mt-2 text-xs leading-relaxed text-text-secondary">
+            {data.alias_match?.default_category ? 'Sugerida según tus preferencias guardadas. Podés cambiarla. ' : ''}
+            La categoría organiza tu gasto; no cambia el importe ni el medio de pago informado por Mercado Pago.
+          </p>}
         </div>
 
         <div>

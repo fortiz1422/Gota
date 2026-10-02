@@ -58,6 +58,15 @@ Mantener la matriz original de 16 escenarios y registrar cada uno como pendiente
 
 Primera entrega visible: revisión/edición/confirmación más claras, junto a captura shadow verificada para el caso prioritario. Primera entrega de valor diario: compras con saldo incorporadas sin acción del usuario. La transferencia pendiente no es requisito de esa entrega.
 
-## Handoff para Hermes
+## Continuidad de trabajo
 
 Documento de continuidad; ejecución a cargo de ChatGPT Work, sin delegación. Decisiones: recuperar prioridades del handoff; transferencia propia fuera del camino crítico; separar preparación técnica, prueba real y activación. Hechos: P0 parcial, shadow sin dedupe ledger, UX de revisión anterior. Supuestos: Payments Search puede cubrir compras personales suficientes; pendiente de prueba. Artefactos: este plan, docs/mercadopago-v2-handoff.md, PR draft #124. Riesgos: falsos gastos por transfers, duplicados manuales, card match ambiguo, categoría confundida con semántica, promesas de latencia no medidas. Pendientes y gates detallados arriba. Ninguna escritura al ledger, migración, activación de background o promoción a producción realizada por este replanteo.
+
+
+## Primera entrega de revisión — 2026-10-02
+
+Implementado en rama: grupos Para completar / Necesitan más información; explicaciones específicas para transferencias sin resolver, cuotas pendientes, devoluciones/reclamos y evidencia incompleta; fechas de presentación en Argentina; marca/últimos cuatro de tarjeta cuando existen; selección masiva detrás de Opciones avanzadas. No se cambian las reglas de elegibilidad ni el normalizador.
+
+La confirmación reutiliza ParsePreview y los endpoints canónicos. Alias/categoría guardados ahora se consultan también para compras de tarjeta de una cuota; las preferencias se resuelven antes de montar el editor para evitar reemplazar correcciones en curso. No se agrega merchant learning nuevo. Categoría Pago de Tarjetas no se aplica a compras de crédito. Al confirmar se vuelve a la bandeja recargada, sin abrir un siguiente movimiento con datos previos. Un conflicto requiere revisión de nuevo.
+
+Verificación local: 965 tests en 148 archivos, TypeScript y ESLint de archivos editados. La validación visual en Preview se registra por separado. No se efectuaron confirmaciones reales, escrituras al ledger, cambios de base de datos ni activación de background/auto-post. Las cuotas mayores que una siguen sin confirmación disponible. Esta entrega no completa MP v2.
