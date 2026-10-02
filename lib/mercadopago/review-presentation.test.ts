@@ -38,6 +38,27 @@ describe('Mercado Pago review explanations', () => {
       .toMatchObject({ ready: false, title: 'Devolución o reclamo' })
   })
 
+  it('moves an exact shadow dedupe match into a non-confirmable comparison exception', () => {
+    const possibleDuplicate: MercadoPagoMovement = {
+      ...base,
+      kind: 'expense',
+      balanceOccurredAt: base.occurredAt,
+      balanceImpact: { observed: true, effect: 'debit', amount: { value: -1000, currency: 'ARS' } },
+      attention: 'possible_duplicate',
+    }
+    expect(getMercadoPagoReviewPresentation(possibleDuplicate)).toEqual({
+      ready: false,
+      title: 'Posible duplicado',
+      explanation: expect.stringContaining('Comparalo antes de registrar otro'),
+      action: 'Comparar movimiento',
+    })
+    const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, {
+      buckets: classifyMercadoPagoMovements([possibleDuplicate]), onOpen: () => undefined,
+    }))
+    expect(html).toContain('Necesitan más información · 1')
+    expect(html).not.toContain('Para completar ·')
+  })
+
   it('shows confirmable movements while automation is disabled without claiming they were posted', () => {
     const debit: MercadoPagoMovement = { ...base, candidateId: 'debit', description: 'YPF', balanceOccurredAt: base.occurredAt,
       balanceImpact: { observed: true, effect: 'debit', amount: { value: -1000, currency: 'ARS' } } }

@@ -4,7 +4,7 @@ Fecha: 2026-10-02, Argentina. Pedido de Facundo: avanzar sin esperarlo, document
 
 ## Base publicada
 
-Rama feat/mercadopago-integration-v2; draft PR #124. HEAD previo 40145c6. Producción ee8ed25 no modificada. UX de revisión ya publicada y validada visualmente; captura y clasificación siguen en shadow, sin auto-post ni background habilitados para el usuario.
+Rama feat/mercadopago-integration-v2; draft PR #124. HEAD de inicio de este bloque 0451f6c. Producción ee8ed25 no modificada. UX de revisión ya publicada y validada visualmente; captura y clasificación siguen en shadow, sin auto-post ni background habilitados para el usuario.
 
 ## Bloque completado en este checkpoint
 
@@ -36,9 +36,17 @@ El reporte del día argentino 2026-10-01 pasó de pending a success y entregó u
 
 Se agregó un fixture sanitizado mínimo y el normalizador clasifica sólo `PAYOUTS` negativo de Settlement como `transfer/outflow`, manteniendo role, funding, destino y aprobación desconocidos. Cero o positivo no se clasifican como salida. El pipeline completo termina en `review` y la UX “Transferencia por resolver”; nunca en gasto, ingreso o auto-post. Suite completa 1006/1006 en 152 archivos, TypeScript y ESLint focalizado verdes. No hubo escritura real de ledger ni activación.
 
+### Posibles duplicados: shadow visible y confirmación bloqueada
+
+La bandeja ahora consume únicamente decisiones shadow de la regla vigente cuyo `candidate_id` y fingerprint coinciden exactamente con la evidencia RAW reconstruida. Un match `possible_ledger_duplicate` se proyecta como el marcador público mínimo `possible_duplicate`: no expone IDs de gastos, fingerprints, motivos internos ni datos del ledger. La tarjeta pasa a “Necesitan más información”, explica que puede ser un movimiento ya registrado y ofrece comparar, sin afirmar que sean iguales ni vincular/borrar silenciosamente.
+
+Se unificó el fingerprint de shadow, stale protection y confirmación humana en una sola función canónica. Decisiones de otra versión, evidencia anterior, otro resultado o lectura fallida se ignoran/fallan cerradas. Además, el POST de confirmación de gasto repite la consulta read-only de dedupe justo antes del RPC: si no puede verificar, responde `dedupe_unavailable`; si encuentra candidatos, responde `possible_duplicate`; en ambos casos no escribe ledger. Las compras con tarjeta continúan fuera de este matcher porque todavía no existe un matcher canónico equivalente para card purchases.
+
+No se implementó todavía “Vincular” ni “Mantener ambos”: ambas decisiones requieren una auditoría transaccional persistente con ownership, stale protection e idempotencia; ofrecer botones sin esa garantía sería engañoso. Suite completa 1012/1012 en 152 archivos; TypeScript, ESLint focalizado y `git diff --check` verdes. No hubo escritura real ni migración aplicada.
+
 ## Orden siguiente
 
-1. Llevar posibles duplicados a revisión con explicación útil; vincular existente requiere audit/stale/ownership/idempotencia transaccionales. No habilitar vínculo parcial inseguro.
+1. Diseñar resolución de duplicados (`linked_existing` / `keep_both`) sólo con audit/stale/ownership/idempotencia transaccionales; no habilitar vínculo parcial inseguro.
 2. N cuotas: auditoría terminada. El motor actual crea N filas agrupadas, divide el total y las asigna a ciclos futuros; la UI las muestra individualmente. Esto sostiene compromisos pero no materializa literalmente “gasto económico total hoy” del handoff. Extender el RPC exige decidir si el grupo existente es la compra canónica aceptable o si hace falta una entidad madre; no cambiar sólo UI/gate. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
 3. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
 4. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Transferencia saliente tiene evidencia real parcial (salida `PAYOUTS`, sin destino); no equivale todavía a reconciliación de cuenta propia. Ninguna prueba mock equivale a operación controlada real.

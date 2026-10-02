@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto'
 import { normalizeMercadoPagoMovement } from './provider-movement'
-import { reconcileMercadoPagoMovements, type ReconciledMercadoPagoMovement, type ReconciliationObservation } from './reconciliation'
+import { observationFingerprint, reconcileMercadoPagoMovements, type ReconciledMercadoPagoMovement, type ReconciliationObservation } from './reconciliation'
 import type { MercadoPagoConnection, MercadoPagoMovementObservation } from './server-repository'
 
 const stableJson = (value: unknown) => JSON.stringify(value)
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
 
-export function candidateFingerprint(candidate: { evidence: Array<{ source: string; native_key?: string | null; last_seen_at?: string; movement: unknown }> }) {
-  return sha256(stableJson(candidate.evidence.map((evidence) => [evidence.source, evidence.native_key ?? null, evidence.movement]).sort((a, b) => stableJson(a).localeCompare(stableJson(b)))))
+export function candidateFingerprint(candidate: { evidence: Array<{ source: string; movement: unknown; native_key?: string | null; last_seen_at?: string }> }) {
+  // This is also the shadow-decision identity. Keep one canonical algorithm so
+  // an exception shown in the inbox can only refer to the exact evidence that
+  // the classifier evaluated.
+  return sha256(candidate.evidence.map((evidence) => observationFingerprint(evidence as ReconciliationObservation)).sort().join('|'))
 }
 
 export function buildCanonicalSemantics() {
@@ -41,7 +44,7 @@ export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnecti
   return reconcileMercadoPagoMovements(internal)
 }
 
-export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null) {
+export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null, attention?: 'possible_duplicate' | null) {
   const { evidence, settlement, nativeId, reasonCodes, accountRole, ...visible } = candidate
   void evidence; void settlement; void nativeId; void reasonCodes; void accountRole
   if (visible.fundingSource && 'issuerId' in visible.fundingSource) {
@@ -53,6 +56,7 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
     ...visible,
     cardPurchaseEligible: isEligibleCreditCardPurchase(candidate),
     cardType: candidate.fundingSource.cardType ?? null,
+    ...(attention ? { attention } : {}),
     reviewStatus: review?.status ?? 'pending',
     ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}),
     reviewSnapshot: review ? undefined : {

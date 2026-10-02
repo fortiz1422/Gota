@@ -5,6 +5,9 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { getMercadoPagoConnection, getMercadoPagoMovementObservations } from '@/lib/mercadopago/server-repository'
 import { buildCanonicalSemantics, buildConfirmationIntentHash, candidateFingerprint, eligibleMercadoPagoExpense, expectedObservations, isEligibleCreditCardPurchase, reconstructMercadoPagoCandidates } from '@/lib/mercadopago/confirm-expense'
+import { checkMercadoPagoLedgerDuplicate } from '@/lib/mercadopago/ledger-matcher-repository'
+import { toFinancialEvent } from '@/lib/mercadopago/financial-event'
+import type { SupabaseClient } from '@supabase/supabase-js'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
 const bodySchema = z.object({ description: z.string().trim().min(1).max(100), category: z.enum(CATEGORIES), isWant: z.boolean(), expectedLinkedAccountId: z.string().uuid().optional(), expectedLinkedAccountVersion: z.number().int().nonnegative().optional(), cardId: z.string().uuid().optional(), installments: z.number().int().min(1).max(1).optional() }).strict()
@@ -32,8 +35,13 @@ export async function POST(request: Request, { params }: Params) {
     const amount = isCard ? candidate.amount.value! : Math.abs(candidate.balanceImpact.amount.value!)
     const currency = isCard ? candidate.amount.currency! : candidate.balanceImpact.amount.currency!
     const date = new Date((isCard ? candidate.occurredAt : candidate.balanceOccurredAt)!).toISOString().slice(0, 10)
-    const semantics = buildCanonicalSemantics()
     const admin = createAdminClient() as unknown as { rpc: (name: string, args: Record<string, unknown>) => Promise<{ data: string | string[] | null; error: unknown }> }
+    if (!isCard) {
+      const duplicate = await checkMercadoPagoLedgerDuplicate(admin as unknown as SupabaseClient, user.id, toFinancialEvent(candidate), connection.linked_account_id)
+      if (!duplicate.checked) return json({ error: 'dedupe_unavailable' }, 503)
+      if (duplicate.matches.length > 0) return json({ error: 'possible_duplicate' }, 409)
+    }
+    const semantics = buildCanonicalSemantics()
     const { data, error } = await admin.rpc(isCard ? 'confirm_mercadopago_card_expense' : 'confirm_mercadopago_expense', {
       p_user_id: user.id, p_connection_id: connection.id, p_candidate_id: candidateId,
       p_candidate_fingerprint: candidateFingerprint(candidate),

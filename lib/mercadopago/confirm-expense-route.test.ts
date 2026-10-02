@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   expected: vi.fn(),
   semantics: vi.fn(),
   rpc: vi.fn(),
+  duplicate: vi.fn(),
 }))
 
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }))
@@ -27,6 +28,8 @@ vi.mock('@/lib/mercadopago/confirm-expense', () => ({
   expectedObservations: mocks.expected,
   buildCanonicalSemantics: mocks.semantics,
 }))
+vi.mock('@/lib/mercadopago/ledger-matcher-repository', () => ({ checkMercadoPagoLedgerDuplicate: mocks.duplicate }))
+vi.mock('@/lib/mercadopago/financial-event', () => ({ toFinancialEvent: vi.fn(() => ({ economicType: 'expense', funding: 'mp_balance', amount: { value: 5500, currency: 'ARS' }, occurredAt: '2026-09-15T11:00:00.000Z' })) }))
 
 import { POST } from '@/app/api/integrations/mercadopago/movements/[candidateId]/confirm-expense/route'
 import { buildParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
@@ -60,6 +63,7 @@ beforeEach(() => {
   mocks.semantics.mockReturnValue({ classification: 'human_confirmed_expense', provider_effect: 'balance_debit' })
   mocks.rpc.mockResolvedValue({ data: 'expense-1', error: null })
   mocks.createAdminClient.mockReturnValue({ rpc: mocks.rpc })
+  mocks.duplicate.mockResolvedValue({ checked: true, matches: [] })
 })
 
 describe('Mercado Pago confirm expense route', () => {
@@ -120,7 +124,22 @@ describe('Mercado Pago confirm expense route', () => {
     expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_expense', expect.objectContaining({
       p_card_id: cardId, p_installments: 1, p_amount: 5500, p_currency: 'ARS', p_date: '2026-09-15',
     }))
+    expect(mocks.duplicate).not.toHaveBeenCalled()
     expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty('p_expected_linked_account_id')
+  })
+
+  it('fails closed before the expense RPC when ledger dedupe is unavailable or finds a possible duplicate', async () => {
+    mocks.duplicate.mockResolvedValueOnce({ checked: false, matches: [] })
+    const unavailable = await post()
+    expect(unavailable.status).toBe(503)
+    expect(await unavailable.json()).toEqual({ error: 'dedupe_unavailable' })
+    expect(mocks.rpc).not.toHaveBeenCalled()
+
+    mocks.duplicate.mockResolvedValueOnce({ checked: true, matches: [{ expenseId: 'existing', merchantMatches: true }] })
+    const duplicate = await post()
+    expect(duplicate.status).toBe(409)
+    expect(await duplicate.json()).toEqual({ error: 'possible_duplicate' })
+    expect(mocks.rpc).not.toHaveBeenCalled()
   })
 
   it('sends the serialized ParsePreview-selected card through HTTP to the card RPC without account fields', async () => {

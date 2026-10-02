@@ -1,12 +1,12 @@
-import { createHash } from 'node:crypto'
 import { getMercadoPagoMovementObservations } from './server-repository'
 import { readMercadoPagoDecisionHistory, previousDecisionFor } from './decision-history'
 import { normalizeMercadoPagoMovement } from './provider-movement'
-import { reconcileMercadoPagoMovements, observationFingerprint } from './reconciliation'
+import { reconcileMercadoPagoMovements } from './reconciliation'
 import { toFinancialEvent } from './financial-event'
 import { decideProviderEvent } from './posting-decision'
 import { backgroundDatabase } from './sync-lease'
 import { checkMercadoPagoLedgerDuplicate } from './ledger-matcher-repository'
+import { candidateFingerprint } from './confirm-expense'
 
 export async function runMercadoPagoShadow(userId: string, connectionId: string, providerUserId: string, accountId: string | null) {
   const observations = await getMercadoPagoMovementObservations(userId, connectionId, 100)
@@ -19,7 +19,7 @@ export async function runMercadoPagoShadow(userId: string, connectionId: string,
   const database = backgroundDatabase()
   // Sequential bounded reads avoid a request burst for large backfills.
   for (const c of candidates) {
-    const fingerprint = createHash('sha256').update(c.evidence.map(observationFingerprint).sort().join('|')).digest('hex')
+    const fingerprint = candidateFingerprint(c)
     const previous = previousDecisionFor(c, history)
     const event = toFinancialEvent(c)
     const duplicate = previous ? { checked: false, matches: [] } : await checkMercadoPagoLedgerDuplicate(database, userId, event, accountId)

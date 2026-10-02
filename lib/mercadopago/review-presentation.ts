@@ -2,6 +2,9 @@ import { getMercadoPagoReviewCapability, type MercadoPagoMovement } from './revi
 
 // Presentation only: never grants permission to post or changes provider evidence.
 export function getMercadoPagoReviewPresentation(movement: MercadoPagoMovement) {
+  if (movement.attention === 'possible_duplicate') {
+    return { ready: false, title: 'Posible duplicado', explanation: 'Encontramos un gasto de importe, moneda y fecha compatibles que podría ser este mismo movimiento. Comparalo antes de registrar otro.', action: 'Comparar movimiento' }
+  }
   const capability = getMercadoPagoReviewCapability(movement)
   if (capability.mode === 'confirmable') {
     return capability.reason === 'complete_credit_card_purchase'

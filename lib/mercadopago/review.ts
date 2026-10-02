@@ -16,6 +16,7 @@ export type MercadoPagoMovement = {
   fundingSource?: { kind?: string; brand?: string; lastFour?: string; cardType?: 'credit' | 'debit' }
   cardPurchaseEligible?: boolean
   cardType?: 'credit' | 'debit' | null
+  attention?: 'possible_duplicate'
   reviewSnapshot?: { fingerprint: string; observations: Array<{ id: string; source: string; key: string | null; seenAt: string }> }
 }
 export type MercadoPagoDiagnostic = MercadoPagoMovement
@@ -35,7 +36,7 @@ export function getDisplayExpenseDescription(movement: MercadoPagoMovement) {
 export function getInitialExpenseDescription(movement: MercadoPagoMovement) { return getDisplayExpenseDescription(movement) }
 export function isReviewableMercadoPagoExpense(movement: MercadoPagoMovement) {
   const amount = movement.balanceImpact.amount
-  return movement.reviewStatus === 'pending' && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
+  return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate' && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
 }
 export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovement) {
   return movement.reviewStatus === 'pending' && movement.cardPurchaseEligible === true && movement.kind === 'expense' && movement.direction === 'outflow'
