@@ -83,6 +83,6 @@ export async function runMercadoPagoSettlementProbe(userId: string, day: string,
     })
     await saveMercadoPagoSourceRun({ userId, connectionId: connection.id, batchId, startedAt, run: { ...run, beginDate: day, endDate: day } })
     const shadowCount = run.status === 'success' ? await runMercadoPagoShadow(userId, connection.id, connection.provider_user_id!, connection.linked_account_id) : 0
-    return { mode: 'settlement' as const, day, status: run.status, observed: run.count, shadowCount, ledgerWrites: 0, importStarted: false }
+    return { mode: 'settlement' as const, day, status: run.status, availability: run.availability, observed: run.count, shadowCount, ledgerWrites: 0, importStarted: false }
   })
 }

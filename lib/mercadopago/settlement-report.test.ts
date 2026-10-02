@@ -299,3 +299,11 @@ it('never creates report config in diagnostic mode when missing', async () => {
   expect(store.upsertRawObservation).not.toHaveBeenCalled()
   log.mockRestore()
 })
+
+it('distinguishes a processed report with missing file from provider processing', async () => {
+  const window = { preset: 'custom' as const, beginDate: '2026-09-15', endDate: '2026-09-15', beginTimestamp: '2026-09-15T03:00:00Z', endTimestamp: '2026-09-16T02:59:59Z' }
+  const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith('/config') ? response({}) : response([{ begin_date: window.beginTimestamp, end_date: window.endTimestamp, status: 'processed', report_id: 123 }]))
+  const result = await syncMercadoPagoSettlementReport({ userId: 'user', accessToken: 'secret', now: NOW, window, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'b', startedAt: NOW.toISOString(), allowConfigCreation: false })
+  expect(result).toMatchObject({ status: 'pending', availability: { matched: 1, pending: 0, missingFile: 1, processed: 1 } })
+  expect(fetchImpl).toHaveBeenCalledTimes(2)
+})

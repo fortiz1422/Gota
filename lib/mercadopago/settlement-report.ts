@@ -16,7 +16,8 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
 type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null; providerCode?: string }
-export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null }
+export type SettlementReportAvailability = { matched: number; pending: number; missingFile: number; processed: number }
+export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; availability?: SettlementReportAvailability }
 
 class SettlementReportDiagnosticError extends Error {
   constructor(public readonly diagnostic: SettlementReportDiagnostic) {
@@ -186,6 +187,8 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     stage = 'list_parse'
     const listed = listItems(await json(listResponse))
     const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
+    const matching = reportsByWindow.flat()
+    const availability = { matched: matching.length, pending: matching.filter(isPendingReport).length, missingFile: matching.filter(r => safeFileName(value(r, ['file_name'])) === null).length, processed: matching.filter(r => value(r, ['status', 'state'])?.toLowerCase() === 'processed').length }
     const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))
     const readyFiles = reportsByWindow.map(readyFileName)
     let totalCount = 0
@@ -201,7 +204,7 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     }
     const missingIndex = readyFiles.findIndex((name, index) => name === null && reportsByWindow[index].length === 0)
     if (unresolved || missingIndex === -1) {
-      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
+      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null, availability } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
     }
     const missingWindow = windows[missingIndex]
     {
