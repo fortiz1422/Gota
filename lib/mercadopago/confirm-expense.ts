@@ -21,6 +21,13 @@ export function buildConfirmationIntentHash(input: { description: string; catego
   return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant, ...(input.cardId ? { cardId: input.cardId, installments: input.installments ?? null } : {}) }))
 }
 
+export function getMercadoPagoCardPurchaseAmount(candidate: Pick<ReconciledMercadoPagoMovement, 'amount' | 'summary'>) {
+  // An explicit total paid includes financing costs; never multiply a payment
+  // amount by the count or fall back from a malformed explicit total.
+  const total = candidate.summary.totalPaid ?? candidate.amount.value
+  return typeof total === 'number' && Number.isFinite(total) && total > 0 && Number.isSafeInteger(Math.round(total * 100)) ? total : null
+}
+
 export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPagoMovement, 'kind' | 'direction' | 'accountRole' | 'operation' | 'fundingSource' | 'amount' | 'occurredAt' | 'installments' | 'summary'>) {
   return candidate.kind === 'expense' && candidate.direction === 'outflow' && candidate.accountRole === 'payer'
     && ['regular_payment', 'recurring_payment'].includes(candidate.operation.type ?? '')
@@ -29,7 +36,8 @@ export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPa
     && Number.isFinite(candidate.amount.value) && candidate.amount.value > 0
     && ['ARS', 'USD'].includes(candidate.amount.currency ?? '')
     && Boolean(candidate.occurredAt && Number.isFinite(Date.parse(candidate.occurredAt)))
-    && (candidate.summary.refunded === null || candidate.summary.refunded === 0) && candidate.installments === 1
+    && (candidate.summary.refunded === null || candidate.summary.refunded === 0) && Number.isInteger(candidate.installments) && candidate.installments! >= 1 && candidate.installments! <= 72
+    && getMercadoPagoCardPurchaseAmount(candidate) !== null
 }
 
 export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnection, observations: MercadoPagoMovementObservation[]) {
@@ -54,7 +62,8 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
   }
   return {
     ...visible,
-    cardPurchaseEligible: isEligibleCreditCardPurchase(candidate),
+    cardPurchaseEligible: isEligibleCreditCardPurchase(candidate) && ((candidate.installments === 1 && getMercadoPagoCardPurchaseAmount(candidate) === candidate.amount.value) || process.env.MERCADOPAGO_CARD_INSTALLMENTS_ENABLED === 'true'),
+    cardPurchaseAmount: getMercadoPagoCardPurchaseAmount(candidate),
     cardType: candidate.fundingSource.cardType ?? null,
     ...(attention ? { attention } : {}),
     reviewStatus: review?.status ?? 'pending',
@@ -69,7 +78,8 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {
   const amount = candidate.balanceImpact.amount.value
   const occurredAt = candidate.balanceOccurredAt
-  const forbiddenFinancialType = ['transfer', 'income', 'neutral'].includes(candidate.kind)
+  const forbiddenFinancialType = ['income', 'neutral'].includes(candidate.kind)
+    || (candidate.kind === 'transfer' && (candidate.direction !== 'outflow' || candidate.fundingSource.kind === 'card' || (candidate.installments ?? 1) > 1))
   const reversal = (candidate.summary.refunded ?? 0) > 0
     || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.statusDetail ?? '')
     || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.status ?? '')

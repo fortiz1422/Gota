@@ -14,7 +14,7 @@ beforeEach(() => {
   mocks.upsert.mockResolvedValue({ error: null })
   mocks.observations.mockResolvedValue([
     { id: 'raw-payment', source: 'payments_search', native_key: '1', last_seen_at: '2026-10-02T01:28:00Z', payload: { id: 1, payer: { id: 'owner' }, collector_id: 'merchant', operation_type: 'regular_payment', status: 'approved', transaction_amount: 32000, currency_id: 'ARS', date_created: '2026-10-02T01:27:00Z', payment_type_id: 'account_money', transaction_amount_refunded: 0 } },
-    { id: 'raw-report', source: 'account_settlement_report', native_key: '1', last_seen_at: '2026-10-02T01:28:00Z', payload: { TRANSACTION_AMOUNT: -32000, TRANSACTION_CURRENCY: 'ARS', PAYMENT_METHOD_TYPE: 'account_money', TRANSACTION_TYPE: 'payment' } },
+    { id: 'raw-report', source: 'account_settlement_report', native_key: '1', last_seen_at: '2026-10-02T01:28:00Z', payload: { TRANSACTION_AMOUNT: -32000, TRANSACTION_CURRENCY: 'ARS', PAYMENT_METHOD_TYPE: 'account_money', TRANSACTION_DATE: '2026-10-02T01:27:00Z', TRANSACTION_TYPE: 'payment' } },
   ])
 })
 
@@ -28,7 +28,7 @@ describe('shadow integrates dedupe without ledger mutations', () => {
     expect(await runMercadoPagoShadow('user', 'connection', 'owner', 'mp')).toBe(1)
     expect(mocks.duplicate.mock.calls[0].slice(1, 2)).toEqual(['user'])
     expect(mocks.from.mock.calls).toEqual([['mercadopago_shadow_decisions']])
-    expect(mocks.upsert.mock.calls[0][0][0]).toMatchObject({ user_id: 'user', connection_id: 'connection', decision, rule_version: 3 })
+    expect(mocks.upsert.mock.calls[0][0][0]).toMatchObject({ user_id: 'user', connection_id: 'connection', decision, rule_version: 4 })
     expect(mocks.upsert.mock.calls[0][0][0].reasons).toContain(reason)
     expect(JSON.stringify(mocks.upsert.mock.calls)).not.toContain('manual')
   })

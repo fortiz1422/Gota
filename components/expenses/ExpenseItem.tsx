@@ -1,5 +1,6 @@
 'use client'
 
+import { MercadoPagoExpenseOrigin } from '@/components/mercadopago/MercadoPagoExpenseOrigin'
 import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -323,6 +324,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota')
               : 'Editar gasto'}
         </h2>
+
+        {open && <MercadoPagoExpenseOrigin key={expense.id} expenseId={expense.id} />}
 
         {/* Vista read-only de suscripción generada */}
         {isSubscriptionExpense ? (

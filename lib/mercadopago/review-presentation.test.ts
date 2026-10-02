@@ -23,11 +23,17 @@ describe('Mercado Pago review explanations', () => {
     expect(html).not.toContain('Confirmar gasto')
   })
 
-  it('presents provider PAYOUTS as a transfer exception, never as a confirmable expense', () => {
+  it('presents observed outgoing PAYOUTS as a human-confirmable expense suggestion', () => {
     const payout = { ...base, kind: 'transfer', direction: 'outflow', operation: { type: 'PAYOUTS', status: null }, balanceOccurredAt: base.occurredAt,
       balanceImpact: { observed: true, effect: 'debit' as const, amount: { value: -1000, currency: 'ARS' } } }
-    expect(isReviewableMercadoPagoExpense(payout)).toBe(false)
-    expect(getMercadoPagoReviewPresentation(payout)).toMatchObject({ ready: false, title: 'Transferencia por resolver', action: 'Ver transferencia' })
+    expect(isReviewableMercadoPagoExpense(payout)).toBe(true)
+    expect(getMercadoPagoReviewPresentation(payout)).toMatchObject({ ready: true, title: 'Transferencia saliente', action: 'Revisar como gasto', explanation: expect.stringContaining('Si fue entre tus cuentas, descartalo') })
+    const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, { buckets: classifyMercadoPagoMovements([payout]), onOpen: () => undefined }))
+    expect(html).toContain('Para completar · 1')
+    expect(html).toContain('Revisar como gasto')
+    expect(html).not.toContain('Registrado automáticamente')
+    expect(isReviewableMercadoPagoExpense({ ...payout, attention: 'possible_duplicate' })).toBe(false)
+    expect(getMercadoPagoReviewPresentation({ ...payout, attention: 'possible_duplicate' })).toMatchObject({ ready: false, title: 'Posible duplicado' })
   })
 
   it('explains that multi-installment confirmation is still unavailable rather than inventing a card mapping', () => {

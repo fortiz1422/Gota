@@ -69,7 +69,8 @@ try {
  if(!sql(`select count(*) from public.card_cycles where card_id='${card}' and period_month='2026-11-01'`).includes('0')) throw Error('cycle survived failed expense transaction')
  if(!sql(`select count(*) from public.mercadopago_movement_reviews where candidate_id='late-rollback'`).includes('0')) throw Error('review survived failed expense transaction')
  if(!sql(`select count(*) from public.expenses where payment_method='CREDIT' and card_id='${card}'`).includes('2')) throw Error('expected exactly two CREDIT expenses')
- const race=await Promise.all([1,2].map(()=>new Promise((resolve,reject)=>{const p=spawn('docker',['exec','-i',id,'psql','-v','ON_ERROR_STOP=1','-U','service_role','-d','postgres']);let out='';p.stdout.on('data',x=>out+=x);p.stderr.on('data',x=>out+=x);p.on('close',c=>c?reject(Error(out)):resolve(out));p.stdin.end(call({candidate:'race-card',fp:'5'.repeat(64)}))})))
+ sql(`insert into public.mercadopago_raw_observations select '30000000-0000-0000-0000-000000000009',user_id,connection_id,source,'pay-race',payload,first_seen_at,last_seen_at from public.mercadopago_raw_observations where id='${raw1}'`)
+ const race=await Promise.all([1,2].map(()=>new Promise((resolve,reject)=>{const p=spawn('docker',['exec','-i',id,'psql','-v','ON_ERROR_STOP=1','-U','service_role','-d','postgres']);let out='';p.stdout.on('data',x=>out+=x);p.stderr.on('data',x=>out+=x);p.on('close',c=>c?reject(Error(out)):resolve(out));p.stdin.end(call({candidate:'race-card',fp:'5'.repeat(64),obs:obs('30000000-0000-0000-0000-000000000009','pay-race')}))})))
  const ids=race.map(out=>out.match(/[0-9a-f]{8}-[0-9a-f-]{27}/)?.[0]); if(!ids[0]||ids[0]!==ids[1]) throw Error(`race replay mismatch ${ids}`)
  if(!sql(`select count(*) from public.mercadopago_movement_reviews where candidate_id='boundary-before'`).includes('1')) throw Error('replay review missing')
  const refreshed='2026-09-24T10:00:00Z'

@@ -1,6 +1,6 @@
 import type { FinancialEvent } from './financial-event'
 
-export const MP_DECISION_RULE_VERSION = 3
+export const MP_DECISION_RULE_VERSION = 4
 export type PostingDecision = {
   decision: 'auto_post' | 'review' | 'ignore' | 'wait_for_reconciliation'
   reasons: string[]
@@ -34,6 +34,7 @@ export function decideProviderEvent(event: FinancialEvent, context: PostingConte
   if (event.amount.value === null || !Number.isFinite(event.amount.value) || event.amount.value <= 0) reasons.push('amount_invalid')
   if (!['ARS', 'USD'].includes(event.amount.currency ?? '')) reasons.push('currency_unresolved')
   if (!event.occurredAt || !Number.isFinite(Date.parse(event.occurredAt))) reasons.push('date_unresolved')
+  if (c.balanceImpact.observed && (!c.balanceOccurredAt || !Number.isFinite(Date.parse(c.balanceOccurredAt)))) reasons.push('balance_date_unresolved')
   if (c.summary.refunded !== 0) reasons.push('refund_state_unresolved')
   if (!context.ledgerDedupeChecked) reasons.push('ledger_dedupe_pending')
   if (context.possibleLedgerDuplicate) reasons.push('possible_ledger_duplicate')

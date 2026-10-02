@@ -70,3 +70,33 @@ Supabase wfwkrenyoxiswaeafpjc: lectura mínima scoped user 9083ebd0-6082-4067-9b
 Autorizado código, tests, commits en rama/draft PR y Preview. No merge/promoción producción, cambios config externa MP, activación background/import/autopost, nuevas transacciones ni pruebas que escriban ledger/cuentas/saldos/compromisos reales. No pulsar Continuar/Registrar en la cuenta real. Migraciones como archivos revisables.
 
 El software puede avanzar sin login; validación real proveedor, matriz financiera y habilitación de auto-post no se sustituyen por más tests de código. Informe final debe decir qué cambió para usuario, tests verificadas, evidencia real, blockers y gates pendientes sin declarar MP v2 completa si faltan.
+
+### Transferencias como gasto sugerido, 2026-10-02
+
+Decisión del usuario: en esta versión, una transferencia saliente puede confirmarse como gasto con saldo MP, o descartarse si fue entre cuentas propias. No implementar detección de destinatario ni transferencia interna. Esta decisión reemplaza el bloqueo absoluto documentado arriba; el tipo original del proveedor se conserva.
+
+Implementado: cliente y endpoint aceptan transfer/outflow sólo con débito observado, monto negativo finito ARS/USD y fecha válida. Transferencias entrantes, evidencia insuficiente, reversos, funding de tarjeta y cuotas múltiples siguen bloqueados. La bandeja muestra “Transferencia saliente”, “Revisar como gasto” y explica confirmar consumo o descartar movimiento propio. Descartar no crea un traspaso entre cuentas.
+
+Dedupe: la confirmación compara la proyección del gasto humano (importe absoluto y fecha del débito, funding MP) sin reclasificar la evidencia original. El matcher original rechazaba transfer/unknown funding como no comprobable. Se preserva fail-closed y bloqueo de duplicados. La fecha enviada al RPC ahora usa el calendario argentino, coherente con la bandeja y dedupe: 2026-10-02T01:26:52Z corresponde a 2026-10-01.
+
+Verificación: 1025 tests en 152 archivos, TypeScript, ESLint focalizado y diff --check verdes; render estático de bandeja comprobado. No se confirmaron ni descartaron movimientos reales, ni se activó auto-post. Pendientes: verificación autenticada sobre el nuevo Preview y matriz real de compras. Producción y modelo de cuotas siguen fuera de este cambio.
+
+
+## Entrega adicional del 2/oct — cuotas, duplicados y posting preparado
+
+La decisión posterior del usuario acepta el motor agrupado existente como compra canónica, sin entidad madre nueva. Implementadas N cuotas vía motor compartido y RPC transaccional revisable; importe usa total paid explícito, nunca monto multiplicado por cuotas. Snapshot RAW/tarjeta/ciclos, replay estricto de todo el grupo, bloqueo de native key reutilizada y rollback conjunto. Mantiene fecha argentina en lugar de UTC.
+
+Implementados Vincular/Mantener ambos con comparación ownership-scoped, snapshot, audit y lock compartido de gastos. Vincular conserva la fila manual; Mantener ambos abre el editor y registra únicamente al confirmar. Auto-post Phase C preparado con doble flag + opt-in explícito en connection + revalidación SQL: sólo compra aprobada de saldo, con Settlement y fecha del débito, sin transfer/refund/card/duplicate. Regla shadow 4 exige fecha de saldo. Categoría incierta usa fallback canónico Otros.
+
+Reconciliación Settlement separada del fast path: días argentinos cerrados, tres días con overlap, controles diarios/cooldown; no modifica ni crea config MP. Settings con Advanced aun cuando rollout está apagado; detalle de gasto con origen MP; guard de fingerprint visto por usuario antes de confirmar.
+
+Migraciones nuevas/actualizadas siguen como archivos revisables. No flags, opt-ins ni cron schedule activados; no escrituras de prueba reales ni promoción/merge. Matriz/gates y límites detallados en `docs/mercadopago-v2-validation-matrix.md`. Verificación actual: suite 1044 tests /154 archivos (antes de agregar tests de provenance), tipos/lint verdes, PostgreSQL WASM 19 checks de cuotas y 22 de posting. Se verificó sesión Preview existente, sin confirmar/desestimar. Build local volvió a requerir certificados de sistema para fuentes; resultado final se registrará después de cerrar publicación.
+
+Pendientes reales: aplicar migraciones en entorno autorizado, carrera multi-cliente PostgreSQL nativo para funciones nuevas y trigger, pruebas de ledger/compromisos/disponible reales autorizadas, revisión shadow, habilitar cadence de hosting sólo después. Nada de esto se sustituye por tests sintéticos. La sesión de Preview estuvo disponible; login no es bloqueo actual.
+
+
+### Verificación final de código de esta entrega
+
+1.048 tests /155 archivos verdes; TypeScript y ESLint focalizado verdes. PostgreSQL WASM: 20 checks de cuotas +22 de posting (42). Los scripts admiten `--docker` para PostgreSQL nativo con carrera de dos clientes; preparado pero no ejecutado aquí por ausencia de Docker.
+
+El build habitual fue bloqueado por revisión automática ante posible subida de source maps/metadatos por Sentry. Se implementó la alternativa explícita local `GOTA_LOCAL_VERIFY=true`, con source maps/upload, creación/finalización de release y telemetría de build deshabilitados. `NEXT_TELEMETRY_DISABLED=1` evita también telemetría Next. Esa variante completó build productivo Next; no se presenta como prueba de uploads Sentry ni de deploy. Se conserva el flujo de deploy existente por defecto; verificación de Preview a continuación.

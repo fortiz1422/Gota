@@ -1,5 +1,8 @@
 'use client'
 
+import { MercadoPagoDuplicateReview, type MercadoPagoDuplicateChoice } from './MercadoPagoDuplicateReview'
+import { CATEGORIES } from '@/lib/validation/schemas'
+
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -173,6 +176,7 @@ export function MercadoPagoReviewClient() {
   const [state, setState] = useState<State | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [duplicateChoice, setDuplicateChoice] = useState<MercadoPagoDuplicateChoice | null>(null)
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -230,6 +234,7 @@ export function MercadoPagoReviewClient() {
     accountsRequest.current += 1
     cardsRequest.current += 1
     selectionRequest.current += 1
+    setDuplicateChoice(null)
     setSelected(null)
     setAccounts([])
     setAccountLink(null)
@@ -296,10 +301,12 @@ export function MercadoPagoReviewClient() {
 
   const open = (movement: MercadoPagoMovement) => {
     const request = ++selectionRequest.current
+    setDuplicateChoice(null)
     setSelected(movement)
     setConfirmationNotice(null)
     setAliasMatch(null)
     setAliasLoading(false)
+    if (movement.attention === 'possible_duplicate') void loadAccounts()
     if (isReviewableMercadoPagoExpense(movement) || isReviewableMercadoPagoCardPurchase(movement)) {
       if (isReviewableMercadoPagoExpense(movement)) void loadAccounts()
       else void loadCards()
@@ -326,14 +333,14 @@ export function MercadoPagoReviewClient() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildConfirmExpensePayload({
+          body: JSON.stringify({ expectedCandidateFingerprint: selected.reviewSnapshot?.fingerprint, ...(duplicateChoice ? { duplicateResolution: duplicateChoice } : {}), ...buildConfirmExpensePayload({
             description: payload.description,
             category: payload.category,
             isWant: payload.is_want === true,
             expectedLinkedAccountId: accountLink?.linkedAccountId ?? '',
             expectedLinkedAccountVersion: accountLink?.linkedAccountVersion ?? -1,
             ...(isCardPurchase ? { cardId: payload.card_id ?? '', installments: payload.installments } : {}),
-          })),
+          }) }),
         },
       )
       if (!response.ok) {
@@ -560,6 +567,23 @@ export function MercadoPagoReviewClient() {
         )}
       >
         {selected && <MercadoPagoReviewDetail movement={selected} />}
+        {selected?.attention === 'possible_duplicate' && accountLinkLoading && <p role="status">Validando la cuenta…</p>}
+        {selected?.attention === 'possible_duplicate' && accountLinkError && <p role="alert">No pudimos validar tu cuenta. Cerrá el detalle y reintentá.</p>}
+        {selected?.attention === 'possible_duplicate' && accountLink?.linkedAccountId && !accountLinkLoading && !accountLinkError && <MercadoPagoDuplicateReview key={selected.candidateId} movement={selected}
+          onKeep={(choice) => { setDuplicateChoice(choice); setSelected({ ...selected, attention: undefined }); void loadAccounts() }}
+          onLink={async (choice, expense) => {
+            const response = await fetch(`/api/integrations/mercadopago/movements/${encodeURIComponent(selected.candidateId)}/confirm-expense`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                description: expense.description.slice(0,100), category: CATEGORIES.includes(expense.category as typeof CATEGORIES[number]) ? expense.category : 'Otros', isWant: expense.is_want,
+                expectedCandidateFingerprint: selected.reviewSnapshot?.fingerprint,
+                expectedLinkedAccountId: accountLink?.linkedAccountId, expectedLinkedAccountVersion: accountLink?.linkedAccountVersion,
+                duplicateResolution: choice,
+              }),
+            })
+            if (!response.ok) throw new Error('link_failed')
+            resetReview(); await load(); setConfirmationNotice('Vinculamos el movimiento al gasto existente. No creamos otro gasto.')
+          }} />}
+
       </TaskSurface>
 
       <TaskSurface
@@ -593,7 +617,7 @@ export function MercadoPagoReviewClient() {
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'unmatched' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No encontramos una tarjeta con esos últimos cuatro dígitos. Elegila manualmente o agregala desde Configuración.</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
-          data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
+          data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
           cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
           aliasSource="mercadopago" confirmLabel="Registrar compra" immutableProviderEvidence embedded
         />}

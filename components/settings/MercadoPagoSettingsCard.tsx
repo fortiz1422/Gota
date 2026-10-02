@@ -31,8 +31,31 @@ export function MercadoPagoSettingsCard() {
     return () => { active = false }
   }, [])
   if (setup?.available) return <MercadoPagoSetupCard initialState={setup} />
-  if (setup || failed) return <LegacyMercadoPagoSettingsCard />
+  if (setup || failed) return <MercadoPagoReadOnlySettingsCard />
   return <p className="mt-6 text-[13px] text-text-secondary" role="status">Cargando Mercado Pago…</p>
+}
+
+// Existing connections retain their tools under Advanced while v2 rollout is
+// disabled. Never claim background capture is active merely because OAuth works.
+export function MercadoPagoReadOnlySettingsCard() {
+  const [state, setState] = useState<State | null>(null)
+  useEffect(() => {
+    let active = true
+    void fetch('/api/integrations/mercadopago/sync', { cache: 'no-store' }).then(async response => {
+      if (!response.ok) throw new Error()
+      const result = await response.json() as State
+      if (active) setState(result)
+    }).catch(() => undefined)
+    return () => { active = false }
+  }, [])
+  return <section className="mt-6 rounded-card border border-border-subtle bg-bg-primary p-5" aria-label="Mercado Pago">
+    <div className="flex items-center justify-between"><h3 className="text-[15px] font-semibold">Mercado Pago</h3><span className="text-[12px] text-text-secondary">{state?.state === 'connected' ? 'Conectado' : state?.state === 'not_connected' ? 'No conectado' : state?.state === 'error' ? 'Revisar conexión' : 'Verificando conexión'}</span></div>
+    <p className="mt-3 text-[13px] text-text-secondary">Gota no recibe ni almacena tu contraseña de Mercado Pago.</p>
+    <p className="mt-3 text-[13px] text-text-secondary">La carga automática todavía está en validación. Los movimientos disponibles requieren revisión antes de registrarse.</p>
+    {state?.lastSyncAt && <p className="mt-3 text-[12px] text-text-secondary">Última actualización: {new Date(state.lastSyncAt).toLocaleString('es-AR', { timeZone: 'America/Argentina/Buenos_Aires' })}</p>}
+    {state?.state === 'not_connected' ? <Link href="/api/integrations/mercadopago/connect" className="mt-4 inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Conectar Mercado Pago</Link> : <Link href="/mercadopago/review" className="mt-4 inline-flex min-h-11 items-center text-sm font-semibold text-primary">Revisar movimientos</Link>}
+    <details className="mt-4 border-t border-border-subtle pt-3"><summary className="cursor-pointer text-sm text-text-secondary">Opciones avanzadas</summary><LegacyMercadoPagoSettingsCard /></details>
+  </section>
 }
 
 function LegacyMercadoPagoSettingsCard() {

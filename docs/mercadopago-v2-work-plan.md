@@ -112,3 +112,8 @@ La repetición visual sobre el deployment corregido verificó el resultado: 40 p
 La bandeja une una decisión shadow al movimiento sólo cuando candidate ID, fingerprint de evidencia y versión de regla coinciden. Proyecta únicamente `possible_duplicate`, sin IDs de ledger ni metadata interna. La operación deja de ser confirmable, se muestra en “Necesitan más información” y explica que debe compararse antes de registrar otra.
 
 La confirmación de gastos con saldo repite el dedupe read-only inmediatamente antes del RPC. Una lectura incompleta falla con 503 y un match compatible con 409; ninguna de las dos rutas escribe ledger. Esto cierra la carrera entre la evaluación shadow y el click humano. “Vincular” y “Mantener ambos” siguen pendientes hasta contar con decisión persistente, ownership, stale protection e idempotencia transaccionales. Verificación: 1012 tests / 152 archivos, TypeScript y ESLint focalizado verdes; sin escrituras reales.
+
+
+## Estado actualizado — 2/oct, continuación solicitada por usuario
+
+Los pendientes de código de N cuotas y resolución de duplicados ya tienen implementación, migraciones revisables y pruebas transaccionales aisladas. El usuario aceptó explícitamente el motor de cuotas agrupadas actual. La captura/reconciliación y posting Phase C están preparados con gates deshabilitados; no activos en la cuenta real. Transferencias salientes sólo pueden convertirse en gasto por decisión humana explícita, manteniendo el tipo RAW. Matriz de validación y gates actuales: `docs/mercadopago-v2-validation-matrix.md`; reemplaza los párrafos anteriores que dicen que N o Vincular/Mantener ambos todavía no se implementaron. Esto no certifica MP v2 en producción ni la matriz controlada.

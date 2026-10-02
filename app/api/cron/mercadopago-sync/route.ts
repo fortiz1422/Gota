@@ -4,6 +4,7 @@ import { getMercadoPagoOAuthReadiness } from '@/lib/mercadopago/oauth'
 import { getMercadoPagoConnection, saveRawObservation, saveMercadoPagoSourceRun } from '@/lib/mercadopago/server-repository'
 import { getValidMercadoPagoAccessToken } from '@/lib/mercadopago/access-token'
 import { syncMercadoPagoIncremental } from '@/lib/mercadopago/incremental-sync'
+import { runMercadoPagoAutoPost } from '@/lib/mercadopago/auto-post-service'
 import { runMercadoPagoShadow } from '@/lib/mercadopago/shadow-service'
 
 const headers = { 'Cache-Control': 'private, no-store' }
@@ -49,7 +50,8 @@ export async function GET(request: Request) {
       })
       // Retryable independently of the watermark: reevaluate preserved RAW on each invocation.
       const shadowCount = await runMercadoPagoShadow(row.user_id, row.id, connection.provider_user_id ?? '', connection.linked_account_id)
-      return { status: run.run.status, observed: run.run.count, shadowCount }
+      const posting = await runMercadoPagoAutoPost(row.user_id, row.id)
+      return { status: run.run.status, observed: run.run.count, shadowCount, posted: posting.posted }
     })
     return response({ processed: 1, ...result }, result.status === 'success' ? 200 : 207)
   } catch (error) {

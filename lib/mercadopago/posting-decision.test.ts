@@ -11,21 +11,26 @@ function event(overrides: Record<string, unknown> = {}, settlementAmount: number
   const payment = normalizeMercadoPagoMovement({ source: 'payments_search', payload, providerUserId: 'user' })
   const observations = [{ source: payment.source, nativeId: payment.nativeId, movement: payment, lastSeenAt: '2026-09-30T21:00:00Z' }]
   if (settlementAmount !== null) {
-    const settlement = normalizeMercadoPagoMovement({ source: 'account_settlement_report', nativeKey: '1', payload: { TRANSACTION_AMOUNT: settlementAmount, TRANSACTION_CURRENCY: 'ARS', PAYMENT_METHOD_TYPE: 'account_money', TRANSACTION_TYPE: 'payment' }, providerUserId: 'user' })
+    const settlement = normalizeMercadoPagoMovement({ source: 'account_settlement_report', nativeKey: '1', payload: { TRANSACTION_AMOUNT: settlementAmount, TRANSACTION_CURRENCY: 'ARS', PAYMENT_METHOD_TYPE: 'account_money', TRANSACTION_DATE: '2026-09-30T20:00:00Z', TRANSACTION_TYPE: 'payment' }, providerUserId: 'user' })
     observations.push({ source: settlement.source, nativeId: settlement.nativeId, movement: settlement, lastSeenAt: '2026-09-30T21:00:00Z' })
   }
-  return toFinancialEvent(reconcileMercadoPagoMovements(observations)[0])
+  return toFinancialEvent(reconcileMercadoPagoMovements(observations).find(candidate => candidate.sources.includes('payments_search'))!)
 }
 
 describe('shadow posting policy', () => {
   it('allows only fully evidenced balance expense independent of category', () => {
     const e = event()
     expect(e.confidence.category).toBe(0)
-    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 3 })
+    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 4 })
     expect(decideProviderEvent(e, { ...context, ledgerDedupeChecked: false }).reasons).toContain('ledger_dedupe_pending')
     expect(decideProviderEvent(e, { ...context, possibleLedgerDuplicate: true }).decision).toBe('review')
     expect(decideProviderEvent(e, { ...context, alreadyPosted: true }).decision).toBe('ignore')
     expect(decideProviderEvent(e, { ...context, alreadyDismissed: true }).reasons).toEqual(['already_dismissed'])
+  })
+  it('does not auto-post an observed balance without its financial date', () => {
+    const e = event()
+    e.evidence.balanceOccurredAt = null
+    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'review', reasons: expect.arrayContaining(['balance_date_unresolved']) })
   })
   it('waits for evidence of balance effect instead of assuming it from the funding label', () => {
     expect(decideProviderEvent(event({}, null), context).decision).toBe('wait_for_reconciliation')

@@ -81,7 +81,7 @@ describe('Mercado Pago movements route', () => {
     mocks.getShadowDecisions.mockResolvedValue([{
       candidate_id: movement.candidateId,
       candidate_fingerprint: movement.reviewSnapshot.fingerprint,
-      rule_version: 3,
+      rule_version: 4,
       decision: 'review',
       reasons: ['possible_ledger_duplicate'],
       evaluated_at: '2026-10-02T04:00:00Z',
@@ -94,9 +94,9 @@ describe('Mercado Pago movements route', () => {
   })
 
   it.each([
-    { candidate_fingerprint: 'stale-fingerprint', rule_version: 3, decision: 'review', reasons: ['possible_ledger_duplicate'] },
+    { candidate_fingerprint: 'stale-fingerprint', rule_version: 4, decision: 'review', reasons: ['possible_ledger_duplicate'] },
     { candidate_fingerprint: null, rule_version: 2, decision: 'review', reasons: ['possible_ledger_duplicate'] },
-    { candidate_fingerprint: null, rule_version: 3, decision: 'auto_post', reasons: ['possible_ledger_duplicate'] },
+    { candidate_fingerprint: null, rule_version: 4, decision: 'auto_post', reasons: ['possible_ledger_duplicate'] },
   ])('ignores stale or incompatible shadow decisions', async (shadow) => {
     const first = await (await GET()).json()
     mocks.getShadowDecisions.mockResolvedValue([{

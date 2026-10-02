@@ -499,7 +499,7 @@ export function ParsePreview({
         {isProviderCardPurchase ? (
           <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">Cuotas</label>
-            <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Una cuota · según Mercado Pago</p>
+            <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{installments === 1 ? 'Una cuota' : `${installments} cuotas`} · según Mercado Pago</p>
           </div>
         ) : source === 'credit' && !isPagoTarjetas && (
           <div>

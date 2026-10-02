@@ -56,6 +56,15 @@ describe('Mercado Pago UI confirmation payload', () => {
     })
   })
 
+  it('shows provider installment count without editable installment controls', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: { amount: 67890.30, currency: 'ARS', category: '', description: 'Moto', is_want: false, payment_method: 'CREDIT', card_id: null, installments: 2, date: '2026-09-15' },
+      cards: [], accounts: [], onSave: () => undefined, onCancel: () => undefined, aliasSource: 'mercadopago', immutableProviderEvidence: true, embedded: true,
+    }))
+    expect(html).toContain('2 cuotas')
+    expect(html).not.toContain('placeholder="Otro"')
+  })
+
   it('preserves the legacy linked-balance payload exactly', () => {
     const uiPayload = buildConfirmExpensePayload({
       description: ' Compra ', category: 'Alimentos', isWant: false,
