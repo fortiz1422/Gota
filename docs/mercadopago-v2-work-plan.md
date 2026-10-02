@@ -10,9 +10,9 @@ Conectar una vez, capturar sin abrir Gota, incorporar lo inequívoco y consultar
 
 - Rama feat/mercadopago-integration-v2, PR draft #124; producción no actualizada. Auditoría inicial: working tree limpio, HEAD 14048d7.
 - Implementados: refresh común, extracción de sync manual, polling incremental acotado con watermark/overlap/lease, endpoint cron, setup today/30d/90d, vinculación/creación de cuenta, interfaz FinancialEvent y decisiones shadow.
-- Parcial: FinancialEvent deriva del normalizador existente; merchant/category confidence siguen en cero. Reconciliación no coteja todavía contra movimientos manuales del ledger.
-- Shadow pasa ledgerDedupeChecked=false: ninguna evaluación real puede habilitar auto_post. Es una protección deliberada, no evidencia de automatización lista.
-- Sin cambios v2 en pantalla de revisión, edición ni confirmación; categorías por comercio, card matcher y cuotas múltiples siguen pendientes.
+- Parcial: FinancialEvent deriva del normalizador existente; merchant/category confidence siguen en cero. El shadow ahora consulta gastos existentes por importe/moneda y ventana de un día, sin escribir ni vincular ledger; UX de resolución de duplicados sigue pendiente.
+- Shadow usa búsqueda read-only contra ledger para gastos con saldo MP. Consulta fallida, truncada o sin count exacto mantiene ledgerDedupeChecked=false; coincidencias compatibles producen review. auto_post sigue siendo sólo una decisión auditada, sin escritura automática.
+- Primera mejora de revisión/edición/confirmación publicada y verificada visualmente en Preview: detalles abajo. Aprendizaje nuevo de categorías por comercio, card matcher y cuotas múltiples siguen pendientes.
 - Evidencia reciente: 960 tests verdes, TypeScript y ESLint. Prueba real de consultas default/payer/collector para transferencia MP→BBVA: 0 resultados en las tres. Reporte de período pasado pendiente. Estos hechos no validan compras QR ni cobertura personal completa.
 - Desvío: una transferencia propia, ubicada en P3 por el handoff, consumió el camino crítico de P0/P1. Las correcciones de diagnóstico tienen valor, pero no completan el producto.
 
@@ -70,3 +70,11 @@ Implementado en rama: grupos Para completar / Necesitan más información; expli
 La confirmación reutiliza ParsePreview y los endpoints canónicos. Alias/categoría guardados ahora se consultan también para compras de tarjeta de una cuota; las preferencias se resuelven antes de montar el editor para evitar reemplazar correcciones en curso. No se agrega merchant learning nuevo. Categoría Pago de Tarjetas no se aplica a compras de crédito. Al confirmar se vuelve a la bandeja recargada, sin abrir un siguiente movimiento con datos previos. Un conflicto requiere revisión de nuevo.
 
 Verificación local: 965 tests en 148 archivos, TypeScript y ESLint de archivos editados. La validación visual en Preview se registra por separado. No se efectuaron confirmaciones reales, escrituras al ledger, cambios de base de datos ni activación de background/auto-post. Las cuotas mayores que una siguen sin confirmación disponible. Esta entrega no completa MP v2.
+
+## Dedupe shadow — 2026-10-02
+
+Consulta read-only de gastos existentes con scope explícito de usuario, importe y moneda exactos, ventana Argentina +/- un día y compatibilidad con cuenta/instrumento. Cuenta sin asignar queda como posible duplicado; nombre distinto no elimina una coincidencia (Nafta / YPF). Otra cuenta explícita, tarjeta, efectivo y pagos legacy quedan fuera. Ninguna vinculación ni borrado automático.
+
+Resultados completos requieren count exacto consistente y máximo 100 filas. Errores, excepciones, count ausente o resultados parciales mantienen el gate cerrado. Shadow registra possible_ledger_duplicate o ledger_dedupe_pending; regla versión 3 conserva auditoría previa. Los IDs/descripciones del ledger no se duplican en el audit.
+
+Verificación: suite completa 996 tests / 151 archivos incluyendo integración shadow, TypeScript y ESLint. Verificado por lectura de schema real que expenses.date es timestamptz: query de ventana usa comienzo UTC inclusivo y fin siguiente día exclusivo; el matcher preserva el calendario que el editor canónico guarda a medianoche UTC. Prueba SQL read-only scoped al usuario, sin escritura. Esta mejora no prueba cobertura del proveedor ni hace auto-post.

@@ -20,7 +20,7 @@ describe('shadow posting policy', () => {
   it('allows only fully evidenced balance expense independent of category', () => {
     const e = event()
     expect(e.confidence.category).toBe(0)
-    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 2 })
+    expect(decideProviderEvent(e, context)).toMatchObject({ decision: 'auto_post', ruleVersion: 3 })
     expect(decideProviderEvent(e, { ...context, ledgerDedupeChecked: false }).reasons).toContain('ledger_dedupe_pending')
     expect(decideProviderEvent(e, { ...context, possibleLedgerDuplicate: true }).decision).toBe('review')
     expect(decideProviderEvent(e, { ...context, alreadyPosted: true }).decision).toBe('ignore')

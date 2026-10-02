@@ -1,6 +1,6 @@
 import type { FinancialEvent } from './financial-event'
 
-export const MP_DECISION_RULE_VERSION = 2
+export const MP_DECISION_RULE_VERSION = 3
 export type PostingDecision = {
   decision: 'auto_post' | 'review' | 'ignore' | 'wait_for_reconciliation'
   reasons: string[]
