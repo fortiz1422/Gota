@@ -9,6 +9,11 @@ const header = SETTLEMENT_REPORT_REQUIRED_FIELDS.join(',')
 const response = (body: string | object, status = 200) => new Response(typeof body === 'string' ? body : JSON.stringify(body), { status })
 
 describe('Mercado Pago settlement report', () => {
+  it('honors precise closed report boundaries instead of expanding to a future day end', () => {
+    const windows = buildSettlementReportWindows(NOW, { preset: 'custom', beginDate: '2026-09-15', endDate: '2026-09-15', beginTimestamp: '2026-09-15T03:00:00Z', endTimestamp: '2026-09-15T11:59:59Z' }, true)
+    expect(windows).toEqual([{ beginDate: '2026-09-15', endDate: '2026-09-15', beginTimestamp: '2026-09-15T03:00:00Z', endTimestamp: '2026-09-15T11:59:59Z' }])
+  })
+
   it('parses quoted commas, BOM, CRLF and skips a blank line', () => {
     const csv = `\ufeff${header}\r\n${row}\r\n\r\n`
     expect(parseSettlementReportCsv(csv)).toEqual([expect.objectContaining({ DESCRIPTION: 'Shell 5500, sucursal 1', SOURCE_ID: 'source-1' })])

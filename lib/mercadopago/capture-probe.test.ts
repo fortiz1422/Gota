@@ -1,12 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ connection: vi.fn(), saveRaw: vi.fn(), saveRun: vi.fn(), token: vi.fn(), shadow: vi.fn(), sync: vi.fn(), database: vi.fn(), settlement: vi.fn(), runs: vi.fn() }))
+const mocks = vi.hoisted(() => ({ connection: vi.fn(), saveRaw: vi.fn(), saveRun: vi.fn(), token: vi.fn(), shadow: vi.fn(), sync: vi.fn(), database: vi.fn(), settlement: vi.fn(), runs: vi.fn(), pull: vi.fn() }))
 vi.mock('./server-repository', () => ({ getMercadoPagoConnection: mocks.connection, saveRawObservation: mocks.saveRaw, saveMercadoPagoSourceRun: mocks.saveRun, getLatestMercadoPagoSourceRuns: mocks.runs }))
 vi.mock('./access-token', () => ({ getValidMercadoPagoAccessToken: mocks.token }))
 vi.mock('./settlement-report', () => ({ syncMercadoPagoSettlementReport: mocks.settlement }))
+vi.mock('./observability-sync', () => ({ pullPayments: mocks.pull }))
 vi.mock('./incremental-sync', () => ({ syncMercadoPagoIncremental: mocks.sync }))
 vi.mock('./shadow-service', () => ({ runMercadoPagoShadow: mocks.shadow }))
 vi.mock('./sync-lease', () => ({ backgroundDatabase: mocks.database, withMercadoPagoSyncLease: (_user: string, _connection: string, run: (lease: string) => unknown) => run('lease-1') }))
-import { captureProbeStart, runMercadoPagoCaptureProbe, runMercadoPagoSettlementProbe } from './capture-probe'
+import { captureProbeStart, runMercadoPagoCaptureProbe, runMercadoPagoSettlementProbe, runMercadoPagoRoleProbe } from './capture-probe'
 import type { OAuthConfig } from './oauth'
 const config = {} as OAuthConfig
 beforeEach(() => {
@@ -72,5 +73,35 @@ describe('settlement diagnostic', () => {
     expect(await runMercadoPagoSettlementProbe('user-1', '2026-09-16', config)).toMatchObject({ observed: 1, shadowCount: 2, ledgerWrites: 0 })
     expect(mocks.settlement.mock.calls[0][0].window).toMatchObject({ beginTimestamp: '2026-09-16T03:00:00Z', endTimestamp: '2026-09-17T02:59:59Z' })
     expect(mocks.shadow).toHaveBeenCalledTimes(1)
+  })
+})
+
+it('settlement diagnostic freezes today at the last completed hour', async () => {
+  mocks.settlement.mockResolvedValue({ source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null })
+  const result = await runMercadoPagoSettlementProbe('user-1', '2026-10-01', config)
+  expect(result.window).toEqual({ begin: '2026-10-01T03:00:00Z', end: '2026-10-01T11:59:59Z' })
+})
+
+describe('role comparison orchestration', () => {
+  it('deduplicates provider IDs across roles and persists three independently auditable runs', async () => {
+    mocks.pull.mockImplementation(async options => {
+      await options.store.upsertRawObservation({ nativeKey: 'same-provider-id' })
+      return { source: 'payments_search', status: 'success', count: 1, errorCode: null }
+    })
+    const result = await runMercadoPagoRoleProbe('user-1', '2026-10-01', config)
+    expect(result).toMatchObject({ complete: true, unique: 1, ledgerWrites: 0, importStarted: false })
+    expect(result.roles.map(role => role.role)).toEqual(['default', 'payer', 'collector'])
+    expect(mocks.saveRun).toHaveBeenCalledTimes(3)
+    expect(new Set(mocks.saveRun.mock.calls.map(([run]) => run.batchId)).size).toBe(3)
+    expect(mocks.pull.mock.calls[0][0].window.endTimestamp).toBe('2026-10-01T11:59:59.000Z')
+    expect(JSON.stringify(result)).not.toContain('never-return-this-token')
+  })
+  it('continues after one role fails and refuses to evaluate incomplete coverage', async () => {
+    mocks.pull.mockRejectedValueOnce(new Error('provider-secret')).mockResolvedValue({ source: 'payments_search', status: 'success', count: 0, errorCode: null })
+    const result = await runMercadoPagoRoleProbe('user-1', '2026-10-01', config)
+    expect(result.complete).toBe(false)
+    expect(result.roles).toHaveLength(3)
+    expect(mocks.shadow).not.toHaveBeenCalled()
+    expect(JSON.stringify(result)).not.toContain('provider-secret')
   })
 })

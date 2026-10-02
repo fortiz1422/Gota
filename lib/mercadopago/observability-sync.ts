@@ -16,7 +16,9 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 export type SourceRun = { source: Source; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; beginDate?: string; endDate?: string }
 
-function paymentSearchUrl(window: SyncWindow, offset: number): string {
+export type PaymentSearchRole = 'default' | 'payer' | 'collector'
+
+function paymentSearchUrl(window: SyncWindow, offset: number, role: PaymentSearchRole = 'default'): string {
   const url = new URL(`${API}/v1/payments/search`)
   url.search = new URLSearchParams({
     sort: 'date_created',
@@ -27,6 +29,7 @@ function paymentSearchUrl(window: SyncWindow, offset: number): string {
     limit: String(MERCADOPAGO_PAGE_SIZE),
     offset: String(offset),
   }).toString()
+  if (role !== 'default') url.searchParams.set(`${role}.id`, 'me')
   return url.toString()
 }
 
@@ -55,10 +58,10 @@ async function getJson(url: string, token: string, fetchImpl: FetchLike): Promis
   return response.json().catch(() => { throw new Error('provider_error') })
 }
 
-export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId }: { userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
+export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId, role = 'default' }: { role?: PaymentSearchRole; userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
   let count = 0
   for (let page = 0; page < MERCADOPAGO_MAX_PAGES; page += 1) {
-    const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE), accessToken, fetchImpl)
+    const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE, role), accessToken, fetchImpl)
     const rows = items(payload)
     for (const row of rows) {
       await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })

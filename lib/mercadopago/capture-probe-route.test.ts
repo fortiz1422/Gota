@@ -1,9 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ session: vi.fn(), user: vi.fn(), enabled: vi.fn(), readiness: vi.fn(), probe: vi.fn(), settlement: vi.fn(), start: vi.fn() }))
+const mocks = vi.hoisted(() => ({ session: vi.fn(), user: vi.fn(), enabled: vi.fn(), readiness: vi.fn(), probe: vi.fn(), settlement: vi.fn(), start: vi.fn(), roles: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.session }))
 vi.mock('@/lib/mercadopago/sync-lease', () => ({ mercadoPagoBackgroundEnabled: mocks.enabled }))
 vi.mock('@/lib/mercadopago/oauth', () => ({ getMercadoPagoOAuthReadiness: mocks.readiness }))
-vi.mock('@/lib/mercadopago/capture-probe', () => ({ captureProbeStart: mocks.start, runMercadoPagoCaptureProbe: mocks.probe, runMercadoPagoSettlementProbe: mocks.settlement }))
+vi.mock('@/lib/mercadopago/capture-probe', () => ({ captureProbeStart: mocks.start, runMercadoPagoCaptureProbe: mocks.probe, runMercadoPagoSettlementProbe: mocks.settlement, runMercadoPagoRoleProbe: mocks.roles }))
 import { POST } from '@/app/api/integrations/mercadopago/capture-probe/route'
 const request = (body: unknown = { day: '2026-09-16' }, origin = 'https://gota.test') => new Request('https://gota.test/api/integrations/mercadopago/capture-probe', { method: 'POST', headers: { origin, 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
 beforeEach(() => {
@@ -48,4 +48,11 @@ describe('preview capture boundary', () => {
     mocks.probe.mockRejectedValue(new Error('secret-token-in-provider-error'))
     expect(await (await POST(request())).json()).toEqual({ error: 'probe_failed' })
   })
+})
+
+it('routes role comparison under the same preview session boundary', async () => {
+  mocks.roles.mockResolvedValue({ mode: 'roles', complete: false, ledgerWrites: 0 })
+  expect((await POST(request({ day: '2026-09-16', source: 'roles' }))).status).toBe(200)
+  expect(mocks.roles).toHaveBeenCalledWith('session-owner', '2026-09-16', { server: 'config' })
+  expect(mocks.probe).not.toHaveBeenCalled()
 })

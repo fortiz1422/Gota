@@ -75,14 +75,20 @@ function dateWindow(beginDate: Date, endDate: Date): SettlementReportWindow {
   return { beginDate: beginDate.toISOString().slice(0, 10), endDate: endDate.toISOString().slice(0, 10), beginTimestamp, endTimestamp }
 }
 
-export function buildSettlementReportWindows(now: Date, requestedWindow?: SyncWindow): SettlementReportWindow[] {
+export function buildSettlementReportWindows(now: Date, requestedWindow?: SyncWindow, exactWindow = false): SettlementReportWindow[] {
   const lastDay = requestedWindow ? new Date(`${requestedWindow.endDate}T00:00:00.000Z`) : argentinaDate(now)
   const firstDay = requestedWindow ? new Date(`${requestedWindow.beginDate}T00:00:00.000Z`) : new Date(lastDay.getTime() - 89 * DAY)
   const chunkCount = Math.ceil((lastDay.getTime() - firstDay.getTime() + DAY) / (30 * DAY))
   return Array.from({ length: chunkCount }, (_, chunk) => {
     const begin = new Date(firstDay.getTime() + chunk * 30 * DAY)
     const end = new Date(Math.min(begin.getTime() + 29 * DAY, lastDay.getTime()))
-    return dateWindow(begin, end)
+    const result = dateWindow(begin, end)
+    // Honor precise boundaries supplied by diagnostics; calendar imports keep full days.
+    if (requestedWindow && exactWindow) {
+      result.beginTimestamp = new Date(Math.max(Date.parse(result.beginTimestamp), Date.parse(requestedWindow.beginTimestamp))).toISOString().replace(/\.\d{3}Z$/, 'Z')
+      result.endTimestamp = new Date(Math.min(Date.parse(result.endTimestamp), Date.parse(requestedWindow.endTimestamp))).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    }
+    return result
   })
 }
 
@@ -166,11 +172,11 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
   console.error('mercadopago_settlement_report_error', JSON.stringify(diagnostic))
 }
 
-export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt, allowConfigCreation = true }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null; allowConfigCreation?: boolean }): Promise<SettlementReportRun> {
+export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt, allowConfigCreation = true, exactWindow = false }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null; allowConfigCreation?: boolean; exactWindow?: boolean }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
     const effectiveWindow = window ?? windowFromDates(new Date(now.getTime() - 89 * DAY), now, 'custom')
-    const windows = buildSettlementReportWindows(now, effectiveWindow)
+    const windows = buildSettlementReportWindows(now, effectiveWindow, exactWindow)
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
