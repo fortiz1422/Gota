@@ -22,7 +22,7 @@ No se agregaron columnas brand/issuer ni se leyó metadata sensible real para si
 
 Reutiliza counterparty_profiles/counterparty_aliases y el editor canónico. En confirmaciones MP, “Recordar este comercio” queda activo por defecto pero visible y reversible. La memoria se escribe sólo después de una confirmación financiera exitosa. Si el comercio ya existía, una corrección actualiza default_category; antes sólo conservaba la categoría anterior. Si falla la memoria, el gasto confirmado no se revierte ni se duplica y la bandeja informa que sólo falló la preferencia.
 
-No hay IA nueva ni aprendizaje sobre semántica financiera. Transferencias, funding, cuotas y tipo económico no se derivan de esta regla. Sin migración ni escritura durante las pruebas. Tests focalizados 28/28; suite completa 1002/1002 en 152 archivos, TypeScript y ESLint verdes.
+No hay IA nueva ni aprendizaje sobre semántica financiera. Transferencias, funding, cuotas y tipo económico no se derivan de esta regla. Sin migración ni escritura durante las pruebas. Tests focalizados 28/28; suite completa 1002/1002 en 152 archivos, TypeScript, ESLint y build productivo Next verdes.
 
 ## Orden siguiente
 

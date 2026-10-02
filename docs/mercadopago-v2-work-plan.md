@@ -89,7 +89,7 @@ El schema actual no conserva brand/issuer de manera estructurada, por lo que no 
 
 Se reutiliza la infraestructura counterparty_profiles/counterparty_aliases. Las confirmaciones MP proponen recordar comercio/categoría por defecto con control visible. La escritura sucede después del posting humano exitoso; si falla, no transforma un gasto confirmado en error ni lo vuelve a enviar. Corregir la categoría de un perfil existente ahora actualiza su default_category, por lo que la siguiente operación puede sugerir la corrección en vez del valor viejo.
 
-Esta memoria sólo organiza gastos: no decide tipo económico, funding, cuenta, tarjeta o cuotas. Sin ML nuevo, tabla nueva o escritura de prueba. Tests focalizados, TypeScript y ESLint verdes; evidencia de comportamiento real todavía requiere una confirmación controlada autorizada.
+Esta memoria sólo organiza gastos: no decide tipo económico, funding, cuenta, tarjeta o cuotas. Sin ML nuevo, tabla nueva o escritura de prueba. Tests focalizados, suite completa, TypeScript, ESLint y build productivo Next verdes; evidencia de comportamiento real todavía requiere una confirmación controlada autorizada.
 
 ## Auditoría de cuotas existente — 2026-10-02
 
