@@ -50,7 +50,7 @@ La inspección autenticada del Preview después de incorporar el `PAYOUTS` real 
 
 Se corrigieron ambos límites, no sólo el texto: `isReviewableMercadoPagoExpense` excluye tipos financieros conocidos transfer/income/neutral y reversos; `eligibleMercadoPagoExpense` aplica el mismo gate en el endpoint antes de cualquier RPC. La presentación de transferencias y refunds tiene prioridad sobre la tarjeta genérica de salida de saldo. Así, incluso una llamada HTTP directa no puede convertir el `PAYOUTS` observado en gasto.
 
-Verificación local: tests nuevos con transferencia que tiene balance debit real, suite completa 1015/1015 en 152 archivos, TypeScript, ESLint focalizado y `git diff --check` verdes. La comprobación visual previa documenta el bug; falta repetirla sobre el nuevo deployment para verificar que la fila ARS 1.000 pase a “Transferencia por resolver”.
+Verificación local: tests nuevos con transferencia que tiene balance debit real, suite completa 1015/1015 en 152 archivos, TypeScript, ESLint focalizado y `git diff --check` verdes. Deployment READY y comprobación visual autenticada repetida sin acciones de escritura: la bandeja mantuvo 40 pendientes, pero pasó de 27/13 a 24 “Para completar” y 16 “Necesitan más información”. La fila ARS 1.000 del 1/oct quedó explícitamente como “Transferencia por resolver”, con la advertencia de que no se registra como gasto ni ingreso. No se pulsó Continuar, Registrar ni Desestimar.
 
 ## Orden siguiente
 

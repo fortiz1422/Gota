@@ -105,6 +105,8 @@ El normalizador ahora interpreta exclusivamente `PAYOUTS` de Settlement con mont
 
 La primera inspección del Preview con esa fila descubrió que el gate histórico de “balance debit conocido” todavía tenía prioridad en la confirmación humana y la mostraba entre gastos completables. Se corrigió tanto la elegibilidad del cliente como la del endpoint: tipos transfer/income/neutral y reversos quedan fuera de confirmación de gasto aunque tengan un débito de saldo consistente. Este hallazgo refuerza por qué la matriz real es obligatoria y los tests sintéticos no bastan.
 
+La repetición visual sobre el deployment corregido verificó el resultado: 40 pendientes totales, 24 completables y 16 excepciones; antes eran 27/13. La fila ARS 1.000 del 1/oct muestra “Transferencia por resolver” y no ofrece confirmación de gasto. Esta prueba fue sólo lectura y no resolvió destino/cuenta propia.
+
 ## Excepción visible de posible duplicado — 2026-10-02
 
 La bandeja une una decisión shadow al movimiento sólo cuando candidate ID, fingerprint de evidencia y versión de regla coinciden. Proyecta únicamente `possible_duplicate`, sin IDs de ledger ni metadata interna. La operación deja de ser confirmable, se muestra en “Necesitan más información” y explica que debe compararse antes de registrar otra.
