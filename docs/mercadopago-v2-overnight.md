@@ -24,6 +24,12 @@ Reutiliza counterparty_profiles/counterparty_aliases y el editor canónico. En c
 
 No hay IA nueva ni aprendizaje sobre semántica financiera. Transferencias, funding, cuotas y tipo económico no se derivan de esta regla. Sin migración ni escritura durante las pruebas. Tests focalizados 28/28; suite completa 1002/1002 en 152 archivos, TypeScript, ESLint y build productivo Next verdes.
 
+### Verificación visual segura en Preview
+
+Con la sesión autenticada existente se inspeccionó la bandeja real sin pulsar Continuar ni Registrar y sin editar datos persistentes. El Preview mostró 39 pendientes: 26 para completar y 13 que necesitan más información. Al abrir una compra aprobada con tarjeta master terminada en 8215, el matcher no encontró una coincidencia única y dejó el selector vacío con explicación explícita; no eligió una tarjeta arbitrariamente. El control “Recordar este comercio para próximas veces” apareció activo por defecto y editable. Se canceló el formulario sin guardar.
+
+También se abrió una compra real informada por Mercado Pago en 2 cuotas. La UI la mantuvo no confirmable, explicó que el soporte todavía no está disponible y sólo ofreció mantenerla pendiente o desestimarla. No hubo escrituras ni confirmaciones. Esto valida el comportamiento visual del Preview y sus gates, no la corrección contable de una operación real registrada ni cobertura completa del proveedor.
+
 ## Orden siguiente
 
 1. Llevar posibles duplicados a revisión con explicación útil; vincular existente requiere audit/stale/ownership/idempotencia transaccionales. No habilitar vínculo parcial inseguro.
