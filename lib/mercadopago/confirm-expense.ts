@@ -69,7 +69,11 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {
   const amount = candidate.balanceImpact.amount.value
   const occurredAt = candidate.balanceOccurredAt
-  return candidate.balanceImpact.observed && candidate.balanceImpact.effect === 'debit' && typeof amount === 'number' && Number.isFinite(amount) && amount !== 0 && amount < 0 && (candidate.balanceImpact.amount.currency === 'ARS' || candidate.balanceImpact.amount.currency === 'USD') && Boolean(occurredAt && Number.isFinite(Date.parse(occurredAt)))
+  const forbiddenFinancialType = ['transfer', 'income', 'neutral'].includes(candidate.kind)
+  const reversal = (candidate.summary.refunded ?? 0) > 0
+    || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.statusDetail ?? '')
+    || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.status ?? '')
+  return !forbiddenFinancialType && !reversal && candidate.balanceImpact.observed && candidate.balanceImpact.effect === 'debit' && typeof amount === 'number' && Number.isFinite(amount) && amount !== 0 && amount < 0 && (candidate.balanceImpact.amount.currency === 'ARS' || candidate.balanceImpact.amount.currency === 'USD') && Boolean(occurredAt && Number.isFinite(Date.parse(occurredAt)))
 }
 
 export function expectedObservations(candidate: ReconciledMercadoPagoMovement) {

@@ -44,6 +44,14 @@ Se unificó el fingerprint de shadow, stale protection y confirmación humana en
 
 No se implementó todavía “Vincular” ni “Mantener ambos”: ambas decisiones requieren una auditoría transaccional persistente con ownership, stale protection e idempotencia; ofrecer botones sin esa garantía sería engañoso. Suite completa 1012/1012 en 152 archivos; TypeScript, ESLint focalizado y `git diff --check` verdes. No hubo escritura real ni migración aplicada.
 
+### Gate corregido con evidencia visual real: transferencia nunca es gasto
+
+La inspección autenticada del Preview después de incorporar el `PAYOUTS` real reveló un bug de precedencia: el normalizador ya producía `transfer/outflow`, pero el gate heredado de débito de saldo la ubicaba entre los movimientos confirmables como gasto. La fila real de ARS 1.000 permitió detectarlo; no se pulsó ni confirmó.
+
+Se corrigieron ambos límites, no sólo el texto: `isReviewableMercadoPagoExpense` excluye tipos financieros conocidos transfer/income/neutral y reversos; `eligibleMercadoPagoExpense` aplica el mismo gate en el endpoint antes de cualquier RPC. La presentación de transferencias y refunds tiene prioridad sobre la tarjeta genérica de salida de saldo. Así, incluso una llamada HTTP directa no puede convertir el `PAYOUTS` observado en gasto.
+
+Verificación local: tests nuevos con transferencia que tiene balance debit real, suite completa 1015/1015 en 152 archivos, TypeScript, ESLint focalizado y `git diff --check` verdes. La comprobación visual previa documenta el bug; falta repetirla sobre el nuevo deployment para verificar que la fila ARS 1.000 pase a “Transferencia por resolver”.
+
 ## Orden siguiente
 
 1. Diseñar resolución de duplicados (`linked_existing` / `keep_both`) sólo con audit/stale/ownership/idempotencia transaccionales; no habilitar vínculo parcial inseguro.

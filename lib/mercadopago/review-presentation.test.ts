@@ -2,7 +2,7 @@ import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it } from 'vitest'
 import { MercadoPagoReviewInbox } from '@/components/mercadopago/MercadoPagoReviewClient'
-import { classifyMercadoPagoMovements, type MercadoPagoMovement } from './review'
+import { classifyMercadoPagoMovements, isReviewableMercadoPagoExpense, type MercadoPagoMovement } from './review'
 import { formatMercadoPagoObservedDate, getMercadoPagoReviewPresentation } from './review-presentation'
 
 const base: MercadoPagoMovement = {
@@ -24,7 +24,9 @@ describe('Mercado Pago review explanations', () => {
   })
 
   it('presents provider PAYOUTS as a transfer exception, never as a confirmable expense', () => {
-    const payout = { ...base, kind: 'transfer', direction: 'outflow', operation: { type: 'PAYOUTS', status: null } }
+    const payout = { ...base, kind: 'transfer', direction: 'outflow', operation: { type: 'PAYOUTS', status: null }, balanceOccurredAt: base.occurredAt,
+      balanceImpact: { observed: true, effect: 'debit' as const, amount: { value: -1000, currency: 'ARS' } } }
+    expect(isReviewableMercadoPagoExpense(payout)).toBe(false)
     expect(getMercadoPagoReviewPresentation(payout)).toMatchObject({ ready: false, title: 'Transferencia por resolver', action: 'Ver transferencia' })
   })
 

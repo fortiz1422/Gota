@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { candidateFingerprint, buildConfirmationIntentHash, buildCanonicalSemantics } from './confirm-expense'
+import { candidateFingerprint, buildConfirmationIntentHash, buildCanonicalSemantics, eligibleMercadoPagoExpense } from './confirm-expense'
 
 describe('Mercado Pago expense confirmation canonical contract', () => {
   it('exports stable fingerprint independent of lastSeenAt', () => {
@@ -11,5 +11,15 @@ describe('Mercado Pago expense confirmation canonical contract', () => {
   it('hashes only canonical human intent, never a browser-selected account', () => {
     expect(buildCanonicalSemantics()).toEqual({ classification: 'human_confirmed_expense', provider_effect: 'balance_debit' })
     expect(buildConfirmationIntentHash({ description: ' Shell ', category: 'Otros', isWant: false })).toMatch(/^[a-f0-9]{64}$/)
+  })
+
+  it.each(['transfer', 'income', 'neutral'])('never makes a known %s confirmable as a balance expense', (kind) => {
+    expect(eligibleMercadoPagoExpense({
+      kind,
+      balanceImpact: { observed: true, effect: 'debit', amount: { value: -1000, currency: 'ARS' } },
+      balanceOccurredAt: '2026-10-02T01:26:52Z',
+      summary: { refunded: null },
+      operation: { type: 'PAYOUTS', status: null, statusDetail: null },
+    } as never)).toBe(false)
   })
 })

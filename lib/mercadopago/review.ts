@@ -36,7 +36,11 @@ export function getDisplayExpenseDescription(movement: MercadoPagoMovement) {
 export function getInitialExpenseDescription(movement: MercadoPagoMovement) { return getDisplayExpenseDescription(movement) }
 export function isReviewableMercadoPagoExpense(movement: MercadoPagoMovement) {
   const amount = movement.balanceImpact.amount
-  return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate' && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
+  const forbiddenFinancialType = ['transfer', 'income', 'neutral'].includes(movement.kind ?? '')
+  const reversal = (movement.summary?.refunded ?? 0) > 0
+    || ['refunded', 'charged_back', 'in_mediation'].includes(movement.operation?.statusDetail ?? '')
+    || ['refunded', 'charged_back', 'in_mediation'].includes(movement.operation?.status ?? '')
+  return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate' && !forbiddenFinancialType && !reversal && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
 }
 export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovement) {
   return movement.reviewStatus === 'pending' && movement.cardPurchaseEligible === true && movement.kind === 'expense' && movement.direction === 'outflow'

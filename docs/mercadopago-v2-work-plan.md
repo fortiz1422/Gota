@@ -103,6 +103,8 @@ Una transferencia controlada MP→banco apareció finalmente en Account Settleme
 
 El normalizador ahora interpreta exclusivamente `PAYOUTS` de Settlement con monto negativo como `transfer/outflow`. Conserva account role, funding, destino y aprobación como desconocidos; un `PAYOUTS` cero o positivo sigue unknown. La política shadow lo manda a review por tipo económico, jamás a gasto/ingreso o auto-post. La bandeja lo presenta como “Transferencia por resolver”. Esto mejora semántica y UX sin afirmar que el destino sea BBVA o una cuenta propia.
 
+La primera inspección del Preview con esa fila descubrió que el gate histórico de “balance debit conocido” todavía tenía prioridad en la confirmación humana y la mostraba entre gastos completables. Se corrigió tanto la elegibilidad del cliente como la del endpoint: tipos transfer/income/neutral y reversos quedan fuera de confirmación de gasto aunque tengan un débito de saldo consistente. Este hallazgo refuerza por qué la matriz real es obligatoria y los tests sintéticos no bastan.
+
 ## Excepción visible de posible duplicado — 2026-10-02
 
 La bandeja une una decisión shadow al movimiento sólo cuando candidate ID, fingerprint de evidencia y versión de regla coinciden. Proyecta únicamente `possible_duplicate`, sin IDs de ledger ni metadata interna. La operación deja de ser confirmable, se muestra en “Necesitan más información” y explica que debe compararse antes de registrar otra.
