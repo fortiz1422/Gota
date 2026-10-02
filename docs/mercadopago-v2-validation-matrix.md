@@ -59,3 +59,6 @@ Refund matching/reversal canónico, reconciliación avanzada de own transfers, e
 ## Verificación de código final
 
 Suite Vitest 1.048/1.048 en 155 archivos, TypeScript y lint focalizado verdes. SQL descartable PostgreSQL/WASM: 20 checks de cuotas +22 de posting. Build productivo de validación local sin uploads/telemetría de Sentry completado (`GOTA_LOCAL_VERIFY=true NEXT_TELEMETRY_DISABLED=1 NEXT_TURBOPACK_EXPERIMENTAL_USE_SYSTEM_TLS_CERTS=1 npm run build`). No ejecutar scripts contra el proyecto real: sólo PGlite descartable o Docker aislado. Esto no habilita flags, migraciones, escritura financiera ni producción.
+
+
+Preview de implementación `5e43f23` READY y sesión autenticada verificada: 40 pendientes (27 completables, 13 excepciones); editor de salida ARS1.000 muestra 1/oct y fue cancelado; compra 2x muestra total paid ARS67.890,30 y permanece gated; Settings ofrece hoy/30d/90d sin fuentes técnicas. Sin escrituras reales. PR #124 continúa draft.

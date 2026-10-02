@@ -100,3 +100,12 @@ Pendientes reales: aplicar migraciones en entorno autorizado, carrera multi-clie
 1.048 tests /155 archivos verdes; TypeScript y ESLint focalizado verdes. PostgreSQL WASM: 20 checks de cuotas +22 de posting (42). Los scripts admiten `--docker` para PostgreSQL nativo con carrera de dos clientes; preparado pero no ejecutado aquí por ausencia de Docker.
 
 El build habitual fue bloqueado por revisión automática ante posible subida de source maps/metadatos por Sentry. Se implementó la alternativa explícita local `GOTA_LOCAL_VERIFY=true`, con source maps/upload, creación/finalización de release y telemetría de build deshabilitados. `NEXT_TELEMETRY_DISABLED=1` evita también telemetría Next. Esa variante completó build productivo Next; no se presenta como prueba de uploads Sentry ni de deploy. Se conserva el flujo de deploy existente por defecto; verificación de Preview a continuación.
+
+
+### Publicación y verificación segura de Preview
+
+Commit de implementación `5e43f233b0a7d2e5c6e3e8f13316d5d254173cab` publicado en la rama, conservando contenido exacto y el trabajo local de transferencias. Draft PR #124 actualizado en título/descripción y confirmado draft=true, merged=false, base ee8ed25. Vercel deployment `dpl_76gC331ndLkPQ8C6bb5AYvha845q` READY, target Preview.
+
+Sesión autenticada disponible: bandeja real 40 pendientes, 27 para completar/13 excepciones. PAYOUTS ARS1.000 del 1/oct ahora ofrece la interpretación humana autorizada: registrar consumo o desestimar propia. Se abrió el editor y se verificaron importe 1000, fecha 2026-10-01, cuenta vinculada y selector de categoría; se pulsó Cancelar, nunca Registrar/Desestimar. Compra Rondi en 2x muestra total paid ARS67.890,30, en vez del transaction_amount previo ARS71.355,25; sigue pendiente porque no se habilitó la nueva migración/flag. Settings normal muestra sólo today/30d/90d y Advanced; no se pulsó Continuar.
+
+Esta verificación confirma presentación y gates con evidencia histórica real, no un posting financiero. Duplicados/N/auto-post se verificaron en código y PostgreSQL descartable; funciones nuevas siguen deshabilitadas en la cuenta real. Producción/main y configuración externa MP no cambiaron. El harness Docker recibió seguimiento explícito de roles para que ACL se pruebe en clientes psql independientes; syntax check verde, Docker todavía no disponible para ejecutarlo.

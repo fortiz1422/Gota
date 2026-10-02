@@ -12,7 +12,8 @@ export async function createTestDatabase(argument) {
   }
   const name = `gota-mp-isolated-${process.pid}-${Date.now()}`
   execFileSync('docker', ['run','--name',name,'-e','POSTGRES_PASSWORD=test','-e','POSTGRES_HOST_AUTH_METHOD=trust','-d','postgres:16-alpine'],{stdio:'ignore'})
-  const command = async text => (await exec('docker',['exec','-i',name,'psql','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-t','-A','-c',text])).stdout
+  let role = ''
+  const command = async text => (await exec('docker',['exec','-i',name,'psql','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-q','-t','-A','-c',`${role ? `set role ${role};` : ''}${text}`])).stdout
   try {
     let ready = false
     for (let i=0;i<80;i++) { try { await command('select 1');ready=true;break } catch { await new Promise(resolve=>setTimeout(resolve,250)) } }
@@ -20,7 +21,11 @@ export async function createTestDatabase(argument) {
     const literal=value=>value===null?'null':typeof value==='boolean'?String(value):typeof value==='number'?String(value):`'${String(value).replaceAll("'","''")}'`
     return {
       supportsConcurrentClients:true,
-      exec:command,
+      exec:async text=>{
+        if (/^set role authenticated$/i.test(text.trim())) {role='authenticated';return ''}
+        if (/^reset role$/i.test(text.trim())) {role='';return ''}
+        return command(text)
+      },
       query:async(text,params=[])=>{
         const sql=text.replace(/\$(\d+)/g,(_,i)=>literal(params[Number(i)-1])).replace(/;\s*$/,'')
         if (!/^\s*select\b/i.test(sql)) {await command(sql);return {rows:[]}}
