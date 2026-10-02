@@ -18,13 +18,18 @@ Implementado sobre el editor canónico de compras con tarjeta. Requiere tarjeta 
 
 No se agregaron columnas brand/issuer ni se leyó metadata sensible real para simular identidad. El schema actual de cards sólo tiene name y last_four, por lo que issuer no puede participar de forma determinística todavía. Sin escrituras de ledger o DB. Suite completa: 1001 tests / 152 archivos; TypeScript, ESLint y build productivo Next verdes. El primer build encontró TLS al descargar Google Fonts; la opción oficial de certificados del sistema permitió completar compilación, typecheck, 75 páginas estáticas y optimización.
 
+### Aprendizaje simple de comercio/categoría
+
+Reutiliza counterparty_profiles/counterparty_aliases y el editor canónico. En confirmaciones MP, “Recordar este comercio” queda activo por defecto pero visible y reversible. La memoria se escribe sólo después de una confirmación financiera exitosa. Si el comercio ya existía, una corrección actualiza default_category; antes sólo conservaba la categoría anterior. Si falla la memoria, el gasto confirmado no se revierte ni se duplica y la bandeja informa que sólo falló la preferencia.
+
+No hay IA nueva ni aprendizaje sobre semántica financiera. Transferencias, funding, cuotas y tipo económico no se derivan de esta regla. Sin migración ni escritura durante las pruebas. Tests focalizados 28/28; suite completa 1002/1002 en 152 archivos, TypeScript y ESLint verdes.
+
 ## Orden siguiente
 
 1. Llevar posibles duplicados a revisión con explicación útil; vincular existente requiere audit/stale/ownership/idempotencia transaccionales. No habilitar vínculo parcial inseguro.
-2. Merchant/category learning: reutilizar aliases/preferencias existentes antes de otra tabla. Primera corrección sugiere; no confundir categoría con tipo financiero.
-3. N cuotas: leer motor canónico de ciclos/asignaciones y confirmación actual SQL antes de extender. Bloque actual installments===1 existe también en RPC; cambiar sólo UI/gate rompe integridad. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
-4. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
-5. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Ninguna prueba mock equivale a operación controlada real.
+2. N cuotas: auditoría terminada. El motor actual crea N filas agrupadas, divide el total y las asigna a ciclos futuros; la UI las muestra individualmente. Esto sostiene compromisos pero no materializa literalmente “gasto económico total hoy” del handoff. Extender el RPC exige decidir si el grupo existente es la compra canónica aceptable o si hace falta una entidad madre; no cambiar sólo UI/gate. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
+3. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
+4. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Ninguna prueba mock equivale a operación controlada real.
 
 ## Accesos y publicación
 

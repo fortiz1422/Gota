@@ -84,3 +84,15 @@ Verificación: suite completa 996 tests / 151 archivos incluyendo integración s
 El editor de compra MP preselecciona una tarjeta únicamente con señal determinística: crédito + últimos cuatro válidos + exactamente una tarjeta activa compatible. Marca nunca identifica por sí sola; sólo desambigua tarjetas con iguales últimos cuatro cuando el nombre libre de Gota contiene una marca reconocible. Cero/múltiples matches muestran revisión manual y nunca eligen arbitrariamente. La elección queda editable.
 
 El schema actual no conserva brand/issuer de manera estructurada, por lo que no se afirma un match por issuer. Sin migración ni escritura real. Verificación local: 1001 tests / 152 archivos, TypeScript, ESLint y build productivo Next verdes. Es cobertura sintética de reglas, no prueba de consistencia de last4/issuer en operaciones reales de Mercado Pago.
+
+## Merchant/category learning — 2026-10-02
+
+Se reutiliza la infraestructura counterparty_profiles/counterparty_aliases. Las confirmaciones MP proponen recordar comercio/categoría por defecto con control visible. La escritura sucede después del posting humano exitoso; si falla, no transforma un gasto confirmado en error ni lo vuelve a enviar. Corregir la categoría de un perfil existente ahora actualiza su default_category, por lo que la siguiente operación puede sugerir la corrección en vez del valor viejo.
+
+Esta memoria sólo organiza gastos: no decide tipo económico, funding, cuenta, tarjeta o cuotas. Sin ML nuevo, tabla nueva o escritura de prueba. Tests focalizados, TypeScript y ESLint verdes; evidencia de comportamiento real todavía requiere una confirmación controlada autorizada.
+
+## Auditoría de cuotas existente — 2026-10-02
+
+El motor canónico actual no almacena una compra madre: `buildInstallmentRows` divide el total en N filas futuras unidas por installment_group_id, cada una asignada a su card_cycle. Borrado es grupal, edición individual está bloqueada y compromisos consumen esas filas/ciclos. El RPC MP actual replica sólo el caso 1x y valida installments=1 tanto en TypeScript como SQL.
+
+Por eso, habilitar N en la UI sería inseguro y extender el RPC sin decisión de modelo perpetuaría una tensión con el handoff (“gasto económico total hoy” y obligaciones futuras, no seis gastos independientes). Próximo paso seguro: definir si el grupo actual cuenta como compra canónica a nivel producto o introducir una entidad de compra madre que alimente ciclos. Hasta entonces N cuotas permanece review; 1x no cambia.

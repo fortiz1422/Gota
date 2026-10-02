@@ -347,15 +347,20 @@ export function MercadoPagoReviewClient() {
         throw new Error('confirmation failed')
       }
       const result: unknown = await response.json()
-      setConfirmationNotice('Movimiento registrado desde Mercado Pago. Podés editarlo desde Movimientos.')
-      resetReview()
-      await load()
       return result
     } catch {
       throw new Error('confirmation failed')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const completeConfirmation = (outcome?: { aliasSaved: boolean | null }) => {
+    setConfirmationNotice(outcome?.aliasSaved === false
+      ? 'Movimiento registrado. No pudimos guardar la preferencia de comercio; podés editarla desde Movimientos.'
+      : 'Movimiento registrado desde Mercado Pago. Podés editarlo desde Movimientos.')
+    resetReview()
+    void load()
   }
 
   const dismiss = async () => {
@@ -589,7 +594,7 @@ export function MercadoPagoReviewClient() {
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
           data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
-          cards={cards} accounts={[]} onConfirm={confirm} onSave={() => undefined} onCancel={resetReview}
+          cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
           aliasSource="mercadopago" confirmLabel="Registrar compra" immutableProviderEvidence embedded
         />}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && !aliasLoading && <ParsePreview
@@ -610,7 +615,7 @@ export function MercadoPagoReviewClient() {
           accounts={accounts}
           fixedAccount={accountLink?.linkedAccountId ? accountLink.accounts.find((account) => account.id === accountLink.linkedAccountId) ?? null : null}
           onConfirm={confirm}
-          onSave={() => undefined}
+          onSave={completeConfirmation}
           onCancel={resetReview}
           aliasSource="mercadopago"
           confirmLabel="Registrar gasto"

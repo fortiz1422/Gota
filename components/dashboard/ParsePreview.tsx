@@ -170,7 +170,9 @@ export function ParsePreview({
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [foundDuplicates, setFoundDuplicates] = useState<PossibleExpenseDuplicate[]>([])
   const detectedAlias = safeDetectedAlias(data.detected_alias)
-  const [remember, setRemember] = useState(false)
+  // MP confirmation is the explicit correction point. Learn by default while
+  // keeping the choice visible and reversible before the memory write.
+  const [remember, setRemember] = useState(aliasSource === 'mercadopago')
   const [profileMode, setProfileMode] = useState<'new' | 'existing'>(data.alias_match ? 'existing' : 'new')
   const [profileId, setProfileId] = useState(data.alias_match?.profile_id ?? '')
   const [profiles, setProfiles] = useState<CounterpartyProfileOption[]>([])
@@ -223,6 +225,7 @@ export function ParsePreview({
   const saveAliasMemory = async (): Promise<void> => {
     if (!detectedAlias) return
     let targetProfileId = profileId
+    let createdProfile = false
     if (profileMode === 'new') {
       const profileResponse = await fetch('/api/counterparty-profiles', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -232,8 +235,18 @@ export function ParsePreview({
       const profile = await profileResponse.json() as { id?: string }
       if (!profile.id) throw new Error('profile_create_failed')
       targetProfileId = profile.id
+      createdProfile = true
     }
     if (!targetProfileId) throw new Error('profile_required')
+    // An existing alias without this update would keep suggesting the old
+    // category after the user explicitly corrected it.
+    if (!createdProfile) {
+      const profileResponse = await fetch(`/api/counterparty-profiles/${encodeURIComponent(targetProfileId)}`, {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ default_category: form.category }),
+      })
+      if (!profileResponse.ok) throw new Error('profile_update_failed')
+    }
     if (data.alias_match?.match_type === 'exact') {
       if (data.alias_match.profile_id === targetProfileId) return
       const response = await fetch(`/api/counterparty-aliases/${encodeURIComponent(data.alias_match.alias_id)}`, {
