@@ -16,7 +16,7 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'search' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
 type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null; providerCode?: string }
-export type SettlementReportAvailability = { matched: number; pending: number; missingFile: number; processed: number }
+export type SettlementReportAvailability = { matched: number; pending: number; missingFile: number; processed: number; taskStates?: string[]; linkedReports?: number; searchResults?: number; searchExact?: number }
 export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; availability?: SettlementReportAvailability }
 
 class SettlementReportDiagnosticError extends Error {
@@ -187,15 +187,15 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     stage = 'list_parse'
     const listed = listItems(await json(listResponse))
     const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
-    // The list endpoint may return creation tasks without a file name.
-    // Resolve the downloadable report through the documented search endpoint,
-    // retaining exact period matching and refusing truncated results.
-    for (let index = 0; index < reportsByWindow.length; index++) {
-      const tasks = reportsByWindow[index]
-      if (!tasks.length || tasks.some(isPendingReport) || readyFileName(tasks)) continue
+    const taskStates = [...new Set(reportsByWindow.flat().map(report => {
+      const state = value(report, ['status', 'state'])?.toLowerCase()
+      return state && /^[a-z_]{1,24}$/.test(state) ? state : 'unknown'
+    }))].slice(0, 10)
+    const linkedReports = reportsByWindow.flat().filter(report => /^[1-9][0-9]{0,19}$/.test(value(report, ['report_id']) ?? '')).length
+    let searchResults = 0
+    let searchExact = 0
+    const search = async (query: URLSearchParams) => {
       stage = 'search'
-      const window = windows[index]
-      const query = new URLSearchParams({ begin_date: window.beginTimestamp, end_date: window.endTimestamp, limit: '50' })
       const searched = await request(`${API}/v1/account/settlement_report/search?${query}`, accessToken, fetchImpl)
       if (!searched.ok) await providerFailure(searched, stage)
       const payload = await json(searched)
@@ -203,11 +203,30 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
       const paging = payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>).paging : null
       const total = paging && typeof paging === 'object' ? (paging as Record<string, unknown>).total : null
       if (total !== null && (typeof total !== 'number' || !Number.isInteger(total) || total < 0 || total > results.length)) throw new Error('settlement_search_incomplete')
-      const exact = results.filter(r => matchesWindow(r, window))
+      searchResults += results.length
+      return results
+    }
+    for (let index = 0; index < reportsByWindow.length; index++) {
+      const tasks = reportsByWindow[index]
+      if (!tasks.length || tasks.some(isPendingReport) || readyFileName(tasks)) continue
+      const window = windows[index]
+      const results = await search(new URLSearchParams({ begin_date: window.beginTimestamp, end_date: window.endTimestamp, limit: '50' }))
+      let exact = results.filter(r => matchesWindow(r, window))
+      // Only use report_id returned by the provider, never the creation task id.
+      // ID lookup also requires the exact period; there is no inferred filename.
+      if (!readyFileName(exact)) {
+        const ids = [...new Set(tasks.map(task => value(task, ['report_id'])).filter((id): id is string => id !== null && /^[1-9][0-9]{0,19}$/.test(id)))].slice(0, 3)
+        for (const id of ids) {
+          const linked = await search(new URLSearchParams({ id, limit: '50' }))
+          exact = exact.concat(linked.filter(report => value(report, ['id']) === id && matchesWindow(report, window)))
+          if (readyFileName(exact)) break
+        }
+      }
+      searchExact += exact.length
       if (exact.length) reportsByWindow[index] = exact
     }
     const matching = reportsByWindow.flat()
-    const availability = { matched: matching.length, pending: matching.filter(isPendingReport).length, missingFile: matching.filter(r => safeFileName(value(r, ['file_name'])) === null).length, processed: matching.filter(r => value(r, ['status', 'state'])?.toLowerCase() === 'processed').length }
+    const availability = { taskStates, linkedReports, searchResults, searchExact, matched: matching.length, pending: matching.filter(isPendingReport).length, missingFile: matching.filter(r => safeFileName(value(r, ['file_name'])) === null).length, processed: matching.filter(r => value(r, ['status', 'state'])?.toLowerCase() === 'processed').length }
     const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))
     const readyFiles = reportsByWindow.map(readyFileName)
     let totalCount = 0
