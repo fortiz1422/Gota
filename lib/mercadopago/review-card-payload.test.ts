@@ -11,7 +11,7 @@ describe('Mercado Pago UI confirmation payload', () => {
       cards: [{ id: 'card-1', name: 'Visa', archived: false } as never], accounts: [],
       onSave: () => undefined, onCancel: () => undefined, aliasSource: 'mercadopago', immutableProviderEvidence: true, embedded: true,
     }))
-    expect(html).toContain('Compra aprobada en Mercado Pago')
+    expect(html).not.toContain('Confirmar compra con tarjeta</h2>')
     expect(html).toContain('Tarjeta de crédito · compra en Mercado Pago')
     expect(html).toContain('Una cuota · según Mercado Pago')
     expect(html).toContain('Visa')

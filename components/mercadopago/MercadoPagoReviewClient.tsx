@@ -564,9 +564,12 @@ export function MercadoPagoReviewClient() {
         appearance="compact"
         canvasTone="standard"
         footer={(
-          <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
-            Desestimar operación
-          </button>
+          <details className="text-sm text-text-secondary">
+            <summary className="min-h-11 cursor-pointer py-3 font-semibold">Más opciones</summary>
+            <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
+              Desestimar operación
+            </button>
+          </details>
         )}
       >
         {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando tus preferencias para este comercio…</p>}

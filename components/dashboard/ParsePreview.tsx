@@ -357,10 +357,12 @@ export function ParsePreview({
 
   const content = (
     <div data-parse-preview-inline={embedded ? 'true' : undefined}>
+      {!(embedded && immutableProviderEvidence && aliasSource === 'mercadopago') && <>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
 
       <h2 className="text-lg font-semibold text-text-primary">{isProviderCardPurchase ? 'Confirmar compra con tarjeta' : 'Confirmar gasto'}</h2>
       <p className="mb-5 mt-1 text-xs text-text-tertiary">{isProviderCardPurchase ? 'Compra aprobada en Mercado Pago. Revisá la tarjeta y completá los datos antes de registrarla.' : 'Revisa los datos antes de guardar'}</p>
+      </>}
 
       <div className="space-y-5">
         <div>
