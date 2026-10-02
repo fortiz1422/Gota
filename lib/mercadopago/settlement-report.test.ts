@@ -354,3 +354,13 @@ it('resolves report_id without mistaking task id and rejects another period', as
   expect(store.upsertRawObservation).toHaveBeenCalledTimes(1)
   expect(fetchImpl.mock.calls.some(c => String(c[0]).includes('id=999') || String(c[0]).endsWith('/foreign.csv'))).toBe(false)
 })
+
+
+it('treats observed provider delayed state as pending without another generation or search', async () => {
+  const window = { preset: 'custom' as const, beginDate: '2026-10-01', endDate: '2026-10-01', beginTimestamp: '2026-10-01T03:00:00Z', endTimestamp: '2026-10-02T02:59:59Z' }
+  const store = { upsertRawObservation: vi.fn() }
+  const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith('/config') ? response({}) : response([{ begin_date: window.beginTimestamp, end_date: window.endTimestamp, status: 'delayed' }]))
+  expect(await syncMercadoPagoSettlementReport({ userId: 'u', accessToken: 'secret', now: new Date('2026-10-02T02:04:18Z'), window, fetchImpl, store, batchId: 'b', startedAt: '2026-10-02T02:04:18Z', allowConfigCreation: false })).toMatchObject({ status: 'pending', count: 0, availability: { taskStates: ['delayed'], pending: 1, missingFile: 1, linkedReports: 0, searchResults: 0 } })
+  expect(fetchImpl).toHaveBeenCalledTimes(2)
+  expect(store.upsertRawObservation).not.toHaveBeenCalled()
+})

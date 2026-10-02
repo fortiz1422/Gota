@@ -164,7 +164,7 @@ Este registro conserva el estado del trabajo realizado por ChatGPT Work; no dele
 - Login de Gota mediante Google iniciado con formularios seguros. Google informó explícitamente que el intento terminó por inactividad; no se verificó sesión de Gota ni se ejecutó capture-probe. No se debe inferir que se enviaron credenciales a partir de un formulario que venció.
 - Pendiente real: completar ingreso a Gota en el navegador compartido y ejecutar la prueba para el dueño de la conexión. No requiere reconectar MP, activar setup ni escoger un período de importación. Los mocks y el build no constituyen evidencia de una llamada real a MP ni validan la matriz de operaciones.
 
-## Handoff para Hermes — bloqueo de autenticación, 1 octubre 2026
+## Continuidad — bloqueo de autenticación, 1 octubre 2026
 
 ### Hechos y evidencia
 
@@ -226,3 +226,21 @@ Este registro conserva el estado del trabajo realizado por ChatGPT Work; no dele
 - Reusa Settlement Report y refresh común; allowConfigCreation=false impide crear configuración cuando falta y no hay PUT de configuración. Puede solicitar generación de un reporte del día, conserva cooldown y estado pending.
 - UI avanzada: Consultar reporte de saldo; distingue pending/error/success, no afirma que el evento esté confirmado sólo por recibir un reporte.
 - Verificación: 146 archivos / 947 tests verdes, TypeScript y eslint de archivos modificados pasan. Prueba real Settlement todavía pendiente al publicar.
+
+
+## Settlement: tarea sin archivo — evidencia real 2026-10-01
+- Probe encontró una tarea de generación con rango exacto, ningún estado pending/processed reconocido y sin file_name válido. No confirma que el reporte se esté preparando ni que esté listo.
+- Ajuste: GET settlement_report/search con begin_date/end_date exactos y limit 50 para resolver archivo desde tarea sin archivo/no pending reconocido. Filtra coincidencia temporal exacta, no inventa filename y rechaza resultados truncados. Basado en documentación oficial query-report/get y search-report/get; evidencia del movimiento aún pendiente.
+
+
+## Verificación de búsqueda Settlement — 2026-10-01 22:57 Argentina
+- Deploy a62e7cc READY y probado con sesión permanente existente. Búsqueda por período exacto sigue sin archivo utilizable: matched 1, pending 0, processed 0, missingFile 1. No hay confirmación de la transferencia ARS 1.000.
+- Extensión 4c61f75: usa sólo report_id numérico devuelto por tarea (nunca id de tarea), hasta tres búsquedas acotadas con coincidencia estricta id + período. Diagnóstico expone estados validados y conteos, sin IDs de proveedor, payload ni tokens.
+- Verificación: 41 tests focalizados, TypeScript y ESLint pasan; sólo Preview, PR draft y sin merge. Conteos globales expenses 1835, accounts 58, RAW Payments 72, RAW Settlement 36 antes de nueva prueba.
+
+
+## Causa confirmada: reporte delayed — 2026-10-01 23:04 Argentina
+- Prueba real en deploy 4c61f75: estado de tarea devuelto por MP delayed, referencias a report_id 0, búsqueda devuelve 5 reportes y 1 período exacto, pero ningún archivo descargable para ese período. No se afirma que MP entregue la transferencia ni que se haya normalizado correctamente.
+- Ajuste basado en observación: delayed es pending, no generar un reporte duplicado ni repetir búsquedas mientras se mantenga ese estado. Test de regresión con metadatos sanitizados (sin ID ni datos del movimiento).
+- Bloqueo externo actual: no hay RAW nuevo para el escenario MP → BBVA ARS 1.000. Para validar monto/tipo/dirección se necesita el CSV efectivo. No hace falta nueva transferencia ni login.
+- Canon sigue sin cambios por la prueba. Próxima verificación: repetir Consultar reporte de saldo para 2026-10-01, cuando MP termine la tarea; conservar sesión Preview. No se activó scheduler ni auto-post.

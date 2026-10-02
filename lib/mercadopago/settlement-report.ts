@@ -124,7 +124,7 @@ function safeFileName(valueToValidate: string | null): string | null {
 }
 
 function isPendingReport(report: Record<string, unknown>): boolean {
-  return ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
+  return ['pending', 'preparing', 'processing', 'created', 'delayed'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
 }
 
 function readyFileName(reports: Record<string, unknown>[]): string | null {
