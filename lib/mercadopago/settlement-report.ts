@@ -14,7 +14,7 @@ export const SETTLEMENT_REPORT_REQUIRED_FIELDS = REQUIRED_FIELDS
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
-type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
+type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'search' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
 type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null; providerCode?: string }
 export type SettlementReportAvailability = { matched: number; pending: number; missingFile: number; processed: number }
 export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; availability?: SettlementReportAvailability }
@@ -187,6 +187,25 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     stage = 'list_parse'
     const listed = listItems(await json(listResponse))
     const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
+    // The list endpoint may return creation tasks without a file name.
+    // Resolve the downloadable report through the documented search endpoint,
+    // retaining exact period matching and refusing truncated results.
+    for (let index = 0; index < reportsByWindow.length; index++) {
+      const tasks = reportsByWindow[index]
+      if (!tasks.length || tasks.some(isPendingReport) || readyFileName(tasks)) continue
+      stage = 'search'
+      const window = windows[index]
+      const query = new URLSearchParams({ begin_date: window.beginTimestamp, end_date: window.endTimestamp, limit: '50' })
+      const searched = await request(`${API}/v1/account/settlement_report/search?${query}`, accessToken, fetchImpl)
+      if (!searched.ok) await providerFailure(searched, stage)
+      const payload = await json(searched)
+      const results = listItems(payload)
+      const paging = payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>).paging : null
+      const total = paging && typeof paging === 'object' ? (paging as Record<string, unknown>).total : null
+      if (total !== null && (typeof total !== 'number' || !Number.isInteger(total) || total < 0 || total > results.length)) throw new Error('settlement_search_incomplete')
+      const exact = results.filter(r => matchesWindow(r, window))
+      if (exact.length) reportsByWindow[index] = exact
+    }
     const matching = reportsByWindow.flat()
     const availability = { matched: matching.length, pending: matching.filter(isPendingReport).length, missingFile: matching.filter(r => safeFileName(value(r, ['file_name'])) === null).length, processed: matching.filter(r => value(r, ['status', 'state'])?.toLowerCase() === 'processed').length }
     const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))

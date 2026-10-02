@@ -227,6 +227,7 @@ describe('Mercado Pago settlement report', () => {
         { file_name: 'old.csv', begin_date: windows[0].beginTimestamp, end_date: windows[0].endTimestamp },
         { status: 'unknown_provider_state', begin_date: windows[1].beginTimestamp, end_date: windows[1].endTimestamp },
       ])
+      if (url.includes('/search?')) return response({ paging: { total: 0 }, results: [] })
       if (url.endsWith('/old.csv')) return response(`${header}\n${row}`)
       if (init?.method === 'POST') throw new Error('must not create a duplicate')
       throw new Error(`unexpected ${url}`)
@@ -305,5 +306,32 @@ it('distinguishes a processed report with missing file from provider processing'
   const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith('/config') ? response({}) : response([{ begin_date: window.beginTimestamp, end_date: window.endTimestamp, status: 'processed', report_id: 123 }]))
   const result = await syncMercadoPagoSettlementReport({ userId: 'user', accessToken: 'secret', now: NOW, window, fetchImpl, store: { upsertRawObservation: vi.fn() }, batchId: 'b', startedAt: NOW.toISOString(), allowConfigCreation: false })
   expect(result).toMatchObject({ status: 'pending', availability: { matched: 1, pending: 0, missingFile: 1, processed: 1 } })
-  expect(fetchImpl).toHaveBeenCalledTimes(2)
+  expect(fetchImpl).toHaveBeenCalledTimes(3)
+})
+
+it('resolves a creation task via search and downloads only the exact matching report', async () => {
+  const window = { preset: 'custom' as const, beginDate: '2026-09-15', endDate: '2026-09-15', beginTimestamp: '2026-09-15T03:00:00Z', endTimestamp: '2026-09-16T02:59:59Z' }
+  const task = { begin_date: window.beginTimestamp, end_date: window.endTimestamp, status: 'ready' }
+  const fetchImpl = vi.fn(async (url: string | URL | Request) => {
+    const path = String(url)
+    if (path.endsWith('/config')) return response({})
+    if (path.endsWith('/list')) return response([task])
+    if (path.includes('/search?')) return response({ paging: { total: 2 }, results: [{ ...task, file_name: 'matching.csv' }, { ...task, begin_date: '2026-09-01T03:00:00Z', file_name: 'foreign-period.csv' }] })
+    if (path.endsWith('/matching.csv')) return response(`${header}\n${row}`)
+    throw new Error('unexpected resource')
+  })
+  const store = { upsertRawObservation: vi.fn() }
+  expect(await syncMercadoPagoSettlementReport({ userId: 'user', accessToken: 'secret', now: NOW, window, fetchImpl, store, batchId: 'b', startedAt: NOW.toISOString(), allowConfigCreation: false })).toMatchObject({ status: 'success', count: 1 })
+  expect(store.upsertRawObservation).toHaveBeenCalledTimes(1)
+  expect(fetchImpl.mock.calls.map(c => String(c[0])).some(url => url.endsWith('/foreign-period.csv'))).toBe(false)
+})
+it('refuses truncated search results before downloading or storing evidence', async () => {
+  const log = vi.spyOn(console, 'error').mockImplementation(() => undefined)
+  const window = { preset: 'custom' as const, beginDate: '2026-09-15', endDate: '2026-09-15', beginTimestamp: '2026-09-15T03:00:00Z', endTimestamp: '2026-09-16T02:59:59Z' }
+  const task = { begin_date: window.beginTimestamp, end_date: window.endTimestamp, status: 'ready' }
+  const fetchImpl = vi.fn(async (url: string | URL | Request) => String(url).endsWith('/config') ? response({}) : String(url).endsWith('/list') ? response([task]) : response({ paging: { total: 51 }, results: [{ ...task, file_name: 'matching.csv' }] }))
+  const store = { upsertRawObservation: vi.fn() }
+  expect((await syncMercadoPagoSettlementReport({ userId: 'u', accessToken: 'secret', now: NOW, window, fetchImpl, store, batchId: 'b', startedAt: NOW.toISOString() })).status).toBe('error')
+  expect(store.upsertRawObservation).not.toHaveBeenCalled()
+  log.mockRestore()
 })
