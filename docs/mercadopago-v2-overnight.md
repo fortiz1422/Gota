@@ -30,12 +30,18 @@ Con la sesión autenticada existente se inspeccionó la bandeja real sin pulsar 
 
 También se abrió una compra real informada por Mercado Pago en 2 cuotas. La UI la mantuvo no confirmable, explicó que el soporte todavía no está disponible y sólo ofreció mantenerla pendiente o desestimarla. No hubo escrituras ni confirmaciones. Esto valida el comportamiento visual del Preview y sus gates, no la corrección contable de una operación real registrada ni cobertura completa del proveedor.
 
+### PAYOUTS observado y clasificado sin convertirlo en gasto
+
+El reporte del día argentino 2026-10-01 pasó de pending a success y entregó una fila real compatible con la transferencia controlada: `PAYOUTS`, ARS -1.000, 1/oct 22:26:52 Argentina, con efecto neto y real también -1.000. Payments Search no había observado el evento. La fila demuestra una salida del saldo MP, pero no contiene evidencia suficiente para afirmar destino BBVA ni cuenta propia.
+
+Se agregó un fixture sanitizado mínimo y el normalizador clasifica sólo `PAYOUTS` negativo de Settlement como `transfer/outflow`, manteniendo role, funding, destino y aprobación desconocidos. Cero o positivo no se clasifican como salida. El pipeline completo termina en `review` y la UX “Transferencia por resolver”; nunca en gasto, ingreso o auto-post. Suite completa 1006/1006 en 152 archivos, TypeScript y ESLint focalizado verdes. No hubo escritura real de ledger ni activación.
+
 ## Orden siguiente
 
 1. Llevar posibles duplicados a revisión con explicación útil; vincular existente requiere audit/stale/ownership/idempotencia transaccionales. No habilitar vínculo parcial inseguro.
 2. N cuotas: auditoría terminada. El motor actual crea N filas agrupadas, divide el total y las asigna a ciclos futuros; la UI las muestra individualmente. Esto sostiene compromisos pero no materializa literalmente “gasto económico total hoy” del handoff. Extender el RPC exige decidir si el grupo existente es la compra canónica aceptable o si hace falta una entidad madre; no cambiar sólo UI/gate. Preparar migración revisable, no aplicarla al canon real sin autorización específica.
 3. Verificar UX Settings/onboarding y alertas/origen de movimientos, estados humanos; conservar técnicos en advanced y evitar mentir sobre automatización que sigue apagada.
-4. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Ninguna prueba mock equivale a operación controlada real.
+4. Documentar matriz de 16 escenarios: real observado vs synthetic test vs pendiente. Transferencia saliente tiene evidencia real parcial (salida `PAYOUTS`, sin destino); no equivale todavía a reconciliación de cuenta propia. Ninguna prueba mock equivale a operación controlada real.
 
 ## Accesos y publicación
 

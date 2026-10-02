@@ -13,7 +13,7 @@ Conectar una vez, capturar sin abrir Gota, incorporar lo inequívoco y consultar
 - Parcial: FinancialEvent deriva del normalizador existente; merchant/category confidence siguen en cero. El shadow ahora consulta gastos existentes por importe/moneda y ventana de un día, sin escribir ni vincular ledger; UX de resolución de duplicados sigue pendiente.
 - Shadow usa búsqueda read-only contra ledger para gastos con saldo MP. Consulta fallida, truncada o sin count exacto mantiene ledgerDedupeChecked=false; coincidencias compatibles producen review. auto_post sigue siendo sólo una decisión auditada, sin escritura automática.
 - Primera mejora de revisión/edición/confirmación publicada y verificada visualmente en Preview: detalles abajo. Card matcher determinístico implementado con los últimos cuatro disponibles; aprendizaje nuevo de categorías por comercio y cuotas múltiples siguen pendientes.
-- Evidencia reciente: 960 tests verdes, TypeScript y ESLint. Prueba real de consultas default/payer/collector para transferencia MP→BBVA: 0 resultados en las tres. Reporte de período pasado pendiente. Estos hechos no validan compras QR ni cobertura personal completa.
+- Evidencia reciente: Payments Search default/payer/collector no observó la transferencia controlada, pero Account Settlement Report la entregó después como una fila `PAYOUTS`, ARS -1.000, fechada 1/oct 22:26:52 Argentina. Esto confirma la salida del saldo MP; no identifica por sí solo BBVA ni que sea cuenta propia. La suite vigente tiene 1006 tests verdes, con TypeScript y ESLint focalizado verdes. Esta evidencia no valida compras QR ni cobertura personal completa.
 - Desvío: una transferencia propia, ubicada en P3 por el handoff, consumió el camino crítico de P0/P1. Las correcciones de diagnóstico tienen valor, pero no completan el producto.
 
 ## Orden de ejecución
@@ -96,3 +96,9 @@ Esta memoria sólo organiza gastos: no decide tipo económico, funding, cuenta, 
 El motor canónico actual no almacena una compra madre: `buildInstallmentRows` divide el total en N filas futuras unidas por installment_group_id, cada una asignada a su card_cycle. Borrado es grupal, edición individual está bloqueada y compromisos consumen esas filas/ciclos. El RPC MP actual replica sólo el caso 1x y valida installments=1 tanto en TypeScript como SQL.
 
 Por eso, habilitar N en la UI sería inseguro y extender el RPC sin decisión de modelo perpetuaría una tensión con el handoff (“gasto económico total hoy” y obligaciones futuras, no seis gastos independientes). Próximo paso seguro: definir si el grupo actual cuenta como compra canónica a nivel producto o introducir una entidad de compra madre que alimente ciclos. Hasta entonces N cuotas permanece review; 1x no cambia.
+
+## Clasificación real de PAYOUTS — 2026-10-02
+
+Una transferencia controlada MP→banco apareció finalmente en Account Settlement Report como `PAYOUTS`, con `TRANSACTION_AMOUNT`, `SETTLEMENT_NET_AMOUNT` y `REAL_AMOUNT` iguales a ARS -1.000 y timestamp compatible. Payments Search no la había devuelto. Se agregó un fixture mínimo sanitizado que conserva únicamente semántica financiera y omite IDs/destino.
+
+El normalizador ahora interpreta exclusivamente `PAYOUTS` de Settlement con monto negativo como `transfer/outflow`. Conserva account role, funding, destino y aprobación como desconocidos; un `PAYOUTS` cero o positivo sigue unknown. La política shadow lo manda a review por tipo económico, jamás a gasto/ingreso o auto-post. La bandeja lo presenta como “Transferencia por resolver”. Esto mejora semántica y UX sin afirmar que el destino sea BBVA o una cuenta propia.

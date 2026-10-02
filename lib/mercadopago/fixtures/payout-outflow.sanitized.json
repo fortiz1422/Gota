@@ -1,0 +1,20 @@
+{
+  "provenance": {
+    "source": "Controlled Mercado Pago to bank transfer observed through Account Settlement Report on 2026-10-02 UTC",
+    "sanitization": "Provider identifiers and destination details omitted. Financial type, sign, amount, currency and timestamp retained. The provider row does not prove the destination bank or own-account relationship."
+  },
+  "source": "account_settlement_report",
+  "nativeKey": "sanitized-payout-event",
+  "providerUserId": "sanitized-owner",
+  "payload": {
+    "TRANSACTION_DATE": "2026-10-01T22:26:52.000-03:00",
+    "SETTLEMENT_DATE": "2026-10-01T22:26:52.000-03:00",
+    "TRANSACTION_TYPE": "PAYOUTS",
+    "TRANSACTION_AMOUNT": "-1000.00",
+    "TRANSACTION_CURRENCY": "ARS",
+    "SETTLEMENT_NET_AMOUNT": "-1000.00",
+    "SETTLEMENT_CURRENCY": "ARS",
+    "REAL_AMOUNT": "-1000.00",
+    "PAYMENT_METHOD_TYPE": ""
+  }
+}

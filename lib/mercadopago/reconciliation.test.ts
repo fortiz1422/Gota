@@ -87,9 +87,9 @@ describe('reconcileMercadoPagoMovements', () => {
     }
   })
 
-  it('keeps settlement-only PAYOUTS economically unknown with debit balance impact', () => {
-    const [candidate] = reconcileMercadoPagoMovements([{ ...settlement(), nativeId: 'payout-1', movement: { ...settlement().movement, nativeId: 'payout-1', description: null, operation: { type: 'PAYOUTS', status: null, statusDetail: null } } }])
-    expect(candidate).toMatchObject({ kind: 'unknown', direction: 'unknown', description: null, balanceImpact: { observed: true, effect: 'debit', amount: { value: -5500, currency: 'ARS' } } })
+  it('preserves a normalized settlement-only PAYOUTS transfer and its debit balance impact', () => {
+    const [candidate] = reconcileMercadoPagoMovements([{ ...settlement(), nativeId: 'payout-1', movement: { ...settlement().movement, nativeId: 'payout-1', kind: 'transfer', direction: 'outflow', description: null, operation: { type: 'PAYOUTS', status: null, statusDetail: null } } }])
+    expect(candidate).toMatchObject({ kind: 'transfer', direction: 'outflow', description: null, balanceImpact: { observed: true, effect: 'debit', amount: { value: -5500, currency: 'ARS' } } })
   })
 
   it('marks payment-only as no balance observation and derives aggregates', () => {

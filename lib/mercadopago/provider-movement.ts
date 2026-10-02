@@ -114,7 +114,13 @@ export function normalizeMercadoPagoMovement({ source, payload, providerUserId, 
 
   let kind: DiagnosticKind = 'unknown'
   let direction: DiagnosticDirection = 'unknown'
-  if (operationStatus === 'approved') {
+  // Settlement reports do not expose the Payments Search status/roles. PAYOUTS is
+  // provider evidence of money leaving the MP balance; it does not identify the
+  // destination or prove that the receiving account belongs to the same user.
+  if (isSettlement && operationType?.toUpperCase() === 'PAYOUTS' && amount !== null && amount < 0) {
+    kind = 'transfer'
+    direction = 'outflow'
+  } else if (operationStatus === 'approved') {
     if (operationType === 'card_validation' && amount === 0) { kind = 'neutral'; direction = 'neutral' }
     else if (operationType === 'account_fund' && role === 'both') { kind = 'transfer'; direction = 'inflow' }
     else if (operationType === 'regular_payment' && role === 'payer') { kind = 'expense'; direction = 'outflow' }

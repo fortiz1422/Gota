@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import payoutFixture from './fixtures/payout-outflow.sanitized.json'
 import { normalizeMercadoPagoMovement } from './provider-movement'
 import { reconcileMercadoPagoMovements } from './reconciliation'
 import { toFinancialEvent } from './financial-event'
@@ -28,6 +29,18 @@ describe('shadow posting policy', () => {
   })
   it('waits for evidence of balance effect instead of assuming it from the funding label', () => {
     expect(decideProviderEvent(event({}, null), context).decision).toBe('wait_for_reconciliation')
+  })
+  it('routes an observed PAYOUTS debit to transfer review and never auto-posts it as an expense', () => {
+    const movement = normalizeMercadoPagoMovement({
+      source: 'account_settlement_report', providerUserId: payoutFixture.providerUserId,
+      nativeKey: payoutFixture.nativeKey, payload: payoutFixture.payload,
+    })
+    const [candidate] = reconcileMercadoPagoMovements([{
+      source: movement.source, nativeId: movement.nativeId, movement, lastSeenAt: '2026-10-02T05:46:09Z',
+    }])
+    const financialEvent = toFinancialEvent(candidate)
+    expect(financialEvent).toMatchObject({ economicType: 'transfer', direction: 'outflow' })
+    expect(decideProviderEvent(financialEvent, context)).toMatchObject({ decision: 'review', reasons: expect.arrayContaining(['economic_type_requires_review']) })
   })
   it.each([
     [{ payment_type_id: 'credit_card', installments: 1 }, 'funding_requires_review'],

@@ -23,6 +23,11 @@ describe('Mercado Pago review explanations', () => {
     expect(html).not.toContain('Confirmar gasto')
   })
 
+  it('presents provider PAYOUTS as a transfer exception, never as a confirmable expense', () => {
+    const payout = { ...base, kind: 'transfer', direction: 'outflow', operation: { type: 'PAYOUTS', status: null } }
+    expect(getMercadoPagoReviewPresentation(payout)).toMatchObject({ ready: false, title: 'Transferencia por resolver', action: 'Ver transferencia' })
+  })
+
   it('explains that multi-installment confirmation is still unavailable rather than inventing a card mapping', () => {
     expect(getMercadoPagoReviewPresentation({ ...base, fundingSource: { kind: 'card', lastFour: '1234' }, installments: 3 }))
       .toMatchObject({ ready: false, title: 'Compra en cuotas', explanation: expect.stringContaining('3 cuotas') })
