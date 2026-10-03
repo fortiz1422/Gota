@@ -114,3 +114,5 @@ Esta verificación confirma presentación y gates con evidencia histórica real,
 ### Cierre adicional 3/oct: prueba nativa en CI
 
 Rama auditada limpia y alineada en 08305d9 antes de cambios. El runtime local no permite cambiar UID/grupos para iniciar PostgreSQL; Docker ausente. Se agrega CI acotado, read-only, sin secretos, sin deploy ni acceso a Supabase: PostgreSQL16 en contenedor descartable para ambos scripts transaccionales y clientes concurrentes. Resultado todavía pendiente al publicar este checkpoint. No se habilitan flags ni se aplican migraciones reales.
+
+CI nativo confirmado verde en commit 89e474c: https://github.com/fortiz1422/Gota/actions/runs/37093037812 . Logs: 23 checks de cuotas +24 de postings, ambos con clientes PostgreSQL concurrentes. Se agrega una carrera explícita manual insert vs auto-post observando el advisory lock del trigger, snapshot anterior y rechazo del importador; resultado de ese refuerzo pendiente. Migraciones/flags siguen sin activar; la matriz financiera real sigue pendiente y no se declara terminado el rollout.

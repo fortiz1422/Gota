@@ -60,6 +60,19 @@ try {
   const results=await Promise.all([invoke({19:'auto'}),invoke({19:'auto'})])
   assert(results[0].rows[0].id===results[1].rows[0].id,'concurrent posting identity differs')
   assert((await db.query('select count(*)::int n from expenses')).rows[0].n===1,'concurrent posting duplicated expense')
+  // The ordinary expenses trigger must serialize manual writers too.
+  // Observe the held advisory lock, then post with a pre-insert snapshot.
+  await db.exec('delete from mercadopago_postings;delete from mercadopago_movement_reviews;delete from expenses;')
+  const manual=db.exec(`begin;insert into expenses(id,user_id,amount,currency,category,description,is_want,payment_method,account_id,date) values('${e}','${u}',1000,'ARS','Auto','Carga manual concurrente',false,'DEBIT','${a}','2026-10-01');select pg_sleep(2);commit;`)
+  let held=false
+  for(let attempt=0;attempt<80;attempt++) {
+   if((await db.query("select count(*)::int n from pg_locks where locktype='advisory' and granted")).rows[0].n>0) {held=true;break}
+   await new Promise(resolve=>setTimeout(resolve,10))
+  }
+  assert(held,'manual writer did not hold the shared ledger lock')
+  const race=await Promise.allSettled([manual,invoke({18:'[]',19:'auto'})])
+  assert(race[0].status==='fulfilled' && race[1].status==='rejected','posting accepted stale snapshot during manual insert')
+  assert((await db.query('select count(*)::int n from expenses')).rows[0].n===1,'manual/posting race duplicated expense')
  }
  console.log(`PASS: ${checks} PostgreSQL checks: opt-in, stale account/duplicate snapshot, compatible human link without insertion, keep both, strict replay, source reuse, automatic audit, rejected transfers/refunds/missing fields and ACL. ${db.supportsConcurrentClients ? 'Native PostgreSQL concurrent clients verified.' : 'WASM single-session; native concurrency not executed.'}`)
 } finally { await db.close() }
