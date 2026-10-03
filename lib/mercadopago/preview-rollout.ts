@@ -1,6 +1,8 @@
-/** Non-secret build flags for the explicitly authorized feature preview only. */
+/** Non-secret build flags for the authorized manual rollout. Automatic paths remain off. */
 export function mercadoPagoPreviewBuildFlags(environment?: string, branch?: string): Record<string, string> {
-  if (environment !== 'preview' || branch !== 'feat/mercadopago-integration-v2') return {}
+  const featurePreview = environment === 'preview' && branch === 'feat/mercadopago-integration-v2'
+  const manualProduction = environment === 'production' && branch === 'main'
+  if (!featurePreview && !manualProduction) return {}
   return {
     MERCADOPAGO_CARD_INSTALLMENTS_ENABLED: 'true',
     MERCADOPAGO_POSTING_ENABLED: 'true',

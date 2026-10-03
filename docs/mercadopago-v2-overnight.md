@@ -158,3 +158,7 @@ Tres migraciones reales autorizadas/aplicadas y ACL/hash/RLS/triggerverificados;
 ### Estado definitivo después de la autorización
 
 La habilitación manual de Preview está ejecutada. El detalle actual y legible está en docs/mercadopago-v2-rollout.md, que reemplaza los checkpoints anteriores que decían migraciones pendientes. Tres migraciones aplicadas; RPC legacy intacto; nuevos RPCs service-only; RLS y trigger verificados. Preview f5b81c6 READY. Cuatro tests nuevos de alcance, tipos, lint y build con metadata Preview aprobados. Editor Rondi de dos cuotas abierto/cancelado; no match de tarjeta inventado. Lectura posterior scoped: cero postings y cero confirmaciones desde rollout, background y auto-post false, import not_started. La navegación directa al GET de duplicados fue bloqueada en el navegador; no validación HTTP ni link real. No repetir la solicitud de permiso de esta habilitación ya autorizada y completada.
+
+### 3/oct — autorización de producción manual
+
+El usuario indicó «Pásalo igual y testeo, ahí es donde mejor puedo testear hoy». Se prepara publicación de la versión manual por PR #124 a main: cuotas y duplicados habilitados; auto-post/background/reconciliación apagados. Cinco tests de alcance de flags verdes. Ninguna escritura financiera real ejecutada por el agente. La validación de efecto real sobre compromisos y disponible sigue pendiente; no se presenta este rollout como validación completa de MP v2.

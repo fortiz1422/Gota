@@ -43,3 +43,9 @@ La navegación directa al GET de duplicados fue bloqueada por el navegador con E
 ## Pendientes posteriores
 
 Validar operaciones controladas, posting real, ciclos/compromisos/disponible y shadow antes de automatizar. No están habilitados importación, background, reconciliación automática ni auto-post. Refund matching y transferencias propias reconciliadas siguen pendientes. No merge ni promoción de producción.
+
+## Producción manual autorizada — 3 de octubre de 2026
+
+Facundo autorizó publicar para realizar las pruebas reales desde producción, con la matriz real todavía pendiente. El build de `production` sobre `main` habilita exclusivamente confirmación manual de compras de 1–72 cuotas y resolución auditada de duplicados. Auto-post, background y reconciliación programada quedan explícitamente apagados. No se realizan escrituras financieras como prueba durante el despliegue.
+
+Las cinco pruebas de selección de entorno verifican el alcance; la validación real de compras, compromisos y disponible queda a cargo de la prueba autorizada por el usuario desde la aplicación. Revertir el cambio de flags y desplegar revierte la activación sin borrar ledger ni auditoría.

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { mercadoPagoPreviewBuildFlags } from './preview-rollout'
 
-describe('authorized Mercado Pago preview rollout', () => {
+describe('authorized Mercado Pago manual rollout', () => {
   it('enables manual cards and duplicate resolution while disabling automatic paths', () => {
     expect(mercadoPagoPreviewBuildFlags('preview', 'feat/mercadopago-integration-v2')).toEqual({
       MERCADOPAGO_CARD_INSTALLMENTS_ENABLED: 'true', MERCADOPAGO_POSTING_ENABLED: 'true',
@@ -9,7 +9,10 @@ describe('authorized Mercado Pago preview rollout', () => {
       MERCADOPAGO_RECONCILIATION_ENABLED: 'false',
     })
   })
-  it('does not change production even when deploying the feature branch', () => {
+  it('enables the same manual capabilities on production main', () => {
+    expect(mercadoPagoPreviewBuildFlags('production', 'main')).toEqual(mercadoPagoPreviewBuildFlags('preview', 'feat/mercadopago-integration-v2'))
+  })
+  it('does not enable production on unapproved branches', () => {
     expect(mercadoPagoPreviewBuildFlags('production', 'feat/mercadopago-integration-v2')).toEqual({})
   })
   it('does not enable other branches or main previews', () => {
