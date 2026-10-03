@@ -13,7 +13,7 @@ export async function createTestDatabase(argument) {
   const name = `gota-mp-isolated-${process.pid}-${Date.now()}`
   execFileSync('docker', ['run','--name',name,'-e','POSTGRES_PASSWORD=test','-e','POSTGRES_HOST_AUTH_METHOD=trust','-d','postgres:16-alpine'],{stdio:'ignore'})
   let role = ''
-  const command = async text => (await exec('docker',['exec','-i',name,'psql','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-q','-t','-A','-c',`${role ? `set role ${role};` : ''}${text}`])).stdout
+  const command = async text => (await exec('docker',['exec','-i',name,'psql','-h','127.0.0.1','-v','ON_ERROR_STOP=1','-U','postgres','-d','postgres','-q','-t','-A','-c',`${role ? `set role ${role};` : ''}${text}`])).stdout
   try {
     let ready = false
     for (let i=0;i<80;i++) { try { await command('select 1');ready=true;break } catch { await new Promise(resolve=>setTimeout(resolve,250)) } }
