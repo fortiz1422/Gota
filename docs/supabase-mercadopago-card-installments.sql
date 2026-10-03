@@ -55,7 +55,7 @@ begin
      or jsonb_array_length(p_expected_observations) not between 1 and 2 or p_amount is null or p_amount <= 0
      or p_currency is null or p_amount::text in ('NaN','Infinity','-Infinity') or p_currency not in ('ARS','USD') or p_date is null or p_category is null
      or char_length(p_category) not between 1 and 50 or p_description is null
-     or char_length(p_description) not between 1 and 100 or p_is_want is null or (p_installments is null or p_installments not between 2 and 72)
+     or char_length(p_description) not between 1 and 100 or p_is_want is null or (p_installments is null or p_installments not between 1 and 72)
      or p_plan is null or jsonb_typeof(p_plan->'rows') is distinct from 'array'
      or jsonb_array_length(p_plan->'rows') <> p_installments
      or p_amount <> round(p_amount,2) then
