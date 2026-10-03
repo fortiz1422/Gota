@@ -1,0 +1,37 @@
+name: Mercado Pago transactional SQL
+
+on:
+  push:
+    branches: [feat/mercadopago-integration-v2]
+    paths:
+      - '.github/workflows/mercadopago-sql.yml'
+      - 'scripts/*mercadopago*'
+      - 'docs/supabase-mercadopago-*.sql'
+  pull_request:
+    paths:
+      - '.github/workflows/mercadopago-sql.yml'
+      - 'scripts/*mercadopago*'
+      - 'docs/supabase-mercadopago-*.sql'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mercadopago-sql-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Transactional installments and concurrent clients
+        run: node scripts/test-mercadopago-installments-pglite.mjs --docker
+      - name: Duplicate resolution, audited posting and concurrent clients
+        run: node scripts/test-mercadopago-postings-pglite.mjs --docker

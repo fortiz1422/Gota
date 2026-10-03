@@ -109,3 +109,8 @@ Commit de implementación `5e43f233b0a7d2e5c6e3e8f13316d5d254173cab` publicado e
 Sesión autenticada disponible: bandeja real 40 pendientes, 27 para completar/13 excepciones. PAYOUTS ARS1.000 del 1/oct ahora ofrece la interpretación humana autorizada: registrar consumo o desestimar propia. Se abrió el editor y se verificaron importe 1000, fecha 2026-10-01, cuenta vinculada y selector de categoría; se pulsó Cancelar, nunca Registrar/Desestimar. Compra Rondi en 2x muestra total paid ARS67.890,30, en vez del transaction_amount previo ARS71.355,25; sigue pendiente porque no se habilitó la nueva migración/flag. Settings normal muestra sólo today/30d/90d y Advanced; no se pulsó Continuar.
 
 Esta verificación confirma presentación y gates con evidencia histórica real, no un posting financiero. Duplicados/N/auto-post se verificaron en código y PostgreSQL descartable; funciones nuevas siguen deshabilitadas en la cuenta real. Producción/main y configuración externa MP no cambiaron. El harness Docker recibió seguimiento explícito de roles para que ACL se pruebe en clientes psql independientes; syntax check verde, Docker todavía no disponible para ejecutarlo.
+
+
+### Cierre adicional 3/oct: prueba nativa en CI
+
+Rama auditada limpia y alineada en 08305d9 antes de cambios. El runtime local no permite cambiar UID/grupos para iniciar PostgreSQL; Docker ausente. Se agrega CI acotado, read-only, sin secretos, sin deploy ni acceso a Supabase: PostgreSQL16 en contenedor descartable para ambos scripts transaccionales y clientes concurrentes. Resultado todavía pendiente al publicar este checkpoint. No se habilitan flags ni se aplican migraciones reales.
