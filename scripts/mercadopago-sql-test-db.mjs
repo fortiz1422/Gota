@@ -36,3 +36,20 @@ export async function createTestDatabase(argument) {
     }
   } catch(error) {execFileSync('docker',['rm','-f',name],{stdio:'ignore'});throw error}
 }
+
+/** Relevant constraints observed via metadata-only audit on 2026-10-03.
+ * This deliberately does not claim to reproduce the complete deployed schema. */
+export async function applyObservedLedgerConstraints(db) {
+  await db.exec(`
+    alter table expenses add constraint observed_amount check (amount >= 1);
+    alter table expenses add constraint observed_currency check (currency in ('ARS','USD'));
+    alter table expenses add constraint observed_description check (length(description) <= 100);
+    alter table expenses add constraint observed_method check (payment_method in ('CASH','DEBIT','TRANSFER','CREDIT'));
+    alter table expenses add constraint observed_card_required check ((payment_method='CREDIT' and card_id is not null) or (category='Pago de Tarjetas' and card_id is not null) or (payment_method<>'CREDIT' and category<>'Pago de Tarjetas'));
+    alter table expenses add constraint observed_no_credit_payment check (category<>'Pago de Tarjetas' or payment_method<>'CREDIT');
+    alter table expenses add foreign key (account_id) references accounts(id) on delete set null;
+    alter table cards add constraint observed_closing check (closing_day between 1 and 31);
+    alter table cards add constraint observed_due check (due_day between 1 and 31);
+    alter table card_cycles add constraint observed_status check (status in ('open','closed','paid'));
+  `)
+}

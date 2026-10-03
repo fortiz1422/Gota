@@ -111,7 +111,7 @@ begin
         and e.amount is not distinct from p_amount and e.currency is not distinct from p_currency
         and e.category is not distinct from p_category and e.description is not distinct from p_description
         and e.is_want is not distinct from p_is_want and e.payment_method='CREDIT'
-        and e.card_id is not distinct from p_card_id and e.account_id is null
+        and e.card_id::text is not distinct from p_card_id::text and e.account_id is null
         and e.card_cycle_id is not distinct from v_review.card_cycle_id
         and e.date::date is not distinct from p_date
         and c.user_id=p_user_id and c.card_id=p_card_id) then

@@ -35,3 +35,5 @@ jobs:
         run: node scripts/test-mercadopago-installments-pglite.mjs --docker
       - name: Duplicate resolution, audited posting and concurrent clients
         run: node scripts/test-mercadopago-postings-pglite.mjs --docker
+      - name: Single installment legacy RPC with deployed card ID type
+        run: node scripts/test-mercadopago-card-confirmation-sql.mjs

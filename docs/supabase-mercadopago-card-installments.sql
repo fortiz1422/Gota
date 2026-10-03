@@ -142,7 +142,7 @@ begin
         where e.user_id=p_user_id and e.installment_group_id=v_group_id and e.installment_number=(v_row->>'installment_number')::integer
           and e.installment_total=p_installments and e.amount=(v_row->>'amount')::numeric and e.date::date=(v_row->>'date')::date
           and e.currency=p_currency and e.category=p_category and e.description=p_description and e.is_want=p_is_want
-          and e.payment_method='CREDIT' and e.card_id=p_card_id and e.account_id is null
+          and e.payment_method='CREDIT' and e.card_id::text=p_card_id::text and e.account_id is null
           and c.user_id=p_user_id and c.card_id=p_card_id and c.period_month=(v_row#>>'{cycle,period_month}')::date
           and c.closing_date=(v_row#>>'{cycle,closing_date}')::date and c.due_date=(v_row#>>'{cycle,due_date}')::date) then
         raise exception 'replay installment changed' using errcode='P0002';

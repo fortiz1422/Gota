@@ -1,7 +1,7 @@
 // Disposable PostgreSQL/WASM verification. No network or real application data.
 // Install @electric-sql/pglite outside the repo; pass its absolute module path.
 import { readFileSync } from 'node:fs'
-import { createTestDatabase } from './mercadopago-sql-test-db.mjs'
+import { createTestDatabase, applyObservedLedgerConstraints } from './mercadopago-sql-test-db.mjs'
 const db = await createTestDatabase(process.argv[2])
 const root = new URL('..', import.meta.url).pathname
 const u='00000000-0000-0000-0000-000000000001', c='10000000-0000-0000-0000-000000000001', card='20000000-0000-0000-0000-000000000001', raw='30000000-0000-0000-0000-000000000001'
@@ -13,9 +13,10 @@ create table accounts(id uuid primary key,user_id uuid,name text,type text,archi
 create table cards(id uuid primary key,user_id uuid,name text,closing_day int,due_day int,archived boolean default false);
 insert into cards values('${card}','${u}','Visa',15,10,false);
 create table card_cycles(id uuid primary key default gen_random_uuid(),user_id uuid,card_id uuid references cards(id),period_month date,closing_date date,due_date date,status text,unique(card_id,period_month));
-create table expenses(id uuid primary key default gen_random_uuid(),user_id uuid,amount numeric,currency text,category text,description text,is_want boolean,payment_method text,account_id uuid,card_id uuid,card_cycle_id uuid references card_cycles(id),date timestamptz,installment_group_id uuid,installment_number int,installment_total int,is_legacy_card_payment boolean);
+create table expenses(id uuid primary key default gen_random_uuid(),user_id uuid,amount numeric,currency text,category text,description text,is_want boolean,payment_method text,account_id uuid,card_id varchar,card_cycle_id uuid references card_cycles(id),date timestamptz,installment_group_id uuid,installment_number int,installment_total int,is_legacy_card_payment boolean);
 create table mercadopago_raw_observations(id uuid primary key,user_id uuid,connection_id uuid,source text,native_key text,payload jsonb,last_seen_at timestamptz);
 insert into mercadopago_raw_observations values('${raw}','${u}','${c}','payments_search','pay-2','{"status":"approved","operation_type":"regular_payment","payer_id":"42","payment_type_id":"credit_card","transaction_amount":60000,"transaction_details":{"total_paid_amount":67890.30},"currency_id":"ARS","date_created":"2026-10-02T01:26:52Z","installments":2}', '2026-10-02T03:00:00Z');`)
+await applyObservedLedgerConstraints(db)
 // pgcrypto is unnecessary on modern PostgreSQL: gen_random_uuid is built in.
 for(const file of ['supabase-mercadopago-movement-reviews.sql','supabase-mercadopago-card-confirmation.sql','supabase-mercadopago-card-installments.sql','supabase-mercadopago-postings.sql']) {
  await db.exec(readFileSync(`${root}docs/${file}`,'utf8').replace(/create extension[^;]*;/gi,''))

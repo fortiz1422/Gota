@@ -121,3 +121,8 @@ CI nativo confirmado verde en commit 89e474c: https://github.com/fortiz1422/Gota
 ### Cierre verificado de concurrencia
 
 Commit 8f91610: CI https://github.com/fortiz1422/Gota/actions/runs/37093132076 completado success. Logs 23 cuotas +27 postings =50 checks nativos. Carrera manual vs import rechazó snapshot stale sin duplicados. Gate de concurrencia nueva cerrado. Ninguna migración/flag/opt-in real activado, ninguna prueba escribió canon real. El workflow Claude baseline inválido sigue fuera de alcance. Documento de matriz actualizado y handoff final disponible en docs/mercadopago-v2-handoff.md.
+
+
+### Auditoría de compatibilidad real, 3/oct
+
+Lectura metadata-only de Supabase: expenses.card_id es character varying, mientras cards/card_cycles/review usan UUID. Los harness anteriores habían modelado expenses.card_id como UUID y no cubrían esta diferencia. Corregidas comparaciones de replay (cast a texto de ambos lados, sin cambiar esquema real) en RPC 1x y N. Tests ajustados al tipo desplegado y restricciones observadas de monto/currency/descripción/instrumento/ciclos; CI agrega la suite legacy 1x. No datos de usuarios/tokens consultados; sólo columnas/constraints/migraciones/branches. Branches Supabase: ninguna; migraciones registradas: background e initial import. Nuevas migraciones siguen sin aplicar por límite explícito previo. Resultado CI del fix pendiente.
