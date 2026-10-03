@@ -20,10 +20,13 @@ La inspección del código confirma el mismo patrón en la confirmación: introd
 
 ## Verificación y límites
 
-TypeScript, build local de producción y tests de presentación/semántica. Suite completa registrada en el checkpoint de entrega. La galería /ui-exploration/mercadopago contiene datos ficticios, reutiliza componentes reales y no permite acciones financieras; está bloqueada en producción. Se utiliza para revisar estados poblados sin recuperar ni modificar movimientos reales.
+TypeScript, build local de producción y tests de presentación/semántica. Suite completa: 1.058 pruebas en 157 archivos, cero fallos. ESLint de componentes editados y git diff --check verdes. Ajustes posteriores de presentación: 12 pruebas relevantes y TypeScript verdes; no cambian semántica financiera. La galería /ui-exploration/mercadopago contiene datos ficticios, reutiliza componentes reales y no permite acciones financieras; está bloqueada en producción. Se utiliza para revisar estados poblados sin recuperar ni modificar movimientos reales.
 
 No hay migraciones ni cambios a reglas de posting, RAW, sincronización, OAuth/PKCE o ledger. Auto-post/background mantienen el rollout vigente apagado. La matriz real del proveedor no se sustituye por estas pruebas de diseño.
 
-## Handoff para Hermes
+## Checkpoint de entrega
 
-Decisión: reducir ruido con divulgación progresiva específica, sin cambiar evidencia ni reglas financieras. Hechos: la bandeja real está vacía tras el descarte previo y la configuración pudo observarse autenticada. Artefactos: componentes MP, ajustes opt-in a ParsePreview, tests y galería visual restringida. Riesgo: nombres largos requieren abrir detalle; se conserva el texto completo de origen. Pendientes: revisar Preview visual y cerrar publicación. No hubo delegación ni escrituras financieras durante este trabajo.
+Decisión: reducir ruido con divulgación progresiva específica, sin cambiar evidencia ni reglas financieras. Hechos: la bandeja real está vacía tras el descarte previo y la configuración pudo observarse autenticada. Artefactos: componentes MP, ajustes opt-in a ParsePreview, tests y galería visual restringida. Riesgo: nombres largos requieren abrir detalle; se conserva el texto completo de origen. La revisión visual del Preview comprobó lista poblada con nombre largo, vacío, conexión, onboarding, compra y comparación de duplicado mediante ejemplos ficticios. Se corrigieron en esa revisión la información redundante de tarjeta, las categorías del ejemplo y la fecha ISO del duplicado. No hubo delegación ni escrituras financieras durante este trabajo.
+
+
+PR de diseño: https://github.com/fortiz1422/Gota/pull/125 (draft). Preview revisado: https://gota-git-feat-mercadopago-des-cadf6f-facundos-projects-11ee7eb5.vercel.app/ui-exploration/mercadopago . La sesión real del alias anterior permitió inspeccionar Settings; el alias nuevo se revisó en modo invitado con ejemplos inertes. Este cleanup no fue fusionado ni promovido a producción.

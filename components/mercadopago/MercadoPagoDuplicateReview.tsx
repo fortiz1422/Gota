@@ -44,7 +44,7 @@ export function MercadoPagoDuplicateView({ data, error = '', busy = false, onLin
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {data?.expenses.map(expense => <article key={expense.id} className="rounded-card border border-border-subtle p-4">
       <p className="truncate text-sm font-semibold">{expense.description}</p>
-      <p className="text-sm text-text-secondary">{expense.date} · {new Intl.NumberFormat('es-AR', { style: 'currency', currency: expense.currency }).format(expense.amount)}</p>
+      <p className="text-sm text-text-secondary">{expense.date.split('-').reverse().join('/')} · {new Intl.NumberFormat('es-AR', { style: 'currency', currency: expense.currency }).format(expense.amount)}</p>
       <button type="button" disabled={busy} onClick={() => onLink(expense)} className="mt-3 min-h-11 w-full rounded-button border border-border-subtle px-4 text-sm font-semibold text-primary disabled:opacity-50">Es este gasto: vincular</button>
     </article>)}
     {data && data.expenses.length > 0 && <button type="button" disabled={busy} onClick={() => onKeep({ action: 'keep_both', fingerprint: data.fingerprint })} className="min-h-11 w-full rounded-button bg-primary px-4 text-sm font-semibold text-white">Es otro gasto</button>}

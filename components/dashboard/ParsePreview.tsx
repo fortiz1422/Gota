@@ -425,9 +425,9 @@ export function ParsePreview({
           />
         </div>
 
-        <div>
+        <div className={isProviderCardPurchase ? 'hidden' : undefined}>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            De donde sale
+            {immutableProviderEvidence && aliasSource === 'mercadopago' ? 'Cuenta' : 'De donde sale'}
           </label>
           {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
           {isProviderCardPurchase && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Tarjeta de crédito · compra en Mercado Pago</p>}
