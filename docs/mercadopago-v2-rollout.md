@@ -1,22 +1,45 @@
-# Mercado Pago v2 — siguiente habilitación concreta
+# Mercado Pago v2 — habilitación de Preview
 
-Proyecto Supabase wfwkrenyoxiswaeafpjc. Rama feat/mercadopago-integration-v2; PR draft124. Base compartida con main, sin branch Supabase existente según lectura3/oct. No se crean recursos pagos.
+Actualizado: 3 de octubre de 2026. Facundo autorizó las tres migraciones y las capacidades manuales de cuotas y duplicados. Esa habilitación está ejecutada. No se autorizó automatización ni pruebas que escriban movimientos reales.
 
-## Acción pendiente de autorización específica
-Aplicar, con MCP apply_migration y una transacción por archivo:
+## Migraciones aplicadas
 
-1. docs/supabase-mercadopago-card-installments.sql
-2. docs/supabase-mercadopago-postings.sql
-3. docs/supabase-mercadopago-reconciliation-state.sql
+Proyecto Supabase: wfwkrenyoxiswaeafpjc. La base es compartida con main.
 
-No reemplazar confirm_mercadopago_card_expense legacy. No borrar ni reescribir filas financieras. Se añaden audit/RPCs/estado y un trigger que serializa escritores por usuario y rechaza cambios de ownership. Main conserva RPC existente.
+| Versión registrada | Script | Resultado |
+|---|---|---|
+| 20261003162312 | docs/supabase-mercadopago-card-installments.sql | Audit y RPC nuevo para 1..72 cuotas |
+| 20261003162341 | docs/supabase-mercadopago-postings.sql | Posting auditado y bloqueo compartido de gastos |
+| 20261003162349 | docs/supabase-mercadopago-reconciliation-state.sql | Estado de reconciliación |
 
-Verificar columnas, privilegios service-only, RLS de postings, definición legacy inalterada, trigger y auto_post_enabled false. Lecturas mínimas; no tokens/auth/users/sessions ni datos financieros innecesarios.
+No se aplicó el reemplazo del RPC legacy de docs/supabase-mercadopago-card-confirmation.sql. Su hash permanece 38f84095dc44acbef192ed7012b3c4ac. Los nuevos RPCs tienen EXECUTE para service_role y no para anon/authenticated. Postings tiene RLS activo; el trigger de gastos está habilitado. Las migraciones no crearon gastos ni compromisos de prueba.
 
-Luego habilitar únicamente en deployment Preview de esta rama MERCADOPAGO_CARD_INSTALLMENTS_ENABLED=true y MERCADOPAGO_POSTING_ENABLED=true. Nunca production. Las env de AUTO_POST, RECONCILIATION y background siguen ausentes/false; opt-ins connection quedan false; ningún cron nuevo. Confirmar redeploy Preview READY y capacidades/editor visibles sin Registrar/Continuar/Desestimar.
+## Configuración de Preview
 
-## Lo que esta autorización no habilita
-No escrituras de prueba al ledger real, no importación/background/auto-post, no merge/promoción, no configurar reportes externos ni transacciones financieras. La matriz financiera real sigue siendo un paso posterior, con evidencia y autorización para cualquier escritura. No se puede sustituir por tests sintéticos ni prometer MPv2 productiva.
+Commit de habilitación: f5b81c6. Deployment dpl_7cymQEtiFf1mXVjKMjkpaTLuBzuf, READY.
 
-## Verificación preparada
-Tests route fuerzan v2RPC también1x cuando flag está habilitado, legacy cuando apagado. SQL contra PostgreSQL16 descartable incluye ownership, stale, rollback, replay, clientes concurrentes, carga manual vs import y card_id texto observado. Legacy1x conserva prueba independiente.
+El conector de Vercel no ofrecía edición de variables ni una CLI autenticada. Se usó configuración de build revisable, sin secretos: next.config.env llama a lib/mercadopago/preview-rollout.ts. Sólo environment=preview y la rama exacta feat/mercadopago-integration-v2 reciben:
+
+| Flag | Valor |
+|---|---|
+| MERCADOPAGO_CARD_INSTALLMENTS_ENABLED | true |
+| MERCADOPAGO_POSTING_ENABLED | true |
+| MERCADOPAGO_AUTO_POST_ENABLED | false |
+| MERCADOPAGO_BACKGROUND_SYNC_ENABLED | false |
+| MERCADOPAGO_RECONCILIATION_ENABLED | false |
+
+No se modificaron variables del Dashboard ni se promovió un deployment a producción. Para retirar las capacidades, quitar la configuración de Preview y redeployar; no borrar ledger ni auditoría.
+
+## Verificación realizada
+
+- Cuatro tests de alcance de flags: Preview autorizado, producción, otras ramas y metadata ausente. Tipos, lint y build local con metadata de Preview aprobados.
+- Sesión autenticada: 40 pendientes, 30 para completar y 10 excepciones.
+- Rondi: editor muestra ARS 67.890,30, fecha 10/08/2026 y dos cuotas inmutables del proveedor. No encuentra tarjeta por últimos cuatro dígitos y pide elección humana. Editor cancelado.
+- PAYOUTS ARS 1.000: editor abierto y cancelado. No se pulsó Registrar, Continuar ni Desestimar.
+- Lectura scoped posterior: cero postings y cero confirmaciones desde el rollout; background=false, auto_post=false e initial_import_status=not_started.
+
+La navegación directa al GET de duplicados fue bloqueada por el navegador con ERR_BLOCKED_BY_CLIENT. No se eludió el bloqueo ni se declara validación HTTP de ese endpoint o vinculación real. Sus tests SQL, permisos y configuración están verificados.
+
+## Pendientes posteriores
+
+Validar operaciones controladas, posting real, ciclos/compromisos/disponible y shadow antes de automatizar. No están habilitados importación, background, reconciliación automática ni auto-post. Refund matching y transferencias propias reconciliadas siguen pendientes. No merge ni promoción de producción.

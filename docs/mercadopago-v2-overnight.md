@@ -146,3 +146,15 @@ Commit68a6dc1, CI37131672897 success: 26 checks cuotas +27 postings=53 nativos, 
 Facundo autorizó explícitamente los tres scripts +cuotas/duplicados sóloPreview. Aplicadas en Supabase:20261003162312 mercadopago_v2_additive_card_purchase;20261003162341 mercadopago_v2_audited_postings;20261003162349 mercadopago_v2_reconciliation_state. Verificado hash legacy1x intacto38f84095dc44acbef192ed7012b3c4ac; nuevosRPCs service execute true, anon/auth false; postingsRLStrue; triggerO; tres campos nuevos presentes. Conexión scoped conserva backgroundfalse/autopostfalse/importnot_started. Sin filas de canon modificadas como prueba.
 
 ConectorVercel disponible no incluye env mutation/CLI autenticada. Alternativa revisable autorizada: next.config.env usa helper failclosed únicamente VERCEL_ENV=preview +rama exacta feat/mercadopago-integration-v2. Dos flags manualestrue y auto/background/reconciliationfalse. No variables secretas ni cambioDashboard/production. Cuatro tests de alcance aprobados; tipos/lint/diffcheck verdes. Publicación/Preview/browser verification pendientes en este checkpoint.
+
+
+### Resultado de habilitación Preview
+
+Commit f5b81c6, deployment dpl_7cymQEtiFf1mXVjKMjkpaTLuBzuf READY. Buildlocal con metadataPreview +flag mapping terminósuccess sin uploadsSentry. Browser autenticado:40pending,30completables/10excepciones (antes27/13); Rondi2x abreeditor total67890.30,fecha10ago,2cuotas provider locked, tarjeta sinmatchnoautoelegida. Cancelado. PAYOUTS1000 editorcancelado también. No Registrar/Continuar/Desestimar. GET API directo en navegador bloqueado ERR_BLOCKED_BY_CLIENT; no se usa fetch alternativo ni se afirma dedupeHTTPvalidado. UI disponible y tab marcado deliverable.
+
+Tres migraciones reales autorizadas/aplicadas y ACL/hash/RLS/triggerverificados; ningún gasto/compromiso real se escribió como test. La base es compartida: schema sí cambió según autorización, mainRPC no. Auto/background/import siguenapagados. Ver detalles actuales en rollout.md; no pedir otra vez permiso ya concedido para esas acciones. Matrizledger/compromisosreal,auto-post y promoción siguen pendientes fuera de esta autorización.
+
+
+### Estado definitivo después de la autorización
+
+La habilitación manual de Preview está ejecutada. El detalle actual y legible está en docs/mercadopago-v2-rollout.md, que reemplaza los checkpoints anteriores que decían migraciones pendientes. Tres migraciones aplicadas; RPC legacy intacto; nuevos RPCs service-only; RLS y trigger verificados. Preview f5b81c6 READY. Cuatro tests nuevos de alcance, tipos, lint y build con metadata Preview aprobados. Editor Rondi de dos cuotas abierto/cancelado; no match de tarjeta inventado. Lectura posterior scoped: cero postings y cero confirmaciones desde rollout, background y auto-post false, import not_started. La navegación directa al GET de duplicados fue bloqueada en el navegador; no validación HTTP ni link real. No repetir la solicitud de permiso de esta habilitación ya autorizada y completada.
