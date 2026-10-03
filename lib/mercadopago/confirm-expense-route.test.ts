@@ -223,6 +223,19 @@ describe('Mercado Pago confirm expense route', () => {
     } finally { vi.unstubAllEnvs() }
   })
 
+  it('uses the additive v2 purchase RPC for one installment when enabled, preserving the legacy RPC', async () => {
+    mocks.eligibleCard.mockReturnValue(true)
+    vi.stubEnv('MERCADOPAGO_CARD_INSTALLMENTS_ENABLED', 'true')
+    try {
+      mocks.plan.mockResolvedValue({ rows: [{ amount: 5500 }] })
+      const cardId = '00000000-0000-4000-8000-000000000012'
+      expect((await post({ description: 'Compra', category: 'Otros', isWant: false, cardId, installments: 1 })).status).toBe(200)
+      expect(mocks.plan).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ amount: 5500, installments: 1 }))
+      expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_purchase', expect.objectContaining({ p_installments: 1, p_plan: expect.any(Object) }))
+      expect(mocks.rpc).not.toHaveBeenCalledWith('confirm_mercadopago_card_expense', expect.anything())
+    } finally { vi.unstubAllEnvs() }
+  })
+
   it('rejects card installments greater than one before RPC', async () => {
     mocks.eligibleCard.mockReturnValue(true)
     expect((await post({ ...body, cardId: '00000000-0000-4000-8000-000000000012', installments: 2 })).status).toBe(422)

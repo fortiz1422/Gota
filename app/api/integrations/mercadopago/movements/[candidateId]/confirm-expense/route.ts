@@ -62,7 +62,7 @@ export async function POST(request: Request, { params }: Params) {
       if (!duplicate.checked) return json({ error: 'dedupe_unavailable' }, 503)
       if (duplicate.matches.length > 0) return json({ error: 'possible_duplicate' }, 409)
     }
-    const cardPlan = isCard && candidate.installments! > 1 ? await buildMercadoPagoCardPurchasePlan(admin as unknown as SupabaseClient, { userId: user.id, cardId: parsed.cardId!, amount, currency: currency as 'ARS' | 'USD', date, installments: candidate.installments!, description: parsed.description, category: parsed.category, isWant: parsed.isWant }) : null
+    const cardPlan = isCard && process.env.MERCADOPAGO_CARD_INSTALLMENTS_ENABLED === 'true' ? await buildMercadoPagoCardPurchasePlan(admin as unknown as SupabaseClient, { userId: user.id, cardId: parsed.cardId!, amount, currency: currency as 'ARS' | 'USD', date, installments: candidate.installments!, description: parsed.description, category: parsed.category, isWant: parsed.isWant }) : null
     const semantics = buildCanonicalSemantics()
     const { data, error } = await admin.rpc(isCard ? (cardPlan ? 'confirm_mercadopago_card_purchase' : 'confirm_mercadopago_card_expense') : postingEnabled ? 'post_mercadopago_balance_event' : 'confirm_mercadopago_expense', {
       p_user_id: user.id, p_connection_id: connection.id, p_candidate_id: candidateId,

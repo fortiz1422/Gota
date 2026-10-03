@@ -18,7 +18,9 @@ create table mercadopago_raw_observations(id uuid primary key,user_id uuid,conne
 insert into mercadopago_raw_observations values('${raw}','${u}','${c}','payments_search','pay-2','{"status":"approved","operation_type":"regular_payment","payer_id":"42","payment_type_id":"credit_card","transaction_amount":60000,"transaction_details":{"total_paid_amount":67890.30},"currency_id":"ARS","date_created":"2026-10-02T01:26:52Z","installments":2}', '2026-10-02T03:00:00Z');`)
 await applyObservedLedgerConstraints(db)
 // pgcrypto is unnecessary on modern PostgreSQL: gen_random_uuid is built in.
+let legacyDefinition
 for(const file of ['supabase-mercadopago-movement-reviews.sql','supabase-mercadopago-card-confirmation.sql','supabase-mercadopago-card-installments.sql']) {
+ if(file==='supabase-mercadopago-card-installments.sql') legacyDefinition=(await db.query("select pg_get_functiondef(oid) definition from pg_proc where proname='confirm_mercadopago_card_expense'")).rows[0].definition
  await db.exec(readFileSync(`${root}docs/${file}`,'utf8').replace(/create extension[^;]*;/gi,''))
 }
 const rows=[{amount:33945.15,date:'2026-10-01',installment_number:1,cycle:{period_month:'2026-10-01',closing_date:'2026-10-15',due_date:'2026-11-10'}},{amount:33945.15,date:'2026-11-01',installment_number:2,cycle:{period_month:'2026-11-01',closing_date:'2026-11-15',due_date:'2026-12-10'}}]
@@ -29,6 +31,7 @@ let checks=0
 const assert=(ok,message)=>{checks++;if(!ok)throw Error(message)}
 const fail=async(overrides)=>{let failed=false;try{await invoke(overrides)}catch{failed=true}assert(failed,'expected SQL rejection')}
 try {
+ assert((await db.query("select pg_get_functiondef(oid) definition from pg_proc where proname='confirm_mercadopago_card_expense'")).rows[0].definition===legacyDefinition,'additive migration changed legacy RPC')
  await fail({6:60000}); await fail({8:'2026-10-02'}); await fail({13:3}); await fail({12:'20000000-0000-0000-0000-000000000099'})
  const stale=await plan();stale.card.closing_day=16;await fail({14:JSON.stringify(stale)})
  const bad=await plan();bad.rows=structuredClone(rows);bad.rows[1].amount=33945.16;await fail({14:JSON.stringify(bad)})
@@ -52,5 +55,12 @@ try {
   const replayed=(await invoke()).rows[0].id
   assert(races.filter(result=>result.status==='fulfilled').every(result=>result.value.rows[0].id===replayed),'concurrent/retry identities differ')
  }
+ await db.exec('delete from mercadopago_movement_reviews;delete from expenses;delete from card_cycles;')
+ await db.exec(`update mercadopago_raw_observations set payload=jsonb_set(payload,'{installments}','1')`)
+ const singlePlan=await plan();singlePlan.rows=[{...rows[0],amount:67890.30}]
+ const single=(await invoke({13:1,14:JSON.stringify(singlePlan)})).rows[0].id
+ assert((await db.query('select count(*)::int n,sum(amount)::text total from expenses')).rows[0].n===1,'additive 1x purchase created multiple rows')
+ const singleReplayPlan=await plan();singleReplayPlan.rows=singlePlan.rows
+ assert((await invoke({13:1,14:JSON.stringify(singleReplayPlan)})).rows[0].id===single,'additive 1x replay changed identity')
  console.log(`PASS: ${checks} PostgreSQL checks: total paid, Argentina date, immutable count, stale plan, amount tampering, rollback of all rows/cycles/audit, grouped commitments, replay, changed intent/evidence/ledger and ACL. ${db.supportsConcurrentClients ? 'Native PostgreSQL concurrent clients verified.' : 'WASM single-session; native concurrency not executed.'}`)
 } finally { await db.close() }

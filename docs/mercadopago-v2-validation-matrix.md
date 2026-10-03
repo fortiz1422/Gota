@@ -17,10 +17,11 @@ Actualizado 2026-10-03. Código no equivale a habilitación ni validación finan
 
 Ninguna migración nueva fue aplicada al proyecto real. En orden, revisar/aplicar en entorno de prueba aislado:
 
-1. Actualización `docs/supabase-mercadopago-card-confirmation.sql` (total paid, fecha Argentina, native keys y audit).
-2. `docs/supabase-mercadopago-card-installments.sql` (requiere columnas canónicas de cuotas existentes).
-3. `docs/supabase-mercadopago-postings.sql` (requiere linked_account_id/version; agrega audit y lock de expenses).
-4. `docs/supabase-mercadopago-reconciliation-state.sql` (requiere migraciones background/initial import previas).
+1. `docs/supabase-mercadopago-card-installments.sql`: columnas de audit y RPC nuevo para 1..72 cuotas; usa el esquema card/review ya existente en main.
+2. `docs/supabase-mercadopago-postings.sql`: audit y lock de expenses; auto_post_enabled nace false.
+3. `docs/supabase-mercadopago-reconciliation-state.sql`: estado de reconciliación; background/initial ya existen.
+
+No aplicar como parte de este rollout `docs/supabase-mercadopago-card-confirmation.sql`: su reemplazo del RPC legacy podría cambiar el contrato utilizado por main en la base compartida. Preview con flag de tarjetas usa el nuevo RPC incluso en 1x. La corrección legacy sigue revisable para una futura actualización coordinada de main.
 
 Flags nuevos deben quedar ausentes/false hasta validar: `MERCADOPAGO_CARD_INSTALLMENTS_ENABLED`, `MERCADOPAGO_POSTING_ENABLED`, `MERCADOPAGO_AUTO_POST_ENABLED`, `MERCADOPAGO_RECONCILIATION_ENABLED`. Background conserva flag previo + opt-in de conexión. Publishing no habilita estos flags. El flag de cuotas habilita también la interpretación nueva de total paid en compras 1x; si total explícito difiere y no está habilitado, queda pendiente.
 
@@ -67,3 +68,7 @@ Preview de implementación `5e43f23` READY y sesión autenticada verificada: 40 
 ### Cierre de concurrencia, 3/oct
 
 50 checks PostgreSQL16 nativo aprobados en CI; evidencia y logs conservados en run 37093132076. El bloqueo local de Docker/UID fue resuelto mediante CI aislado, sin tocar Supabase. El workflow Claude previo tiene configuración inválida (`on:` vacío); no se presenta el repositorio entero como CI verde. El workflow financiero nuevo terminó success.
+
+
+### Compatibilidad real y rollout aditivo
+Metadata-only de Supabase el3/oct confirma expenses.card_id texto, cards/card_cycles/review UUID. Replay compara cast a texto, sin migrar esa columna. Harness ajustados a tipo real y constraints observadas; nunca se copiaron filas reales. CI agrega RPC legacy1x y asegura que la migración nueva no altera su definición. Detalle del permiso pendiente en docs/mercadopago-v2-rollout.md.

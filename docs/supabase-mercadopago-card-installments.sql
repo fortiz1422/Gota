@@ -1,7 +1,11 @@
--- Reviewable migration. Apply after card-confirmation and canonical installment columns.
+-- Reviewable migration. Requires the existing main card-link/review schema and canonical installment columns.
+-- Additive rollout: does not replace the legacy 1x RPC on the shared database.
 -- Disabled by default: MERCADOPAGO_CARD_INSTALLMENTS_ENABLED must stay unset
 -- until this RPC and real-provider/ledger validation have been approved.
 begin;
+alter table public.mercadopago_movement_reviews add column if not exists decision_source text not null default 'human';
+alter table public.mercadopago_movement_reviews add column if not exists decision_rule_version integer not null default 0;
+alter table public.mercadopago_movement_reviews add column if not exists decision_reason text not null default 'legacy_human_confirmation';
 create or replace function public.confirm_mercadopago_card_purchase(
   p_user_id uuid, p_connection_id uuid, p_candidate_id text,
   p_candidate_fingerprint text, p_intent_hash text, p_expected_observations jsonb,
