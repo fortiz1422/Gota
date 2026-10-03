@@ -21,9 +21,9 @@ describe('Mercado Pago result UX mapper', () => {
   it('explains the successful next step without meaningless zero counters', () => {
     const copy = getMercadoPagoResultCopy({ status: 'success' })
     const text = Object.values(copy).join(' ')
-    expect(text).toContain('Prueba completada')
-    expect(text.toLowerCase()).toContain('no se importó ni modificó nada')
-    expect(text).toContain('Tu cuenta está lista para la próxima etapa de validación')
+    expect(text).toContain('Mercado Pago conectado')
+    expect(text.toLowerCase()).toContain('nada se registra sin tu confirmación')
+    expect(text).toContain('Revisá los movimientos que quieras registrar')
     expect(text).not.toContain('Importaciones realizadas')
     expect(text).not.toContain('Movimientos modificados')
     expect(text).not.toMatch(/\b(token|code|state|id|monto|importe|descripci[oó]n)\b/i)

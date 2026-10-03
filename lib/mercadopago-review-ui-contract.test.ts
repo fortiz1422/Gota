@@ -37,13 +37,13 @@ describe('Mercado Pago review UI contract', () => {
     expect(reviewClientSource).not.toContain('accountId: payload.account_id')
   })
 
-  it('groups pending movements and gates bulk selection behind advanced options', () => {
+  it('gates bulk selection behind the list menu', () => {
     expect(reviewClientSource).toContain('onEnterSelection')
     expect(reviewClientSource).toContain('onCancelSelection')
     expect(reviewClientSource).toContain('selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11')
     expect(reviewClientSource).toContain('type-amount-sm shrink-0 whitespace-nowrap text-text-primary')
     expect(reviewClientSource).toContain('Hasta esta fecha (inclusive)')
-    expect(reviewClientSource).toContain('Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.')
+    expect(reviewClientSource).toContain('Se retiran de esta lista sin registrar gastos.')
     expect(reviewClientSource).not.toContain('La selección pertenece a esta carga del servidor')
   })
 

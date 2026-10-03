@@ -31,20 +31,20 @@ export function getMercadoPagoResultCopy(result: MercadoPagoResult) {
   if (result.status === 'success') {
     return {
       eyebrow: 'Mercado Pago',
-      title: 'Prueba completada',
-      description: 'Verificamos el acceso de prueba y revisamos información de solo lectura.',
-      note: 'No se importó ni modificó nada en Gota.',
+      title: 'Mercado Pago conectado',
+      description: 'Ya podés consultar tus movimientos desde Gota.',
+      note: 'Nada se registra sin tu confirmación.',
       identity: 'Identidad verificada',
-      nextStep: 'Tu cuenta está lista para la próxima etapa de validación.',
+      nextStep: 'Revisá los movimientos que quieras registrar.',
       action: 'Volver a Configuración',
     }
   }
 
   const messages: Record<Exclude<MercadoPagoResultStatus, 'success'>, { title: string; description: string }> = {
-    denied: { title: 'No se completó la prueba', description: 'La autorización fue cancelada. No se importó ni modificó nada en Gota.' },
-    invalid: { title: 'No pudimos validar la prueba', description: 'El enlace de regreso no era válido. No se importó ni modificó nada en Gota.' },
-    not_configured: { title: 'La prueba no está disponible', description: 'La conexión todavía no está lista para probarse. No se importó ni modificó nada en Gota.' },
-    provider_error: { title: 'No pudimos completar la prueba', description: 'Mercado Pago no respondió de forma utilizable. No se importó ni modificó nada en Gota.' },
+    denied: { title: 'Conexión cancelada', description: 'La autorización fue cancelada. No se importó ni modificó nada en Gota.' },
+    invalid: { title: 'No pudimos validar la conexión', description: 'El enlace de regreso no era válido. No se importó ni modificó nada en Gota.' },
+    not_configured: { title: 'Conexión no disponible', description: 'La conexión todavía no está disponible. No se importó ni modificó nada en Gota.' },
+    provider_error: { title: 'No pudimos conectar Mercado Pago', description: 'Mercado Pago no respondió de forma utilizable. No se importó ni modificó nada en Gota.' },
   }
   return {
     eyebrow: 'Mercado Pago',

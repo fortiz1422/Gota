@@ -49,10 +49,10 @@ describe('Mercado Pago review statuses', () => {
       onDismiss: () => undefined,
     }))
 
-    expect(html).toContain('Pendientes')
-    expect(html).toContain('Ordenadas por fecha')
-    expect(html).toContain('Necesitan más información')
-    expect(html).toContain('Ver qué falta')
+    expect(html).toContain('2 movimientos para revisar')
+    expect(html).toContain('Acciones de la lista')
+    expect(html).toContain('Compra por verificar')
+    expect(html).toContain('Movimiento por identificar')
     expect(html).not.toContain('Desestimar seleccionadas')
     expect(html).not.toContain('Seleccionar anteriores a')
     expect(html).not.toContain('No hay operaciones pendientes para revisar.')
@@ -94,7 +94,7 @@ describe('Mercado Pago review statuses', () => {
       fundingSource: { kind: 'mercadopago_balance' },
     }
 
-    expect(getMercadoPagoFundingSourceLabel(unknown)).toBe('Medio de pago no identificado')
-    expect(getMercadoPagoFundingSourceLabel(observedBalance)).toBe('Saldo de Mercado Pago')
+    expect(getMercadoPagoFundingSourceLabel(unknown)).toBe('Medio por identificar')
+    expect(getMercadoPagoFundingSourceLabel(observedBalance)).toBe('Saldo MP')
   })
 })
