@@ -139,3 +139,10 @@ El nuevo test aditivo1x detectó que la validación SQL todavía exigía2..72. C
 Commit68a6dc1, CI37131672897 success: 26 checks cuotas +27 postings=53 nativos, más suite legacy1x independiente verde. Verifica RPC legacy intacto al aplicar migración aditiva y1x nuevo idempotente. Suite completa1049/155 verde; tipos/lint focalizado verdes. Vercel deployment dpl_EWJfGPTTeh8w2HnEg35kTscDFtY4 READY para68a6dc1. Deploy previo56155f8 falló, pero el commit final está READY; MCP build logs devolvió tool-not-found, no se inventa causa de ese fallo.
 
 Único siguiente paso concreto: autorización específica para aplicar los tres scripts de docs/mercadopago-v2-rollout.md al proyecto compartido y flags manuales sólo Preview. Se mantiene el límite anterior de no migrar/activar en real hasta esa autorización. Auto-post/background/import y pruebas ledger siguen fuera; no se presenta la habilitación como realizada ni matriz real como aprobada.
+
+
+### Habilitación autorizada3/oct
+
+Facundo autorizó explícitamente los tres scripts +cuotas/duplicados sóloPreview. Aplicadas en Supabase:20261003162312 mercadopago_v2_additive_card_purchase;20261003162341 mercadopago_v2_audited_postings;20261003162349 mercadopago_v2_reconciliation_state. Verificado hash legacy1x intacto38f84095dc44acbef192ed7012b3c4ac; nuevosRPCs service execute true, anon/auth false; postingsRLStrue; triggerO; tres campos nuevos presentes. Conexión scoped conserva backgroundfalse/autopostfalse/importnot_started. Sin filas de canon modificadas como prueba.
+
+ConectorVercel disponible no incluye env mutation/CLI autenticada. Alternativa revisable autorizada: next.config.env usa helper failclosed únicamente VERCEL_ENV=preview +rama exacta feat/mercadopago-integration-v2. Dos flags manualestrue y auto/background/reconciliationfalse. No variables secretas ni cambioDashboard/production. Cuatro tests de alcance aprobados; tipos/lint/diffcheck verdes. Publicación/Preview/browser verification pendientes en este checkpoint.
