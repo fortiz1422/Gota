@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto'
 import { syncMercadoPagoSettlementReport } from './settlement-report'
 import { observationNativeKey, type MercadoPagoSource, type RawObservation } from './raw-observation'
 import { windowFromDates, type SyncWindow } from './sync-window'
@@ -15,7 +16,9 @@ type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
 export type SourceRun = { source: Source; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; beginDate?: string; endDate?: string }
 
-function paymentSearchUrl(window: SyncWindow, offset: number): string {
+export type PaymentSearchRole = 'default' | 'payer' | 'collector'
+
+function paymentSearchUrl(window: SyncWindow, offset: number, role: PaymentSearchRole = 'default'): string {
   const url = new URL(`${API}/v1/payments/search`)
   url.search = new URLSearchParams({
     sort: 'date_created',
@@ -26,6 +29,7 @@ function paymentSearchUrl(window: SyncWindow, offset: number): string {
     limit: String(MERCADOPAGO_PAGE_SIZE),
     offset: String(offset),
   }).toString()
+  if (role !== 'default') url.searchParams.set(`${role}.id`, 'me')
   return url.toString()
 }
 
@@ -39,9 +43,9 @@ function items(payload: unknown): unknown[] {
   if (typeof payload === 'object' && payload !== null) {
     const record = payload as Record<string, unknown>
     const value = record.results ?? record.data
-    return Array.isArray(value) ? value : []
+    if (Array.isArray(value)) return value
   }
-  return []
+  throw new Error('provider_error')
 }
 
 async function getJson(url: string, token: string, fetchImpl: FetchLike): Promise<unknown> {
@@ -54,10 +58,10 @@ async function getJson(url: string, token: string, fetchImpl: FetchLike): Promis
   return response.json().catch(() => { throw new Error('provider_error') })
 }
 
-async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId }: { userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
+export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId, role = 'default' }: { role?: PaymentSearchRole; userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
   let count = 0
   for (let page = 0; page < MERCADOPAGO_MAX_PAGES; page += 1) {
-    const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE), accessToken, fetchImpl)
+    const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE, role), accessToken, fetchImpl)
     const rows = items(payload)
     for (const row of rows) {
       await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
@@ -66,14 +70,15 @@ async function pullPayments({ userId, accessToken, window, fetchImpl, store, sta
     const paging = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>).paging : null
     const rawTotal = typeof paging === 'object' && paging !== null ? (paging as Record<string, unknown>).total : null
     const total: number | null = typeof rawTotal === 'number' ? rawTotal : null
-    if (rows.length < MERCADOPAGO_PAGE_SIZE || (total !== null && count >= total)) break
+    if ((total !== null && count >= total) || (total === null && rows.length < MERCADOPAGO_PAGE_SIZE)) return { source: 'payments_search', status: 'success', count, errorCode: null }
+    if (rows.length < MERCADOPAGO_PAGE_SIZE) throw new Error('provider_error')
   }
-  return { source: 'payments_search', status: 'success', count, errorCode: null }
+  return { source: 'payments_search', status: 'error', count, errorCode: 'provider_error' }
 }
 
 export async function syncMercadoPagoObservations({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, lastSettlementPendingAt }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; lastSettlementPendingAt?: string | null }) {
   const started = now.toISOString()
-  const batchId = `mp-${now.getTime()}`
+  const batchId = `mp-${randomUUID()}`
   const effectiveWindow = window ?? windowFromDates(new Date(now.getTime() - 89 * 24 * 60 * 60 * 1000), new Date(now.getTime()), 'custom')
   const settle = async (operation: () => Promise<SourceRun>, source: Source): Promise<SourceRun> => {
     try { return await operation() } catch { return { source, status: 'error', count: 0, errorCode: 'provider_error' } }

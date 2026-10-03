@@ -37,7 +37,7 @@ describe('Mercado Pago review UI contract', () => {
     expect(reviewClientSource).not.toContain('accountId: payload.account_id')
   })
 
-  it('keeps the normal inbox flat and gates bulk selection behind Seleccionar', () => {
+  it('groups pending movements and gates bulk selection behind advanced options', () => {
     expect(reviewClientSource).toContain('onEnterSelection')
     expect(reviewClientSource).toContain('onCancelSelection')
     expect(reviewClientSource).toContain('selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11')
@@ -55,6 +55,15 @@ describe('Mercado Pago review UI contract', () => {
 
   it('offers destructive dismissal from both review detail states', () => {
     expect(reviewClientSource.match(/Desestimar operación/g)?.length).toBeGreaterThanOrEqual(2)
-    expect(reviewClientSource).toContain('Todavía no disponible para registrar')
+    expect(reviewClientSource).toContain('Esta operación todavía no se puede confirmar')
+  })
+
+  it('finishes financial confirmation before reporting merchant-memory outcome', () => {
+    expect(reviewClientSource).toContain('onSave={completeConfirmation}')
+    expect(reviewClientSource).toContain('outcome?.aliasSaved === false')
+    expect(reviewClientSource).not.toContain('onConfirm={confirm} onSave={() => undefined}')
+    expect(parsePreviewSource).toContain("useState(aliasSource === 'mercadopago')")
+    expect(parsePreviewSource).toContain("method: 'PATCH'")
+    expect(parsePreviewSource).toContain('default_category: form.category')
   })
 })

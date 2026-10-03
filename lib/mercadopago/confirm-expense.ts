@@ -1,13 +1,16 @@
 import { createHash } from 'node:crypto'
 import { normalizeMercadoPagoMovement } from './provider-movement'
-import { reconcileMercadoPagoMovements, type ReconciledMercadoPagoMovement, type ReconciliationObservation } from './reconciliation'
+import { observationFingerprint, reconcileMercadoPagoMovements, type ReconciledMercadoPagoMovement, type ReconciliationObservation } from './reconciliation'
 import type { MercadoPagoConnection, MercadoPagoMovementObservation } from './server-repository'
 
 const stableJson = (value: unknown) => JSON.stringify(value)
 const sha256 = (value: string) => createHash('sha256').update(value).digest('hex')
 
-export function candidateFingerprint(candidate: { evidence: Array<{ source: string; native_key?: string | null; last_seen_at?: string; movement: unknown }> }) {
-  return sha256(stableJson(candidate.evidence.map((evidence) => [evidence.source, evidence.native_key ?? null, evidence.movement]).sort((a, b) => stableJson(a).localeCompare(stableJson(b)))))
+export function candidateFingerprint(candidate: { evidence: Array<{ source: string; movement: unknown; native_key?: string | null; last_seen_at?: string }> }) {
+  // This is also the shadow-decision identity. Keep one canonical algorithm so
+  // an exception shown in the inbox can only refer to the exact evidence that
+  // the classifier evaluated.
+  return sha256(candidate.evidence.map((evidence) => observationFingerprint(evidence as ReconciliationObservation)).sort().join('|'))
 }
 
 export function buildCanonicalSemantics() {
@@ -18,6 +21,13 @@ export function buildConfirmationIntentHash(input: { description: string; catego
   return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant, ...(input.cardId ? { cardId: input.cardId, installments: input.installments ?? null } : {}) }))
 }
 
+export function getMercadoPagoCardPurchaseAmount(candidate: Pick<ReconciledMercadoPagoMovement, 'amount' | 'summary'>) {
+  // An explicit total paid includes financing costs; never multiply a payment
+  // amount by the count or fall back from a malformed explicit total.
+  const total = candidate.summary.totalPaid ?? candidate.amount.value
+  return typeof total === 'number' && Number.isFinite(total) && total > 0 && Number.isSafeInteger(Math.round(total * 100)) ? total : null
+}
+
 export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPagoMovement, 'kind' | 'direction' | 'accountRole' | 'operation' | 'fundingSource' | 'amount' | 'occurredAt' | 'installments' | 'summary'>) {
   return candidate.kind === 'expense' && candidate.direction === 'outflow' && candidate.accountRole === 'payer'
     && ['regular_payment', 'recurring_payment'].includes(candidate.operation.type ?? '')
@@ -26,7 +36,8 @@ export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPa
     && Number.isFinite(candidate.amount.value) && candidate.amount.value > 0
     && ['ARS', 'USD'].includes(candidate.amount.currency ?? '')
     && Boolean(candidate.occurredAt && Number.isFinite(Date.parse(candidate.occurredAt)))
-    && (candidate.summary.refunded === null || candidate.summary.refunded === 0) && candidate.installments === 1
+    && (candidate.summary.refunded === null || candidate.summary.refunded === 0) && Number.isInteger(candidate.installments) && candidate.installments! >= 1 && candidate.installments! <= 72
+    && getMercadoPagoCardPurchaseAmount(candidate) !== null
 }
 
 export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnection, observations: MercadoPagoMovementObservation[]) {
@@ -41,7 +52,7 @@ export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnecti
   return reconcileMercadoPagoMovements(internal)
 }
 
-export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null) {
+export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMovement, review?: { status: 'confirmed'; expense_id: string } | { status: 'dismissed' } | null, attention?: 'possible_duplicate' | null) {
   const { evidence, settlement, nativeId, reasonCodes, accountRole, ...visible } = candidate
   void evidence; void settlement; void nativeId; void reasonCodes; void accountRole
   if (visible.fundingSource && 'issuerId' in visible.fundingSource) {
@@ -51,8 +62,10 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
   }
   return {
     ...visible,
-    cardPurchaseEligible: isEligibleCreditCardPurchase(candidate),
+    cardPurchaseEligible: isEligibleCreditCardPurchase(candidate) && ((candidate.installments === 1 && getMercadoPagoCardPurchaseAmount(candidate) === candidate.amount.value) || process.env.MERCADOPAGO_CARD_INSTALLMENTS_ENABLED === 'true'),
+    cardPurchaseAmount: getMercadoPagoCardPurchaseAmount(candidate),
     cardType: candidate.fundingSource.cardType ?? null,
+    ...(attention ? { attention } : {}),
     reviewStatus: review?.status ?? 'pending',
     ...(review?.status === 'confirmed' ? { expenseId: review.expense_id } : {}),
     reviewSnapshot: review ? undefined : {
@@ -65,7 +78,12 @@ export function publicMercadoPagoMovement(candidate: ReconciledMercadoPagoMoveme
 export function eligibleMercadoPagoExpense(candidate: ReconciledMercadoPagoMovement) {
   const amount = candidate.balanceImpact.amount.value
   const occurredAt = candidate.balanceOccurredAt
-  return candidate.balanceImpact.observed && candidate.balanceImpact.effect === 'debit' && typeof amount === 'number' && Number.isFinite(amount) && amount !== 0 && amount < 0 && (candidate.balanceImpact.amount.currency === 'ARS' || candidate.balanceImpact.amount.currency === 'USD') && Boolean(occurredAt && Number.isFinite(Date.parse(occurredAt)))
+  const forbiddenFinancialType = ['income', 'neutral'].includes(candidate.kind)
+    || (candidate.kind === 'transfer' && (candidate.direction !== 'outflow' || candidate.fundingSource.kind === 'card' || (candidate.installments ?? 1) > 1))
+  const reversal = (candidate.summary.refunded ?? 0) > 0
+    || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.statusDetail ?? '')
+    || ['refunded', 'charged_back', 'in_mediation'].includes(candidate.operation.status ?? '')
+  return !forbiddenFinancialType && !reversal && candidate.balanceImpact.observed && candidate.balanceImpact.effect === 'debit' && typeof amount === 'number' && Number.isFinite(amount) && amount !== 0 && amount < 0 && (candidate.balanceImpact.amount.currency === 'ARS' || candidate.balanceImpact.amount.currency === 'USD') && Boolean(occurredAt && Number.isFinite(Date.parse(occurredAt)))
 }
 
 export function expectedObservations(candidate: ReconciledMercadoPagoMovement) {

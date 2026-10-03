@@ -5,7 +5,7 @@ const root = new URL('..', import.meta.url).pathname
 const reviewSql = readFileSync(`${root}docs/supabase-mercadopago-movement-reviews.sql`, 'utf8')
 const cardSql = readFileSync(`${root}docs/supabase-mercadopago-card-confirmation.sql`, 'utf8')
 const id = `gota-mp-card-${process.pid}-${Date.now()}`
-const sql = (text, role='postgres') => execFileSync('docker',['exec','-i',id,'psql','-v','ON_ERROR_STOP=1','-U',role,'-d','postgres'],{input:text,encoding:'utf8',stdio:['pipe','pipe','pipe']})
+const sql = (text, role='postgres') => execFileSync('docker',['exec','-i',id,'psql','-h','127.0.0.1','-v','ON_ERROR_STOP=1','-U',role,'-d','postgres'],{input:text,encoding:'utf8',stdio:['pipe','pipe','pipe']})
 const user='00000000-0000-0000-0000-000000000001', other='00000000-0000-0000-0000-000000000002'
 const conn='10000000-0000-0000-0000-000000000001', otherConn='10000000-0000-0000-0000-000000000002'
 const card='20000000-0000-0000-0000-000000000001', foreignCard='20000000-0000-0000-0000-000000000002', archivedCard='20000000-0000-0000-0000-000000000003', secondCard='20000000-0000-0000-0000-000000000004', adjustedCard='20000000-0000-0000-0000-000000000005', monthEndCard='20000000-0000-0000-0000-000000000006', futureAdjustedCard='20000000-0000-0000-0000-000000000007'
@@ -26,7 +26,7 @@ try {
  create table public.accounts(id uuid primary key,user_id uuid not null references auth.users(id),name text not null,type text not null,archived boolean not null default false);
  create table public.cards(id uuid primary key,user_id uuid not null references auth.users(id),name text not null,closing_day integer,due_day integer not null default 10,archived boolean not null default false);
  create table public.card_cycles(id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users(id),card_id uuid not null references public.cards(id),period_month date not null,closing_date date not null,due_date date not null,status text not null,unique(card_id,period_month));
- create table public.expenses(id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users(id),amount numeric not null,currency text not null,category text not null,description text not null,is_want boolean not null,payment_method text not null,account_id uuid,card_id uuid references public.cards(id),card_cycle_id uuid references public.card_cycles(id),date timestamptz not null);
+ create table public.expenses(id uuid primary key default gen_random_uuid(),user_id uuid not null references auth.users(id),amount numeric not null,currency text not null,category text not null,description text not null,is_want boolean not null,payment_method text not null,account_id uuid,card_id varchar,card_cycle_id uuid references public.card_cycles(id),date timestamptz not null);
  insert into public.accounts values('40000000-0000-0000-0000-000000000001','${user}','Caja','cash',false);
  insert into public.cards values('${card}','${user}','Visa',15,10,false),('${foreignCard}','${other}','Ajena',15,10,false),('${archivedCard}','${user}','Archivada',15,10,true),('${secondCard}','${user}','Master',20,10,false),('${adjustedCard}','${user}','Cierre ajustado',15,10,false),('${monthEndCard}','${user}','Fin de mes',31,31,false),('${futureAdjustedCard}','${user}','Cierre marzo existente',10,10,false);
  insert into public.mercadopago_raw_observations values
@@ -69,7 +69,8 @@ try {
  if(!sql(`select count(*) from public.card_cycles where card_id='${card}' and period_month='2026-11-01'`).includes('0')) throw Error('cycle survived failed expense transaction')
  if(!sql(`select count(*) from public.mercadopago_movement_reviews where candidate_id='late-rollback'`).includes('0')) throw Error('review survived failed expense transaction')
  if(!sql(`select count(*) from public.expenses where payment_method='CREDIT' and card_id='${card}'`).includes('2')) throw Error('expected exactly two CREDIT expenses')
- const race=await Promise.all([1,2].map(()=>new Promise((resolve,reject)=>{const p=spawn('docker',['exec','-i',id,'psql','-v','ON_ERROR_STOP=1','-U','service_role','-d','postgres']);let out='';p.stdout.on('data',x=>out+=x);p.stderr.on('data',x=>out+=x);p.on('close',c=>c?reject(Error(out)):resolve(out));p.stdin.end(call({candidate:'race-card',fp:'5'.repeat(64)}))})))
+ sql(`insert into public.mercadopago_raw_observations select '30000000-0000-0000-0000-000000000009',user_id,connection_id,source,'pay-race',payload,first_seen_at,last_seen_at from public.mercadopago_raw_observations where id='${raw1}'`)
+ const race=await Promise.all([1,2].map(()=>new Promise((resolve,reject)=>{const p=spawn('docker',['exec','-i',id,'psql','-h','127.0.0.1','-v','ON_ERROR_STOP=1','-U','service_role','-d','postgres']);let out='';p.stdout.on('data',x=>out+=x);p.stderr.on('data',x=>out+=x);p.on('close',c=>c?reject(Error(out)):resolve(out));p.stdin.end(call({candidate:'race-card',fp:'5'.repeat(64),obs:obs('30000000-0000-0000-0000-000000000009','pay-race')}))})))
  const ids=race.map(out=>out.match(/[0-9a-f]{8}-[0-9a-f-]{27}/)?.[0]); if(!ids[0]||ids[0]!==ids[1]) throw Error(`race replay mismatch ${ids}`)
  if(!sql(`select count(*) from public.mercadopago_movement_reviews where candidate_id='boundary-before'`).includes('1')) throw Error('replay review missing')
  const refreshed='2026-09-24T10:00:00Z'

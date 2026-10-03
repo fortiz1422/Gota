@@ -1,3 +1,5 @@
+import { mercadoPagoBackgroundEnabled } from '@/lib/mercadopago/sync-lease'
+import { MercadoPagoSetupCard } from '@/components/settings/MercadoPagoSetupCard'
 import { ArrowLeft, CheckCircle, ShieldCheck } from '@phosphor-icons/react/dist/ssr'
 import { unstable_noStore as noStore } from 'next/cache'
 import { createClient } from '@/lib/supabase/server'
@@ -17,7 +19,8 @@ export default async function MercadoPagoResultPage({
   const params = await searchParams
   const status = parseMercadoPagoResultStatus(typeof params.status === 'string' ? params.status : undefined)
   const result = status === 'success' ? { status: 'success' as const } : { status }
-  const copy = getMercadoPagoResultCopy(result)
+  const setupAvailable = status === 'success' && mercadoPagoBackgroundEnabled()
+  const copy = setupAvailable ? { eyebrow: 'Mercado Pago', title: 'Mercado Pago conectado', description: 'Elegí desde cuándo querés empezar a capturar tus movimientos.', note: 'Los movimientos se revisan antes de incorporarse a Gota.', action: 'Volver a Configuración' } : getMercadoPagoResultCopy(result)
 
   return (
     <main className="min-h-app bg-bg-secondary px-5 pb-safe-cta pt-safe">
@@ -35,12 +38,13 @@ export default async function MercadoPagoResultPage({
           <p className="type-body mt-3 text-text-secondary">{copy.description}</p>
           <p className="type-body-lg mt-4 text-text-primary">{copy.note}</p>
 
-          {status === 'success' && (
+          {status === 'success' && !setupAvailable && (
             <div className="mt-6 divide-y divide-separator rounded-card bg-bg-secondary">
-              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><ShieldCheck size={22} weight="light" className="text-success" aria-hidden="true" />{copy.identity}</p>
-              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><CheckCircle size={22} weight="light" className="text-data" aria-hidden="true" />{copy.nextStep}</p>
+              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><ShieldCheck size={22} weight="light" className="text-success" aria-hidden="true" />{getMercadoPagoResultCopy(result).identity}</p>
+              <p className="flex items-center gap-3 p-4 type-body text-text-primary"><CheckCircle size={22} weight="light" className="text-data" aria-hidden="true" />{getMercadoPagoResultCopy(result).nextStep}</p>
             </div>
           )}
+          {setupAvailable && <MercadoPagoSetupCard />}
           <a href="/settings" className="mt-8 flex min-h-12 items-center justify-center rounded-button bg-primary px-5 type-body-lg text-white transition-opacity hover:opacity-90">{copy.action}</a>
         </section>
       </div>

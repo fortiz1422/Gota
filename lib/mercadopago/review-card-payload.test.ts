@@ -7,11 +7,11 @@ import { buildConfirmExpensePayload } from './review'
 describe('Mercado Pago UI confirmation payload', () => {
   it('renders provider credit purchase as immutable card evidence without unsupported controls', () => {
     const html = renderToStaticMarkup(createElement(ParsePreview, {
-      data: { amount: 800, currency: 'ARS', category: '', description: 'Compra', is_want: false, payment_method: 'CREDIT', card_id: null, installments: 1, date: '2026-09-15T12:00:00Z' },
+      data: { amount: 800, currency: 'ARS', category: '', description: 'Compra', is_want: false, payment_method: 'CREDIT', card_id: null, installments: 1, date: '2026-09-15T12:00:00Z', detected_alias: 'Compra' },
       cards: [{ id: 'card-1', name: 'Visa', archived: false } as never], accounts: [],
       onSave: () => undefined, onCancel: () => undefined, aliasSource: 'mercadopago', immutableProviderEvidence: true, embedded: true,
     }))
-    expect(html).toContain('Compra aprobada en Mercado Pago')
+    expect(html).not.toContain('Confirmar compra con tarjeta</h2>')
     expect(html).toContain('Tarjeta de crédito · compra en Mercado Pago')
     expect(html).toContain('Una cuota · según Mercado Pago')
     expect(html).toContain('Visa')
@@ -21,6 +21,8 @@ describe('Mercado Pago UI confirmation payload', () => {
     expect(html).not.toContain('Extraordinario')
     expect(html).not.toContain('Pago de Tarjetas</option>')
     expect(html).toContain('Deseo')
+    expect(html).toContain('Recordar este comercio para próximas veces')
+    expect(html).toContain('checked=""')
   })
 
   it('keeps normal editor installment, category and tag controls available', () => {
@@ -52,6 +54,15 @@ describe('Mercado Pago UI confirmation payload', () => {
       description: 'Compra', category: 'Alimentos', isWant: false,
       cardId: selectedCardId, installments: 1,
     })
+  })
+
+  it('shows provider installment count without editable installment controls', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: { amount: 67890.30, currency: 'ARS', category: '', description: 'Moto', is_want: false, payment_method: 'CREDIT', card_id: null, installments: 2, date: '2026-09-15' },
+      cards: [], accounts: [], onSave: () => undefined, onCancel: () => undefined, aliasSource: 'mercadopago', immutableProviderEvidence: true, embedded: true,
+    }))
+    expect(html).toContain('2 cuotas')
+    expect(html).not.toContain('placeholder="Otro"')
   })
 
   it('preserves the legacy linked-balance payload exactly', () => {

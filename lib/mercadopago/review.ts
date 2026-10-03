@@ -14,8 +14,10 @@ export type MercadoPagoMovement = {
   reviewStatus: 'pending' | 'confirmed' | 'dismissed'
   balanceImpact: { observed: boolean; effect: 'debit' | 'credit' | 'zero' | 'unknown'; amount: { value: number | null; currency: string | null } }
   fundingSource?: { kind?: string; brand?: string; lastFour?: string; cardType?: 'credit' | 'debit' }
+  cardPurchaseAmount?: number | null
   cardPurchaseEligible?: boolean
   cardType?: 'credit' | 'debit' | null
+  attention?: 'possible_duplicate'
   reviewSnapshot?: { fingerprint: string; observations: Array<{ id: string; source: string; key: string | null; seenAt: string }> }
 }
 export type MercadoPagoDiagnostic = MercadoPagoMovement
@@ -24,6 +26,7 @@ export type MercadoPagoReviewBuckets = { eligible: MercadoPagoMovement[]; cardPe
 export type MercadoPagoReviewCapability = { mode: 'confirmable' | 'evidence-only'; reason: 'complete_balance_debit' | 'complete_credit_card_purchase' | 'card_funding_incomplete' | 'financial_class_unresolved' }
 
 export function getMercadoPagoDisplayAmount(movement: MercadoPagoMovement) {
+  if (movement.fundingSource?.kind === 'card' && typeof movement.cardPurchaseAmount === 'number') return { ...movement.amount, value: movement.cardPurchaseAmount }
   if (typeof movement.amount.value === 'number' && Number.isFinite(movement.amount.value)) return movement.amount
   return movement.balanceImpact.amount
 }
@@ -35,7 +38,12 @@ export function getDisplayExpenseDescription(movement: MercadoPagoMovement) {
 export function getInitialExpenseDescription(movement: MercadoPagoMovement) { return getDisplayExpenseDescription(movement) }
 export function isReviewableMercadoPagoExpense(movement: MercadoPagoMovement) {
   const amount = movement.balanceImpact.amount
-  return movement.reviewStatus === 'pending' && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
+  const forbiddenFinancialType = ['income', 'neutral'].includes(movement.kind ?? '')
+    || (movement.kind === 'transfer' && (movement.direction !== 'outflow' || movement.fundingSource?.kind === 'card' || (movement.installments ?? 1) > 1))
+  const reversal = (movement.summary?.refunded ?? 0) > 0
+    || ['refunded', 'charged_back', 'in_mediation'].includes(movement.operation?.statusDetail ?? '')
+    || ['refunded', 'charged_back', 'in_mediation'].includes(movement.operation?.status ?? '')
+  return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate' && !forbiddenFinancialType && !reversal && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
 }
 export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovement) {
   return movement.reviewStatus === 'pending' && movement.cardPurchaseEligible === true && movement.kind === 'expense' && movement.direction === 'outflow'
@@ -43,7 +51,7 @@ export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovemen
     && movement.operation?.status === 'approved' && !['charged_back', 'in_mediation', 'refunded'].includes(movement.operation.statusDetail ?? '') && movement.fundingSource?.kind === 'card'
     && movement.cardType === 'credit' && typeof movement.amount.value === 'number' && movement.amount.value > 0
     && ['ARS', 'USD'].includes(movement.amount.currency ?? '')
-    && Boolean(movement.occurredAt && Number.isFinite(Date.parse(movement.occurredAt))) && movement.installments === 1
+    && Boolean(movement.occurredAt && Number.isFinite(Date.parse(movement.occurredAt))) && Number.isInteger(movement.installments) && movement.installments! >= 1 && movement.installments! <= 72
     && (movement.summary?.refunded === null || movement.summary?.refunded === 0)
 }
 

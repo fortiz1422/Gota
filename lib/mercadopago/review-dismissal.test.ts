@@ -51,7 +51,8 @@ describe('Mercado Pago review statuses', () => {
 
     expect(html).toContain('Pendientes')
     expect(html).toContain('Ordenadas por fecha')
-    expect(html).toContain('Revisar')
+    expect(html).toContain('Necesitan más información')
+    expect(html).toContain('Ver qué falta')
     expect(html).not.toContain('Desestimar seleccionadas')
     expect(html).not.toContain('Seleccionar anteriores a')
     expect(html).not.toContain('No hay operaciones pendientes para revisar.')
@@ -61,6 +62,7 @@ describe('Mercado Pago review statuses', () => {
     const card = {
       ...movement('pending'),
       candidateId: 'sha256:card',
+      balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } },
       fundingSource: { kind: 'card', lastFour: '1234' },
     }
     const unknown = {
@@ -72,10 +74,10 @@ describe('Mercado Pago review statuses', () => {
     const cardHtml = renderToStaticMarkup(createElement(MercadoPagoReviewDetail, { movement: card }))
     const unknownHtml = renderToStaticMarkup(createElement(MercadoPagoReviewDetail, { movement: unknown }))
 
-    expect(cardHtml).toContain('Todavía no disponible para registrar con la información disponible.')
+    expect(cardHtml).toContain('Falta información de la compra o de su tarjeta')
     expect(cardHtml).toContain('Esta operación todavía no se puede confirmar')
     expect(cardHtml).not.toContain('Confirmar gasto')
-    expect(unknownHtml).toContain('Todavía no disponible para registrar: no hay evidencia suficiente.')
+    expect(unknownHtml).toContain('El importe por sí solo no alcanza')
     expect(unknownHtml).toContain('Esta operación todavía no se puede confirmar')
     expect(unknownHtml).not.toContain('Confirmar gasto')
   })

@@ -20,6 +20,7 @@ type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; 
 export type MercadoPagoMovementObservation = { id: string; source: RawObservation['source']; native_key: string; payload: unknown; last_seen_at: string }
 export type MercadoPagoMovementReview = { candidate_id: string; status: 'confirmed'; expense_id: string }
 export type MercadoPagoMovementDismissal = { candidate_id: string; status: 'dismissed' }
+export type MercadoPagoShadowDecision = { candidate_id: string; candidate_fingerprint: string; rule_version: number; decision: string; reasons: string[]; evaluated_at: string }
 type Query<T> = {
   upsert: (values: Record<string, unknown>, options: { onConflict: string }) => { select: (columns: string) => { single: () => Promise<Result<T>> } }
   select: (columns: string) => { eq: (column: string, value: string) => { eq: (column: string, value: string) => { maybeSingle: () => Promise<Result<T>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>>; range: (from: number, to: number) => Promise<Result<T[]>>; order: (column: string, options: { ascending: boolean }) => { limit: (count: number) => Promise<Result<T[]>>; range: (from: number, to: number) => Promise<Result<T[]>> } }; eq: (column: string, value: string) => { select: (columns: string) => { single: () => Promise<Result<T>> } } } } }
@@ -147,4 +148,35 @@ export async function getMercadoPagoMovementDismissals(userId: string, connectio
   const result = await (createAdminClient() as unknown as ReviewDatabase).from('mercadopago_movement_dismissals').select('candidate_id,status').eq('user_id', userId).eq('connection_id', connectionId)
   if (result.error || !result.data) throw new Error('movement_dismissals_read_failed')
   return result.data as unknown as MercadoPagoMovementDismissal[]
+}
+
+type ShadowDecisionDatabase = {
+  from: (table: 'mercadopago_shadow_decisions') => {
+    select: (columns: string) => {
+      eq: (column: string, value: string) => {
+        eq: (column: string, value: string) => {
+          order: (column: string, options: { ascending: boolean }) => {
+            range: (from: number, to: number) => Promise<{ data: MercadoPagoShadowDecision[] | null; error: unknown }>
+          }
+        }
+      }
+    }
+  }
+}
+
+export async function getMercadoPagoShadowDecisions(userId: string, connectionId: string): Promise<MercadoPagoShadowDecision[]> {
+  const rows: MercadoPagoShadowDecision[] = []
+  const database = createAdminClient() as unknown as ShadowDecisionDatabase
+  for (let page = 0; page < 100; page += 1) {
+    const result = await database.from('mercadopago_shadow_decisions')
+      .select('candidate_id,candidate_fingerprint,rule_version,decision,reasons,evaluated_at')
+      .eq('user_id', userId)
+      .eq('connection_id', connectionId)
+      .order('evaluated_at', { ascending: false })
+      .range(page * 100, page * 100 + 99)
+    if (result.error || !result.data) throw new Error('shadow_decisions_read_failed')
+    rows.push(...result.data)
+    if (result.data.length < 100) return rows
+  }
+  throw new Error('shadow_decisions_limit_exceeded')
 }

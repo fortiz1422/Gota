@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import payoutFixture from './fixtures/payout-outflow.sanitized.json'
 import { normalizeMercadoPagoMovement } from './provider-movement'
 
 const base = {
@@ -99,5 +100,31 @@ describe('normalizeMercadoPagoMovement', () => {
   it('does not infer approval from undocumented settlement STATUS columns', () => {
     const result = normalizeMercadoPagoMovement({ source: 'account_settlement_report', providerUserId: '42', nativeKey: 'source-1', payload: { SOURCE_ID: 'source-1', TRANSACTION_TYPE: 'SETTLEMENT', TRANSACTION_AMOUNT: '10', TRANSACTION_CURRENCY: 'ARS', STATUS: 'approved' } })
     expect(result).toMatchObject({ nativeId: 'source-1', kind: 'unknown', direction: 'unknown', operation: { status: null }, confidence: 'partial' })
+  })
+
+  it('classifies an observed negative settlement PAYOUTS row as transfer out without inventing its destination', () => {
+    const result = normalizeMercadoPagoMovement({
+      source: payoutFixture.source as 'account_settlement_report',
+      providerUserId: payoutFixture.providerUserId,
+      nativeKey: payoutFixture.nativeKey,
+      payload: payoutFixture.payload,
+    })
+    expect(result).toMatchObject({
+      kind: 'transfer', direction: 'outflow', accountRole: 'unknown', confidence: 'partial',
+      amount: { value: -1000, currency: 'ARS' }, occurredAt: '2026-10-01T22:26:52.000-03:00',
+      operation: { type: 'PAYOUTS', status: null }, fundingSource: { kind: 'unknown' },
+    })
+    expect(result.reasonCodes).toEqual(expect.arrayContaining(['account_role_unresolved', 'status_unresolved']))
+    expect(JSON.stringify(payoutFixture.payload)).not.toMatch(/cvu|cbu|access_token|refresh_token|destination|beneficiary/i)
+  })
+
+  it('does not classify non-debit PAYOUTS rows as outgoing transfers', () => {
+    for (const amount of ['0.00', '1000.00']) {
+      const result = normalizeMercadoPagoMovement({
+        source: 'account_settlement_report', providerUserId: 'owner', nativeKey: `payout-${amount}`,
+        payload: { ...payoutFixture.payload, TRANSACTION_AMOUNT: amount },
+      })
+      expect(result).toMatchObject({ kind: 'unknown', direction: 'unknown' })
+    }
   })
 })

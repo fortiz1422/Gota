@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { getCyclePeriodMonthForDate } from '@/lib/card-cycle-assignment'
+import { getCyclePeriodMonthForDate, buildCardCyclePlan } from '@/lib/card-cycle-assignment'
 import type { Card, CardCycle } from '@/types/database'
 
 function makeCard(overrides: Partial<Card> = {}): Card {
@@ -54,5 +54,13 @@ describe('getCyclePeriodMonthForDate', () => {
         makeCycle({ period_month: '2026-07-01', closing_date: '2026-08-02' }),
       ]),
     ).toBe('2026-07')
+  })
+})
+
+describe('shared pure installment cycle planner', () => {
+  it('preserves edited existing dates and carries the schedule to future installments', () => {
+    const rows = buildCardCyclePlan('user-1', makeCard(), '2026-07-01', 3, [makeCycle()])
+    expect(rows.map(row => row.period_month)).toEqual(['2026-06-01','2026-07-01','2026-08-01'])
+    expect(rows.map(row => row.closing_date)).toEqual(['2026-07-02','2026-08-02','2026-09-02'])
   })
 })

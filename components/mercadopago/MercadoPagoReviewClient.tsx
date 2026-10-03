@@ -1,5 +1,8 @@
 'use client'
 
+import { MercadoPagoDuplicateReview, type MercadoPagoDuplicateChoice } from './MercadoPagoDuplicateReview'
+import { CATEGORIES } from '@/lib/validation/schemas'
+
 import Link from 'next/link'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
@@ -27,6 +30,8 @@ import {
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import type { Account, Card } from '@/types/database'
+import { getMercadoPagoReviewPresentation, formatMercadoPagoObservedDate as formatObservedDate } from '@/lib/mercadopago/review-presentation'
+import { matchMercadoPagoCard } from '@/lib/mercadopago/card-matcher'
 
 type State = {
   movements: MercadoPagoMovement[]
@@ -67,17 +72,12 @@ function formatMoney(movement: MercadoPagoMovement) {
   }
 }
 
-function formatObservedDate(value: string | null) {
-  if (!value || !Number.isFinite(Date.parse(value))) return 'Sin fecha'
-  return new Date(value).toLocaleDateString('es-AR')
-}
-
 export function getMercadoPagoFundingSourceLabel(movement: MercadoPagoMovement) {
   if (movement.fundingSource?.kind === 'mercadopago_balance') {
     return 'Saldo de Mercado Pago'
   }
   if (movement.fundingSource?.kind === 'card') {
-    return `Pagado con tarjeta${
+    return `${movement.fundingSource.brand || 'Tarjeta'}${
       movement.fundingSource.lastFour
         ? ` · •••• ${movement.fundingSource.lastFour}`
         : ''
@@ -92,12 +92,12 @@ type MercadoPagoReviewDetailProps = {
 }
 
 export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailProps) {
-  const isCard = movement.fundingSource?.kind === 'card'
+  const presentation = getMercadoPagoReviewPresentation(movement)
 
   return (
     <div className="space-y-4">
       <section className="rounded-input border border-border-subtle bg-primary/[0.03] p-4">
-        <p className="type-micro text-text-secondary">EVIDENCIA OBSERVADA</p>
+        <p className="type-micro text-text-secondary">DESDE MERCADO PAGO</p>
         <p className="mt-3 text-sm font-semibold">
           {getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}
         </p>
@@ -105,11 +105,10 @@ export function MercadoPagoReviewDetail({ movement }: MercadoPagoReviewDetailPro
           {formatMoney(movement)} · {formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}
         </p>
       </section>
-      <p className="text-sm text-text-secondary">
-        {isCard
-          ? 'Todavía no disponible para registrar con la información disponible.'
-          : 'Todavía no disponible para registrar: no hay evidencia suficiente.'}
-      </p>
+      <div>
+        <h3 className="font-semibold text-text-primary">{presentation.title}</h3>
+        <p className="mt-2 text-sm leading-relaxed text-text-secondary">{presentation.explanation}</p>
+      </div>
       <p className="rounded-input bg-bg-secondary p-3 text-sm font-semibold text-text-secondary">
         Esta operación todavía no se puede confirmar.
       </p>
@@ -122,6 +121,11 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   const movements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
   const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
+  const groups = [
+    { title: 'Para completar', description: 'Podés revisar y completar estos movimientos antes de confirmarlos.', items: movements.filter((movement) => getMercadoPagoReviewPresentation(movement).ready) },
+    { title: 'Necesitan más información', description: 'Estos movimientos siguen pendientes. Te explicamos qué falta en cada uno.', items: movements.filter((movement) => !getMercadoPagoReviewPresentation(movement).ready) },
+  ]
+
   return (
     <>
       <section className="mt-6 border-b border-border-subtle pb-4">
@@ -132,8 +136,8 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
 
       <section className="mt-7" aria-labelledby="pending-title">
         <div className="flex items-center justify-between gap-3">
-          <h2 id="pending-title" className="text-lg font-bold">Todas las operaciones pendientes</h2>
-          {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Cancelar</button> : <button type="button" onClick={onEnterSelection} className="min-h-11 rounded-button border border-primary px-3 text-sm font-semibold text-primary">Seleccionar</button>}
+          <h2 id="pending-title" className="text-lg font-bold">Tus movimientos pendientes</h2>
+          {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Cancelar</button> : <details className="text-xs text-text-secondary"><summary className="cursor-pointer py-3">Opciones avanzadas</summary><button type="button" onClick={onEnterSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Seleccionar operaciones</button></details>}
         </div>
         <p className="mt-1 text-sm text-text-secondary">Revisá cualquier operación para ver su detalle.</p>
         {selectionMode && <div className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-4">
@@ -148,15 +152,19 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
           <p className="mt-2 text-xs text-text-secondary">Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.</p>
         </div>}
         <div className="mt-3 space-y-3">
-          {movements.map((movement) => (
+          {groups.filter((group) => group.items.length > 0).map((group) => <section key={group.title} aria-label={group.title} className="space-y-3 pt-3">
+            <h3 className="font-bold text-text-primary">{group.title} · {group.items.length}</h3>
+            <p className="text-xs text-text-secondary">{group.description}</p>
+            {group.items.map((movement) => (
             <article key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
               {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
               <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
                 <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="min-w-0 font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span></span><span className="mt-1 block text-xs text-text-secondary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs font-semibold text-primary">Revisar</span></span>
+                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="min-w-0 font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span></span><span className="mt-1 block text-xs text-text-secondary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs leading-relaxed text-text-secondary">{getMercadoPagoReviewPresentation(movement).explanation}</span><span className="mt-2 block text-xs font-semibold text-primary">{getMercadoPagoReviewPresentation(movement).action}</span></span>
               </button>
             </article>
-          ))}
+            ))}
+          </section>)}
           {pendingCount === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay operaciones pendientes para revisar.</p>}
         </div>
       </section>
@@ -168,6 +176,7 @@ export function MercadoPagoReviewClient() {
   const [state, setState] = useState<State | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [duplicateChoice, setDuplicateChoice] = useState<MercadoPagoDuplicateChoice | null>(null)
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [accounts, setAccounts] = useState<Account[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -177,6 +186,7 @@ export function MercadoPagoReviewClient() {
   const [accountLinkLoading, setAccountLinkLoading] = useState(false)
   const [accountLinkError, setAccountLinkError] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [confirmationNotice, setConfirmationNotice] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState<MercadoPagoMovement | null>(null)
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkPreview, setBulkPreview] = useState<MercadoPagoMovement[] | null>(null)
@@ -186,11 +196,16 @@ export function MercadoPagoReviewClient() {
   const [dismissing, setDismissing] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const [dismissError, setDismissError] = useState(false)
+  const [aliasLoading, setAliasLoading] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
+  const cardMatch = selected && isReviewableMercadoPagoCardPurchase(selected)
+    ? matchMercadoPagoCard(selected.fundingSource, cards)
+    : { status: 'insufficient' as const, cardIds: [] as const }
   const dismissTriggerRef = useRef<HTMLElement | null>(null)
   const dismissingRef = useRef(false)
   const movementsRequest = useRef(0)
   const accountsRequest = useRef(0)
+  const cardsRequest = useRef(0)
   const selectionRequest = useRef(0)
 
   const load = useCallback(async () => {
@@ -217,13 +232,16 @@ export function MercadoPagoReviewClient() {
 
   const resetReview = useCallback(() => {
     accountsRequest.current += 1
+    cardsRequest.current += 1
     selectionRequest.current += 1
+    setDuplicateChoice(null)
     setSelected(null)
     setAccounts([])
     setAccountLink(null)
     setAccountLinkError(false)
     setAccountLinkLoading(false)
     setAliasMatch(null)
+    setAliasLoading(false)
   }, [])
 
   const loadAccounts = useCallback(async () => {
@@ -254,17 +272,21 @@ export function MercadoPagoReviewClient() {
   }, [])
 
   const loadCards = useCallback(async () => {
+    const request = ++cardsRequest.current
+    setCards([])
     setCardsLoading(true)
     setCardsError(false)
     try {
       const response = await fetch('/api/cards', { cache: 'no-store' })
       if (!response.ok) throw new Error('cards unavailable')
       const loaded = await response.json() as Card[]
+      if (request !== cardsRequest.current) return
       setCards(loaded.filter((card) => !card.archived))
     } catch {
+      if (request !== cardsRequest.current) return
       setCards([])
       setCardsError(true)
-    } finally { setCardsLoading(false) }
+    } finally { if (request === cardsRequest.current) setCardsLoading(false) }
   }, [])
 
   useEffect(() => {
@@ -272,15 +294,23 @@ export function MercadoPagoReviewClient() {
     return () => {
       movementsRequest.current += 1
       accountsRequest.current += 1
+      cardsRequest.current += 1
+      selectionRequest.current += 1
     }
   }, [load])
 
   const open = (movement: MercadoPagoMovement) => {
     const request = ++selectionRequest.current
+    setDuplicateChoice(null)
     setSelected(movement)
+    setConfirmationNotice(null)
     setAliasMatch(null)
-    if (isReviewableMercadoPagoExpense(movement)) {
-      void loadAccounts()
+    setAliasLoading(false)
+    if (movement.attention === 'possible_duplicate') void loadAccounts()
+    if (isReviewableMercadoPagoExpense(movement) || isReviewableMercadoPagoCardPurchase(movement)) {
+      if (isReviewableMercadoPagoExpense(movement)) void loadAccounts()
+      else void loadCards()
+      setAliasLoading(true)
       void fetch('/api/counterparty-aliases/resolve', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -289,8 +319,8 @@ export function MercadoPagoReviewClient() {
         if (!response.ok) return null
         const body = await response.json() as { match?: CounterpartyAliasMatch | null }
         return body.match ?? null
-      }).then((match) => { if (request === selectionRequest.current) setAliasMatch(match) }).catch(() => undefined)
-    } else if (isReviewableMercadoPagoCardPurchase(movement)) void loadCards()
+      }).then((match) => { if (request === selectionRequest.current) setAliasMatch(match) }).catch(() => undefined).finally(() => { if (request === selectionRequest.current) setAliasLoading(false) })
+    }
   }
 
   const confirm = async (payload: ParsePreviewConfirmPayload) => {
@@ -303,29 +333,41 @@ export function MercadoPagoReviewClient() {
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildConfirmExpensePayload({
+          body: JSON.stringify({ expectedCandidateFingerprint: selected.reviewSnapshot?.fingerprint, ...(duplicateChoice ? { duplicateResolution: duplicateChoice } : {}), ...buildConfirmExpensePayload({
             description: payload.description,
             category: payload.category,
             isWant: payload.is_want === true,
             expectedLinkedAccountId: accountLink?.linkedAccountId ?? '',
             expectedLinkedAccountVersion: accountLink?.linkedAccountVersion ?? -1,
             ...(isCardPurchase ? { cardId: payload.card_id ?? '', installments: payload.installments } : {}),
-          })),
+          }) }),
         },
       )
-      if (!response.ok) throw new Error('confirmation failed')
-      const next = sortMercadoPagoPendingMovements(
-        (state?.movements ?? []).filter((movement) => movement.candidateId !== selected.candidateId),
-      )[0]
-      resetReview()
-      await load()
-      if (next) open(next)
-      return await response.json()
+      if (!response.ok) {
+        if (response.status === 409 || response.status === 404) {
+          resetReview()
+          await load()
+          setConfirmationNotice('La operación o su vínculo cambió. Actualizamos la bandeja; revisala de nuevo antes de confirmar.')
+        } else {
+          setConfirmationNotice('No pudimos confirmar el movimiento. Revisá los datos y reintentá.')
+        }
+        throw new Error('confirmation failed')
+      }
+      const result: unknown = await response.json()
+      return result
     } catch {
       throw new Error('confirmation failed')
     } finally {
       setSubmitting(false)
     }
+  }
+
+  const completeConfirmation = (outcome?: { aliasSaved: boolean | null }) => {
+    setConfirmationNotice(outcome?.aliasSaved === false
+      ? 'Movimiento registrado. No pudimos guardar la preferencia de comercio; podés editarla desde Movimientos.'
+      : 'Movimiento registrado desde Mercado Pago. Podés editarlo desde Movimientos.')
+    resetReview()
+    void load()
   }
 
   const dismiss = async () => {
@@ -419,8 +461,10 @@ export function MercadoPagoReviewClient() {
         </div>
       </header>
       <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-        Revisá las operaciones observadas antes de incorporarlas a tu registro.
+        Los movimientos todavía requieren tu confirmación. Completá los que tienen información suficiente y revisá qué falta en los demás.
       </p>
+
+      {confirmationNotice && <p role="status" className="mt-4 rounded-input bg-primary-soft p-3 text-sm text-text-primary">{confirmationNotice} <Link href="/movimientos" className="font-semibold text-primary underline">Ver movimientos</Link></p>}
 
       {loading && (
         <p role="status" className="mt-10 text-center text-sm text-text-secondary">
@@ -499,7 +543,7 @@ export function MercadoPagoReviewClient() {
         }}
         eyebrow="MERCADO PAGO"
         title="Revisar operación"
-        description="Revisá la evidencia disponible y decidí si querés mantenerla pendiente o desestimarla."
+        description="Te explicamos qué falta para resolver este movimiento. Podés dejarlo pendiente o desestimarlo."
         appearance="compact"
         canvasTone="standard"
         footer={(
@@ -523,6 +567,23 @@ export function MercadoPagoReviewClient() {
         )}
       >
         {selected && <MercadoPagoReviewDetail movement={selected} />}
+        {selected?.attention === 'possible_duplicate' && accountLinkLoading && <p role="status">Validando la cuenta…</p>}
+        {selected?.attention === 'possible_duplicate' && accountLinkError && <p role="alert">No pudimos validar tu cuenta. Cerrá el detalle y reintentá.</p>}
+        {selected?.attention === 'possible_duplicate' && accountLink?.linkedAccountId && !accountLinkLoading && !accountLinkError && <MercadoPagoDuplicateReview key={selected.candidateId} movement={selected}
+          onKeep={(choice) => { setDuplicateChoice(choice); setSelected({ ...selected, attention: undefined }); void loadAccounts() }}
+          onLink={async (choice, expense) => {
+            const response = await fetch(`/api/integrations/mercadopago/movements/${encodeURIComponent(selected.candidateId)}/confirm-expense`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({
+                description: expense.description.slice(0,100), category: CATEGORIES.includes(expense.category as typeof CATEGORIES[number]) ? expense.category : 'Otros', isWant: expense.is_want,
+                expectedCandidateFingerprint: selected.reviewSnapshot?.fingerprint,
+                expectedLinkedAccountId: accountLink?.linkedAccountId, expectedLinkedAccountVersion: accountLink?.linkedAccountVersion,
+                duplicateResolution: choice,
+              }),
+            })
+            if (!response.ok) throw new Error('link_failed')
+            resetReview(); await load(); setConfirmationNotice('Vinculamos el movimiento al gasto existente. No creamos otro gasto.')
+          }} />}
+
       </TaskSurface>
 
       <TaskSurface
@@ -532,28 +593,35 @@ export function MercadoPagoReviewClient() {
         }}
         eyebrow="MERCADO PAGO"
         title={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Confirmar compra con tarjeta' : 'Confirmar gasto'}
-        description={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Compra aprobada en Mercado Pago. Elegí la tarjeta para registrarla; esta compra no representa un débito del saldo.' : 'Completá los datos para registrar este débito observado.'}
+        description={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Compra aprobada en Mercado Pago. Elegí la tarjeta para registrarla; esta compra no representa un débito del saldo.' : 'Revisá qué representa esta salida de saldo. Podés corregir el nombre y elegir la categoría antes de registrarla como gasto.'}
         appearance="compact"
         canvasTone="standard"
         footer={(
-          <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
-            Desestimar operación
-          </button>
+          <details className="text-sm text-text-secondary">
+            <summary className="min-h-11 cursor-pointer py-3 font-semibold">Más opciones</summary>
+            <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
+              Desestimar operación
+            </button>
+          </details>
         )}
       >
+        {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando tus preferencias para este comercio…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && !accountLink?.linkedAccountId && <div className="space-y-3"><p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Para confirmar un débito de saldo, primero elegí la cuenta que representa tu saldo de Mercado Pago.</p><Link href="/settings" className="inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Configurar vínculo</Link></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsLoading && <p role="status" className="text-sm text-text-secondary">Cargando tus tarjetas…</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No hay tarjetas activas para elegir. La compra sigue pendiente.</p>}
-        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && <ParsePreview
-          key={`${selected.candidateId}:${cards.length}:credit`}
-          data={{ amount: selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: null, installments: 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: null }}
-          cards={cards} accounts={[]} onConfirm={confirm} onSave={() => undefined} onCancel={resetReview}
-          aliasSource="mercadopago" immutableProviderEvidence embedded
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'exact' && <p className="rounded-input bg-primary/[0.06] p-3 text-sm text-text-secondary">Encontramos una única tarjeta compatible por sus últimos cuatro dígitos. Podés cambiarla antes de registrar.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'ambiguous' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Hay más de una tarjeta compatible. Elegí cuál usaste; Gota no selecciona una arbitrariamente.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'unmatched' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No encontramos una tarjeta con esos últimos cuatro dígitos. Elegila manualmente o agregala desde Configuración.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
+          key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
+          data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
+          cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
+          aliasSource="mercadopago" confirmLabel="Registrar compra" immutableProviderEvidence embedded
         />}
-        {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && <ParsePreview
+        {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
           data={{
             amount: Math.abs(selected.balanceImpact.amount.value ?? 0),
@@ -571,9 +639,10 @@ export function MercadoPagoReviewClient() {
           accounts={accounts}
           fixedAccount={accountLink?.linkedAccountId ? accountLink.accounts.find((account) => account.id === accountLink.linkedAccountId) ?? null : null}
           onConfirm={confirm}
-          onSave={() => undefined}
+          onSave={completeConfirmation}
           onCancel={resetReview}
           aliasSource="mercadopago"
+          confirmLabel="Registrar gasto"
           immutableProviderEvidence
           embedded
         />}

@@ -1,5 +1,9 @@
 begin;
 
+alter table public.mercadopago_movement_reviews add column if not exists decision_source text not null default 'human';
+alter table public.mercadopago_movement_reviews add column if not exists decision_rule_version integer not null default 0;
+alter table public.mercadopago_movement_reviews add column if not exists decision_reason text not null default 'legacy_human_confirmation';
+
 -- Card confirmations share the review ledger but do not belong to a balance account.
 alter table public.mercadopago_movement_reviews alter column account_id drop not null;
 alter table public.mercadopago_movement_reviews add column if not exists card_id uuid references public.cards(id) on delete restrict;
@@ -39,14 +43,16 @@ declare
 begin
   if p_user_id is null or p_connection_id is null or p_card_id is null
      or p_candidate_id is null or char_length(p_candidate_id) not between 1 and 256
+     or p_candidate_fingerprint is null or p_intent_hash is null
      or p_candidate_fingerprint !~ '^[a-f0-9]{64}$' or p_intent_hash !~ '^[a-f0-9]{64}$'
      or p_expected_observations is null or jsonb_typeof(p_expected_observations) <> 'array'
      or jsonb_array_length(p_expected_observations) not between 1 and 2 or p_amount is null or p_amount <= 0
-     or p_currency not in ('ARS','USD') or p_date is null or p_category is null
+     or p_currency is null or p_amount::text in ('NaN','Infinity','-Infinity') or p_currency not in ('ARS','USD') or p_date is null or p_category is null
      or char_length(p_category) not between 1 and 50 or p_description is null
      or char_length(p_description) not between 1 and 100 or p_is_want is null or p_installments <> 1 then
     raise exception 'invalid card confirmation' using errcode='22023';
   end if;
+  perform pg_advisory_xact_lock(hashtextextended('gota-ledger:user:'||p_user_id::text,0));
   perform pg_advisory_xact_lock(hashtextextended('mp-confirm:connection:'||p_connection_id::text||':user:'||p_user_id::text,0));
   select * into v_connection from public.mercadopago_connections where id=p_connection_id and user_id=p_user_id and provider='mercadopago' and status='connected' for update;
   if not found then raise exception 'inactive connection' using errcode='P0002'; end if;
@@ -71,13 +77,13 @@ begin
   v_type := coalesce(v_payload->>'operation_type','');
   v_role := case when coalesce(v_payload->>'payer_id',v_payload#>>'{payer,id}') = v_provider_user_id then 'payer' else 'other' end;
   if v_payload->>'status' <> 'approved' or v_type not in ('regular_payment','recurring_payment') or v_role <> 'payer'
-     or v_method <> 'credit_card' or coalesce((v_payload->>'transaction_amount')::numeric,(v_payload->>'amount')::numeric,0) <> p_amount
+     or v_method <> 'credit_card' or coalesce((v_payload#>>'{transaction_details,total_paid_amount}')::numeric,(v_payload->>'transaction_amount')::numeric,(v_payload->>'amount')::numeric,0) <> p_amount
      or coalesce(v_payload->>'currency_id',v_payload->>'currency') <> p_currency
      or (v_payload->>'transaction_amount_refunded') is not null and (v_payload->>'transaction_amount_refunded')::numeric <> 0
      or coalesce(v_payload->>'status_detail','') in ('charged_back','in_mediation','refunded')
      or coalesce((v_payload->>'installments')::integer,1) <> 1
      or coalesce(v_payload->>'date_created',v_payload->>'date') is null
-     or ((coalesce(v_payload->>'date_created',v_payload->>'date'))::timestamptz at time zone 'UTC')::date <> p_date then
+     or ((coalesce(v_payload->>'date_created',v_payload->>'date'))::timestamptz at time zone 'America/Argentina/Buenos_Aires')::date <> p_date then
     raise exception 'provider candidate is not an eligible credit purchase' using errcode='22023';
   end if;
   select jsonb_build_object('observations',coalesce(jsonb_agg(jsonb_build_object('id',e.item->>'id','source',e.item->>'source','native_key',e.item->>'native_key') order by e.item->>'source',e.item->>'native_key',e.item->>'id'),'[]'::jsonb)) into v_evidence from jsonb_array_elements(p_expected_observations) as e(item);
@@ -105,7 +111,7 @@ begin
         and e.amount is not distinct from p_amount and e.currency is not distinct from p_currency
         and e.category is not distinct from p_category and e.description is not distinct from p_description
         and e.is_want is not distinct from p_is_want and e.payment_method='CREDIT'
-        and e.card_id is not distinct from p_card_id and e.account_id is null
+        and e.card_id::text is not distinct from p_card_id::text and e.account_id is null
         and e.card_cycle_id is not distinct from v_review.card_cycle_id
         and e.date::date is not distinct from p_date
         and c.user_id=p_user_id and c.card_id=p_card_id) then
@@ -116,6 +122,12 @@ begin
   if exists(select 1 from public.mercadopago_movement_reviews where user_id=p_user_id and connection_id=p_connection_id and candidate_fingerprint=p_candidate_fingerprint)
      or exists(select 1 from public.mercadopago_movement_dismissals where user_id=p_user_id and connection_id=p_connection_id and (candidate_id=p_candidate_id or candidate_fingerprint=p_candidate_fingerprint)) then
     raise exception 'candidate already decided' using errcode='55000';
+  end if;
+  if exists(select 1 from (select evidence from public.mercadopago_movement_reviews where user_id=p_user_id and connection_id=p_connection_id
+      union all select evidence from public.mercadopago_movement_dismissals where user_id=p_user_id and connection_id=p_connection_id) prior,
+      jsonb_array_elements(prior.evidence->'observations') old,jsonb_array_elements(p_expected_observations) incoming
+      where old->>'native_key'=incoming->>'native_key') then
+    raise exception 'provider evidence already decided' using errcode='23505';
   end if;
   v_closing_day := greatest(1,least(coalesce(v_card.closing_day,1),extract(day from (date_trunc('month',p_date)+interval '1 month - 1 day'))::integer));
   select cycle.period_month into v_period
@@ -143,8 +155,8 @@ begin
   select id into strict v_cycle_id from public.card_cycles where user_id=p_user_id and card_id=p_card_id and period_month=v_period for update;
   insert into public.expenses(user_id,amount,currency,category,description,is_want,payment_method,card_id,card_cycle_id,account_id,date)
   values(p_user_id,p_amount,p_currency,p_category,p_description,p_is_want,'CREDIT',p_card_id,v_cycle_id,null,p_date::timestamptz) returning id into v_expense_id;
-  insert into public.mercadopago_movement_reviews(user_id,connection_id,candidate_id,candidate_fingerprint,intent_hash,status,expense_id,account_id,card_id,card_cycle_id,canonical_amount,canonical_currency,canonical_date,canonical_category,canonical_description,is_want,canonical_semantics,evidence,evidence_kind)
-  values(p_user_id,p_connection_id,p_candidate_id,p_candidate_fingerprint,p_intent_hash,'confirmed',v_expense_id,null,p_card_id,v_cycle_id,p_amount,p_currency,p_date,p_category,p_description,p_is_want,'{"classification":"human_confirmed_expense","provider_effect":"credit_card_purchase"}'::jsonb,v_evidence,'credit_card_purchase');
+  insert into public.mercadopago_movement_reviews(user_id,connection_id,candidate_id,candidate_fingerprint,intent_hash,status,expense_id,account_id,card_id,card_cycle_id,canonical_amount,canonical_currency,canonical_date,canonical_category,canonical_description,is_want,canonical_semantics,evidence,evidence_kind,decision_source,decision_rule_version,decision_reason)
+  values(p_user_id,p_connection_id,p_candidate_id,p_candidate_fingerprint,p_intent_hash,'confirmed',v_expense_id,null,p_card_id,v_cycle_id,p_amount,p_currency,p_date,p_category,p_description,p_is_want,'{"classification":"human_confirmed_expense","provider_effect":"credit_card_purchase"}'::jsonb,v_evidence,'credit_card_purchase','human',3,'approved_credit_purchase_1x');
   return v_expense_id;
 end;
 $$;

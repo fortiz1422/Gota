@@ -1,0 +1,1484 @@
+{
+  "provenance": {
+    "source": "Existing Mercado Pago RAW from the active connection, read-only extraction on 2026-10-01 UTC",
+    "sanitization": "Native IDs, user/counterparty IDs, amounts, timestamps, merchant text, issuer and card digits remapped. Exact source identities, amount equality/sign, status, role, funding, installments and public provider metadata retained. This is historical field evidence; not a controlled end-to-end test."
+  },
+  "observations": [
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-1",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "account_fund",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 26000,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-1",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-10",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 19000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-10",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-11",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-8000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-11",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-11",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 8000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-11",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-12",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-7000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-12",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-12",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 7000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-12",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-13",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "debin_transfer",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "30000",
+        "PAYMENT_METHOD_TYPE": "bank_transfer",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-13",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-13",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "account_fund",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 30000,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-13",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-14",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-29000",
+        "PAYMENT_METHOD_TYPE": "",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-14",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-15",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "recurring_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 9000,
+        "point_of_interaction": {
+          "type": "SUBSCRIPTIONS"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-15",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-16",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-3000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-16",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-16",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 3000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-16",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-17",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-8000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-17",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-17",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 8000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-17",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-18",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-8000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-18",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-18",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 8000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-18",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-19",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 2,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 27000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-19",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-2",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "recurring_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 9000,
+        "point_of_interaction": {
+          "type": "SUBSCRIPTIONS"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-2",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-20",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 2,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 28000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-20",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "Checkouts",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-21",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-10000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-21",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-21",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "recurring_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 10000,
+        "point_of_interaction": {
+          "type": "SUBSCRIPTIONS"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-21",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-22",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "recurring_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 9000,
+        "point_of_interaction": {
+          "type": "SUBSCRIPTIONS"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-22",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "QR",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-23",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "Mercado Pago",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-8000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-23",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-23",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 8000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-23",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-24",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 16000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-24",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-25",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 6000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-25",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-26",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "debit_card",
+        "payment_method_id": "debvisa",
+        "transaction_amount": 31000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-26",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-27",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 22000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-27",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-28",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 13000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-28",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-29",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-5000",
+        "PAYMENT_METHOD_TYPE": "",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-29",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-3",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 21000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-3",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-30",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 8000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-30",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-31",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": null,
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "card_validation",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "visa",
+        "transaction_amount": 0,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-31",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-32",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 23000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-32",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-33",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-32000",
+        "PAYMENT_METHOD_TYPE": "",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-33",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-34",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "debin_transfer",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "33000",
+        "PAYMENT_METHOD_TYPE": "bank_transfer",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-34",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-34",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "account_fund",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 33000,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-34",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-35",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 17000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-35",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-36",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "recurring_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 9000,
+        "point_of_interaction": {
+          "type": "SUBSCRIPTIONS"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-36",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-37",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "debin_transfer",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "24000",
+        "PAYMENT_METHOD_TYPE": "bank_transfer",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-37",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-37",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "account_fund",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 24000,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-37",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-38",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-24000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-38",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-38",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "money_transfer",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 24000,
+        "point_of_interaction": {
+          "type": "PSP_TRANSFER"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-38",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-39",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "PAYOUTS",
+        "TRANSACTION_AMOUNT": "-11000",
+        "PAYMENT_METHOD_TYPE": "",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-39",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-4",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 15000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-4",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-40",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "debin_transfer",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "14000",
+        "PAYMENT_METHOD_TYPE": "bank_transfer",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-40",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-40",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "account_fund",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 14000,
+        "point_of_interaction": {
+          "type": "UNSPECIFIED"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-40",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-41",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 4000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-41",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-5",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "bank_transfer",
+        "payment_method_id": "debin_transfer",
+        "transaction_amount": 20000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-5",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-6",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 12000,
+        "point_of_interaction": {
+          "type": "INSTORE"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-6",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-7",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "-2000",
+        "PAYMENT_METHOD_TYPE": "",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-7",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "account_settlement_report",
+      "payload": {
+        "SUB_UNIT": "",
+        "FRANCHISE": "",
+        "SOURCE_ID": "event-8",
+        "DESCRIPTION": "Sanitized movement",
+        "INSTALLMENTS": "1",
+        "BUSINESS_UNIT": "",
+        "PAYMENT_METHOD": "available_money",
+        "LAST_FOUR_DIGITS": null,
+        "TRANSACTION_DATE": "2026-09-01T12:00:00Z",
+        "TRANSACTION_TYPE": "SETTLEMENT",
+        "TRANSACTION_AMOUNT": "18000",
+        "PAYMENT_METHOD_TYPE": "available_money",
+        "TRANSACTION_CURRENCY": "ARS"
+      },
+      "nativeKey": "event-8",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-8",
+        "card": {
+          "last_four_digits": null
+        },
+        "payer": {
+          "id": "other"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "owner",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 1,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "money_transfer",
+        "payment_type_id": "account_money",
+        "payment_method_id": "account_money",
+        "transaction_amount": 18000,
+        "point_of_interaction": {
+          "type": "PSP_TRANSFER"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-8",
+      "providerUserId": "owner"
+    },
+    {
+      "source": "payments_search",
+      "payload": {
+        "id": "event-9",
+        "card": {
+          "last_four_digits": "1111"
+        },
+        "payer": {
+          "id": "owner"
+        },
+        "status": "approved",
+        "issuer_id": "sanitized-issuer",
+        "currency_id": "ARS",
+        "description": "Sanitized merchant",
+        "collector_id": "other",
+        "date_created": "2026-09-01T12:00:00Z",
+        "installments": 2,
+        "date_approved": "2026-09-01T12:00:01Z",
+        "status_detail": "accredited",
+        "operation_type": "regular_payment",
+        "payment_type_id": "credit_card",
+        "payment_method_id": "master",
+        "transaction_amount": 25000,
+        "point_of_interaction": {
+          "type": "CHECKOUT"
+        },
+        "transaction_amount_refunded": 0
+      },
+      "nativeKey": "event-9",
+      "providerUserId": "owner"
+    }
+  ]
+}

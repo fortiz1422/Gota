@@ -76,6 +76,23 @@ function buildCyclePayload(
   }
 }
 
+// Shared pure planner: callers can persist the same cycle plan atomically with
+// a purchase instead of creating cycles before a financial transaction.
+export function buildCardCyclePlan(userId: string, card: Card, baseDate: string, installments: number, existingCycles: CycleForAssignment[] = []) {
+  if (!Number.isInteger(installments) || installments < 1 || installments > 72) throw new Error('Invalid installments')
+  const basePeriodMonth = getCyclePeriodMonthForDate(card, baseDate, existingCycles)
+  const knownCycles: CycleForAssignment[] = [...existingCycles]
+  return Array.from({ length: installments }, (_, i) => {
+    const periodMonth = addMonths(basePeriodMonth, i)
+    const existing = existingCycles.find(cycle => cycle.card_id === card.id && cycle.period_month.substring(0, 7) === periodMonth)
+    const payload = existing
+      ? { user_id: userId, card_id: card.id, period_month: `${periodMonth}-01`, closing_date: existing.closing_date, due_date: existing.due_date, status: 'open' as const }
+      : buildCyclePayload(userId, card, periodMonth, knownCycles)
+    knownCycles.push(payload)
+    return payload
+  })
+}
+
 export async function resolveCardCycleAssignments({
   supabase,
   userId,
@@ -112,14 +129,8 @@ export async function resolveCardCycleAssignments({
   if (existingCyclesError) throw existingCyclesError
 
   const existingCycles = (existingCyclesData ?? []) as CardCycle[]
-  const basePeriodMonth = getCyclePeriodMonthForDate(card as Card, baseDate, existingCycles)
-  const periodMonths = Array.from({ length: installments }, (_, i) => addMonths(basePeriodMonth, i))
-  const knownCycles: CycleForAssignment[] = [...existingCycles]
-  const payloads = periodMonths.map((periodMonth) => {
-    const payload = buildCyclePayload(userId, card as Card, periodMonth, knownCycles)
-    knownCycles.push(payload)
-    return payload
-  })
+  const payloads = buildCardCyclePlan(userId, card as Card, baseDate, installments, existingCycles)
+  const periodMonths = payloads.map(payload => payload.period_month.substring(0, 7))
 
   // Insert only — never overwrite existing cycles (closing_date/due_date would be corrupted)
   const { error: upsertError } = await supabase

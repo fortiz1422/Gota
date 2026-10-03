@@ -70,6 +70,7 @@ export function observationFingerprint(observation: ReconciliationObservation) {
     movement.operation,
     movement.fundingSource,
     movement.channel,
+    movement.providerContext ?? null,
     movement.installments,
     movement.summary,
     movement.confidence,

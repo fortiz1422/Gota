@@ -14,9 +14,10 @@ export const SETTLEMENT_REPORT_REQUIRED_FIELDS = REQUIRED_FIELDS
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 type Store = { upsertRawObservation: (observation: RawObservation) => Promise<void> }
-type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
+type SettlementReportStage = 'config_get' | 'config_create' | 'list' | 'list_parse' | 'search' | 'create' | 'download' | 'csv_parse' | 'raw_persist'
 type SettlementReportDiagnostic = { stage: SettlementReportStage; httpStatus: number | null; providerCode?: string }
-export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null }
+export type SettlementReportAvailability = { matched: number; pending: number; missingFile: number; processed: number; taskStates?: string[]; linkedReports?: number; searchResults?: number; searchExact?: number }
+export type SettlementReportRun = { source: 'account_settlement_report'; status: 'success' | 'error' | 'pending'; count: number; errorCode: 'provider_error' | null; availability?: SettlementReportAvailability }
 
 class SettlementReportDiagnosticError extends Error {
   constructor(public readonly diagnostic: SettlementReportDiagnostic) {
@@ -74,14 +75,20 @@ function dateWindow(beginDate: Date, endDate: Date): SettlementReportWindow {
   return { beginDate: beginDate.toISOString().slice(0, 10), endDate: endDate.toISOString().slice(0, 10), beginTimestamp, endTimestamp }
 }
 
-export function buildSettlementReportWindows(now: Date, requestedWindow?: SyncWindow): SettlementReportWindow[] {
+export function buildSettlementReportWindows(now: Date, requestedWindow?: SyncWindow, exactWindow = false): SettlementReportWindow[] {
   const lastDay = requestedWindow ? new Date(`${requestedWindow.endDate}T00:00:00.000Z`) : argentinaDate(now)
   const firstDay = requestedWindow ? new Date(`${requestedWindow.beginDate}T00:00:00.000Z`) : new Date(lastDay.getTime() - 89 * DAY)
   const chunkCount = Math.ceil((lastDay.getTime() - firstDay.getTime() + DAY) / (30 * DAY))
   return Array.from({ length: chunkCount }, (_, chunk) => {
     const begin = new Date(firstDay.getTime() + chunk * 30 * DAY)
     const end = new Date(Math.min(begin.getTime() + 29 * DAY, lastDay.getTime()))
-    return dateWindow(begin, end)
+    const result = dateWindow(begin, end)
+    // Honor precise boundaries supplied by diagnostics; calendar imports keep full days.
+    if (requestedWindow && exactWindow) {
+      result.beginTimestamp = new Date(Math.max(Date.parse(result.beginTimestamp), Date.parse(requestedWindow.beginTimestamp))).toISOString().replace(/\.\d{3}Z$/, 'Z')
+      result.endTimestamp = new Date(Math.min(Date.parse(result.endTimestamp), Date.parse(requestedWindow.endTimestamp))).toISOString().replace(/\.\d{3}Z$/, 'Z')
+    }
+    return result
   })
 }
 
@@ -123,7 +130,7 @@ function safeFileName(valueToValidate: string | null): string | null {
 }
 
 function isPendingReport(report: Record<string, unknown>): boolean {
-  return ['pending', 'preparing', 'processing', 'created'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
+  return ['pending', 'preparing', 'processing', 'created', 'delayed'].includes((value(report, ['status', 'state']) ?? '').toLowerCase())
 }
 
 function readyFileName(reports: Record<string, unknown>[]): string | null {
@@ -165,14 +172,15 @@ function logDiagnostic(error: unknown, stage: SettlementReportStage): void {
   console.error('mercadopago_settlement_report_error', JSON.stringify(diagnostic))
 }
 
-export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null }): Promise<SettlementReportRun> {
+export async function syncMercadoPagoSettlementReport({ userId, accessToken, now = new Date(), window, fetchImpl = fetch, store, batchId, startedAt, lastPendingAt, allowConfigCreation = true, exactWindow = false }: { userId: string; accessToken: string; now?: Date; window?: SyncWindow; fetchImpl?: FetchLike; store: Store; batchId: string; startedAt: string; lastPendingAt?: string | null; allowConfigCreation?: boolean; exactWindow?: boolean }): Promise<SettlementReportRun> {
   let stage: SettlementReportStage = 'config_get'
   try {
     const effectiveWindow = window ?? windowFromDates(new Date(now.getTime() - 89 * DAY), now, 'custom')
-    const windows = buildSettlementReportWindows(now, effectiveWindow)
+    const windows = buildSettlementReportWindows(now, effectiveWindow, exactWindow)
     const configUrl = `${API}/v1/account/settlement_report/config`
     const configResponse = await request(configUrl, accessToken, fetchImpl)
     if (configResponse.status === 404) {
+      if (!allowConfigCreation) throw new Error('report_config_missing')
       stage = 'config_create'
       const config = JSON.stringify({ file_name_prefix: 'gota_settlement', frequency: { hour: 0, type: 'monthly', value: 1 }, columns: REQUIRED_FIELDS.map((key) => ({ key })), display_timezone: 'GMT-03', separator: ',', include_withdraw: true, header_language: 'en' })
       const created = await request(configUrl, accessToken, fetchImpl, { method: 'POST', body: config, headers: { 'Content-Type': 'application/json' } })
@@ -185,6 +193,46 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     stage = 'list_parse'
     const listed = listItems(await json(listResponse))
     const reportsByWindow = windows.map((window) => listed.filter((report) => matchesWindow(report, window)))
+    const taskStates = [...new Set(reportsByWindow.flat().map(report => {
+      const state = value(report, ['status', 'state'])?.toLowerCase()
+      return state && /^[a-z_]{1,24}$/.test(state) ? state : 'unknown'
+    }))].slice(0, 10)
+    const linkedReports = reportsByWindow.flat().filter(report => /^[1-9][0-9]{0,19}$/.test(value(report, ['report_id']) ?? '')).length
+    let searchResults = 0
+    let searchExact = 0
+    const search = async (query: URLSearchParams) => {
+      stage = 'search'
+      const searched = await request(`${API}/v1/account/settlement_report/search?${query}`, accessToken, fetchImpl)
+      if (!searched.ok) await providerFailure(searched, stage)
+      const payload = await json(searched)
+      const results = listItems(payload)
+      const paging = payload && typeof payload === 'object' && !Array.isArray(payload) ? (payload as Record<string, unknown>).paging : null
+      const total = paging && typeof paging === 'object' ? (paging as Record<string, unknown>).total : null
+      if (total !== null && (typeof total !== 'number' || !Number.isInteger(total) || total < 0 || total > results.length)) throw new Error('settlement_search_incomplete')
+      searchResults += results.length
+      return results
+    }
+    for (let index = 0; index < reportsByWindow.length; index++) {
+      const tasks = reportsByWindow[index]
+      if (!tasks.length || tasks.some(isPendingReport) || readyFileName(tasks)) continue
+      const window = windows[index]
+      const results = await search(new URLSearchParams({ begin_date: window.beginTimestamp, end_date: window.endTimestamp, limit: '50' }))
+      let exact = results.filter(r => matchesWindow(r, window))
+      // Only use report_id returned by the provider, never the creation task id.
+      // ID lookup also requires the exact period; there is no inferred filename.
+      if (!readyFileName(exact)) {
+        const ids = [...new Set(tasks.map(task => value(task, ['report_id'])).filter((id): id is string => id !== null && /^[1-9][0-9]{0,19}$/.test(id)))].slice(0, 3)
+        for (const id of ids) {
+          const linked = await search(new URLSearchParams({ id, limit: '50' }))
+          exact = exact.concat(linked.filter(report => value(report, ['id']) === id && matchesWindow(report, window)))
+          if (readyFileName(exact)) break
+        }
+      }
+      searchExact += exact.length
+      if (exact.length) reportsByWindow[index] = exact
+    }
+    const matching = reportsByWindow.flat()
+    const availability = { taskStates, linkedReports, searchResults, searchExact, matched: matching.length, pending: matching.filter(isPendingReport).length, missingFile: matching.filter(r => safeFileName(value(r, ['file_name'])) === null).length, processed: matching.filter(r => value(r, ['status', 'state'])?.toLowerCase() === 'processed').length }
     const unresolved = reportsByWindow.some((reports) => reports.some((report) => isPendingReport(report) || safeFileName(value(report, ['file_name'])) === null))
     const readyFiles = reportsByWindow.map(readyFileName)
     let totalCount = 0
@@ -200,7 +248,7 @@ export async function syncMercadoPagoSettlementReport({ userId, accessToken, now
     }
     const missingIndex = readyFiles.findIndex((name, index) => name === null && reportsByWindow[index].length === 0)
     if (unresolved || missingIndex === -1) {
-      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
+      return unresolved ? { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null, availability } : { source: 'account_settlement_report', status: 'success', count: totalCount, errorCode: null }
     }
     const missingWindow = windows[missingIndex]
     {
