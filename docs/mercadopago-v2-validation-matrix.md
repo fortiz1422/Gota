@@ -1,6 +1,6 @@
 # MP v2 — implementación y validación pendiente
 
-Actualizado 2026-10-02. Código no equivale a habilitación ni validación financiera real.
+Actualizado 2026-10-03. Código no equivale a habilitación ni validación financiera real.
 
 ## Entrega implementada
 
@@ -24,7 +24,7 @@ Ninguna migración nueva fue aplicada al proyecto real. En orden, revisar/aplica
 
 Flags nuevos deben quedar ausentes/false hasta validar: `MERCADOPAGO_CARD_INSTALLMENTS_ENABLED`, `MERCADOPAGO_POSTING_ENABLED`, `MERCADOPAGO_AUTO_POST_ENABLED`, `MERCADOPAGO_RECONCILIATION_ENABLED`. Background conserva flag previo + opt-in de conexión. Publishing no habilita estos flags. El flag de cuotas habilita también la interpretación nueva de total paid en compras 1x; si total explícito difiere y no está habilitado, queda pendiente.
 
-Scripts nuevos también aceptan `--docker`, con pruebas de dos clientes; preparado sin ejecutarlo en este entorno. Hace falta prueba nativa PostgreSQL de concurrencia con distintos clientes para el nuevo RPC de cuotas y el trigger/wrapper de dedupe. PGlite ejecuta PostgreSQL real en WASM y verifica transacciones/rollback/ACL, pero sus pruebas en una sola sesión no certifican carreras entre conexiones. Suite Docker legacy actualizada para rechazar reuso de evidencia y usar un native ID distinto en la carrera; no se ejecutó en este entorno, donde Docker no está disponible.
+Concurrencia nativa cerrada en CI PostgreSQL16 descartable: 23 checks de cuotas +27 de postings, incluyendo clientes concurrentes, identidad idempotente y carrera manual insert vs importador que rechaza snapshot anterior sin duplicar. Run exitoso https://github.com/fortiz1422/Gota/actions/runs/37093132076 sobre commit 8f91610. Workflow read-only y sin secretos. No reemplaza operaciones reales ni prueba migraciones sobre el esquema desplegado. La suite Docker legacy separada no se ejecutó en este cierre.
 
 No promover a producción sin matriz controlada, shadow revisado y efecto correcto en saldo/compromisos/disponible real. No afirmar cadencia de 10–15 minutos hasta configurar y medir hosting. No modificar config externa ni liberar refunds/transfers automáticos para subir automation rate.
 
@@ -62,3 +62,8 @@ Suite Vitest 1.048/1.048 en 155 archivos, TypeScript y lint focalizado verdes. S
 
 
 Preview de implementación `5e43f23` READY y sesión autenticada verificada: 40 pendientes (27 completables, 13 excepciones); editor de salida ARS1.000 muestra 1/oct y fue cancelado; compra 2x muestra total paid ARS67.890,30 y permanece gated; Settings ofrece hoy/30d/90d sin fuentes técnicas. Sin escrituras reales. PR #124 continúa draft.
+
+
+### Cierre de concurrencia, 3/oct
+
+50 checks PostgreSQL16 nativo aprobados en CI; evidencia y logs conservados en run 37093132076. El bloqueo local de Docker/UID fue resuelto mediante CI aislado, sin tocar Supabase. El workflow Claude previo tiene configuración inválida (`on:` vacío); no se presenta el repositorio entero como CI verde. El workflow financiero nuevo terminó success.
