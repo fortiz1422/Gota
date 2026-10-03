@@ -21,7 +21,7 @@ describe('Mercado Pago UI confirmation payload', () => {
     expect(html).not.toContain('Extraordinario')
     expect(html).not.toContain('Pago de Tarjetas</option>')
     expect(html).toContain('Deseo')
-    expect(html).toContain('Recordar este comercio para próximas veces')
+    expect(html).toContain('Recordar comercio y categoría')
     expect(html).toContain('checked=""')
   })
 

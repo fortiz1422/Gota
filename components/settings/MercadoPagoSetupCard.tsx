@@ -28,12 +28,12 @@ export function MercadoPagoSetupView({ state, preset, setPreset, busy, error, on
         <h3 id="mp-v2-title" className="text-[15px] font-semibold text-text-primary">Mercado Pago</h3>
         <span className="rounded-full bg-bg-secondary px-3 py-1 text-[12px] text-text-secondary">{state.state === 'connected' ? 'Conectado' : state.state === 'needs_reconnect' ? 'Necesita reconexión' : 'No conectado'}</span>
       </div>
-      <p className="mt-3 text-[13px] text-text-secondary">Gota no recibe ni almacena tu contraseña de Mercado Pago.</p>
+      {state.state !== 'connected' && <p className="mt-3 text-[13px] text-text-secondary">Conectá tu cuenta para traer tus movimientos. Gota no recibe tu contraseña.</p>}
       {state.state !== 'connected' ? (
         <Link href="/api/integrations/mercadopago/connect" className="mt-4 inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-[13px] font-semibold text-white">{state.state === 'needs_reconnect' ? 'Reconectar Mercado Pago' : 'Conectar Mercado Pago'}</Link>
       ) : (
         <>
-          <p className="mt-3 text-[13px] text-text-secondary">Estamos validando la captura automática. Los movimientos todavía requieren revisión antes de registrarse.</p>
+          <p className="mt-3 text-[13px] text-text-secondary">Los movimientos se registran cuando los confirmás.</p>
           {needsSetup ? (
             <fieldset disabled={busy} className="mt-5">
               <legend className="text-[14px] font-semibold">¿Desde cuándo querés empezar?</legend>
@@ -42,7 +42,7 @@ export function MercadoPagoSetupView({ state, preset, setPreset, busy, error, on
                   <label key={value} className="flex min-h-11 cursor-pointer items-center gap-3 text-[13px]"><input type="radio" name="mp-import" value={value} checked={preset === value} onChange={() => setPreset(value)} />{label}</label>
                 ))}
               </div>
-              <p className="mt-2 text-[12px] text-text-tertiary">Vincularemos tu cuenta Mercado Pago en Gota o crearemos una. Su saldo inicial queda pendiente de verificar.</p>
+              <p className="mt-2 text-[12px] text-text-tertiary">Vincularemos una cuenta Mercado Pago. Su saldo inicial queda pendiente de verificar.</p>
               <button type="button" onClick={onStart} className="mt-4 min-h-11 rounded-button bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-50">{busy ? 'Preparando…' : 'Continuar'}</button>
             </fieldset>
           ) : (
@@ -54,11 +54,11 @@ export function MercadoPagoSetupView({ state, preset, setPreset, busy, error, on
               </dl>
               {state.initialImport?.status === 'running' && <p role="status" className="mt-4 text-[13px] text-text-secondary">Preparando tus movimientos. Podés cerrar Gota; la captura continúa en segundo plano cuando el servicio programado está activo.</p>}
               {!state.enabled && <button type="button" disabled={busy} onClick={onResume} className="mt-4 min-h-11 rounded-button bg-primary px-4 text-[13px] font-semibold text-white disabled:opacity-50">Reanudar captura</button>}
-              <Link href="/mercadopago/review" className="mt-4 inline-flex min-h-11 items-center text-[13px] font-semibold text-primary underline">Revisar movimientos</Link>
+              <Link href="/mercadopago/review" className="mt-4 inline-flex min-h-11 items-center text-[13px] font-semibold text-primary underline">Ver movimientos</Link>
             </>
           )}
           <details className="mt-5 border-t border-border-subtle pt-3">
-            <summary className="cursor-pointer text-[13px] text-text-secondary">Opciones avanzadas</summary>
+            <summary className="cursor-pointer text-[13px] text-text-secondary">Gestionar conexión</summary>
             {state.probeAvailable && <MercadoPagoCaptureProbe />}
             <p className="mt-3 text-[12px] text-text-secondary">Al desconectar se detiene la captura y se eliminan las credenciales guardadas por Gota. Las cuentas y los movimientos ya registrados se conservan.</p>
             <button type="button" onClick={onDisconnect} disabled={busy} className="mt-2 min-h-11 text-[13px] font-semibold text-error disabled:opacity-50">Desconectar Mercado Pago</button>

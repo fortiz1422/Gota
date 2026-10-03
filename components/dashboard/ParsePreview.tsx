@@ -179,6 +179,7 @@ export function ParsePreview({
   const [profilesLoading, setProfilesLoading] = useState(false)
   const [profilesError, setProfilesError] = useState<string | null>(null)
 
+  const ExtraFields = immutableProviderEvidence && aliasSource === 'mercadopago' ? 'details' : 'div'
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
   const isProviderCardPurchase = immutableProviderEvidence && aliasSource === 'mercadopago' && data.payment_method === 'CREDIT'
   const isCredit = source === 'credit' || isPagoTarjetas
@@ -576,10 +577,7 @@ export function ParsePreview({
               </option>
             ))}
           </select>
-          {immutableProviderEvidence && aliasSource === 'mercadopago' && <p className="mt-2 text-xs leading-relaxed text-text-secondary">
-            {data.alias_match?.default_category ? 'Sugerida según tus preferencias guardadas. Podés cambiarla. ' : ''}
-            La categoría organiza tu gasto; no cambia el importe ni el medio de pago informado por Mercado Pago.
-          </p>}
+          {immutableProviderEvidence && aliasSource === 'mercadopago' && data.alias_match?.default_category && <p className="mt-2 text-xs text-text-secondary">Sugerida según tus preferencias. Podés cambiarla.</p>}
         </div>
 
         <div>
@@ -596,7 +594,8 @@ export function ParsePreview({
         </div>
 
         {!isPagoTarjetas && (
-          <div>
+          <ExtraFields>
+            {immutableProviderEvidence && aliasSource === 'mercadopago' && <summary className="min-h-11 cursor-pointer py-3 text-xs text-text-secondary">Etiquetas del gasto</summary>}
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               Etiquetas
             </label>
@@ -625,7 +624,7 @@ export function ParsePreview({
                 </button>
               </>}
             </div>
-          </div>
+          </ExtraFields>
         )}
       </div>
 
@@ -639,8 +638,8 @@ export function ParsePreview({
               className="mt-0.5 rounded border-border-ocean text-primary focus:ring-primary"
             />
             <span>
-              <span className="block font-medium">Recordar este comercio para próximas veces</span>
-              {data.alias_match ? (
+              <span className="block font-medium">{aliasSource === 'mercadopago' ? 'Recordar comercio y categoría' : 'Recordar este comercio para próximas veces'}</span>
+              {aliasSource !== 'mercadopago' && (data.alias_match ? (
                 <span className="mt-1 block text-xs text-text-tertiary">
                   {data.alias_match.match_type === 'suggestion' ? 'Sugerencia' : 'Comercio reconocido'}:{' '}
                   {data.alias_match.display_name}
@@ -649,11 +648,12 @@ export function ParsePreview({
                 </span>
               ) : (
                 <span className="mt-1 block text-xs text-text-tertiary">Texto detectado: {detectedAlias}</span>
-              )}
+              ))}
             </span>
           </label>
           {remember && (
-            <div className="mt-3 space-y-2 pl-7">
+            <details className="mt-3 space-y-2 pl-7" open={aliasSource !== 'mercadopago'}>
+              <summary className="min-h-11 cursor-pointer py-3 text-xs text-text-secondary">Personalizar comercio</summary>
               <label className="flex items-center gap-2 text-xs text-text-secondary">
                 <input type="radio" checked={profileMode === 'new'} onChange={() => setProfileMode('new')} />
                 Crear perfil con la descripción y categoría finales
@@ -678,8 +678,8 @@ export function ParsePreview({
                 </select>
               )}
               {profilesLoading && <p className="text-xs text-text-tertiary">Cargando comercios…</p>}
-              {profilesError && <p className="text-xs text-warning">{profilesError}</p>}
-            </div>
+              {profilesError && <p role="alert" className="text-xs text-warning">{profilesError}</p>}
+            </details>
           )}
         </section>
       )}

@@ -28,16 +28,26 @@ export function MercadoPagoDuplicateReview({ movement, onLink, onKeep }: {
     catch { setError('La comparación cambió o no se pudo guardar. Cerrá el detalle y revisá de nuevo.') }
     finally { setBusy(false) }
   }
+  return <MercadoPagoDuplicateView data={data} error={error} busy={busy} onLink={expense => void link(expense)} onKeep={onKeep} />
+}
+
+export function MercadoPagoDuplicateView({ data, error = '', busy = false, onLink, onKeep }: {
+  data: { expenses: DuplicateExpenseSnapshot[]; fingerprint: string } | null;
+  error?: string;
+  busy?: boolean;
+  onLink: (expense: DuplicateExpenseSnapshot) => void;
+  onKeep: (choice: MercadoPagoDuplicateChoice) => void;
+}) {
   return <section className="mt-4 space-y-3" aria-label="Comparar posible duplicado">
-    <p className="text-sm text-text-secondary">Vincular conserva el gasto existente. Mantener ambos registra otro gasto sólo después de revisar y confirmar.</p>
+    <p className="text-sm text-text-secondary">¿Es alguno de estos gastos? Vincularlo evita registrar otro.</p>
     {!data && !error && <p role="status">Comparando con tus gastos…</p>}
     {error && <p role="alert" className="text-sm text-danger">{error}</p>}
     {data?.expenses.map(expense => <article key={expense.id} className="rounded-card border border-border-subtle p-4">
-      <p className="font-semibold">{expense.description}</p>
+      <p className="truncate text-sm font-semibold">{expense.description}</p>
       <p className="text-sm text-text-secondary">{expense.date} · {new Intl.NumberFormat('es-AR', { style: 'currency', currency: expense.currency }).format(expense.amount)}</p>
-      <button type="button" disabled={busy} onClick={() => void link(expense)} className="mt-2 min-h-11 rounded-button bg-primary px-4 font-semibold text-white disabled:opacity-50">Vincular a este gasto</button>
+      <button type="button" disabled={busy} onClick={() => onLink(expense)} className="mt-3 min-h-11 w-full rounded-button border border-border-subtle px-4 text-sm font-semibold text-primary disabled:opacity-50">Es este gasto: vincular</button>
     </article>)}
-    {data && data.expenses.length > 0 && <button type="button" disabled={busy} onClick={() => onKeep({ action: 'keep_both', fingerprint: data.fingerprint })} className="min-h-11 rounded-button border border-border-subtle px-4 font-semibold">Son distintos: mantener ambos</button>}
+    {data && data.expenses.length > 0 && <button type="button" disabled={busy} onClick={() => onKeep({ action: 'keep_both', fingerprint: data.fingerprint })} className="min-h-11 w-full rounded-button bg-primary px-4 text-sm font-semibold text-white">Es otro gasto</button>}
     {data && data.expenses.length === 0 && <p className="text-sm">Ya no encontramos gastos compatibles. Actualizá la bandeja antes de registrar.</p>}
   </section>
 }

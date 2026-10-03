@@ -18,7 +18,7 @@ describe('Mercado Pago review explanations', () => {
     const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, {
       buckets: classifyMercadoPagoMovements([transfer]), onOpen: () => undefined,
     }))
-    expect(html).toContain('Ver transferencia')
+    expect(html).toContain('¿Fue un pago o entre tus cuentas?')
     expect(html).not.toContain('Para completar ·')
     expect(html).not.toContain('Confirmar gasto')
   })
@@ -29,8 +29,8 @@ describe('Mercado Pago review explanations', () => {
     expect(isReviewableMercadoPagoExpense(payout)).toBe(true)
     expect(getMercadoPagoReviewPresentation(payout)).toMatchObject({ ready: true, title: 'Transferencia saliente', action: 'Revisar como gasto', explanation: expect.stringContaining('Si fue entre tus cuentas, descartalo') })
     const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, { buckets: classifyMercadoPagoMovements([payout]), onOpen: () => undefined }))
-    expect(html).toContain('Para completar · 1')
-    expect(html).toContain('Revisar como gasto')
+    expect(html).toContain('1 movimiento para revisar')
+    expect(html).toContain('¿Fue un pago o entre tus cuentas?')
     expect(html).not.toContain('Registrado automáticamente')
     expect(isReviewableMercadoPagoExpense({ ...payout, attention: 'possible_duplicate' })).toBe(false)
     expect(getMercadoPagoReviewPresentation({ ...payout, attention: 'possible_duplicate' })).toMatchObject({ ready: false, title: 'Posible duplicado' })
@@ -63,7 +63,7 @@ describe('Mercado Pago review explanations', () => {
     const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, {
       buckets: classifyMercadoPagoMovements([possibleDuplicate]), onOpen: () => undefined,
     }))
-    expect(html).toContain('Necesitan más información · 1')
+    expect(html).toContain('Comparar con un gasto existente')
     expect(html).not.toContain('Para completar ·')
   })
 
@@ -73,9 +73,9 @@ describe('Mercado Pago review explanations', () => {
     const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, {
       buckets: classifyMercadoPagoMovements([debit, { ...base, kind: 'transfer' }]), onOpen: () => undefined,
     }))
-    expect(html).toContain('Para completar · 1')
-    expect(html).toContain('Necesitan más información · 1')
-    expect(html).toContain('Revisar y completar')
+    expect(html).toContain('2 movimientos para revisar')
+    expect(html).toContain('Revisá la categoría')
+    expect(html).toContain('¿Fue un pago o entre tus cuentas?')
     expect(html).not.toContain('Registrado automáticamente')
     expect(html).toContain('<summary')
     expect(html).not.toContain('Desestimar seleccionadas')

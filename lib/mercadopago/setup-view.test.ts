@@ -9,7 +9,7 @@ describe('setup user contract', () => {
     expect(html).toContain('Desde hoy')
     expect(html).toContain('Últimos 30 días')
     expect(html).toContain('Últimos 90 días')
-    expect(html).toContain('todavía requieren revisión')
+    expect(html).toContain('se registran cuando los confirmás')
     expect(html).not.toContain('Payments Search')
     expect(html).not.toContain('Settlement')
     expect(html).not.toContain('Sincronizar ahora')
@@ -20,7 +20,7 @@ describe('setup user contract', () => {
     const html = render({ available: true, state: 'connected', enabled: true, accountName: 'Mercado Pago', initialImport: { status: 'running', preset: '30d', startedAt: '2026-09-30T23:00:00Z', completedAt: null } })
     expect(html).toContain('30/9/2026')
     expect(html).toContain('ya registrados se conservan')
-    expect(html).toContain('Opciones avanzadas')
+    expect(html).toContain('Gestionar conexión')
     expect(html).not.toContain('¿Desde cuándo')
   })
   it('requires OAuth again after disconnect', () => {

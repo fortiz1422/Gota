@@ -8,7 +8,9 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ArrowLeft,
   ArrowClockwise,
-  Wallet,
+  CheckCircle,
+  DotsThree,
+  CaretRight,
 } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
@@ -74,7 +76,7 @@ function formatMoney(movement: MercadoPagoMovement) {
 
 export function getMercadoPagoFundingSourceLabel(movement: MercadoPagoMovement) {
   if (movement.fundingSource?.kind === 'mercadopago_balance') {
-    return 'Saldo de Mercado Pago'
+    return 'Saldo MP'
   }
   if (movement.fundingSource?.kind === 'card') {
     return `${movement.fundingSource.brand || 'Tarjeta'}${
@@ -83,7 +85,7 @@ export function getMercadoPagoFundingSourceLabel(movement: MercadoPagoMovement) 
         : ''
     }`
   }
-  return 'Medio de pago no identificado'
+  return 'Medio por identificar'
 }
 
 
@@ -121,54 +123,61 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   const movements = sortMercadoPagoPendingMovements([...buckets.eligible, ...buckets.cardPending, ...buckets.unknown])
   const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
-  const groups = [
-    { title: 'Para completar', description: 'Podés revisar y completar estos movimientos antes de confirmarlos.', items: movements.filter((movement) => getMercadoPagoReviewPresentation(movement).ready) },
-    { title: 'Necesitan más información', description: 'Estos movimientos siguen pendientes. Te explicamos qué falta en cada uno.', items: movements.filter((movement) => !getMercadoPagoReviewPresentation(movement).ready) },
-  ]
+  if (pendingCount === 0) return (
+    <section className="mt-12 rounded-card border border-border-subtle bg-bg-secondary/50 px-6 py-10 text-center" aria-label="Sin movimientos pendientes">
+      <CheckCircle size={36} weight="light" className="mx-auto text-primary" aria-hidden="true" />
+      <h2 className="mt-4 text-lg font-semibold text-text-primary">Estás al día</h2>
+      <p className="mt-2 text-sm text-text-secondary">No hay movimientos pendientes de revisar.</p>
+    </section>
+  )
 
   return (
-    <>
-      <section className="mt-6 border-b border-border-subtle pb-4">
-        <p className="text-xs font-semibold text-text-secondary">Pendientes</p>
-        <p className="mt-1 text-2xl font-extrabold text-text-primary">{pendingCount}</p>
-        <p className="mt-1 text-xs text-text-tertiary">Ordenadas por fecha, con el importe y el medio de pago.</p>
-      </section>
-
-      <section className="mt-7" aria-labelledby="pending-title">
-        <div className="flex items-center justify-between gap-3">
-          <h2 id="pending-title" className="text-lg font-bold">Tus movimientos pendientes</h2>
-          {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Cancelar</button> : <details className="text-xs text-text-secondary"><summary className="cursor-pointer py-3">Opciones avanzadas</summary><button type="button" onClick={onEnterSelection} className="min-h-11 rounded-button border border-border-subtle px-3 text-sm font-semibold">Seleccionar operaciones</button></details>}
+    <section className="mt-6" aria-labelledby="pending-title">
+      <div className="flex items-center justify-between gap-3">
+        <h2 id="pending-title" className="text-sm font-medium text-text-secondary">{pendingCount} {pendingCount === 1 ? 'movimiento para revisar' : 'movimientos para revisar'}</h2>
+        {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button px-3 text-sm font-semibold text-text-secondary">Cancelar</button> : (
+          <details className="relative">
+            <summary aria-label="Acciones de la lista" className="grid min-h-11 min-w-11 cursor-pointer list-none place-items-center rounded-full text-text-secondary hover:bg-bg-secondary [&::-webkit-details-marker]:hidden"><DotsThree size={24} aria-hidden="true" /></summary>
+            <div className="absolute right-0 z-10 w-52 rounded-input border border-border-subtle bg-bg-primary p-1 shadow-lg">
+              <button type="button" onClick={onEnterSelection} className="min-h-11 w-full rounded-button px-3 text-left text-sm hover:bg-bg-secondary">Seleccionar movimientos</button>
+            </div>
+          </details>
+        )}
+      </div>
+      {selectionMode && <div className="mt-3 rounded-card border border-border-subtle bg-bg-secondary p-4">
+        <label className="block text-sm font-semibold" htmlFor="mp-cutoff">Seleccionar por fecha</label>
+        <p className="mt-1 text-xs text-text-secondary">Hasta esta fecha (inclusive)</p>
+        <div className="mt-2 flex gap-2">
+          <input id="mp-cutoff" type="date" value={cutoff} onChange={(event) => onCutoffChange(event.target.value)} className="min-h-11 min-w-0 flex-1 rounded-input border border-border-subtle bg-bg-primary px-3 text-sm" />
+          <button type="button" onClick={onSelectAll} disabled={!cutoff} className="min-h-11 rounded-button border border-border-subtle px-3 text-xs font-semibold disabled:opacity-50">Aplicar</button>
         </div>
-        <p className="mt-1 text-sm text-text-secondary">Revisá cualquier operación para ver su detalle.</p>
-        {selectionMode && <div className="mt-4 rounded-card border border-border-subtle bg-bg-secondary p-4">
-          <label className="block text-sm font-semibold" htmlFor="mp-cutoff">Seleccionar por fecha</label>
-          <p className="mt-1 text-xs text-text-secondary">Hasta esta fecha (inclusive)</p>
-          <div className="mt-2 flex gap-2">
-            <input id="mp-cutoff" type="date" value={cutoff} onChange={(event) => onCutoffChange(event.target.value)} className="min-h-11 flex-1 rounded-input border border-border-subtle bg-white px-3 text-sm" />
-            <button type="button" onClick={onSelectAll} disabled={!cutoff} className="min-h-11 rounded-button border border-border-subtle px-3 text-xs font-semibold disabled:opacity-50">Aplicar</button>
-          </div>
-          <p className="mt-2 text-xs text-text-secondary">{visibleSelected} seleccionada{visibleSelected === 1 ? '' : 's'}</p>
-          <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Desestimar seleccionadas</button>
-          <p className="mt-2 text-xs text-text-secondary">Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.</p>
-        </div>}
-        <div className="mt-3 space-y-3">
-          {groups.filter((group) => group.items.length > 0).map((group) => <section key={group.title} aria-label={group.title} className="space-y-3 pt-3">
-            <h3 className="font-bold text-text-primary">{group.title} · {group.items.length}</h3>
-            <p className="text-xs text-text-secondary">{group.description}</p>
-            {group.items.map((movement) => (
-            <article key={movement.candidateId} className="card-s5 flex min-h-20 items-start gap-3 p-4">
-              {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
-              <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-start gap-3 text-left">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-primary-soft text-primary"><Wallet size={19} /></span>
-                <span className="min-w-0 flex-1"><span className="flex items-start justify-between gap-3"><span className="min-w-0 font-bold">{getDisplayExpenseDescription(movement) || 'Operación de Mercado Pago'}</span><span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span></span><span className="mt-1 block text-xs text-text-secondary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}</span><span className="mt-2 block text-xs leading-relaxed text-text-secondary">{getMercadoPagoReviewPresentation(movement).explanation}</span><span className="mt-2 block text-xs font-semibold text-primary">{getMercadoPagoReviewPresentation(movement).action}</span></span>
-              </button>
-            </article>
-            ))}
-          </section>)}
-          {pendingCount === 0 && <p className="rounded-card bg-bg-secondary p-4 text-sm text-text-secondary">No hay operaciones pendientes para revisar.</p>}
-        </div>
-      </section>
-    </>
+        <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Descartar {visibleSelected > 0 ? visibleSelected : ''} seleccionados</button>
+        <p className="mt-2 text-xs text-text-secondary">Se retiran de esta lista sin registrar gastos.</p>
+      </div>}
+      <div className="mt-3 overflow-hidden rounded-card border border-border-subtle divide-y divide-border-subtle">
+        {movements.map((movement) => {
+          const presentation = getMercadoPagoReviewPresentation(movement)
+          const transfer = movement.kind === 'transfer' || movement.operation?.type === 'money_transfer'
+          const hint = movement.attention === 'possible_duplicate' ? 'Comparar con un gasto existente'
+            : transfer ? movement.direction === 'inflow' ? 'Identificá de dónde vino' : '¿Fue un pago o entre tus cuentas?'
+            : presentation.ready && movement.fundingSource?.kind === 'card' ? 'Elegí la tarjeta y categoría'
+            : presentation.ready ? 'Revisá la categoría'
+            : presentation.title
+          return <article key={movement.candidateId} className="flex items-center gap-2 p-4 hover:bg-bg-secondary/50">
+            {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
+            <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-primary">
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-text-primary">{getDisplayExpenseDescription(movement) || (transfer ? 'Transferencia' : 'Movimiento de Mercado Pago')}</span>
+                <span className="mt-1 block truncate text-xs text-text-tertiary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}{movement.installments && movement.installments > 1 ? ` · ${movement.installments} cuotas` : ''}</span>
+                <span className="mt-1.5 block text-xs text-text-secondary">{hint}</span>
+              </span>
+              <span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span>
+              <CaretRight size={14} className="shrink-0 text-text-tertiary" aria-hidden="true" />
+            </button>
+          </article>
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -456,13 +465,9 @@ export function MercadoPagoReviewClient() {
           <ArrowLeft size={20} />
         </Link>
         <div>
-          <p className="type-micro text-primary">MERCADO PAGO</p>
-          <h1 className="type-title text-text-primary">Revisar operaciones</h1>
+          <h1 className="type-title text-text-primary">Mercado Pago</h1>
         </div>
       </header>
-      <p className="mt-3 text-sm leading-relaxed text-text-secondary">
-        Los movimientos todavía requieren tu confirmación. Completá los que tienen información suficiente y revisá qué falta en los demás.
-      </p>
 
       {confirmationNotice && <p role="status" className="mt-4 rounded-input bg-primary-soft p-3 text-sm text-text-primary">{confirmationNotice} <Link href="/movimientos" className="font-semibold text-primary underline">Ver movimientos</Link></p>}
 
@@ -508,9 +513,9 @@ export function MercadoPagoReviewClient() {
         open={bulkPreview !== null}
         onClose={() => { if (!bulkBusy) setBulkPreview(null) }}
         onConfirm={() => void bulkDismiss()}
-        title="Desestimar operaciones seleccionadas"
-        description={`${bulkPreview?.length ?? 0} operación${bulkPreview?.length === 1 ? '' : 'es'} seleccionada${bulkPreview?.length === 1 ? '' : 's'}. Se desestiman sólo las operaciones seleccionadas. No se registran como gastos.`}
-        confirmLabel="Confirmar desestimación"
+        title="Descartar movimientos"
+        description={`${bulkPreview?.length ?? 0} movimientos se retirarán de esta lista. No se registran gastos ni se cambia tu saldo.`}
+        confirmLabel="Descartar seleccionados"
         destructive
         busy={bulkBusy}
         appearance="compact"
@@ -592,19 +597,19 @@ export function MercadoPagoReviewClient() {
           if (!submitting) resetReview()
         }}
         eyebrow="MERCADO PAGO"
-        title={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Confirmar compra con tarjeta' : 'Confirmar gasto'}
-        description={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Compra aprobada en Mercado Pago. Elegí la tarjeta para registrarla; esta compra no representa un débito del saldo.' : 'Revisá qué representa esta salida de saldo. Podés corregir el nombre y elegir la categoría antes de registrarla como gasto.'}
+        title={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Compra con tarjeta' : 'Revisar gasto'}
+        description={selected && isReviewableMercadoPagoCardPurchase(selected) ? 'Elegí la tarjeta y categoría. Se suma a tus compromisos.' : selected?.kind === 'transfer' ? 'Registrá un gasto sólo si esta transferencia fue un pago.' : 'Elegí la categoría antes de registrar.'}
         appearance="compact"
         canvasTone="standard"
         footer={(
-          <details className="text-sm text-text-secondary">
-            <summary className="min-h-11 cursor-pointer py-3 font-semibold">Más opciones</summary>
+          <div className="text-center text-sm text-text-secondary">
             <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
               Desestimar operación
             </button>
-          </details>
+          </div>
         )}
       >
+        {selected && <details className="mb-4 text-xs text-text-secondary"><summary className="min-h-11 cursor-pointer py-3">Detalle de origen</summary><p className="break-words pb-3">{selected.description || 'Sin descripción'} · {getMercadoPagoFundingSourceLabel(selected)}</p></details>}
         {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando tus preferencias para este comercio…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
@@ -612,14 +617,14 @@ export function MercadoPagoReviewClient() {
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsLoading && <p role="status" className="text-sm text-text-secondary">Cargando tus tarjetas…</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No hay tarjetas activas para elegir. La compra sigue pendiente.</p>}
-        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'exact' && <p className="rounded-input bg-primary/[0.06] p-3 text-sm text-text-secondary">Encontramos una única tarjeta compatible por sus últimos cuatro dígitos. Podés cambiarla antes de registrar.</p>}
-        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'ambiguous' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Hay más de una tarjeta compatible. Elegí cuál usaste; Gota no selecciona una arbitrariamente.</p>}
-        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'unmatched' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">No encontramos una tarjeta con esos últimos cuatro dígitos. Elegila manualmente o agregala desde Configuración.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'exact' && <p className="rounded-input bg-primary/[0.06] p-3 text-sm text-text-secondary">Tarjeta reconocida. Podés cambiarla.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'ambiguous' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Hay más de una tarjeta compatible. Elegí cuál usaste.</p>}
+        {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && cardMatch.status === 'unmatched' && <p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Elegí la tarjeta que usaste. Si falta, agregala en Configuración.</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
           data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
           cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
-          aliasSource="mercadopago" confirmLabel="Registrar compra" immutableProviderEvidence embedded
+          aliasSource="mercadopago" confirmLabel="Registrar" immutableProviderEvidence embedded
         />}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && accountLink?.linkedAccountId && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${aliasMatch?.profile_id ?? 'none'}`}
@@ -642,7 +647,7 @@ export function MercadoPagoReviewClient() {
           onSave={completeConfirmation}
           onCancel={resetReview}
           aliasSource="mercadopago"
-          confirmLabel="Registrar gasto"
+          confirmLabel="Registrar"
           immutableProviderEvidence
           embedded
         />}
