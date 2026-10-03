@@ -21,3 +21,8 @@ Aplicar migraciones revisables en entorno específicamente autorizado; probar es
 
 ## Límites preservados
 Sin merge/promoción, configuración externa de reportes, transacciones financieras, escrituras de prueba al canon ni activación de import/background/auto-post. No tokens ni credenciales en artefactos. No hace falta login para este cierre de código; validación real posterior requiere acciones autorizadas.
+
+
+## Actualización final de compatibilidad
+
+Metadata-only confirmó expenses.card_id texto, distinto de cards/card_cycles/review UUID. Fix d92df45 castea comparaciones a texto; pruebas usan ese tipo y constraints observadas. Rollout aditivo68a6dc1: Preview con flag usa nuevo RPC para1..72; no aplicar reemplazo legacy al proyecto compartido. Los tres scripts autorizables están en docs/mercadopago-v2-rollout.md. Tests1049/155, SQL nativo53 checks +legacy1x, CI37131672897 success, Preview68a6dc1 READY. Queda autorización específica de migraciones/flags manuales Preview antes de ejecutar el siguiente paso. Auto-post/background y canon real siguen intactos.

@@ -132,3 +132,10 @@ CI del fix d92df45: run push 37131091286 success, incluidos legacy1x + N + posti
 Rollout endurecido para DB compartida: migración N añade audit y nuevo RPC, no reemplaza legacy1x. Preview flag de tarjetas envía también1x al motor/función nueva. Test route agregado; test SQL verifica legacy definition intacta y1x/replay en v2. Paquete final de habilitación son tres scripts (N/postings/reconciliation), no el reemplazo legacy. Docs/mercadopago-v2-rollout.md contiene efectos y autorización concreta pendiente. No aplica migraciones ni env automáticamente bajo la restricción previa.
 
 El nuevo test aditivo1x detectó que la validación SQL todavía exigía2..72. Corregida a1..72, manteniendo cantidad exacta contra RAW y motor. Run37131557964 falló por ese guard, no se presenta verde; nuevo CI pendiente.
+
+
+### Cierre de compatibilidad y habilitación preparada
+
+Commit68a6dc1, CI37131672897 success: 26 checks cuotas +27 postings=53 nativos, más suite legacy1x independiente verde. Verifica RPC legacy intacto al aplicar migración aditiva y1x nuevo idempotente. Suite completa1049/155 verde; tipos/lint focalizado verdes. Vercel deployment dpl_EWJfGPTTeh8w2HnEg35kTscDFtY4 READY para68a6dc1. Deploy previo56155f8 falló, pero el commit final está READY; MCP build logs devolvió tool-not-found, no se inventa causa de ese fallo.
+
+Único siguiente paso concreto: autorización específica para aplicar los tres scripts de docs/mercadopago-v2-rollout.md al proyecto compartido y flags manuales sólo Preview. Se mantiene el límite anterior de no migrar/activar en real hasta esa autorización. Auto-post/background/import y pruebas ledger siguen fuera; no se presenta la habilitación como realizada ni matriz real como aprobada.

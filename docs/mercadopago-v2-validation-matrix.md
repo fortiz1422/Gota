@@ -72,3 +72,5 @@ Preview de implementación `5e43f23` READY y sesión autenticada verificada: 40 
 
 ### Compatibilidad real y rollout aditivo
 Metadata-only de Supabase el3/oct confirma expenses.card_id texto, cards/card_cycles/review UUID. Replay compara cast a texto, sin migrar esa columna. Harness ajustados a tipo real y constraints observadas; nunca se copiaron filas reales. CI agrega RPC legacy1x y asegura que la migración nueva no altera su definición. Detalle del permiso pendiente en docs/mercadopago-v2-rollout.md.
+
+Verificación vigente68a6dc1: suite1049/155, SQL nativo53 checks +suite legacy1x. CI https://github.com/fortiz1422/Gota/actions/runs/37131672897 success, Preview READY. NuevoRPC admite1..72 y conserva definición legacy. No migraciones/env reales aplicadas.
