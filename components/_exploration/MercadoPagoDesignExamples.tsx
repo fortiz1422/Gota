@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
+import { TaskSurface } from '@/components/ui/TaskSurface'
 import { MercadoPagoReviewDetail, MercadoPagoReviewInbox } from '@/components/mercadopago/MercadoPagoReviewClient'
-import { MercadoPagoConnectionView } from '@/components/settings/MercadoPagoSettingsCard'
+import { MercadoPagoConnectionView, MercadoPagoManagementView } from '@/components/settings/MercadoPagoSettingsCard'
 import { MercadoPagoSetupView } from '@/components/settings/MercadoPagoSetupCard'
 import { MercadoPagoDuplicateView } from '@/components/mercadopago/MercadoPagoDuplicateReview'
 import { ParsePreview } from '@/components/dashboard/ParsePreview'
@@ -30,6 +31,8 @@ const card = { id: 'example-card', name: 'Visa · Banco ejemplo', archived: fals
 const expense = { id: 'example-expense', description: 'Coto', amount: 32000, currency: 'ARS', date: '2026-10-03', category: 'Alimentos', is_want: false } as DuplicateExpenseSnapshot
 
 export function MercadoPagoDesignExamples() {
+  const [examplePreset, setExamplePreset] = useState('7d')
+  const [exampleAccount, setExampleAccount] = useState('example-account')
   const [view, setView] = useState('lista')
   const [selected, setSelected] = useState<MercadoPagoMovement | null>(null)
   const [selectionMode, setSelectionMode] = useState(false)
@@ -38,8 +41,12 @@ export function MercadoPagoDesignExamples() {
     <p className="rounded-input bg-warning/10 p-3 text-xs text-text-secondary">Ejemplos visuales con datos ficticios. No consultan Mercado Pago ni registran movimientos.</p>
     <label className="mt-4 block text-xs text-text-secondary" htmlFor="mp-example">Pantalla</label>
     <select id="mp-example" value={view} onChange={event => { setView(event.target.value); setSelected(null) }} className="mb-6 mt-2 min-h-11 w-full rounded-input border border-border-subtle bg-bg-primary px-3 text-sm">
-      {['lista','vacía','conectado','sin conectar','onboarding','compra','gasto','duplicado'].map(value => <option key={value}>{value}</option>)}
+      {['lista','vacía','conectado','sin conectar','onboarding','compra','gasto','duplicado','gestión'].map(value => <option key={value}>{value}</option>)}
     </select>
+    <TaskSurface open={view === 'gestión'} onClose={() => setView('lista')} eyebrow="MERCADO PAGO" title="Gestionar conexión" description="" showIntro={false} footer={null} appearance="compact" canvasTone="standard">
+      <p className="pt-3 text-xs text-text-tertiary">Ejemplo ficticio · sin consultas ni registros</p>
+      <MercadoPagoManagementView state={{state:'connected',lastSyncAt:'2026-10-03T15:00:00Z',sources:{payments:{status:'success',count:5},reports:{status:'pending',count:0}}}} busy={false} message={null} error={false} preset={examplePreset} setPreset={setExamplePreset} beginDate="" setBeginDate={() => undefined} endDate="" setEndDate={() => undefined} accountLink={{linkedAccountId:'example-account',linkedAccountVersion:1,accounts:[{id:'example-account',name:'Mercado Pago'}]}} linkedAccountId={exampleAccount} setLinkedAccountId={setExampleAccount} linkLoading={false} linkError={false} onLoad={() => undefined} onLoadLink={() => undefined} onSaveLink={() => undefined} onSync={() => undefined} />
+    </TaskSurface>
     <h1 className="type-title text-text-primary">Mercado Pago</h1>
     {(view === 'lista' || view === 'vacía') && <MercadoPagoReviewInbox buckets={classifyMercadoPagoMovements(view === 'vacía' ? [] : movements)} onOpen={movement => { if (movement.attention === 'possible_duplicate') setView('duplicado'); else if (isReviewableMercadoPagoCardPurchase(movement)) setView('compra'); else if (isReviewableMercadoPagoExpense(movement)) setView('gasto'); else setSelected(movement) }} selectionMode={selectionMode} onEnterSelection={() => setSelectionMode(true)} onCancelSelection={() => setSelectionMode(false)} selectedIds={ids} onToggle={movement => setIds(current => { const next = new Set(current); if (next.has(movement.candidateId)) next.delete(movement.candidateId); else next.add(movement.candidateId); return next })} />}
     {selected && <div className="mt-6"><MercadoPagoReviewDetail movement={selected} /><button type="button" onClick={() => setSelected(null)} className="min-h-11 text-sm text-primary">Cerrar detalle</button></div>}
