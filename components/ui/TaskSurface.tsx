@@ -18,6 +18,7 @@ interface TaskSurfaceProps {
   footerSafeArea?: 'minimum' | 'exact'
   viewportHeight?: 'dynamic' | 'large'
   navigationTitle?: string
+  showIntro?: boolean
   initialFocusRef?: RefObject<HTMLElement | null>
   triggerRef?: RefObject<HTMLElement | null>
   triggerElement?: HTMLElement | null
@@ -36,6 +37,7 @@ export function TaskSurface({
   footerSafeArea = 'minimum',
   viewportHeight = 'dynamic',
   navigationTitle,
+  showIntro = true,
   initialFocusRef,
   triggerRef,
   triggerElement,
@@ -76,16 +78,16 @@ export function TaskSurface({
               >
                 <X size={20} weight="light" />
               </button>
-              <p className="truncate px-2 text-center text-[15px] font-semibold text-text-primary">
+              <p id={!showIntro ? titleId : undefined} className="truncate px-2 text-center text-[15px] font-semibold text-text-primary">
                 {navigationTitle ?? title}
               </p>
               <div aria-hidden="true" />
             </header>
-            <div data-task-intro className="shrink-0 px-[22px] pb-5 pt-5">
+            {showIntro && <div data-task-intro className="shrink-0 px-[22px] pb-5 pt-5">
               <p className="type-micro text-primary">{eyebrow}</p>
               <h2 id={titleId} className="mt-1 type-title text-text-primary">{title}</h2>
               <p className="mt-2 type-body text-text-tertiary">{description}</p>
-            </div>
+            </div>}
           </>
         ) : (
           <BlueHeaderZone
@@ -118,12 +120,12 @@ export function TaskSurface({
           {children}
         </div>
 
-        <div
+        {footer != null && <div
           data-task-footer
           className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? footerSafeArea === 'exact' ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}
         >
           {footer}
-        </div>
+        </div>}
       </div>
     </FullScreenSheet>
   )

@@ -33,7 +33,7 @@ describe('Mercado Pago review UI contract', () => {
     expect(buildConfirmExpensePayload({
       description: ' Shell ', category: 'Alimentos', isWant: false, expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3,
     })).toEqual({ description: 'Shell', category: 'Alimentos', isWant: false, expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3 })
-    expect(source).toContain('Cuenta que representa tu saldo de Mercado Pago')
+    expect(source).toContain('Usar para próximos gastos con saldo MP')
     expect(reviewClientSource).not.toContain('accountId: payload.account_id')
   })
 
