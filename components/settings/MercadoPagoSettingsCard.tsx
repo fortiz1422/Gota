@@ -153,7 +153,7 @@ function LegacyMercadoPagoSettingsCard() {
       })
       const result = await response.json() as Pick<State, 'sources'> & { range?: { beginDate: string; endDate: string } }
       if (!response.ok) throw new Error()
-      setMessage(`${getMercadoPagoValidationMessage(result.sources)}${result.range ? ` Rango: ${result.range.beginDate} a ${result.range.endDate}.` : ''}`)
+      setMessage(getMercadoPagoValidationMessage(result.sources))
       await load()
     } catch {
       setMessage('No se pudo validar ese rango.')

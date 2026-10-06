@@ -1,9 +1,9 @@
 export type MercadoPagoSourceSummary = { status: 'success' | 'error' | 'pending' | 'not_run'; count: number }
 
 export function getMercadoPagoValidationMessage(sources: { payments: MercadoPagoSourceSummary; reports: MercadoPagoSourceSummary }) {
-  if (sources.reports.status === 'pending') return 'Preparando movimientos de tu saldo… Nada se importó al registro financiero.'
+  if (sources.reports.status === 'pending') return 'Movimientos actualizados. El detalle de saldo todavía se está preparando.'
   if (sources.payments.status !== 'success' || sources.reports.status !== 'success') {
-    return 'Validación parcial. Una fuente no está disponible. Nada se importó al registro financiero.'
+    return 'Actualización parcial. Podés revisar lo que encontramos; una fuente no respondió.'
   }
-  return 'Validación completada. Nada se importó al registro financiero.'
+  return 'Actualización completa. La bandeja de revisión está al día.'
 }

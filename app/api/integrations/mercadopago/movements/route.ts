@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { getMercadoPagoConnection, getMercadoPagoMovementDismissals, getMercadoPagoMovementObservations, getMercadoPagoMovementReviews, getMercadoPagoShadowDecisions } from '@/lib/mercadopago/server-repository'
-import { candidateFingerprint, reconstructMercadoPagoCandidates, publicMercadoPagoMovement } from '@/lib/mercadopago/confirm-expense'
+import { getMercadoPagoConnection, getMercadoPagoMovementDismissals, getMercadoPagoMovementObservations, getMercadoPagoMovementReviews, getMercadoPagoOperationDecisions, getMercadoPagoShadowDecisions } from '@/lib/mercadopago/server-repository'
+import { candidateFingerprint, getMercadoPagoOperationKey, reconstructMercadoPagoCandidates, publicMercadoPagoMovement } from '@/lib/mercadopago/confirm-expense'
 import { MP_DECISION_RULE_VERSION } from '@/lib/mercadopago/posting-decision'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
@@ -17,14 +17,30 @@ export async function GET() {
     if (!connection) return response({ aggregates: emptyAggregates(), movements: [] })
     const observations = await getMercadoPagoMovementObservations(user.id, connection.id, 100)
     const reconciled = reconstructMercadoPagoCandidates(connection, observations)
-    const [reviews, dismissals, shadowDecisions] = await Promise.all([getMercadoPagoMovementReviews(user.id, connection.id), getMercadoPagoMovementDismissals(user.id, connection.id), getMercadoPagoShadowDecisions(user.id, connection.id)])
-    const byCandidate = new Map<string, { status: 'confirmed'; expense_id: string } | { status: 'dismissed' }>([...reviews.map((review) => [review.candidate_id, review] as const), ...dismissals.map((dismissal) => [dismissal.candidate_id, dismissal] as const)])
+    const [reviews, dismissals, operationDecisions, shadowDecisions] = await Promise.all([
+      getMercadoPagoMovementReviews(user.id, connection.id),
+      getMercadoPagoMovementDismissals(user.id, connection.id),
+      getMercadoPagoOperationDecisions(user.id, connection.id),
+      getMercadoPagoShadowDecisions(user.id, connection.id),
+    ])
+    type ProjectedReview = { status: 'confirmed'; expense_id: string } | { status: 'dismissed' }
+    const byCandidate = new Map<string, ProjectedReview>([...reviews.map((review) => [review.candidate_id, review] as const), ...dismissals.map((dismissal) => [dismissal.candidate_id, dismissal] as const)])
+    const byOperation = new Map<string, ProjectedReview>()
+    for (const decision of operationDecisions) {
+      if (decision.status === 'confirmed' && decision.expense_id) {
+        byOperation.set(decision.operation_key, { status: 'confirmed', expense_id: decision.expense_id })
+      } else if (decision.status === 'dismissed') {
+        byOperation.set(decision.operation_key, { status: 'dismissed' })
+      }
+    }
     const duplicateFingerprints = new Set(shadowDecisions
       .filter((decision) => decision.rule_version === MP_DECISION_RULE_VERSION && decision.decision === 'review' && decision.reasons.includes('possible_ledger_duplicate'))
       .map((decision) => `${decision.candidate_id}:${decision.candidate_fingerprint}`))
     return response({ aggregates: reconciled.aggregates, movements: reconciled.map((candidate) => {
       const exactShadowKey = `${candidate.candidateId}:${candidateFingerprint(candidate)}`
-      return publicMercadoPagoMovement(candidate, byCandidate.get(candidate.candidateId) ?? null, duplicateFingerprints.has(exactShadowKey) ? 'possible_duplicate' : null)
+      const operationKey = getMercadoPagoOperationKey(connection.id, candidate)
+      const review = (operationKey ? byOperation.get(operationKey) : undefined) ?? byCandidate.get(candidate.candidateId) ?? null
+      return publicMercadoPagoMovement(candidate, review, duplicateFingerprints.has(exactShadowKey) ? 'possible_duplicate' : null)
     }) })
   } catch { return response({ error: 'movements_unavailable' }, 500) }
 }

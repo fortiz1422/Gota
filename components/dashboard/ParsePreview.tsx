@@ -59,6 +59,7 @@ interface ParsePreviewProps {
   confirmLabel?: string
   immutableProviderEvidence?: boolean
   fixedAccount?: { id: string; name: string } | null
+  cardHelperText?: string | null
 }
 
 type CounterpartyProfileOption = {
@@ -151,7 +152,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
-  immutableProviderEvidence = false, fixedAccount = null,
+  immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -494,6 +495,7 @@ export function ParsePreview({
               ))}
             </select>
             {cardError && <p className="mt-1 text-[11px] text-danger">Selecciona una tarjeta</p>}
+            {!cardError && cardHelperText && <p className="mt-2 text-[11px] leading-relaxed text-text-secondary">{cardHelperText}</p>}
           </div>
         )}
 
