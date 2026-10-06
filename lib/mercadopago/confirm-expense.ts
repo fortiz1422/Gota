@@ -17,8 +17,15 @@ export function buildCanonicalSemantics() {
   return { classification: 'human_confirmed_expense', provider_effect: 'balance_debit' } as const
 }
 
-export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean; cardId?: string; installments?: number }) {
-  return sha256(stableJson({ description: input.description.trim(), category: input.category, isWant: input.isWant, ...(input.cardId ? { cardId: input.cardId, installments: input.installments ?? null } : {}) }))
+export function buildConfirmationIntentHash(input: { description: string; category: string; isWant: boolean; isRecurring?: boolean; isExtraordinary?: boolean; cardId?: string; installments?: number }) {
+  return sha256(stableJson({
+    description: input.description.trim(),
+    category: input.category,
+    isWant: input.isWant,
+    isRecurring: input.isRecurring === true,
+    isExtraordinary: input.isExtraordinary === true,
+    ...(input.cardId ? { cardId: input.cardId, installments: input.installments ?? null } : {}),
+  }))
 }
 
 export function getMercadoPagoCardPurchaseAmount(candidate: Pick<ReconciledMercadoPagoMovement, 'amount' | 'summary'>) {
