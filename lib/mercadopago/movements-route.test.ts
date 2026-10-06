@@ -1,8 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), getReviews: vi.fn(), getDismissals: vi.fn(), getShadowDecisions: vi.fn(), normalize: vi.fn() }))
+const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getConnection: vi.fn(), getObservations: vi.fn(), getReviews: vi.fn(), getDismissals: vi.fn(), getOperationDecisions: vi.fn(), getShadowDecisions: vi.fn(), normalize: vi.fn() }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }))
-vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations, getMercadoPagoMovementReviews: mocks.getReviews, getMercadoPagoMovementDismissals: mocks.getDismissals, getMercadoPagoShadowDecisions: mocks.getShadowDecisions }))
+vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.getConnection, getMercadoPagoMovementObservations: mocks.getObservations, getMercadoPagoMovementReviews: mocks.getReviews, getMercadoPagoMovementDismissals: mocks.getDismissals, getMercadoPagoOperationDecisions: mocks.getOperationDecisions, getMercadoPagoShadowDecisions: mocks.getShadowDecisions }))
 vi.mock('@/lib/mercadopago/provider-movement', () => ({ normalizeMercadoPagoMovement: mocks.normalize }))
 
 import { GET } from '@/app/api/integrations/mercadopago/movements/route'
@@ -14,6 +14,7 @@ beforeEach(() => {
   mocks.getObservations.mockResolvedValue([{ source: 'payments_search', native_key: '101', payload: { id: 101 }, last_seen_at: '2026-09-15T12:00:00.000Z' }])
   mocks.getReviews.mockResolvedValue([])
   mocks.getDismissals.mockResolvedValue([])
+  mocks.getOperationDecisions.mockResolvedValue([])
   mocks.getShadowDecisions.mockResolvedValue([])
   mocks.normalize.mockReturnValue({ nativeId: '101', description: 'Compra sintética', amount: { value: 5, currency: 'ARS' }, kind: 'expense', direction: 'outflow', accountRole: 'payer', operation: { type: 'regular_payment', status: 'approved', statusDetail: null }, fundingSource: { kind: 'unknown', cardType: null }, confidence: 'confirmed', installments: 1, summary: { refunded: null }, occurredAt: '2026-09-15T12:00:00.000Z', approvedAt: null, channel: null, reasonCodes: [] })
 })
@@ -28,7 +29,7 @@ describe('Mercado Pago movements route', () => {
   })
 
   it('fails closed with a generic no-store response when a connection, raw or review read fails', async () => {
-    for (const failedRead of [mocks.getConnection, mocks.getObservations, mocks.getReviews, mocks.getDismissals, mocks.getShadowDecisions]) {
+    for (const failedRead of [mocks.getConnection, mocks.getObservations, mocks.getReviews, mocks.getDismissals, mocks.getOperationDecisions, mocks.getShadowDecisions]) {
       failedRead.mockRejectedValueOnce(new Error('provider raw secret'))
       const response = await GET()
       expect(response.status).toBe(500)
@@ -73,6 +74,23 @@ describe('Mercado Pago movements route', () => {
     expect(body.movements[0]).not.toHaveProperty('nativeId')
     expect(body.movements[0]).not.toHaveProperty('candidateFingerprint')
     expect(body.movements[0]).not.toHaveProperty('last_seen_at')
+  })
+
+  it('keeps a prior decision resolved when reconciliation changes the candidate id', async () => {
+    const { createHash } = await import('node:crypto')
+    const operationKey = createHash('sha256').update('connection-1:101').digest('hex')
+    mocks.getOperationDecisions.mockResolvedValue([{
+      operation_key: operationKey,
+      status: 'confirmed',
+      expense_id: 'expense-wallet-1',
+      candidate_id: 'sha256:old-candidate',
+      decided_at: '2026-10-06T15:10:00Z',
+    }])
+
+    const body = await (await GET()).json()
+
+    expect(body.movements[0]).toMatchObject({ reviewStatus: 'confirmed', expenseId: 'expense-wallet-1' })
+    expect(body.movements[0]).not.toHaveProperty('reviewSnapshot')
   })
 
   it('exposes only a safe duplicate attention marker for the exact current shadow evidence', async () => {
