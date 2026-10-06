@@ -62,6 +62,7 @@ interface ParsePreviewProps {
   immutableProviderEvidence?: boolean
   fixedAccount?: { id: string; name: string } | null
   cardHelperText?: string | null
+  secondaryAction?: { label: string; onAction: () => void; disabled?: boolean }
 }
 
 type CounterpartyProfileOption = {
@@ -156,7 +157,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
-  immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null,
+  immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null, secondaryAction,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -719,13 +720,24 @@ export function ParsePreview({
                 ? 'Guardar de todas formas'
                 : confirmLabel ?? 'Guardar gasto ✓'}
         </button>
-        <button
-          onClick={handleCancel}
-          disabled={isSaving}
-          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
-        >
-          Cancelar
-        </button>
+        {secondaryAction ? (
+          <button
+            type="button"
+            onClick={secondaryAction.onAction}
+            disabled={isSaving || secondaryAction.disabled}
+            className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary disabled:opacity-50"
+          >
+            {secondaryAction.label}
+          </button>
+        ) : (
+          <button
+            onClick={handleCancel}
+            disabled={isSaving}
+            className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
+          >
+            Cancelar
+          </button>
+        )}
       </div>
     </div>
   )
