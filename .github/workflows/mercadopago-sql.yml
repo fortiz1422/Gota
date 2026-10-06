@@ -34,7 +34,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Mercado Pago review and confirmation tests
-        run: npx vitest run lib/mercadopago/confirm-expense.test.ts lib/mercadopago/confirm-expense-route.test.ts lib/mercadopago/movements-route.test.ts lib/mercadopago/review-dismissal.test.ts lib/mercadopago/review-presentation.test.ts lib/mercadopago/sync-presentation.test.ts
+        run: npx vitest run lib/mercadopago/confirm-expense.test.ts lib/mercadopago/confirm-expense-route.test.ts lib/mercadopago/movements-route.test.ts lib/mercadopago/review-dismissal.test.ts lib/mercadopago/review-presentation.test.ts lib/mercadopago/sync-presentation.test.ts lib/counterparty-aliases/integration.test.ts lib/counterparty-aliases/counterparty-aliases.test.ts
       - name: TypeScript check
         run: npx tsc --noEmit
 
@@ -56,3 +56,5 @@ jobs:
         run: node scripts/test-mercadopago-card-confirmation-sql.mjs
       - name: Wallet payment confirmation and operation identity
         run: node scripts/test-mercadopago-wallet-confirmation-sql.mjs
+      - name: Review tag parity wrappers
+        run: node scripts/test-mercadopago-review-tags-sql.mjs

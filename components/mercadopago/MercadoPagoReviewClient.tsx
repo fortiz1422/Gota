@@ -348,6 +348,8 @@ export function MercadoPagoReviewClient() {
             description: payload.description,
             category: payload.category,
             isWant: payload.is_want === true,
+            isRecurring: payload.is_recurring,
+            isExtraordinary: payload.is_extraordinary,
             expectedLinkedAccountId: accountLink?.linkedAccountId ?? '',
             expectedLinkedAccountVersion: accountLink?.linkedAccountVersion ?? -1,
             ...(isCardPurchase ? { cardId: payload.card_id ?? '', installments: payload.installments } : {}),
@@ -605,13 +607,7 @@ export function MercadoPagoReviewClient() {
         showIntro={false}
         appearance="compact"
         canvasTone="standard"
-        footer={(
-          <div className="text-center text-sm text-text-secondary">
-            <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button px-3 py-3 text-sm font-medium text-text-secondary transition-colors hover:text-danger disabled:opacity-50">
-              Desestimar
-            </button>
-          </div>
-        )}
+        footer={null}
       >
         {selected && <div className="mb-5 pt-5">
           <p className="type-micro text-primary">MERCADO PAGO</p>
@@ -629,7 +625,8 @@ export function MercadoPagoReviewClient() {
           key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
           data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
           cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
-          aliasSource="mercadopago" confirmLabel="Registrar" immutableProviderEvidence embedded
+          aliasSource="mercadopago" immutableProviderEvidence embedded
+          secondaryAction={{ label: 'Desestimar', onAction: () => requestDismissal(selected), disabled: dismissing || dismissed !== null }}
           cardHelperText={cardMatch.status === 'ambiguous'
             ? 'Encontramos más de una tarjeta compatible. Elegí cuál usaste.'
             : cardMatch.status === 'unmatched'
@@ -657,9 +654,9 @@ export function MercadoPagoReviewClient() {
           onSave={completeConfirmation}
           onCancel={resetReview}
           aliasSource="mercadopago"
-          confirmLabel="Registrar"
           immutableProviderEvidence
           embedded
+          secondaryAction={{ label: 'Desestimar', onAction: () => requestDismissal(selected), disabled: dismissing || dismissed !== null }}
         />}
       </TaskSurface>
     </main>

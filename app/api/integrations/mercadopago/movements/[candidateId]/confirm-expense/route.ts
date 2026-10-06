@@ -15,7 +15,7 @@ import { toFinancialEvent } from '@/lib/mercadopago/financial-event'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
-const bodySchema = z.object({ description: z.string().trim().min(1).max(100), category: z.enum(CATEGORIES), isWant: z.boolean(), expectedCandidateFingerprint: z.string().regex(/^[a-f0-9]{64}$/), expectedLinkedAccountId: z.string().uuid().optional(), expectedLinkedAccountVersion: z.number().int().nonnegative().optional(), cardId: z.string().uuid().optional(), installments: z.number().int().min(1).max(72).optional(), duplicateResolution: z.object({ action: z.enum(['link_existing', 'keep_both']), expenseId: z.string().uuid().optional(), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict().optional() }).strict()
+const bodySchema = z.object({ description: z.string().trim().min(1).max(100), category: z.enum(CATEGORIES), isWant: z.boolean(), isRecurring: z.boolean().default(false), isExtraordinary: z.boolean().default(false), expectedCandidateFingerprint: z.string().regex(/^[a-f0-9]{64}$/), expectedLinkedAccountId: z.string().uuid().optional(), expectedLinkedAccountVersion: z.number().int().nonnegative().optional(), cardId: z.string().uuid().optional(), installments: z.number().int().min(1).max(72).optional(), duplicateResolution: z.object({ action: z.enum(['link_existing', 'keep_both']), expenseId: z.string().uuid().optional(), fingerprint: z.string().regex(/^[a-f0-9]{64}$/) }).strict().optional() }).strict()
 const json = (body: unknown, status: number) => NextResponse.json(body, { status, headers })
 
 type Params = { params: Promise<{ candidateId: string }> }
@@ -66,13 +66,14 @@ export async function POST(request: Request, { params }: Params) {
     }
     const cardPlan = isCard && process.env.MERCADOPAGO_CARD_INSTALLMENTS_ENABLED === 'true' ? await buildMercadoPagoCardPurchasePlan(admin as unknown as SupabaseClient, { userId: user.id, cardId: parsed.cardId!, amount, currency: currency as 'ARS' | 'USD', date, installments: candidate.installments!, description: parsed.description, category: parsed.category, isWant: parsed.isWant }) : null
     const semantics = buildCanonicalSemantics()
+    const linkingExisting = postingEnabled && parsed.duplicateResolution?.action === 'link_existing'
     const rpcName = isCard
-      ? (cardPlan ? 'confirm_mercadopago_card_purchase' : 'confirm_mercadopago_card_expense')
+      ? (cardPlan ? 'confirm_mercadopago_card_purchase_with_tags' : 'confirm_mercadopago_card_expense_with_tags')
       : isWalletPayment
-        ? 'confirm_mercadopago_wallet_expense'
+        ? 'confirm_mercadopago_wallet_expense_with_tags'
         : postingEnabled
-          ? 'post_mercadopago_balance_event'
-          : 'confirm_mercadopago_expense'
+          ? linkingExisting ? 'post_mercadopago_balance_event' : 'post_mercadopago_balance_event_with_tags'
+          : 'confirm_mercadopago_expense_with_tags'
     const { data, error } = await admin.rpc(rpcName, {
       p_user_id: user.id, p_connection_id: connection.id, p_candidate_id: candidateId,
       p_candidate_fingerprint: candidateFingerprint(candidate),
@@ -80,6 +81,7 @@ export async function POST(request: Request, { params }: Params) {
       p_expected_observations: expectedObservations(candidate),
       p_amount: amount, p_currency: currency, p_date: date,
       p_category: parsed.category, p_description: parsed.description, p_is_want: parsed.isWant,
+      ...(!linkingExisting ? { p_is_recurring: parsed.isRecurring, p_is_extraordinary: parsed.isExtraordinary } : {}),
       ...(isCard
         ? { p_card_id: parsed.cardId, p_installments: candidate.installments, ...(cardPlan ? { p_plan: cardPlan } : {}) }
         : isWalletPayment

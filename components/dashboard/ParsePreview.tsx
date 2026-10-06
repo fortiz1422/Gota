@@ -40,6 +40,8 @@ export interface ParsePreviewConfirmPayload {
   category: string
   description: string
   is_want: boolean | null
+  is_recurring: boolean
+  is_extraordinary: boolean
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   account_id: string | null
   card_id: string | null
@@ -60,6 +62,7 @@ interface ParsePreviewProps {
   immutableProviderEvidence?: boolean
   fixedAccount?: { id: string; name: string } | null
   cardHelperText?: string | null
+  secondaryAction?: { label: string; onAction: () => void; disabled?: boolean }
 }
 
 type CounterpartyProfileOption = {
@@ -124,6 +127,8 @@ export function buildParsePreviewConfirmPayload(
     category: data.category,
     description: data.description.trim(),
     is_want: data.is_want,
+    is_recurring: data.is_recurring === true,
+    is_extraordinary: data.is_extraordinary === true,
     payment_method: paymentMethod,
     account_id: deriveAccountId(source, accounts),
     card_id: paymentMethod === 'CREDIT' ? data.card_id : null,
@@ -152,7 +157,7 @@ function fromDateInput(dateStr: string): string {
 
 export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
-  immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null,
+  immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null, secondaryAction,
 }: ParsePreviewProps) {
   const [form, setForm] = useState<ParsedData>({
     ...data,
@@ -171,16 +176,15 @@ export function ParsePreview({
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [foundDuplicates, setFoundDuplicates] = useState<PossibleExpenseDuplicate[]>([])
   const detectedAlias = safeDetectedAlias(data.detected_alias)
-  // MP confirmation is the explicit correction point. Learn by default while
-  // keeping the choice visible and reversible before the memory write.
-  const [remember, setRemember] = useState(aliasSource === 'mercadopago')
+  // Remembering a merchant is an explicit preference in every review flow.
+  // Provider evidence may lock financial fields, but it must not change this opt-in.
+  const [remember, setRemember] = useState(false)
   const [profileMode, setProfileMode] = useState<'new' | 'existing'>(data.alias_match ? 'existing' : 'new')
   const [profileId, setProfileId] = useState(data.alias_match?.profile_id ?? '')
   const [profiles, setProfiles] = useState<CounterpartyProfileOption[]>([])
   const [profilesLoading, setProfilesLoading] = useState(false)
   const [profilesError, setProfilesError] = useState<string | null>(null)
 
-  const ExtraFields = immutableProviderEvidence && aliasSource === 'mercadopago' ? 'details' : 'div'
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
   const isProviderCardPurchase = immutableProviderEvidence && aliasSource === 'mercadopago' && data.payment_method === 'CREDIT'
   const isCredit = source === 'credit' || isPagoTarjetas
@@ -428,7 +432,7 @@ export function ParsePreview({
 
         <div className={isProviderCardPurchase ? 'hidden' : undefined}>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            {immutableProviderEvidence && aliasSource === 'mercadopago' ? 'Cuenta' : 'De donde sale'}
+            De donde sale
           </label>
           {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
           {isProviderCardPurchase && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Tarjeta de crédito · compra en Mercado Pago</p>}
@@ -596,8 +600,7 @@ export function ParsePreview({
         </div>
 
         {!isPagoTarjetas && (
-          <ExtraFields>
-            {immutableProviderEvidence && aliasSource === 'mercadopago' && <summary className="min-h-11 cursor-pointer py-3 text-xs text-text-secondary">Etiquetas del gasto</summary>}
+          <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               Etiquetas
             </label>
@@ -609,24 +612,22 @@ export function ParsePreview({
               >
                 Deseo
               </button>
-              {!isProviderCardPurchase && <>
-                <button
-                  type="button"
-                  onClick={() => set('is_recurring', !form.is_recurring)}
-                  className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
-                >
-                  Recurrente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set('is_extraordinary', !form.is_extraordinary)}
-                  className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
-                >
-                  Extraordinario
-                </button>
-              </>}
+              <button
+                type="button"
+                onClick={() => set('is_recurring', !form.is_recurring)}
+                className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
+              >
+                Recurrente
+              </button>
+              <button
+                type="button"
+                onClick={() => set('is_extraordinary', !form.is_extraordinary)}
+                className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
+              >
+                Extraordinario
+              </button>
             </div>
-          </ExtraFields>
+          </div>
         )}
       </div>
 
@@ -640,8 +641,8 @@ export function ParsePreview({
               className="mt-0.5 rounded border-border-ocean text-primary focus:ring-primary"
             />
             <span>
-              <span className="block font-medium">{aliasSource === 'mercadopago' ? 'Recordar comercio y categoría' : 'Recordar este comercio para próximas veces'}</span>
-              {aliasSource !== 'mercadopago' && (data.alias_match ? (
+              <span className="block font-medium">Recordar este comercio para próximas veces</span>
+              {data.alias_match ? (
                 <span className="mt-1 block text-xs text-text-tertiary">
                   {data.alias_match.match_type === 'suggestion' ? 'Sugerencia' : 'Comercio reconocido'}:{' '}
                   {data.alias_match.display_name}
@@ -650,7 +651,7 @@ export function ParsePreview({
                 </span>
               ) : (
                 <span className="mt-1 block text-xs text-text-tertiary">Texto detectado: {detectedAlias}</span>
-              ))}
+              )}
             </span>
           </label>
           {remember && (
@@ -719,13 +720,24 @@ export function ParsePreview({
                 ? 'Guardar de todas formas'
                 : confirmLabel ?? 'Guardar gasto ✓'}
         </button>
-        <button
-          onClick={handleCancel}
-          disabled={isSaving}
-          className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
-        >
-          Cancelar
-        </button>
+        {secondaryAction ? (
+          <button
+            type="button"
+            onClick={secondaryAction.onAction}
+            disabled={isSaving || secondaryAction.disabled}
+            className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary disabled:opacity-50"
+          >
+            {secondaryAction.label}
+          </button>
+        ) : (
+          <button
+            onClick={handleCancel}
+            disabled={isSaving}
+            className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:bg-surface hover:text-text-primary"
+          >
+            Cancelar
+          </button>
+        )}
       </div>
     </div>
   )

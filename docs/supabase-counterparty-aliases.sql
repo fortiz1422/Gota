@@ -23,7 +23,7 @@ create table if not exists public.counterparty_aliases (
   profile_id uuid not null,
   alias_value text not null check (char_length(alias_value) between 1 and 160),
   normalized_value text not null check (char_length(normalized_value) between 1 and 160),
-  source text not null check (source in ('manual', 'receipt', 'parser')),
+  source text not null check (source in ('manual', 'receipt', 'parser', 'mercadopago')),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   unique (user_id, normalized_value),
