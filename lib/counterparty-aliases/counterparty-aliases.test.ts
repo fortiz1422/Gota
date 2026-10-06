@@ -59,6 +59,20 @@ describe('counterparty alias resolution', () => {
     })).resolves.toEqual({ ...existing, match_type: 'suggestion' })
   })
 
+  it('recognizes provider wrapper wording around an existing merchant alias', async () => {
+    const autoservicio = {
+      ...match,
+      alias_value: 'Autoservicio el 23',
+      normalized_value: 'autoservicio el 23',
+      display_name: 'Autoservicio el 23',
+      default_category: 'Supermercado' as const,
+    }
+    await expect(resolveCounterpartyAlias('user-1', 'Producto de Autoservicio el 23', {
+      findExact: async () => null,
+      findCandidates: async () => [autoservicio],
+    })).resolves.toEqual({ ...autoservicio, match_type: 'suggestion' })
+  })
+
   it('fails closed when a partial wording points to more than one profile', async () => {
     await expect(resolveCounterpartyAlias('user-1', 'La briola', {
       findExact: async () => null,
