@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { describe, expect, it, vi } from 'vitest'
+import { ParsePreview } from '@/components/dashboard/ParsePreview'
 import { enrichParsedExpensePreview, enrichSharedReceiptPreview } from './preview'
 
 const match = {
@@ -53,5 +56,50 @@ describe('alias preview integrations', () => {
       detected_alias: 'BEL MARFER',
       auto_confirmed: false,
     })
+  })
+})
+
+
+describe('ParsePreview merchant memory parity', () => {
+  it('shows the recognized merchant in Mercado Pago review without silently opting into memory', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: {
+        amount: 2300,
+        currency: 'ARS',
+        category: 'Supermercado',
+        description: 'Producto de Autoservicio el 23',
+        is_want: false,
+        payment_method: 'DEBIT',
+        card_id: null,
+        date: '2026-10-06T14:50:00Z',
+        detected_alias: 'Producto de Autoservicio el 23',
+        alias_match: {
+          ...match,
+          alias_value: 'Autoservicio el 23',
+          normalized_value: 'autoservicio el 23',
+          display_name: 'Autoservicio el 23',
+        },
+      },
+      cards: [],
+      accounts: [],
+      onSave: vi.fn(),
+      onCancel: vi.fn(),
+      onConfirm: vi.fn(),
+      embedded: true,
+      aliasSource: 'mercadopago',
+      immutableProviderEvidence: true,
+      fixedAccount: { id: 'account-1', name: 'MercadoPago' },
+      secondaryAction: { label: 'Desestimar', onAction: vi.fn() },
+    }))
+
+    expect(html).toContain('Comercio reconocido')
+    expect(html).toContain('Autoservicio el 23')
+    expect(html).toContain('Texto detectado: Producto de Autoservicio el 23')
+    expect(html).toContain('Recordar este comercio para próximas veces')
+    expect(html).toContain('Recurrente')
+    expect(html).toContain('Extraordinario')
+    expect(html).toContain('Guardar gasto ✓')
+    expect(html).toContain('Desestimar')
+    expect(html).not.toContain('checked=""')
   })
 })
