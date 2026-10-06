@@ -34,7 +34,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Mercado Pago review and confirmation tests
-        run: npx vitest run lib/mercadopago/confirm-expense.test.ts lib/mercadopago/confirm-expense-route.test.ts lib/mercadopago/movements-route.test.ts lib/mercadopago/review-dismissal.test.ts lib/mercadopago/review-presentation.test.ts lib/mercadopago/sync-presentation.test.ts
+        run: npx vitest run lib/mercadopago/confirm-expense.test.ts lib/mercadopago/confirm-expense-route.test.ts lib/mercadopago/movements-route.test.ts lib/mercadopago/review-dismissal.test.ts lib/mercadopago/review-presentation.test.ts lib/mercadopago/sync-presentation.test.ts lib/counterparty-aliases/integration.test.ts
       - name: TypeScript check
         run: npx tsc --noEmit
 
