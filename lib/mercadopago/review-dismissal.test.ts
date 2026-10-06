@@ -25,7 +25,20 @@ describe('Mercado Pago review statuses', () => {
     const eligible = movement('pending')
     const card = { ...movement('pending'), candidateId: 'sha256:card', fundingSource: { kind: 'card' }, balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } } }
     const unknown = { ...movement('pending'), candidateId: 'sha256:unknown', occurredAt: null, balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } } }
+    const wallet = {
+      ...movement('pending'),
+      candidateId: 'sha256:wallet',
+      amount: { value: 10, currency: 'ARS' },
+      direction: 'outflow',
+      kind: 'expense',
+      operation: { type: 'regular_payment', status: 'approved', statusDetail: 'accredited' },
+      fundingSource: { kind: 'mercadopago_balance' },
+      installments: 1,
+      summary: { totalPaid: 10, refunded: 0 },
+      balanceImpact: { observed: false, effect: 'unknown' as const, amount: { value: null, currency: null } },
+    }
     expect(getMercadoPagoReviewCapability(eligible)).toEqual({ mode: 'confirmable', reason: 'complete_balance_debit' })
+    expect(getMercadoPagoReviewCapability(wallet)).toEqual({ mode: 'confirmable', reason: 'complete_wallet_payment' })
     expect(getMercadoPagoReviewCapability(card)).toEqual({ mode: 'evidence-only', reason: 'card_funding_incomplete' })
     expect(getMercadoPagoReviewCapability(unknown)).toEqual({ mode: 'evidence-only', reason: 'financial_class_unresolved' })
     expect(sortMercadoPagoPendingMovements([unknown, eligible, card]).map(({ candidateId }) => candidateId)).toEqual(['sha256:card', 'sha256:pending', 'sha256:unknown'])
