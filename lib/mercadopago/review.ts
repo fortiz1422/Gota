@@ -8,7 +8,7 @@ export type MercadoPagoMovement = {
   accountRole?: string
   installments?: number | null
   operation?: { type: string | null; status: string | null; statusDetail?: string | null }
-  summary?: { refunded: number | null }
+  summary?: { totalPaid?: number | null; refunded: number | null }
   description: string | null
   statementDescriptor: string | null
   reviewStatus: 'pending' | 'confirmed' | 'dismissed'
@@ -23,7 +23,7 @@ export type MercadoPagoMovement = {
 export type MercadoPagoDiagnostic = MercadoPagoMovement
 export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; expectedLinkedAccountId: string; expectedLinkedAccountVersion: number; cardId?: string; installments?: number }
 export type MercadoPagoReviewBuckets = { eligible: MercadoPagoMovement[]; cardPending: MercadoPagoMovement[]; unknown: MercadoPagoMovement[] }
-export type MercadoPagoReviewCapability = { mode: 'confirmable' | 'evidence-only'; reason: 'complete_balance_debit' | 'complete_credit_card_purchase' | 'card_funding_incomplete' | 'financial_class_unresolved' }
+export type MercadoPagoReviewCapability = { mode: 'confirmable' | 'evidence-only'; reason: 'complete_wallet_payment' | 'complete_balance_debit' | 'complete_credit_card_purchase' | 'card_funding_incomplete' | 'financial_class_unresolved' }
 
 export function getMercadoPagoDisplayAmount(movement: MercadoPagoMovement) {
   if (movement.fundingSource?.kind === 'card' && typeof movement.cardPurchaseAmount === 'number') return { ...movement.amount, value: movement.cardPurchaseAmount }
@@ -45,6 +45,27 @@ export function isReviewableMercadoPagoExpense(movement: MercadoPagoMovement) {
     || ['refunded', 'charged_back', 'in_mediation'].includes(movement.operation?.status ?? '')
   return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate' && !forbiddenFinancialType && !reversal && movement.balanceImpact.observed && movement.balanceImpact.effect === 'debit' && typeof amount.value === 'number' && Number.isFinite(amount.value) && amount.value < 0 && (amount.currency === 'ARS' || amount.currency === 'USD') && typeof movement.balanceOccurredAt === 'string' && Number.isFinite(Date.parse(movement.balanceOccurredAt))
 }
+export function isReviewableMercadoPagoWalletPayment(movement: MercadoPagoMovement) {
+  const amount = movement.amount.value
+  const balance = movement.balanceImpact
+  return movement.reviewStatus === 'pending' && movement.attention !== 'possible_duplicate'
+    && movement.kind === 'expense' && movement.direction === 'outflow'
+    && ['regular_payment', 'recurring_payment'].includes(movement.operation?.type ?? '')
+    && movement.operation?.status === 'approved' && movement.operation?.statusDetail === 'accredited'
+    && movement.fundingSource?.kind === 'mercadopago_balance'
+    && typeof amount === 'number' && Number.isFinite(amount) && amount > 0
+    && ['ARS', 'USD'].includes(movement.amount.currency ?? '')
+    && Boolean(movement.occurredAt && Number.isFinite(Date.parse(movement.occurredAt)))
+    && movement.installments === 1
+    && movement.summary?.totalPaid === amount
+    && movement.summary?.refunded === 0
+    && (!balance.observed || (
+      balance.effect === 'debit'
+      && balance.amount.value === -amount
+      && balance.amount.currency === movement.amount.currency
+    ))
+}
+
 export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovement) {
   return movement.reviewStatus === 'pending' && movement.cardPurchaseEligible === true && movement.kind === 'expense' && movement.direction === 'outflow'
     && ['regular_payment', 'recurring_payment'].includes(movement.operation?.type ?? '')
@@ -56,6 +77,7 @@ export function isReviewableMercadoPagoCardPurchase(movement: MercadoPagoMovemen
 }
 
 export function getMercadoPagoReviewCapability(movement: MercadoPagoMovement): MercadoPagoReviewCapability {
+  if (isReviewableMercadoPagoWalletPayment(movement)) return { mode: 'confirmable', reason: 'complete_wallet_payment' }
   if (isReviewableMercadoPagoExpense(movement)) return { mode: 'confirmable', reason: 'complete_balance_debit' }
   if (isReviewableMercadoPagoCardPurchase(movement)) return { mode: 'confirmable', reason: 'complete_credit_card_purchase' }
   if (movement.fundingSource?.kind === 'card') return { mode: 'evidence-only', reason: 'card_funding_incomplete' }
@@ -64,9 +86,11 @@ export function getMercadoPagoReviewCapability(movement: MercadoPagoMovement): M
 export function getMercadoPagoReviewDate(movement: MercadoPagoMovement) {
   // A confirmable movement must always be shown and bulk-selected by the same
   // provider balance date the authoritative endpoint writes to the ledger.
-  return isReviewableMercadoPagoExpense(movement)
-    ? movement.balanceOccurredAt
-    : movement.occurredAt ?? movement.balanceOccurredAt
+  return isReviewableMercadoPagoWalletPayment(movement)
+    ? movement.occurredAt
+    : isReviewableMercadoPagoExpense(movement)
+      ? movement.balanceOccurredAt
+      : movement.occurredAt ?? movement.balanceOccurredAt
 }
 export function sortMercadoPagoPendingMovements(movements: readonly MercadoPagoMovement[]) {
   return [...movements].filter((movement) => movement.reviewStatus === 'pending').sort((left, right) => {
@@ -85,7 +109,7 @@ export function classifyMercadoPagoMovements(movements: readonly MercadoPagoMove
   const buckets: MercadoPagoReviewBuckets = { eligible: [], cardPending: [], unknown: [] }
   for (const movement of movements) {
     if (movement.reviewStatus !== 'pending') continue
-    if (isReviewableMercadoPagoExpense(movement)) buckets.eligible.push(movement)
+    if (isReviewableMercadoPagoWalletPayment(movement) || isReviewableMercadoPagoExpense(movement)) buckets.eligible.push(movement)
     else if (movement.fundingSource?.kind === 'card' && movement.reviewStatus === 'pending') buckets.cardPending.push(movement)
     else buckets.unknown.push(movement)
   }
