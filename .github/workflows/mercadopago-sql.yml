@@ -37,3 +37,5 @@ jobs:
         run: node scripts/test-mercadopago-postings-pglite.mjs --docker
       - name: Single installment legacy RPC with deployed card ID type
         run: node scripts/test-mercadopago-card-confirmation-sql.mjs
+      - name: Wallet payment confirmation and operation identity
+        run: node scripts/test-mercadopago-wallet-confirmation-sql.mjs
