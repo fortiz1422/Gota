@@ -13,9 +13,13 @@ export function getMercadoPagoReviewPresentation(movement: MercadoPagoMovement) 
     if (movement.kind === 'transfer' || movement.operation?.type === 'money_transfer') {
       return { ready: true, title: 'Transferencia saliente', explanation: 'Si pagaste un consumo, revisá la descripción y categoría para registrarlo como gasto con saldo de Mercado Pago. Si fue entre tus cuentas, descartalo. Sólo se registra cuando confirmás.', action: 'Revisar como gasto' }
     }
-    return capability.reason === 'complete_credit_card_purchase'
-      ? { ready: true, title: 'Compra con tarjeta', explanation: 'Elegí la tarjeta y revisá la categoría. No se descontará del saldo de Mercado Pago.', action: 'Completar compra' }
-      : { ready: true, title: 'Salida de saldo', explanation: 'Revisá qué representa esta salida antes de registrarla como gasto.', action: 'Revisar y completar' }
+    if (capability.reason === 'complete_credit_card_purchase') {
+      return { ready: true, title: 'Compra con tarjeta', explanation: 'Revisá la tarjeta y la categoría. No se descontará del saldo de Mercado Pago.', action: 'Revisar compra' }
+    }
+    if (capability.reason === 'complete_wallet_payment') {
+      return { ready: true, title: 'Pago con saldo de Mercado Pago', explanation: 'Mercado Pago lo identifica como un pago aprobado con dinero en cuenta. Revisá la categoría antes de registrarlo.', action: 'Revisar gasto' }
+    }
+    return { ready: true, title: 'Salida de saldo', explanation: 'Revisá qué representa esta salida antes de registrarla como gasto.', action: 'Revisar y completar' }
   }
   if (movement.kind === 'transfer' || movement.operation?.type === 'money_transfer') {
     return { ready: false, title: 'Transferencia por resolver', explanation: 'Falta saber si fue entre tus cuentas o con otra persona. No se registra automáticamente como gasto ni ingreso.', action: 'Ver transferencia' }
