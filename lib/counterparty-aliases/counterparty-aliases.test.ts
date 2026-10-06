@@ -129,7 +129,7 @@ describe('migration contract', () => {
     expect(sql).toMatch(/unique\s*\(user_id, normalized_value\)/i)
     expect(sql).toContain('counterparty_profiles_name_idx')
     expect(sql).toContain("default_category is null or default_category in (")
-    expect(sql).toContain("source in ('manual', 'receipt', 'parser')")
+    expect(sql).toContain("source in ('manual', 'receipt', 'parser', 'mercadopago')")
     expect(sql).toMatch(/enable row level security/i)
     expect(sql).toMatch(/auth\.uid\(\) = user_id/i)
     expect(sql).toMatch(/counterparty_alias_profile_same_user/i)
