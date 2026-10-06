@@ -21,7 +21,7 @@ export type MercadoPagoMovement = {
   reviewSnapshot?: { fingerprint: string; observations: Array<{ id: string; source: string; key: string | null; seenAt: string }> }
 }
 export type MercadoPagoDiagnostic = MercadoPagoMovement
-export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; expectedLinkedAccountId: string; expectedLinkedAccountVersion: number; cardId?: string; installments?: number }
+export type ConfirmExpensePayload = { description: string; category: string; isWant: boolean; isRecurring: boolean; isExtraordinary: boolean; expectedLinkedAccountId: string; expectedLinkedAccountVersion: number; cardId?: string; installments?: number }
 export type MercadoPagoReviewBuckets = { eligible: MercadoPagoMovement[]; cardPending: MercadoPagoMovement[]; unknown: MercadoPagoMovement[] }
 export type MercadoPagoReviewCapability = { mode: 'confirmable' | 'evidence-only'; reason: 'complete_wallet_payment' | 'complete_balance_debit' | 'complete_credit_card_purchase' | 'card_funding_incomplete' | 'financial_class_unresolved' }
 
@@ -123,7 +123,13 @@ export function pendingMercadoPagoReviewBucketCount(buckets: MercadoPagoReviewBu
   return buckets.eligible.length + buckets.cardPending.length + buckets.unknown.length
 }
 export function buildConfirmExpensePayload(input: ConfirmExpensePayload): ConfirmExpensePayload | Omit<ConfirmExpensePayload, 'expectedLinkedAccountId' | 'expectedLinkedAccountVersion' | 'cardId' | 'installments'> & { cardId: string; installments: number } {
-  const base = { description: input.description.trim(), category: input.category, isWant: input.isWant }
+  const base = {
+    description: input.description.trim(),
+    category: input.category,
+    isWant: input.isWant,
+    isRecurring: input.isRecurring,
+    isExtraordinary: input.isExtraordinary,
+  }
   if (input.cardId !== undefined) return { ...base, cardId: input.cardId, installments: input.installments ?? 1 }
   return { ...base, expectedLinkedAccountId: input.expectedLinkedAccountId, expectedLinkedAccountVersion: input.expectedLinkedAccountVersion }
 }
