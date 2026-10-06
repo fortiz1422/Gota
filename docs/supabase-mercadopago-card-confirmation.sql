@@ -9,7 +9,7 @@ alter table public.mercadopago_movement_reviews alter column account_id drop not
 alter table public.mercadopago_movement_reviews add column if not exists card_id uuid references public.cards(id) on delete restrict;
 alter table public.mercadopago_movement_reviews add column if not exists card_cycle_id uuid references public.card_cycles(id) on delete restrict;
 alter table public.mercadopago_movement_reviews drop constraint if exists mercadopago_movement_reviews_evidence_kind_check;
-alter table public.mercadopago_movement_reviews add constraint mercadopago_movement_reviews_evidence_kind_check check (evidence_kind in ('balance_debit_known','credit_card_purchase'));
+alter table public.mercadopago_movement_reviews add constraint mercadopago_movement_reviews_evidence_kind_check check (evidence_kind in ('balance_debit_known','credit_card_purchase','wallet_payment'));
 
 create or replace function public.confirm_mercadopago_card_expense(
   p_user_id uuid, p_connection_id uuid, p_candidate_id text,
