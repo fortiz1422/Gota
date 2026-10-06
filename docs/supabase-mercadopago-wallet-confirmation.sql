@@ -103,7 +103,44 @@ with review_keys as (
   where r.operation_key is null
   group by r.id
   having count(distinct e->>'native_key')=1
-     and min(e->>'native_key') !~* '^sha256:[a-f0-9]{64}
+     and min(e->>'native_key') !~* '^sha256:[a-f0-9]{64}$'
+)
+update public.mercadopago_movement_reviews r
+set operation_key = encode(extensions.digest(r.connection_id::text||':'||k.native_key,'sha256'),'hex')
+from review_keys k
+where r.id=k.id;
+
+with dismissal_keys as (
+  select d.id, min(e->>'native_key') as native_key
+  from public.mercadopago_movement_dismissals d
+  cross join lateral jsonb_array_elements(coalesce(d.evidence->'observations','[]'::jsonb)) e
+  where d.operation_key is null
+  group by d.id
+  having count(distinct e->>'native_key')=1
+     and min(e->>'native_key') !~* '^sha256:[a-f0-9]{64}$'
+)
+update public.mercadopago_movement_dismissals d
+set operation_key = encode(extensions.digest(d.connection_id::text||':'||k.native_key,'sha256'),'hex')
+from dismissal_keys k
+where d.id=k.id;
+
+do $$
+begin
+  if exists (
+    select 1
+    from (
+      select user_id,connection_id,operation_key from public.mercadopago_movement_reviews where operation_key is not null
+      union all
+      select user_id,connection_id,operation_key from public.mercadopago_movement_dismissals where operation_key is not null
+    ) decisions
+    group by user_id,connection_id,operation_key
+    having count(*)>1
+  ) then
+    raise exception 'conflicting legacy Mercado Pago operation decisions' using errcode='55000';
+  end if;
+end;
+$$;
+
 create unique index if not exists mercadopago_reviews_operation_identity_uq
   on public.mercadopago_movement_reviews(user_id,connection_id,operation_key)
   where operation_key is not null;
