@@ -40,6 +40,8 @@ export interface ParsePreviewConfirmPayload {
   category: string
   description: string
   is_want: boolean | null
+  is_recurring: boolean
+  is_extraordinary: boolean
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   account_id: string | null
   card_id: string | null
@@ -124,6 +126,8 @@ export function buildParsePreviewConfirmPayload(
     category: data.category,
     description: data.description.trim(),
     is_want: data.is_want,
+    is_recurring: data.is_recurring === true,
+    is_extraordinary: data.is_extraordinary === true,
     payment_method: paymentMethod,
     account_id: deriveAccountId(source, accounts),
     card_id: paymentMethod === 'CREDIT' ? data.card_id : null,
@@ -180,7 +184,6 @@ export function ParsePreview({
   const [profilesLoading, setProfilesLoading] = useState(false)
   const [profilesError, setProfilesError] = useState<string | null>(null)
 
-  const ExtraFields = immutableProviderEvidence && aliasSource === 'mercadopago' ? 'details' : 'div'
   const isPagoTarjetas = form.category === 'Pago de Tarjetas'
   const isProviderCardPurchase = immutableProviderEvidence && aliasSource === 'mercadopago' && data.payment_method === 'CREDIT'
   const isCredit = source === 'credit' || isPagoTarjetas
@@ -428,7 +431,7 @@ export function ParsePreview({
 
         <div className={isProviderCardPurchase ? 'hidden' : undefined}>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            {immutableProviderEvidence && aliasSource === 'mercadopago' ? 'Cuenta' : 'De donde sale'}
+            De donde sale
           </label>
           {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
           {isProviderCardPurchase && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Tarjeta de crédito · compra en Mercado Pago</p>}
@@ -596,8 +599,7 @@ export function ParsePreview({
         </div>
 
         {!isPagoTarjetas && (
-          <ExtraFields>
-            {immutableProviderEvidence && aliasSource === 'mercadopago' && <summary className="min-h-11 cursor-pointer py-3 text-xs text-text-secondary">Etiquetas del gasto</summary>}
+          <div>
             <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
               Etiquetas
             </label>
@@ -609,24 +611,22 @@ export function ParsePreview({
               >
                 Deseo
               </button>
-              {!isProviderCardPurchase && <>
-                <button
-                  type="button"
-                  onClick={() => set('is_recurring', !form.is_recurring)}
-                  className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
-                >
-                  Recurrente
-                </button>
-                <button
-                  type="button"
-                  onClick={() => set('is_extraordinary', !form.is_extraordinary)}
-                  className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
-                >
-                  Extraordinario
-                </button>
-              </>}
+              <button
+                type="button"
+                onClick={() => set('is_recurring', !form.is_recurring)}
+                className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
+              >
+                Recurrente
+              </button>
+              <button
+                type="button"
+                onClick={() => set('is_extraordinary', !form.is_extraordinary)}
+                className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
+              >
+                Extraordinario
+              </button>
             </div>
-          </ExtraFields>
+          </div>
         )}
       </div>
 
