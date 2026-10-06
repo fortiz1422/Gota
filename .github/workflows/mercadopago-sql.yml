@@ -21,6 +21,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  unit-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+      - run: npm ci
+      - name: Mercado Pago review and confirmation tests
+        run: npx vitest run lib/mercadopago/confirm-expense.test.ts lib/mercadopago/confirm-expense-route.test.ts lib/mercadopago/movements-route.test.ts lib/mercadopago/review-dismissal.test.ts lib/mercadopago/review-presentation.test.ts lib/mercadopago/sync-presentation.test.ts
+
   native-postgres:
     runs-on: ubuntu-latest
     timeout-minutes: 10
