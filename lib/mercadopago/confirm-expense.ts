@@ -42,8 +42,8 @@ export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPa
 
 export function getMercadoPagoOperationKey(connectionId: string, candidate: Pick<ReconciledMercadoPagoMovement, 'evidence'>) {
   const keys = new Set(candidate.evidence
-    .map((observation) => observation.nativeKey ?? observation.nativeId)
-    .filter((key): key is string => Boolean(key?.trim()) && !/^sha256:[a-f0-9]{64}$/i.test(key!)))
+    .map((observation) => (observation.nativeKey ?? observation.nativeId)?.trim() ?? '')
+    .filter((key) => Boolean(key) && !/^sha256:[a-f0-9]{64}$/i.test(key)))
   if (!connectionId || keys.size !== 1) return null
   return sha256(`${connectionId}:${[...keys][0]}`)
 }
