@@ -36,6 +36,31 @@ describe('Mercado Pago review explanations', () => {
     expect(getMercadoPagoReviewPresentation({ ...payout, attention: 'possible_duplicate' })).toMatchObject({ ready: false, title: 'Posible duplicado' })
   })
 
+  it('presents an approved account-money payment as reviewable before settlement arrives', () => {
+    const wallet: MercadoPagoMovement = {
+      ...base,
+      candidateId: 'wallet-payment',
+      description: 'Producto de Autoservicio el 23',
+      kind: 'expense',
+      direction: 'outflow',
+      operation: { type: 'regular_payment', status: 'approved', statusDetail: 'accredited' },
+      fundingSource: { kind: 'mercadopago_balance' },
+      installments: 1,
+      summary: { totalPaid: 1000, refunded: 0 },
+    }
+    expect(getMercadoPagoReviewPresentation(wallet)).toMatchObject({
+      ready: true,
+      title: 'Pago con saldo de Mercado Pago',
+      action: 'Revisar gasto',
+    })
+    const html = renderToStaticMarkup(createElement(MercadoPagoReviewInbox, {
+      buckets: classifyMercadoPagoMovements([wallet]), onOpen: () => undefined,
+    }))
+    expect(html).toContain('Revisá la categoría')
+    expect(html).toContain('Saldo MP')
+    expect(html).not.toContain('Movimiento por identificar')
+  })
+
   it('explains that multi-installment confirmation is still unavailable rather than inventing a card mapping', () => {
     expect(getMercadoPagoReviewPresentation({ ...base, fundingSource: { kind: 'card', lastFour: '1234' }, installments: 3 }))
       .toMatchObject({ ready: false, title: 'Compra en cuotas', explanation: expect.stringContaining('3 cuotas') })
