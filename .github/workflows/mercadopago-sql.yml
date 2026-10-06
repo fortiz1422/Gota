@@ -56,3 +56,5 @@ jobs:
         run: node scripts/test-mercadopago-card-confirmation-sql.mjs
       - name: Wallet payment confirmation and operation identity
         run: node scripts/test-mercadopago-wallet-confirmation-sql.mjs
+      - name: Review tag parity wrappers
+        run: node scripts/test-mercadopago-review-tags-sql.mjs
