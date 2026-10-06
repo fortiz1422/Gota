@@ -171,9 +171,9 @@ export function ParsePreview({
   const [duplicatesChecked, setDuplicatesChecked] = useState(false)
   const [foundDuplicates, setFoundDuplicates] = useState<PossibleExpenseDuplicate[]>([])
   const detectedAlias = safeDetectedAlias(data.detected_alias)
-  // MP confirmation is the explicit correction point. Learn by default while
-  // keeping the choice visible and reversible before the memory write.
-  const [remember, setRemember] = useState(aliasSource === 'mercadopago')
+  // Remembering a merchant is an explicit preference in every review flow.
+  // Provider evidence may lock financial fields, but it must not change this opt-in.
+  const [remember, setRemember] = useState(false)
   const [profileMode, setProfileMode] = useState<'new' | 'existing'>(data.alias_match ? 'existing' : 'new')
   const [profileId, setProfileId] = useState(data.alias_match?.profile_id ?? '')
   const [profiles, setProfiles] = useState<CounterpartyProfileOption[]>([])
@@ -640,8 +640,8 @@ export function ParsePreview({
               className="mt-0.5 rounded border-border-ocean text-primary focus:ring-primary"
             />
             <span>
-              <span className="block font-medium">{aliasSource === 'mercadopago' ? 'Recordar comercio y categoría' : 'Recordar este comercio para próximas veces'}</span>
-              {aliasSource !== 'mercadopago' && (data.alias_match ? (
+              <span className="block font-medium">Recordar este comercio para próximas veces</span>
+              {data.alias_match ? (
                 <span className="mt-1 block text-xs text-text-tertiary">
                   {data.alias_match.match_type === 'suggestion' ? 'Sugerencia' : 'Comercio reconocido'}:{' '}
                   {data.alias_match.display_name}
@@ -650,7 +650,7 @@ export function ParsePreview({
                 </span>
               ) : (
                 <span className="mt-1 block text-xs text-text-tertiary">Texto detectado: {detectedAlias}</span>
-              ))}
+              )}
             </span>
           </label>
           {remember && (
