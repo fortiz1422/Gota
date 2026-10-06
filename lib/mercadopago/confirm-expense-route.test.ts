@@ -8,6 +8,8 @@ const mocks = vi.hoisted(() => ({
   reconstruct: vi.fn(),
   eligible: vi.fn(),
   eligibleCard: vi.fn(),
+  eligibleWallet: vi.fn(),
+  operationKey: vi.fn(),
   fingerprint: vi.fn(),
   intent: vi.fn(),
   expected: vi.fn(),
@@ -25,6 +27,8 @@ vi.mock('@/lib/mercadopago/confirm-expense', () => ({
   reconstructMercadoPagoCandidates: mocks.reconstruct,
   eligibleMercadoPagoExpense: mocks.eligible,
   isEligibleCreditCardPurchase: mocks.eligibleCard,
+  isEligibleMercadoPagoWalletPayment: mocks.eligibleWallet,
+  getMercadoPagoOperationKey: mocks.operationKey,
   getMercadoPagoCardPurchaseAmount: (item: typeof candidate) => (item.summary as { totalPaid?: number }).totalPaid ?? item.amount.value,
   candidateFingerprint: mocks.fingerprint,
   buildConfirmationIntentHash: mocks.intent,
@@ -63,6 +67,8 @@ beforeEach(() => {
   mocks.reconstruct.mockReturnValue([candidate])
   mocks.eligible.mockReturnValue(true)
   mocks.eligibleCard.mockReturnValue(false)
+  mocks.eligibleWallet.mockReturnValue(false)
+  mocks.operationKey.mockReturnValue('o'.repeat(64))
   mocks.fingerprint.mockReturnValue('f'.repeat(64))
   mocks.intent.mockReturnValue('i'.repeat(64))
   mocks.expected.mockReturnValue([{ id: 'raw-1', source: 'account_settlement_report', native_key: 'native-1', last_seen_at: '2026-09-16T00:00:00.000Z' }])
@@ -155,6 +161,36 @@ describe('Mercado Pago confirm expense route', () => {
     const serialized = JSON.stringify(await response.json())
     expect(serialized).toBe(JSON.stringify({ error }))
     expect(serialized).not.toMatch(/message|native-123|secret/i)
+  })
+
+  it('confirms an approved account-money payment without waiting for settlement evidence', async () => {
+    mocks.eligibleWallet.mockReturnValue(true)
+    mocks.reconstruct.mockReturnValue([{
+      ...candidate,
+      fundingSource: { kind: 'mercadopago_balance' },
+      balanceImpact: { observed: false, effect: 'unknown', amount: { value: null, currency: null } },
+      summary: { totalPaid: 5500, refunded: 0 },
+      installments: 1,
+      operation: { type: 'regular_payment', status: 'approved', statusDetail: 'accredited' },
+    }])
+    mocks.expected.mockReturnValue([{ id: 'raw-wallet', source: 'payments_search', native_key: 'wallet-1', last_seen_at: '2026-09-15T12:00:00.000Z' }])
+
+    const response = await post()
+
+    expect(response.status).toBe(200)
+    expect(mocks.duplicate).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({
+      economicType: 'expense', funding: 'mp_balance', amount: { value: 5500, currency: 'ARS' }, occurredAt: '2026-09-15T11:00:00.000Z',
+    }), undefined)
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_wallet_expense', expect.objectContaining({
+      p_operation_key: 'o'.repeat(64),
+      p_amount: 5500,
+      p_currency: 'ARS',
+      p_date: '2026-09-15',
+      p_expected_linked_account_id: linkedAccountId,
+      p_expected_linked_account_version: 4,
+    }))
+    expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty('p_evidence_kind')
+    expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty('p_canonical_semantics')
   })
 
   it('routes a validated one-installment credit-card purchase to the transactional card RPC', async () => {
