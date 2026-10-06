@@ -607,8 +607,8 @@ export function MercadoPagoReviewClient() {
         canvasTone="standard"
         footer={(
           <div className="text-center text-sm text-text-secondary">
-            <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button border border-danger/30 px-3 py-3 text-sm font-semibold text-danger disabled:opacity-50">
-              Desestimar operación
+            <button type="button" onClick={(event) => selected && requestDismissal(selected, event.currentTarget)} disabled={dismissing || dismissed !== null} className="min-h-11 w-full rounded-button px-3 py-3 text-sm font-medium text-text-secondary transition-colors hover:text-danger disabled:opacity-50">
+              Desestimar
             </button>
           </div>
         )}
