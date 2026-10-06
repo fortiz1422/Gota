@@ -127,12 +127,13 @@ describe('Mercado Pago confirm expense route', () => {
     const response = await post()
     expect(response.status).toBe(200)
     expect(await response.json()).toEqual({ status: 'confirmed', expenseId: 'expense-1' })
-    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_expense', expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_expense_with_tags', expect.objectContaining({
       p_user_id: 'user-1', p_connection_id: 'connection-1', p_candidate_id: 'sha256:candidate',
       p_candidate_fingerprint: 'f'.repeat(64), p_intent_hash: 'i'.repeat(64),
       p_expected_observations: [{ id: 'raw-1', source: 'account_settlement_report', native_key: 'native-1', last_seen_at: '2026-09-16T00:00:00.000Z' }],
       p_amount: 5500, p_currency: 'ARS', p_date: '2026-09-15',
       p_category: 'Alimentos', p_description: 'Shell', p_is_want: false,
+      p_is_recurring: false, p_is_extraordinary: false,
       p_expected_linked_account_id: linkedAccountId, p_expected_linked_account_version: 4,
     }))
   })
@@ -147,7 +148,7 @@ describe('Mercado Pago confirm expense route', () => {
     expect(mocks.duplicate).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({
       economicType: 'expense', funding: 'mp_balance', amount: { value: 1000, currency: 'ARS' }, occurredAt: '2026-10-02T01:26:52Z',
     }), undefined)
-    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_expense', expect.objectContaining({ p_amount: 1000, p_date: '2026-10-01' }))
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_expense_with_tags', expect.objectContaining({ p_amount: 1000, p_date: '2026-10-01' }))
     mocks.rpc.mockClear()
     mocks.duplicate.mockResolvedValue({ checked: true, matches: [{ expenseId: 'existing' }] })
     expect((await post()).status).toBe(409)
@@ -181,7 +182,7 @@ describe('Mercado Pago confirm expense route', () => {
     expect(mocks.duplicate).toHaveBeenCalledWith(expect.anything(), 'user-1', expect.objectContaining({
       economicType: 'expense', funding: 'mp_balance', amount: { value: 5500, currency: 'ARS' }, occurredAt: '2026-09-15T11:00:00.000Z',
     }), undefined)
-    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_wallet_expense', expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_wallet_expense_with_tags', expect.objectContaining({
       p_operation_key: 'o'.repeat(64),
       p_amount: 5500,
       p_currency: 'ARS',
@@ -198,7 +199,7 @@ describe('Mercado Pago confirm expense route', () => {
     mocks.eligibleCard.mockReturnValue(true)
     const response = await post({ description: body.description, category: body.category, isWant: body.isWant, cardId, installments: 1 })
     expect(response.status).toBe(200)
-    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_expense', expect.objectContaining({
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_expense_with_tags', expect.objectContaining({
       p_card_id: cardId, p_installments: 1, p_amount: 5500, p_currency: 'ARS', p_date: '2026-09-15',
     }))
     expect(mocks.duplicate).not.toHaveBeenCalled()
@@ -228,13 +229,24 @@ describe('Mercado Pago confirm expense route', () => {
     }, 'credit', [], 1)
     const serializedUiPayload = JSON.parse(JSON.stringify(buildConfirmExpensePayload({
       description: preview.description, category: preview.category, isWant: preview.is_want === true,
+      isRecurring: preview.is_recurring, isExtraordinary: preview.is_extraordinary,
       expectedLinkedAccountId: '', expectedLinkedAccountVersion: -1,
       cardId: preview.card_id ?? '', installments: preview.installments,
     })))
     const response = await post(serializedUiPayload)
     expect(response.status).toBe(200)
-    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_expense', expect.objectContaining({ p_card_id: cardId, p_installments: 1 }))
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_expense_with_tags', expect.objectContaining({ p_card_id: cardId, p_installments: 1 }))
     expect(mocks.rpc.mock.calls[0][1]).not.toHaveProperty('p_expected_linked_account_id')
+  })
+
+  it('persists the same recurring and extraordinary tags selected in ParsePreview', async () => {
+    const response = await post({ ...body, isRecurring: true, isExtraordinary: true })
+    expect(response.status).toBe(200)
+    expect(mocks.intent).toHaveBeenCalledWith(expect.objectContaining({ isRecurring: true, isExtraordinary: true }))
+    expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_expense_with_tags', expect.objectContaining({
+      p_is_recurring: true,
+      p_is_extraordinary: true,
+    }))
   })
 
   it('rejects Pago de Tarjetas for a credit-card purchase before RPC', async () => {
@@ -255,11 +267,11 @@ describe('Mercado Pago confirm expense route', () => {
       mocks.plan.mockResolvedValue({ rows: [{ amount: 33945.15 }, { amount: 33945.15 }] })
       expect((await post(cardBody)).status).toBe(200)
       expect(mocks.plan).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ amount: 67890.30, installments: 2 }))
-      expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_purchase', expect.objectContaining({ p_amount: 67890.30, p_installments: 2, p_plan: expect.any(Object) }))
+      expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_purchase_with_tags', expect.objectContaining({ p_amount: 67890.30, p_installments: 2, p_plan: expect.any(Object) }))
     } finally { vi.unstubAllEnvs() }
   })
 
-  it('uses the additive v2 purchase RPC for one installment when enabled, preserving the legacy RPC', async () => {
+  it('uses the tagged purchase RPC for one installment when enabled', async () => {
     mocks.eligibleCard.mockReturnValue(true)
     vi.stubEnv('MERCADOPAGO_CARD_INSTALLMENTS_ENABLED', 'true')
     try {
@@ -267,8 +279,8 @@ describe('Mercado Pago confirm expense route', () => {
       const cardId = '00000000-0000-4000-8000-000000000012'
       expect((await post({ description: 'Compra', category: 'Otros', isWant: false, cardId, installments: 1 })).status).toBe(200)
       expect(mocks.plan).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ amount: 5500, installments: 1 }))
-      expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_purchase', expect.objectContaining({ p_installments: 1, p_plan: expect.any(Object) }))
-      expect(mocks.rpc).not.toHaveBeenCalledWith('confirm_mercadopago_card_expense', expect.anything())
+      expect(mocks.rpc).toHaveBeenCalledWith('confirm_mercadopago_card_purchase_with_tags', expect.objectContaining({ p_installments: 1, p_plan: expect.any(Object) }))
+      expect(mocks.rpc).not.toHaveBeenCalledWith('confirm_mercadopago_card_expense_with_tags', expect.anything())
     } finally { vi.unstubAllEnvs() }
   })
 
