@@ -25,11 +25,14 @@ export async function GET() {
     ])
     type ProjectedReview = { status: 'confirmed'; expense_id: string } | { status: 'dismissed' }
     const byCandidate = new Map<string, ProjectedReview>([...reviews.map((review) => [review.candidate_id, review] as const), ...dismissals.map((dismissal) => [dismissal.candidate_id, dismissal] as const)])
-    const byOperation = new Map<string, ProjectedReview>(operationDecisions.flatMap((decision) => {
-      if (decision.status === 'confirmed' && decision.expense_id) return [[decision.operation_key, { status: 'confirmed' as const, expense_id: decision.expense_id }] as const]
-      if (decision.status === 'dismissed') return [[decision.operation_key, { status: 'dismissed' as const }] as const]
-      return []
-    }))
+    const byOperation = new Map<string, ProjectedReview>()
+    for (const decision of operationDecisions) {
+      if (decision.status === 'confirmed' && decision.expense_id) {
+        byOperation.set(decision.operation_key, { status: 'confirmed', expense_id: decision.expense_id })
+      } else if (decision.status === 'dismissed') {
+        byOperation.set(decision.operation_key, { status: 'dismissed' })
+      }
+    }
     const duplicateFingerprints = new Set(shadowDecisions
       .filter((decision) => decision.rule_version === MP_DECISION_RULE_VERSION && decision.decision === 'review' && decision.reasons.includes('possible_ledger_duplicate'))
       .map((decision) => `${decision.candidate_id}:${decision.candidate_fingerprint}`))
