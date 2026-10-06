@@ -40,6 +40,34 @@ export function isEligibleCreditCardPurchase(candidate: Pick<ReconciledMercadoPa
     && getMercadoPagoCardPurchaseAmount(candidate) !== null
 }
 
+export function getMercadoPagoOperationKey(connectionId: string, candidate: Pick<ReconciledMercadoPagoMovement, 'evidence'>) {
+  const keys = new Set(candidate.evidence
+    .map((observation) => observation.nativeKey ?? observation.nativeId)
+    .filter((key): key is string => Boolean(key?.trim()) && !/^sha256:[a-f0-9]{64}$/i.test(key!)))
+  if (!connectionId || keys.size !== 1) return null
+  return sha256(`${connectionId}:${[...keys][0]}`)
+}
+
+export function isEligibleMercadoPagoWalletPayment(candidate: Pick<ReconciledMercadoPagoMovement, 'kind' | 'direction' | 'accountRole' | 'operation' | 'fundingSource' | 'amount' | 'occurredAt' | 'installments' | 'summary' | 'balanceImpact'>) {
+  const amount = candidate.amount.value
+  const balance = candidate.balanceImpact
+  return candidate.kind === 'expense' && candidate.direction === 'outflow' && candidate.accountRole === 'payer'
+    && ['regular_payment', 'recurring_payment'].includes(candidate.operation.type ?? '')
+    && candidate.operation.status === 'approved' && candidate.operation.statusDetail === 'accredited'
+    && candidate.fundingSource.kind === 'mercadopago_balance'
+    && typeof amount === 'number' && Number.isFinite(amount) && amount > 0
+    && ['ARS', 'USD'].includes(candidate.amount.currency ?? '')
+    && Boolean(candidate.occurredAt && Number.isFinite(Date.parse(candidate.occurredAt)))
+    && candidate.installments === 1
+    && candidate.summary.totalPaid === amount
+    && candidate.summary.refunded === 0
+    && (!balance.observed || (
+      balance.effect === 'debit'
+      && balance.amount.value === -amount
+      && balance.amount.currency === candidate.amount.currency
+    ))
+}
+
 export function reconstructMercadoPagoCandidates(connection: MercadoPagoConnection, observations: MercadoPagoMovementObservation[]) {
   const internal: ReconciliationObservation[] = observations.map((observation) => ({
     id: observation.id,
