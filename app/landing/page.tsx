@@ -95,7 +95,7 @@ export default function LandingPage() {
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span /> En beta privada
+            <span /> Finanzas claras
           </p>
           <h1>
             Tu plata,
@@ -275,7 +275,7 @@ export default function LandingPage() {
           Ingresar o crear cuenta <ArrowUpRight size={17} aria-hidden />
         </Link>
         <p className={styles.caption}>
-          Gota está en beta privada. Empezá de a poco y revisá tus datos.
+          Empezá de a poco y revisá tus datos.
         </p>
       </section>
       <footer className={styles.footer}>
