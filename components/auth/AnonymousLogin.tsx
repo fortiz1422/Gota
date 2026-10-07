@@ -3,15 +3,16 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { AnonymousAccountUpgradeSheet } from './AnonymousAccountUpgradeSheet'
 
-export function AnonymousLogin({ destination }: { destination: string }) {
+export function AnonymousLogin({ destination, existingAccount = false }: { destination: string; existingAccount?: boolean }) {
   const [open, setOpen] = useState(true)
   return (
     <main className="min-h-app bg-bg-primary px-6 py-16">
       <div className="mx-auto max-w-md space-y-5">
-        <h1 className="text-2xl font-bold">Ya empezaste sin cuenta</h1>
+        <h1 className="text-2xl font-bold">{existingAccount ? 'Ingresar a tu cuenta' : 'Ya empezaste sin cuenta'}</h1>
         <p className="text-text-secondary text-sm leading-6">
-          Podés seguir con tus movimientos o crear una cuenta para recuperar el
-          acceso desde otro dispositivo.
+          {existingAccount
+            ? 'Entrá con el mail o Google de tu cuenta habitual. No hace falta completar la cuenta de prueba.'
+            : 'Podés seguir con tus movimientos o crear una cuenta para recuperar el acceso desde otro dispositivo.'}
         </p>
         <Link
           href={destination}
@@ -23,7 +24,7 @@ export function AnonymousLogin({ destination }: { destination: string }) {
           onClick={() => setOpen(true)}
           className="text-primary w-full py-3 font-semibold"
         >
-          Crear cuenta o ingresar
+          {existingAccount ? 'Ingresar a mi cuenta' : 'Crear cuenta o ingresar'}
         </button>
         <Link
           href="/landing"
@@ -33,6 +34,7 @@ export function AnonymousLogin({ destination }: { destination: string }) {
         </Link>
       </div>
       <AnonymousAccountUpgradeSheet
+        existingAccountOnly={existingAccount}
         open={open}
         onClose={() => setOpen(false)}
       />

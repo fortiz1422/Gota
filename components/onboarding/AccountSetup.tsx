@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, type FormEvent } from 'react'
+import Link from 'next/link'
 import { Bank, Wallet, Money, ArrowRight, Check } from '@phosphor-icons/react'
 import {
   parseSetupBalance,
@@ -105,6 +106,10 @@ export function AccountSetup({
             {isAnonymous ? 'Sin cuenta · con tus datos' : 'Tu punto de partida'}
           </span>
         </header>
+        <nav aria-label="Opciones de inicio" className="mb-6 flex flex-wrap items-center justify-between gap-3 text-sm">
+          <Link href="/landing" className="text-primary py-2 font-medium">← Conocer Gota</Link>
+          {isAnonymous && <Link href="/login?intent=existing" className="text-primary py-2 font-semibold">Ya tengo cuenta · Ingresar</Link>}
+        </nav>
         <div className={styles.layout}>
           <section className={styles.intro}>
             <p className={styles.eyebrow}>EMPECEMOS POR LO SIMPLE</p>
