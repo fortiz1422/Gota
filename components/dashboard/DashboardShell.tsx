@@ -10,8 +10,11 @@ import { SaldoVivo } from '@/components/dashboard/SaldoVivo'
 import { DisponibleRealSheet } from '@/components/dashboard/DisponibleRealSheet'
 import { CommitmentsSummary } from '@/components/dashboard/CommitmentsSummary'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
+import { TarjetasSubSheet } from '@/components/settings/TarjetasSubSheet'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
+import { HomeSetupGuide } from '@/components/onboarding/HomeSetupGuide'
+import { FirstExpenseGuide } from '@/components/onboarding/FirstExpenseGuide'
 import { HomeActivationState } from '@/components/dashboard/HomeActivationState'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { BottomZone } from '@/components/dashboard/BottomZone'
@@ -157,6 +160,7 @@ export function DashboardShell({
   const [disponibleSheetMode, setDisponibleSheetMode] = useState<'real' | 'libre'>('real')
   const [cuentaSheetOpen, setCuentaSheetOpen] = useState(false)
   const [cuentasOpen, setCuentasOpen] = useState(false)
+  const [tarjetasOpen, setTarjetasOpen] = useState(false)
   const [signalsOpen, setSignalsOpen] = useState(false)
   const [readSignalVersions, setReadSignalVersions] = useState<string[]>(() => {
     if (typeof window === 'undefined') return []
@@ -757,7 +761,13 @@ export function DashboardShell({
               />
             )}
 
-            {homeEmptyState.showPrimaryActivation && (
+            {homeEmptyState.variant === 'first-use' && (
+              <>
+                <FirstExpenseGuide accounts={accounts} cards={cards} onAfterSave={invalidateDashboardData} />
+                <HomeSetupGuide hasCards={cards.length > 0} onAccounts={promptCreateAccount} onCards={() => setTarjetasOpen(true)} />
+              </>
+            )}
+            {homeEmptyState.showPrimaryActivation && homeEmptyState.variant !== 'first-use' && (
               <HomeActivationState
                 state={homeEmptyState}
                 onPrimaryAction={promptFirstExpense}
@@ -905,6 +915,13 @@ export function DashboardShell({
           onHeroBalanceModeChange={setHeroBalanceModeOverride}
         />
       )}
+      <TarjetasSubSheet
+        open={tarjetasOpen}
+        onClose={() => {
+          setTarjetasOpen(false)
+          invalidateDashboardData()
+        }}
+      />
       <CuentasSubSheet
         open={cuentasOpen}
         onClose={() => {

@@ -20,7 +20,12 @@ function normalizeQuote(raw: Partial<InitialQuote>): InitialQuote | null {
   const venta = Number(raw.venta)
   const compra = Number(raw.compra)
   const fechaActualizacion = raw.fechaActualizacion
-  if (!Number.isFinite(venta) || venta <= 0 || !Number.isFinite(compra) || !fechaActualizacion) {
+  if (
+    !Number.isFinite(venta) ||
+    venta <= 0 ||
+    !Number.isFinite(compra) ||
+    !fechaActualizacion
+  ) {
     return null
   }
 
@@ -47,7 +52,9 @@ type LoadDashboardPageDataParams = {
   searchParams: Promise<{ month?: string; currency?: string }>
 }
 
-export async function loadDashboardPageData({ searchParams }: LoadDashboardPageDataParams) {
+export async function loadDashboardPageData({
+  searchParams,
+}: LoadDashboardPageDataParams) {
   const supabase = await createClient()
   const {
     data: { user },
@@ -57,15 +64,29 @@ export async function loadDashboardPageData({ searchParams }: LoadDashboardPageD
 
   const { data: config } = await supabase
     .from('user_config')
-    .select('onboarding_completed')
+    .select('onboarding_completed, default_currency')
     .eq('user_id', user.id)
     .single()
 
-  if (!config?.onboarding_completed) redirect('/onboarding')
+  if (!config?.onboarding_completed) {
+    const requested = await searchParams
+    const destination = new URLSearchParams()
+    if (requested.month) destination.set('month', requested.month)
+    if (requested.currency) destination.set('currency', requested.currency)
+    redirect(
+      `/onboarding?next=${encodeURIComponent('/' + (destination.size ? '?' + destination.toString() : ''))}`
+    )
+  }
 
   const { month, currency: currencyParam } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
-  const viewCurrency = (currencyParam === 'USD' ? 'USD' : 'ARS') as 'ARS' | 'USD'
+  const viewCurrency = (
+    currencyParam === 'USD' || currencyParam === 'ARS'
+      ? currencyParam
+      : config?.default_currency === 'USD'
+        ? 'USD'
+        : 'ARS'
+  ) as 'ARS' | 'USD'
 
   const [initialData, initialQuote] = await Promise.all([
     readDashboardData({
@@ -77,7 +98,11 @@ export async function loadDashboardPageData({ searchParams }: LoadDashboardPageD
     fetch('https://dolarapi.com/v1/dolares/oficial', {
       next: { revalidate: 300 },
     })
-      .then(async (res) => (res.ok ? normalizeQuote((await res.json()) as Partial<InitialQuote>) : null))
+      .then(async (res) =>
+        res.ok
+          ? normalizeQuote((await res.json()) as Partial<InitialQuote>)
+          : null
+      )
       .catch(() => null),
   ])
 

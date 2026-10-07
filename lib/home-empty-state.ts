@@ -20,7 +20,7 @@ export type HomeEmptyState = {
 const PRIMARY_ACTION_LABEL = 'Registrar movimiento'
 const FIRST_USE_TITLE = 'Registrá tu primer movimiento'
 const FIRST_USE_BODY =
-  'Empezá cargando un gasto, ingreso o transferencia para activar tu Home.'
+  'Empezá cargando un gasto, ingreso o transferencia para empezar tu registro.'
 const MONTHLY_EMPTY_TITLE = 'Todavía no tenés movimientos este mes'
 const MONTHLY_EMPTY_BODY =
   'Sumá un movimiento para ver actividad reciente en tu Home de este mes.'
@@ -47,7 +47,7 @@ export function getHomeEmptyState(input: HomeEmptyStateInput): HomeEmptyState {
     return {
       variant: 'first-use',
       showPrimaryActivation: true,
-      showSecondaryListEmptyState: false,
+      showSecondaryListEmptyState: true,
       deemphasizeAnonymousBanner: input.isAnonymous,
       primaryTitle: FIRST_USE_TITLE,
       primaryBody: FIRST_USE_BODY,

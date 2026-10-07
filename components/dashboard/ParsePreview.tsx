@@ -85,9 +85,9 @@ type SourceKey = string
 
 function getDefaultSource(data: ParsedData, accounts: Account[]): SourceKey {
   if (data.payment_method === 'CREDIT') return 'credit'
+  if (data.payment_method === 'CASH') return 'cash'
   const primary = accounts.find((account) => account.is_primary && account.type !== 'cash')
   if (primary) return primary.id
-  if (data.payment_method === 'CASH') return 'cash'
   const bankDigital = accounts.filter((account) => account.type !== 'cash')
   if (bankDigital.length > 0) return bankDigital[0].id
   return 'cash'

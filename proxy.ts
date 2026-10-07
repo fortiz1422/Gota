@@ -1,3 +1,4 @@
+import { safeDestination } from '@/lib/auth-destination'
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
@@ -18,8 +19,12 @@ export async function proxy(request: NextRequest) {
   const isPublicPath =
     pathname === '/landing' ||
     pathname.startsWith('/landing/') ||
+    pathname === '/terms' ||
     pathname === '/privacy' ||
     pathname.startsWith('/privacy/')
+
+  // Public product pages work without auth and never refresh a personal session.
+  if (isPublicPath) return NextResponse.next()
 
   let response = NextResponse.next({
     request: { headers: request.headers },
@@ -69,16 +74,23 @@ export async function proxy(request: NextRequest) {
     !user &&
     !isPublicPath &&
     !isDeviceSnapshotPath(pathname) &&
+    pathname !== '/start' &&
     !request.nextUrl.pathname.startsWith('/login') &&
     !request.nextUrl.pathname.startsWith('/auth/') &&
     !request.nextUrl.pathname.startsWith('/share-target')
   ) {
-    return NextResponse.redirect(new URL('/login', request.url))
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
+    }
+    if (pathname === '/') return NextResponse.redirect(new URL('/landing', request.url))
+    const login = new URL('/login', request.url)
+    login.searchParams.set('next', safeDestination(pathname + request.nextUrl.search))
+    return NextResponse.redirect(login)
   }
 
   // Redirigir al dashboard si ya está autenticado y va a /login
-  if (user && request.nextUrl.pathname.startsWith('/login')) {
-    return NextResponse.redirect(new URL('/', request.url))
+  if (user && !user.is_anonymous && request.nextUrl.pathname === '/login') {
+    return NextResponse.redirect(new URL(safeDestination(request.nextUrl.searchParams.get('next')), request.url))
   }
 
   return response

@@ -24,7 +24,7 @@ function getToneContent(tone: AnonymousBannerTone): BannerToneContent {
     return {
       containerClassName:
         'fixed left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-border-subtle bg-bg-primary/82 px-4 py-2.5 backdrop-blur-[16px]',
-      copy: 'Modo exploración. Guardá tu cuenta para no perder lo que cargues.',
+      copy: 'Estás usando Gota sin cuenta. Creá una para recuperar el acceso.',
       buttonClassName:
         'shrink-0 rounded-button border border-primary/20 bg-white px-3.5 py-2 text-xs font-semibold text-primary transition-colors hover:bg-primary/8',
     }
@@ -33,7 +33,7 @@ function getToneContent(tone: AnonymousBannerTone): BannerToneContent {
   return {
     containerClassName:
       'fixed left-0 right-0 z-40 flex items-center justify-between gap-3 border-t border-[rgba(255,255,255,0.70)] bg-[rgba(255,255,255,0.38)] px-4 py-3 backdrop-blur-[16px]',
-    copy: 'Modo exploración. Guardá tu progreso creando una cuenta nueva o entrando a una existente.',
+    copy: 'Estás sin cuenta. Creá una para conservar el acceso a tus movimientos.',
     buttonClassName:
       'shrink-0 rounded-lg bg-primary px-4 py-2 text-xs font-semibold text-white transition-opacity hover:opacity-90',
   }
@@ -101,7 +101,7 @@ export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerP
       >
         <p className="flex-1 text-xs leading-snug text-text-secondary">{toneContent.copy}</p>
         <button onClick={() => setSheetOpen(true)} className={toneContent.buttonClassName}>
-          Guardar cuenta
+          Crear cuenta
         </button>
       </div>
 

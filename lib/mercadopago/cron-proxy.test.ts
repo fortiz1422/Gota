@@ -20,7 +20,8 @@ describe('Mercado Pago cron authentication boundary', () => {
   })
   it.each(['/api/cron/mercadopago-sync/extra', '/api/cron/mercadopago-sync-other', '/api/integrations/mercadopago/setup', '/api/integrations/mercadopago/sync'])('keeps %s behind user authentication', async pathname => {
     const result = await proxy(new NextRequest(`https://gota.test${pathname}`))
-    expect(result.headers.get('location')).toBe('https://gota.test/login')
+    expect(result.status).toBe(401)
+    expect(result.headers.get('location')).toBeNull()
     expect(mocks.getUser).toHaveBeenCalledTimes(1)
   })
 })

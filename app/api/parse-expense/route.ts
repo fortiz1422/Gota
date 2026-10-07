@@ -10,6 +10,7 @@ import { parseTextExpenseFallback } from '@/lib/expense-text-parser'
 import { todayAR } from '@/lib/format'
 import { captureRouteError } from '@/lib/observability/sentry'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { canUsePaidAI, PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
 import { ParsedExpenseSchema } from '@/lib/validation/schemas'
 import { enrichParsedExpensePreview } from '@/lib/counterparty-aliases/preview'
 import { resolveSavedCounterparty } from '@/lib/counterparty-aliases/server'
@@ -39,6 +40,10 @@ export async function POST(request: Request) {
     const contentType = request.headers.get('content-type') || ''
     const isMultipart = contentType.includes('multipart/form-data')
 
+    if (isMultipart && !canUsePaidAI(user)) {
+      return NextResponse.json({ is_valid: false, reason: PAID_AI_UNAVAILABLE }, { status: 403 })
+    }
+
     if (isMultipart) {
       const formData = await request.formData()
       input = String(formData.get('input') ?? '').trim()
@@ -62,6 +67,21 @@ export async function POST(request: Request) {
       return NextResponse.json({ is_valid: false, reason: 'Input vacio' })
     }
 
+    if (input.length > 500) {
+      return NextResponse.json({ is_valid: false, reason: 'Usá una frase de hasta 500 caracteres.' }, { status: 400 })
+    }
+
+    // Text never calls the paid model, including failures and ambiguities.
+    if (!receiptInlineData && !voiceInlineData) {
+      const { data: config } = await supabase.from('user_config').select('default_currency').eq('user_id', user.id).maybeSingle()
+      const local = parseTextExpenseFallback(input, todayAR(), { defaultCurrency: config?.default_currency === 'USD' ? 'USD' : 'ARS' })
+      if (!local.is_valid) return NextResponse.json(local)
+      let match = null
+      try { match = await resolveSavedCounterparty(supabase, user.id, local.description) } catch { /* optional memory */ }
+      return NextResponse.json(enrichParsedExpensePreview(local, match))
+    }
+    if (!canUsePaidAI(user)) return NextResponse.json({ is_valid: false, reason: PAID_AI_UNAVAILABLE }, { status: 403 })
+
     const result = await geminiModel.generateContent({
       contents: [
         {
@@ -77,6 +97,7 @@ export async function POST(request: Request) {
       ],
       generationConfig: {
         temperature: 0.1,
+        maxOutputTokens: 600,
       },
     })
 
@@ -101,7 +122,7 @@ export async function POST(request: Request) {
       route: 'POST /api/parse-expense',
       operation: 'parse_expense',
     })
-    console.error('Parse expense error:', error)
+    console.error('Parse expense failed')
 
     if (error instanceof ZodError) {
       return NextResponse.json({
@@ -110,17 +131,6 @@ export async function POST(request: Request) {
       })
     }
 
-    if (input && !receiptInlineData && !voiceInlineData) {
-      const fallback = parseTextExpenseFallback(input, todayAR())
-      if (!fallback.is_valid) return NextResponse.json(fallback)
-      let match = null
-      try {
-        match = await resolveSavedCounterparty(supabase, user.id, fallback.description)
-      } catch {
-        // Alias memory is optional; local parsing must remain available.
-      }
-      return NextResponse.json(enrichParsedExpensePreview(fallback, match))
-    }
 
     return NextResponse.json({
       is_valid: false,

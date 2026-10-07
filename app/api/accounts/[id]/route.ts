@@ -1,3 +1,4 @@
+import { AccountIdentitySchema } from '@/lib/account-input'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import type { AccountUpdate } from '@/types/database'
@@ -11,11 +12,19 @@ export async function PATCH(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => null)
+  const identity = AccountIdentitySchema.safeParse(body)
+  if (!identity.success)
+    return NextResponse.json(
+      { error: 'Nombre, tipo o saldo inválido' },
+      { status: 400 }
+    )
   const {
     name,
+    type,
     opening_balance_ars,
     opening_balance_usd,
     is_primary,
@@ -26,17 +35,27 @@ export async function PATCH(
     daily_yield_cap_amount,
   } = body
 
+  if (type !== undefined && !['bank', 'cash', 'digital'].includes(type))
+    return NextResponse.json({ error: 'Invalid type' }, { status: 400 })
   const update: AccountUpdate = {}
+  if (type !== undefined) update.type = type
   if (name !== undefined) update.name = name.trim()
-  if (opening_balance_ars !== undefined) update.opening_balance_ars = Number(opening_balance_ars) || 0
-  if (opening_balance_usd !== undefined) update.opening_balance_usd = Number(opening_balance_usd) || 0
+  if (opening_balance_ars !== undefined)
+    update.opening_balance_ars = Number(opening_balance_ars) || 0
+  if (opening_balance_usd !== undefined)
+    update.opening_balance_usd = Number(opening_balance_usd) || 0
   if (archived !== undefined) update.archived = archived
   if (is_primary !== undefined) update.is_primary = is_primary
-  if (daily_yield_enabled !== undefined) update.daily_yield_enabled = Boolean(daily_yield_enabled)
-  if (daily_yield_rate !== undefined) update.daily_yield_rate = daily_yield_rate === null ? null : Number(daily_yield_rate)
-  if (daily_yield_provider !== undefined) update.daily_yield_provider = daily_yield_provider
+  if (daily_yield_enabled !== undefined)
+    update.daily_yield_enabled = Boolean(daily_yield_enabled)
+  if (daily_yield_rate !== undefined)
+    update.daily_yield_rate =
+      daily_yield_rate === null ? null : Number(daily_yield_rate)
+  if (daily_yield_provider !== undefined)
+    update.daily_yield_provider = daily_yield_provider
   if (daily_yield_cap_amount !== undefined) {
-    update.daily_yield_cap_amount = daily_yield_cap_amount === null ? null : Number(daily_yield_cap_amount)
+    update.daily_yield_cap_amount =
+      daily_yield_cap_amount === null ? null : Number(daily_yield_cap_amount)
   }
 
   // If setting as primary, unset current primary first
@@ -72,7 +91,8 @@ export async function DELETE(
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   // Check if account has expenses — soft delete (archive) instead of hard delete
   const { count } = await supabase
@@ -88,7 +108,8 @@ export async function DELETE(
       .update({ archived: true })
       .eq('id', id)
       .eq('user_id', user.id)
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+    if (error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ archived: true })
   }
 

@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Microphone } from '@phosphor-icons/react'
 import { InlineError } from '@/components/ui/InlineError'
+import { usePaidAICapability } from '@/hooks/usePaidAICapability'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
 import type { Account, Card } from '@/types/database'
@@ -39,6 +40,7 @@ export function SmartInput({
   previewMode = 'modal',
 }: SmartInputProps) {
   const router = useRouter()
+  const paidAIAllowed = usePaidAICapability()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)
@@ -121,7 +123,7 @@ export function SmartInput({
         input_method: inputMethod,
         variant,
       })
-      setParseError(data.reason ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".')
+      setParseError(data.reason ?? data.error ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".')
     } catch {
       trackEvent('smartinput_parse_failed', {
         failure_type: 'network_or_server',
@@ -285,7 +287,7 @@ export function SmartInput({
             isBusy ? 'opacity-50' : 'opacity-100'
           }`}
         />
-        {isVoiceSupported && (
+        {paidAIAllowed && isVoiceSupported && (
           <button
             type="button"
             onPointerDown={clearPendingBlur}

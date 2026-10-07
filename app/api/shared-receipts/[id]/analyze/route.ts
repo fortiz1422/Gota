@@ -1,3 +1,5 @@
+import { canUsePaidAI, PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
@@ -15,6 +17,8 @@ export async function POST(request: Request, { params }: Params) {
   const session = await createClient()
   const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
+  if (!canUsePaidAI(user)) return NextResponse.json({ error: PAID_AI_UNAVAILABLE }, { status: 403, headers: { 'Cache-Control': 'private, no-store' } })
+  if (!checkRateLimit(`receipt-ai:${user.id}`, 5)) return NextResponse.json({ error: 'Esperá un minuto antes de analizar otro comprobante.' }, { status: 429 })
   const retry = new URL(request.url).searchParams.get('retry') === 'true'
   const claimStatuses: Array<'received' | 'parse_failed'> = retry ? ['parse_failed'] : ['received']
   const admin = createAdminClient()

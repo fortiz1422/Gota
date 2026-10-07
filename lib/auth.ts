@@ -1,3 +1,4 @@
+import { safeDestination } from '@/lib/auth-destination'
 import { createClient } from '@/lib/supabase/client'
 
 type ExperimentalPasskeyAuth = {
@@ -38,10 +39,10 @@ export const linkGoogleAccount = () =>
   })
 
 /** Sign-in normal con Google → para cuenta existente, no preserva sesión anónima */
-export const signInWithGoogle = () =>
+export const signInWithGoogle = (destination = '/') =>
   createClient().auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/auth/callback` },
+    options: { redirectTo: `${window.location.origin}/auth/callback?next=${encodeURIComponent(safeDestination(destination))}` },
   })
 
 export const startAnonymousEmailUpgrade = (email: string) =>
