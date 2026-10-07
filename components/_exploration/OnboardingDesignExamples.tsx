@@ -1,7 +1,7 @@
 'use client'
 
 import { AccountSetup } from '@/components/onboarding/AccountSetup'
-import { FirstExpenseGuide } from '@/components/onboarding/FirstExpenseGuide'
+import { HomeWalkthroughInvitation } from '@/components/tour/HomeWalkthroughInvitation'
 
 const account = {
   id: 'design-account',
@@ -47,11 +47,7 @@ export function OnboardingDesignExamples() {
         inert
         style={{ maxWidth: 390, margin: 'auto', padding: 22 }}
       >
-        <FirstExpenseGuide
-          accounts={[]}
-          cards={[]}
-          onAfterSave={() => undefined}
-        />
+        <HomeWalkthroughInvitation firstUse accountId="design-example" />
       </section>
     </div>
   )

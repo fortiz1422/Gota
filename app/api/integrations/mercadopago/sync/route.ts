@@ -43,7 +43,7 @@ export async function GET() {
   return response({ state: connection.status === 'connected' ? 'connected' : 'error', lastSyncAt: connection.last_sync_at, sources, sinceLastFullSync })
 }
 
-export async function POST(request?: Request) {
+export async function POST(request: Request) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return response({ error: 'unauthorized' }, 401)

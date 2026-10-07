@@ -11,6 +11,7 @@ import { SharedReceiptDevicesPanel } from '@/components/settings/SharedReceiptDe
 import { MercadoPagoSettingsCard } from '@/components/settings/MercadoPagoSettingsCard'
 import { CounterpartyAliasesPanel } from '@/components/settings/CounterpartyAliasesPanel'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
+import { ContextualHelp } from '@/components/ui/ContextualHelp'
 import styles from './MobileSettings.module.css'
 import { SettingsDetail } from './SettingsDetail'
 import { addMonths } from '@/lib/dates'
@@ -81,6 +82,11 @@ export function SettingsPreferences({
       <section className={styles.group} aria-labelledby="settings-finances-title">
         <h2 id="settings-finances-title">Tu plata</h2>
         <p className={styles.description}>Administrá dónde está tu dinero y qué pagos se repiten.</p>
+        <ContextualHelp title="Dónde agregar cuentas y tarjetas">
+          <p>En Cuentas, agregá bancos, billeteras y efectivo. La cuenta del inicio ya está creada: agregá solamente las que te falten.</p>
+          <p>En Tarjetas, agregá tus tarjetas de crédito y sus fechas de cierre y vencimiento. Después, si tenés compras anteriores con cuotas pendientes, registralas desde el + de Home → Cuotas en curso.</p>
+          <p>Tu disponible considera solamente las cuentas y compromisos que cargaste.</p>
+        </ContextualHelp>
         <div className={styles.rowGroup}>
           <SettingsDetail title="Cuentas" description="Administrá tus cuentas y saldos por período" icon={<Bank size={20} weight="light" />}>
         <div className={styles.period}>

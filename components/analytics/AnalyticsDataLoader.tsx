@@ -4,6 +4,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { ChartLineUp } from '@phosphor-icons/react'
 import { AnalyticsClient } from './AnalyticsClient'
+import { AnalyticsReadingHelp } from './AnalyticsReadingHelp'
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader'
+import Link from 'next/link'
 import { AnalyticsWorkspaceStandalone } from './AnalyticsWorkspaceStandalone'
 import { BudgetsSection } from './BudgetsSection'
 import { GoalsSection } from './GoalsSection'
@@ -254,16 +257,19 @@ export function AnalyticsDataLoader({ selectedMonth, initialView, initialDrill }
           className="blue-zone px-[22px] pb-8"
           style={{ paddingTop: 'env(safe-area-inset-top)' }}
         >
-          <div className="pt-4">
-            <span className="text-[18px] font-extrabold text-white">AnÃ¡lisis</span>
+          <div className="flex items-center justify-between pt-4">
+            <span className="text-[18px] font-extrabold text-white">Análisis</span>
+            <DashboardHeader month={selectedMonth} basePath="/analytics" variant="in-header" />
           </div>
         </div>
-        <div className="relative px-5 pt-4" style={{ marginTop: -24 }}>
+        <div className="relative px-5 pt-4" style={{ paddingBottom: 'calc(env(safe-area-inset-bottom) + 100px)' }}>
+          <AnalyticsReadingHelp />
           <EmptyState
             icon={ChartLineUp}
-            title="Sin datos para analizar"
-            subtitle="Cuando registres gastos acÃ¡ vas a ver patrones y tendencias"
+            title="Todavía no hay gastos registrados en este período"
+            subtitle="El saldo inicial es tu punto de partida, no un ingreso ni un gasto. Cuando registres gastos y compromisos, acá vas a ver categorías y tendencias. Si ya cargaste movimientos en otro mes, cambialo arriba."
           />
+          <Link href="/" className="flex min-h-11 items-center justify-center text-sm font-semibold text-primary">Ir a Home para registrar</Link>
         </div>
       </div>
     )

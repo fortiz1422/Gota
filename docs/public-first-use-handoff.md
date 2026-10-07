@@ -92,3 +92,47 @@ No tocar movimientos de Facundo ni integraciones MP durante estas verificaciones
 - Verificación: 38 pruebas focalizadas aprobadas (estado vacío, onboarding y balances); TypeScript sin errores; ESLint focalizado sin errores; git diff --check limpio. Destinos revisados: cuentas y tarjetas usan componentes ya existentes, no enlaces supuestos.
 - Límite: no se verificó el render móvil ni el flujo autenticado de las hojas en navegador. Persisten los bloqueos de preview y publicación documentados arriba. Este ajuste es local y no está desplegado; no altera saldos ni motor financiero.
 - Pendiente: validar con un usuario nuevo si comprende el saldo de partida, el primer registro y el alcance del disponible; revisar densidad de las dos tarjetas de ayuda en pantalla chica en una preview autorizada.
+
+
+### Preview publicada y capturas — 6 de octubre, 23:15 ART
+
+- Git push por shell interrumpido por red y escalación no habilitada. Con autorización explícita y plugin GitHub seleccionado, se publicó el árbol local exacto mediante GitHub Git Data API.
+- Árbol remoto/local idéntico: `49bdfae02a2a84fc333ece2ded96a226a40c3eb8`. Commit remoto `ed81801ef1d5c18f4fb2903cd027c555d301b526`, rama `feat/public-first-use`, base `df44ccef`. Commit local original `6e2d875`. No se publicó main ni se aplicaron migraciones.
+- Main observado por plugin en ese momento: `939f738` (#129, Mercado Pago); la preview conserva su base anterior. Antes de integrar, incorporar y verificar cambios nuevos de main.
+- Vercel plugin devuelve 403 para despliegues del equipo. Usuario autorizó fallback por navegador; sesión de Vercel disponible y deployment `Aou8F9K3KaSWgEKwuNdbPshKaVfU` READY en ambiente Preview, build 1m23s.
+- URL verificada: https://gota-4xqmohka4-facundos-projects-11ee7eb5.vercel.app/
+- Verificado por UI: landing → start → invitado → onboarding → cuenta BBVA de prueba con saldo ficticio ARS125000 → home, guía descartable, vacío movimientos, hoja de cuentas con el mismo saldo y hoja sin tarjetas. No se cargaron gastos. Datos pertenecen a nueva identidad anónima de prueba; no se modificó el usuario real. Preview no garantiza base aislada; no inferir independencia de Supabase a partir del ambiente Vercel.
+- Capturas reales de navegador desktop: onboarding completo y encuadres de columna de home/hoja tarjetas. No son emulación móvil ni pruebas en iOS. Archivos en scratch: gota-onboarding-preview.jpg, gota-home-sin-guia-preview.jpg, gota-tarjetas-vacio-preview.jpg.
+- Captura full-page con guía produjo navbar fija atravesando la imagen; no se entrega como evidencia visual limpia. Guía observada en UI, pero pendiente captura de viewport inicial apta para presentación.
+- Hallazgo pendiente: Disponible real dice «Ya descuenta deuda y consumos» aun sin tarjetas, cuando la cobertura es incompleta. Corregir texto contextual antes de release. Pendiente comprobación en móvil real y densidad de guía.
+
+
+### Walkthrough contextual — reemplaza las tarjetas de primer uso
+
+- Usuario rechazó la tarjeta con input duplicado y «Tu punto de partida». Se eliminan ambas de la home y sus componentes. El estado vacío de movimientos permanece.
+- Se reutiliza TourProvider/TourOverlay con inicio explícito: invitación breve «Mostrarme / Ahora no», persistencia local v2 por primera cuenta, y enlace para volver a ver la guía. Se elimina inicio automático del tour viejo.
+- Tres objetivos: input existente, disponible real y botón +. Borde sin fill, sin backdrop oscuro, un mensaje por vez; Omitir, Siguiente y Listo, Escape y recuperación de foco. No fuerza a registrar ni crea datos de ejemplo.
+- Mensajes posicionados según el espacio del viewport, con resize/scroll/keyboard y fallback si falta un target. Durante el composer abierto la guía se oculta. Reutiliza endpoint existente de finalización de tour. Sin dependencias nuevas ni migraciones.
+- Botón + describe solo movimientos; cuentas/tarjetas se administran en Configuración. No se promete que se agreguen desde ese menú.
+- Disponible: texto cambiado a «Según cuentas y compromisos cargados».
+
+### Handoff para Hermes — explicación de cuotas en curso, 7 de octubre de 2026
+
+- Decisión: explicar compromisos de compras anteriores dentro del menú + y su formulario, sin agregar pasos obligatorios ni tarjetas a la home.
+- Hechos: opción real «Cuotas en curso» en HomePlusButton; el formulario envía las restantes (`total - primera pendiente + 1`) y el motor conserva el monto por cuota para cuotas en curso. Cuentas y tarjetas se administran desde Configuración.
+- Cambios: walkthrough menciona ingresos, transferencias y cuotas en curso; menú aclara que son compras anteriores a Gota; formulario explica primera cuota pendiente, ejemplo 13/18 = 6 restantes y prevención de duplicados. No se modificó el motor ni datos financieros.
+- Verificaciones: 10 pruebas existentes aprobadas (cuotas, posición del tour y flujo +); TypeScript, ESLint focalizado y git diff --check sin errores.
+- Supuesto: el usuario identifica correctamente su primera cuota pendiente y no registra una compra ya cargada.
+- Pendientes/riesgos: verificación visual móvil y publicación de la revisión; sigue sin selector de mes inicial. La ruta de una sola cuota restante no conserva número/total de cuotas: hallazgo preexistente observado en código, no corregido en este ajuste de ayuda. Revisar por separado antes de afirmar cobertura completa del flujo.
+- Artefactos: components/tour/tour-steps.ts, components/dashboard/HomePlusButton.tsx, components/dashboard/CuotasEnCursoSheet.tsx. Cambios locales en feat/public-first-use; sin merge, deployment ni migraciones.
+
+### Handoff para Hermes — ayudas de Configuración y Análisis
+
+- Usuario pidió completar las ayudas y verificar el resultado. Se agregan ayudas nativas desplegables, cerradas por defecto y consultables de nuevo; sin tours automáticos, dependencias ni persistencia adicional.
+- Configuración: ayuda junto a las entradas reales de Cuentas/Tarjetas; aclara que la primera cuenta existe, las tarjetas se configuran ahí y las cuotas anteriores se registran desde Home → + → Cuotas en curso. Nueva cuenta: saldo inicial no es ingreso y cargar históricos incluidos en ese saldo los descontaría nuevamente.
+- Análisis: ayuda compartida para versión clásica/workspace y estados vacíos. Usa etiquetas reales «Percibidos» / «Todo el gasto» y describe período, cobertura y comparaciones. Estado vacío clásico conserva selector de mes y acceso a Home. Se corrige enlace de ingreso a Home, donde está la acción real.
+- Verificación local: 38 pruebas existentes de análisis/período/vacíos/tour/cuotas aprobadas; TypeScript sin errores; ESLint sin errores, con dos warnings preexistentes de hooks en AccountBottomSheet. Primera compilación frenada por residuos .next; segunda frenada por descarga TLS de Google Fonts. No es evidencia de build exitoso.
+- Supuestos: ayudas se abren voluntariamente; no se infiere historial completo a partir de cero movimientos. Pendiente verificación en preview y móvil real, sin tocar datos del usuario ni aplicar SQL.
+- Publicación: GitHub confirmó que feat/public-first-use sigue en ed81801. Auto-review rechazó create_tree: considera falta de autorización explícita para divulgación externa de esta revisión. No se reintentó por otro mecanismo. La preview sigue mostrando las tarjetas anteriores.
+- Build alternativo con webpack y fuentes locales sustitutas compiló módulos y encontró un bloqueo previo: POST(request?: Request) no es una firma válida de ruta Next.js. Se corrige únicamente a POST(request: Request) y las siete pruebas existentes usan un Request HTTP vacío; siete aprobadas. Sin cambio al cuerpo ni a la lógica financiera/sincronización. Este ajuste debe acompañar la preview, no implica desplegar ni sincronizar cuentas reales.
+- Verificación final: build alternativo `next build --webpack` exitoso (incluye tipos y generación de rutas), con NEXT_FONT_GOOGLE_MOCKED_RESPONSES local y GOTA_LOCAL_VERIFY. Sustituye fuentes solo durante verificación, sin cambios a app/layout ni configuración publicada. No equivale a verificar build Turbopack con fuentes reales ni UI móvil. Total de esta etapa: 45 pruebas existentes aprobadas (38 ayudas/analítica + 7 sync). Árbol de trabajo limpio después de commits. Trabajo visual pendiente de publicar revisión en la rama de preview.

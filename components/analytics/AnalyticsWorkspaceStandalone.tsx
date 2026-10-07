@@ -7,6 +7,7 @@ import type { BudgetSnapshot } from '@/lib/budgets/types'
 import type { AnalyticsDrill, AnalyticsView } from '@/lib/analytics/analytics-route-state'
 import { AnalysisSectionTabs } from './AnalysisSectionTabs'
 import { BudgetControlHero } from './BudgetControlHero'
+import { AnalyticsReadingHelp } from './AnalyticsReadingHelp'
 
 const VIEW_COPY: Record<AnalyticsView, { eyebrow: string; title: string }> = {
   summary: { eyebrow: 'Lectura del mes', title: 'Resumen' },
@@ -95,6 +96,7 @@ export function AnalyticsWorkspaceStandalone({
           month={selectedMonth}
           budgetAlertCount={alertCount}
         />
+        <div className="px-5"><AnalyticsReadingHelp /></div>
         {children}
       </div>
     </div>

@@ -10,26 +10,20 @@ export interface TourStep {
 export const TOUR_STEPS: TourStep[] = [
   {
     target: 'smart-input',
-    title: 'Input inteligente',
-    body: 'Escribí como hablás: "café 2500 con amigos". Gota entiende montos, categorías y cuentas.',
+    title: 'Tu próximo gasto empieza acá',
+    body: 'Escribí como lo contarías. Antes de guardar, revisás el monto, la fecha y de dónde salió la plata.',
     position: 'top',
   },
   {
-    target: 'saldo-vivo',
-    title: 'Saldo Vivo',
-    body: 'Tu balance real del mes, descontando deuda de tarjeta. Siempre sabés cuánto podés gastar.',
+    target: 'disponible-real',
+    title: 'Lo que te queda para usar',
+    body: 'Parte de tus cuentas y descuenta los compromisos que cargaste. Las deudas que no registraste todavía no están incluidas.',
     position: 'bottom',
   },
   {
-    target: 'tab-movimientos',
-    title: 'Movimientos',
-    body: 'Todos tus gastos, ingresos y transferencias organizados por fecha.',
-    position: 'top',
-  },
-  {
-    target: 'tab-analytics',
-    title: 'Análisis',
-    body: 'Patrones de gasto, categorías top, compromisos de tarjeta y más.',
-    position: 'top',
+    target: 'home-plus',
+    title: 'Más formas de registrar',
+    body: 'Desde el + cargás ingresos, transferencias y cuotas en curso de compras anteriores a Gota. Para agregar cuentas o tarjetas, entrá a Configuración.',
+    position: 'bottom',
   },
 ]
