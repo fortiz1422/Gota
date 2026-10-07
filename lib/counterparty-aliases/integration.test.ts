@@ -81,7 +81,24 @@ describe('ParsePreview merchant memory parity', () => {
         },
       },
       cards: [],
-      accounts: [],
+      accounts: [{
+        id: 'account-1',
+        user_id: 'user-1',
+        name: 'MercadoPago',
+        type: 'digital',
+        is_primary: false,
+        archived: false,
+        opening_balance_ars: 0,
+        opening_balance_usd: 0,
+        daily_yield_enabled: false,
+        daily_yield_rate: null,
+        daily_yield_provider: null,
+        daily_yield_cap_amount: null,
+        daily_yield_checkin_interval_days: 7,
+        daily_yield_last_checkin_at: null,
+        created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-01T00:00:00Z',
+      }],
       onSave: vi.fn(),
       onCancel: vi.fn(),
       onConfirm: vi.fn(),
@@ -92,6 +109,9 @@ describe('ParsePreview merchant memory parity', () => {
       secondaryAction: { label: 'Desestimar', onAction: vi.fn() },
     }))
 
+    expect(html).toContain('De donde sale')
+    expect(html).toContain('MercadoPago')
+    expect(html).toContain('border-primary bg-primary/15 text-primary')
     expect(html).toContain('Comercio reconocido')
     expect(html).toContain('Autoservicio el 23')
     expect(html).toContain('Texto detectado: Producto de Autoservicio el 23')
@@ -102,4 +122,68 @@ describe('ParsePreview merchant memory parity', () => {
     expect(html).toContain('Desestimar')
     expect(html).not.toContain('checked=""')
   })
+
+
+  it('renders a Mercado Pago card purchase with the shared source pills and Tarjeta highlighted', () => {
+    const html = renderToStaticMarkup(createElement(ParsePreview, {
+      data: {
+        amount: 26642.01,
+        currency: 'ARS',
+        category: 'Cuidado personal',
+        description: 'Sérum Para Ojos',
+        is_want: false,
+        payment_method: 'CREDIT',
+        card_id: 'card-1',
+        installments: 1,
+        date: '2026-10-05T14:50:00Z',
+        detected_alias: 'Sérum Para Ojos',
+        alias_match: null,
+      },
+      cards: [{
+        id: 'card-1',
+        user_id: 'user-1',
+        name: 'Mercado Pago',
+        brand: 'Mastercard',
+        last_four: '8215',
+        closing_day: 1,
+        due_day: 10,
+        archived: false,
+        created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-01T00:00:00Z',
+      }] as never,
+      accounts: [{
+        id: 'account-bank',
+        user_id: 'user-1',
+        name: 'Banco Nación',
+        type: 'bank',
+        is_primary: true,
+        archived: false,
+        opening_balance_ars: 0,
+        opening_balance_usd: 0,
+        daily_yield_enabled: false,
+        daily_yield_rate: null,
+        daily_yield_provider: null,
+        daily_yield_cap_amount: null,
+        daily_yield_checkin_interval_days: 7,
+        daily_yield_last_checkin_at: null,
+        created_at: '2026-10-01T00:00:00Z',
+        updated_at: '2026-10-01T00:00:00Z',
+      }],
+      onSave: vi.fn(),
+      onCancel: vi.fn(),
+      onConfirm: vi.fn(),
+      embedded: true,
+      aliasSource: 'mercadopago',
+      immutableProviderEvidence: true,
+      secondaryAction: { label: 'Desestimar', onAction: vi.fn() },
+    }))
+
+    expect(html).toContain('De donde sale')
+    expect(html).toContain('Banco Nación')
+    expect(html).toContain('Tarjeta')
+    expect(html).toContain('border-primary bg-primary/15 text-primary')
+    expect(html).toContain('Mercado Pago')
+    expect(html).not.toContain('Tarjeta de crédito · compra en Mercado Pago')
+  })
+
 })
