@@ -19,6 +19,8 @@ import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
 import { getGoals } from '@/lib/server/goal-queries'
 import type { GoalWithMetrics } from '@/lib/goals/types'
 import { FF_INSTRUMENTS } from '@/lib/flags'
+import { readCorrections } from '@/lib/reconciliation/repository'
+import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
@@ -108,6 +110,8 @@ export async function readDashboardData({
   const historyStartDate = historyStartMonth + '-01'
   const isCurrentMonth = selectedMonth === currentMonth
   const todayDate = todayAR()
+  const timestampEnd = liveLedgerExclusiveEnd(todayDate)
+  const reconciliationCorrections = await readCorrections(userId)
   const tomorrowDate = new Date(`${todayDate}T00:00:00-03:00`)
   tomorrowDate.setDate(tomorrowDate.getDate() + 1)
   const tomorrowStr = tomorrowDate.toISOString().split('T')[0]
@@ -222,12 +226,12 @@ export async function readDashboardData({
       .from('income_entries')
       .select('amount, currency, account_id')
       .eq('user_id', userId)
-      .lte('date', todayDate),
+      .lt('date', timestampEnd),
     supabase
       .from('expenses')
       .select('amount, currency, account_id, payment_method, category')
       .eq('user_id', userId)
-      .lte('date', todayDate)
+      .lt('date', timestampEnd)
       .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     supabase
       .from('transfers')
@@ -392,6 +396,7 @@ export async function readDashboardData({
   })
 
   const accountBalances = buildLiveBalanceBreakdown({
+    reconciliationCorrections: reconciliationCorrections.filter(row => row.currency === viewCurrency),
     accounts,
     currency: viewCurrency,
     incomes: (liveIncomeData ?? []) as { account_id: string | null; amount: number }[],
@@ -498,6 +503,7 @@ export async function readDashboardData({
 
   const heroBreakdown = {
     ARS:
+      reconciliationCorrections.filter(row => row.currency === 'ARS').reduce((sum, row) => sum + row.amount, 0) +
       liveHeroSummary.ARS.saldoInicial +
       liveHeroSummary.ARS.ingresos +
       liveHeroSummary.ARS.rendimientos -
@@ -506,6 +512,7 @@ export async function readDashboardData({
       transferAdjustmentByCurrency.ARS -
       capitalInstrumentosByCurrency.ARS,
     USD:
+      reconciliationCorrections.filter(row => row.currency === 'USD').reduce((sum, row) => sum + row.amount, 0) +
       liveHeroSummary.USD.saldoInicial +
       liveHeroSummary.USD.ingresos +
       liveHeroSummary.USD.rendimientos -

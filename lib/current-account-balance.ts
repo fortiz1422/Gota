@@ -2,6 +2,8 @@ import { todayAR } from '@/lib/format'
 import { buildLiveBalanceBreakdown, type LiveBreakdownRow } from '@/lib/live-balance'
 import type { createClient } from '@/lib/supabase/server'
 import type { Currency } from '@/types/database'
+import { readCorrections } from '@/lib/reconciliation/repository'
+import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
 
 export function getBalanceForAccount(breakdown: LiveBreakdownRow[], accountId: string): number | null {
   return breakdown.find((account) => account.id === accountId)?.saldo ?? null
@@ -17,6 +19,7 @@ export async function getCurrentBalanceBreakdown(params: {
   currency: Currency
 }): Promise<LiveBreakdownRow[]> {
   const todayDate = todayAR()
+  const timestampEnd = liveLedgerExclusiveEnd(todayDate)
   const { supabase, userId, currency } = params
 
   const [
@@ -39,13 +42,13 @@ export async function getCurrentBalanceBreakdown(params: {
       .select('account_id, amount')
       .eq('user_id', userId)
       .eq('currency', currency)
-      .lte('date', todayDate),
+      .lt('date', timestampEnd),
     supabase
       .from('expenses')
       .select('account_id, amount')
       .eq('user_id', userId)
       .eq('currency', currency)
-      .lte('date', todayDate)
+      .lt('date', timestampEnd)
       .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
       .neq('category', 'Pago de Tarjetas'),
     supabase
@@ -53,7 +56,7 @@ export async function getCurrentBalanceBreakdown(params: {
       .select('account_id, amount')
       .eq('user_id', userId)
       .eq('currency', currency)
-      .lte('date', todayDate)
+      .lt('date', timestampEnd)
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('transfers')
@@ -70,7 +73,11 @@ export async function getCurrentBalanceBreakdown(params: {
       .select('account_id, amount, currency')
       .eq('user_id', userId)
       .eq('status', 'active'),
-  ])
+  ]).then(results => {
+    if (results.some(result => result.error)) throw new Error('balance_unavailable')
+    return results
+  })
+  const corrections = await readCorrections(userId)
 
   const yieldTotals = sumYieldEntriesByAccount(yieldEntriesData ?? [])
 
@@ -83,6 +90,7 @@ export async function getCurrentBalanceBreakdown(params: {
     transfers: transfersData ?? [],
     yields: yieldTotals,
     activeInstruments: instrumentsData ?? [],
+    reconciliationCorrections: corrections.filter(row => row.currency === currency),
   })
 }
 

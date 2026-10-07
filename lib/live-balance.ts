@@ -51,6 +51,7 @@ type LiveBreakdownInput = {
   transfers: TransferRow[]
   yields?: YieldRow[]
   activeInstruments?: Pick<Instrument, 'account_id' | 'amount' | 'currency'>[]
+  reconciliationCorrections?: AccountAmountRow[]
 }
 
 export function buildLiveBalanceBreakdown({
@@ -62,8 +63,12 @@ export function buildLiveBalanceBreakdown({
   transfers,
   yields = [],
   activeInstruments = [],
+  reconciliationCorrections = [],
 }: LiveBreakdownInput): LiveBreakdownRow[] {
-  if (accounts.length === 0) return []
+  if (accounts.length === 0) {
+    if (reconciliationCorrections.some(row => row.amount !== 0)) throw new Error('reconciliation_account_unavailable')
+    return []
+  }
 
   const primaryId = accounts.find((a) => a.is_primary)?.id ?? accounts[0].id
   const accountIds = new Set(accounts.map((a) => a.id))
@@ -118,6 +123,11 @@ export function buildLiveBalanceBreakdown({
     if (instrument.currency !== currency) continue
     const id = resolve(instrument.account_id)
     balanceMap.set(id, (balanceMap.get(id) ?? 0) - instrument.amount)
+  }
+
+  for (const correction of reconciliationCorrections) {
+    if (!correction.account_id || !accountIds.has(correction.account_id)) throw new Error('reconciliation_account_missing')
+    balanceMap.set(correction.account_id, (balanceMap.get(correction.account_id) ?? 0) + correction.amount)
   }
 
   return accounts.map((account) => ({
