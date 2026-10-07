@@ -125,7 +125,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
   if (pendingCount === 0) return (
-    <section className="mt-12 rounded-card border border-border-subtle bg-bg-secondary/50 px-6 py-10 text-center" aria-label="Sin movimientos pendientes">
+    <section className="mt-8 rounded-card border border-border-subtle bg-bg-primary px-6 py-10 text-center shadow-[var(--shadow-sm)]" aria-label="Sin movimientos pendientes">
       <CheckCircle size={36} weight="light" className="mx-auto text-primary" aria-hidden="true" />
       <h2 className="mt-4 text-lg font-semibold text-text-primary">Estás al día</h2>
       <p className="mt-2 text-sm text-text-secondary">No hay movimientos pendientes de revisar.</p>
@@ -133,7 +133,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   )
 
   return (
-    <section className="mt-6" aria-labelledby="pending-title">
+    <section className="mt-7" aria-labelledby="pending-title">
       <div className="flex items-center justify-between gap-3">
         <h2 id="pending-title" className="text-sm font-medium text-text-secondary">{pendingCount} {pendingCount === 1 ? 'movimiento para revisar' : 'movimientos para revisar'}</h2>
         {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button px-3 text-sm font-semibold text-text-secondary">Cancelar</button> : (
@@ -155,7 +155,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
         <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Descartar {visibleSelected > 0 ? visibleSelected : ''} seleccionados</button>
         <p className="mt-2 text-xs text-text-secondary">Se retiran de esta lista sin registrar gastos.</p>
       </div>}
-      <div className="mt-3 overflow-hidden rounded-card border border-border-subtle divide-y divide-border-subtle">
+      <div className="mt-3 overflow-hidden rounded-card border border-border-subtle bg-bg-primary shadow-[var(--shadow-sm)] divide-y divide-border-subtle">
         {movements.map((movement) => {
           const presentation = getMercadoPagoReviewPresentation(movement)
           const transfer = movement.kind === 'transfer' || movement.operation?.type === 'money_transfer'
@@ -164,13 +164,18 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
             : presentation.ready && movement.fundingSource?.kind === 'card' ? 'Elegí la tarjeta y categoría'
             : presentation.ready ? 'Revisá la categoría'
             : presentation.title
-          return <article key={movement.candidateId} className="flex items-center gap-2 p-4 hover:bg-bg-secondary/50">
+          return <article key={movement.candidateId} className="flex items-center gap-2 p-4 transition-colors hover:bg-bg-secondary/70 active:bg-primary/[0.04]">
             {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
             <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-primary">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-text-primary">{getDisplayExpenseDescription(movement) || (transfer ? 'Transferencia' : 'Movimiento de Mercado Pago')}</span>
-                <span className="mt-1 block truncate text-xs text-text-tertiary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}{movement.installments && movement.installments > 1 ? ` · ${movement.installments} cuotas` : ''}</span>
-                <span className="mt-1.5 block text-xs text-text-secondary">{hint}</span>
+                <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-text-tertiary">
+                  <span className="shrink-0">{formatObservedDate(getMercadoPagoReviewDate(movement))}</span>
+                  <span className="min-w-0 truncate rounded-pill bg-bg-tertiary px-2 py-1 text-text-secondary">
+                    {getMercadoPagoFundingSourceLabel(movement)}{movement.installments && movement.installments > 1 ? ` · ${movement.installments} cuotas` : ''}
+                  </span>
+                </span>
+                <span className="mt-2 block text-xs font-medium text-text-secondary">{hint}</span>
               </span>
               <span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span>
               <CaretRight size={14} className="shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -459,17 +464,20 @@ export function MercadoPagoReviewClient() {
   }
 
   return (
-    <main className="mx-auto min-h-app max-w-md bg-bg-primary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
-      <header className="flex items-center gap-3">
-        <Link
-          href="/settings"
-          aria-label="Volver a configuración"
-          className="grid h-11 w-11 place-items-center rounded-full text-text-secondary hover:bg-primary-soft"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="type-title text-text-primary">Mercado Pago</h1>
+    <main className="mx-auto min-h-app max-w-md bg-bg-secondary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
+      <header className="-mx-5 -mt-[max(20px,env(safe-area-inset-top))] rounded-b-[28px] border-b border-border-subtle bg-bg-primary px-5 pb-5 pt-[max(20px,env(safe-area-inset-top))] shadow-[var(--shadow-sm)]">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/settings"
+            aria-label="Volver a configuración"
+            className="grid h-11 w-11 place-items-center rounded-full text-text-secondary transition-colors hover:bg-primary-soft"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="type-title text-text-primary">Mercado Pago</h1>
+            <p className="mt-1 text-xs text-text-tertiary">Revisá lo que Gota encontró antes de incorporarlo.</p>
+          </div>
         </div>
       </header>
 
