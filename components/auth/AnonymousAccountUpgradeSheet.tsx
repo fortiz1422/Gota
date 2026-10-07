@@ -8,11 +8,13 @@ import { trackEvent } from '@/lib/product-analytics/client'
 
 interface AnonymousAccountUpgradeSheetProps {
   open: boolean
+  existingAccountOnly?: boolean
   onClose: () => void
 }
 
 export function AnonymousAccountUpgradeSheet({
   open,
+  existingAccountOnly = false,
   onClose,
 }: AnonymousAccountUpgradeSheetProps) {
   const [email, setEmail] = useState('')
@@ -129,13 +131,13 @@ export function AnonymousAccountUpgradeSheet({
     <Modal open={open} onClose={handleClose}>
       <div className="space-y-5">
         <div>
-          <h2 className="text-base font-semibold text-text-primary">Guardar tu progreso</h2>
+          <h2 className="text-base font-semibold text-text-primary">{existingAccountOnly ? 'Ingresar a tu cuenta' : 'Guardar tu progreso'}</h2>
           <p className="mt-1 text-sm text-text-tertiary">
-            Solo crear una cuenta nueva conserva automáticamente lo hecho en modo exploración.
+            {existingAccountOnly ? 'Usá el mismo método con el que creaste tu cuenta de Gota.' : 'Solo crear una cuenta nueva conserva automáticamente lo hecho en modo exploración.'}
           </p>
         </div>
 
-        <div className="rounded-card border border-border-ocean bg-bg-tertiary p-4">
+        {!existingAccountOnly && <div className="rounded-card border border-border-ocean bg-bg-tertiary p-4">
           <p className="text-sm font-semibold text-text-primary">Crear cuenta nueva</p>
           <p className="mt-1 text-xs leading-snug text-text-tertiary">
             Convierte esta sesión en una cuenta permanente sin cambiar el usuario ni perder datos.
@@ -173,12 +175,12 @@ export function AnonymousAccountUpgradeSheet({
               {isEmailLoading ? 'Enviando...' : 'Continuar con mail'}
             </button>
           </div>
-        </div>
+        </div>}
 
         <div className="rounded-card border border-border-ocean bg-bg-tertiary p-4">
           <p className="text-sm font-semibold text-text-primary">Ya tengo cuenta</p>
           <p className="mt-1 text-xs leading-snug text-warning">
-            Entrar a otra cuenta cambia la sesión y no lleva estos movimientos a esa cuenta. Si querés conservarlos en Gota, vinculá un mail nuevo arriba.
+            Entrar a tu cuenta cambia la sesión. Los datos del modo sin cuenta no se trasladan automáticamente.
           </p>
 
           <div className="mt-4 space-y-3">
