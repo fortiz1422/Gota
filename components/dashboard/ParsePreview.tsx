@@ -430,18 +430,18 @@ export function ParsePreview({
           />
         </div>
 
-        <div className={isProviderCardPurchase ? 'hidden' : undefined}>
+        <div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             De donde sale
           </label>
-          {fixedAccount && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">{fixedAccount.name}</p>}
-          {isProviderCardPurchase && <p className="rounded-input bg-bg-tertiary px-4 py-3 text-sm text-text-secondary">Tarjeta de crédito · compra en Mercado Pago</p>}
-          <div className={fixedAccount || immutableProviderEvidence ? 'hidden' : 'flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'}>
+          <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {bankDigital.map((account) => (
               <button
                 key={account.id}
+                type="button"
+                disabled={immutableProviderEvidence}
                 onClick={() => handleSourceChange(account.id)}
-                className={`${chipBase} ${source === account.id ? chipActive : chipInactive}`}
+                className={`${chipBase} ${source === account.id ? chipActive : chipInactive} disabled:cursor-default disabled:opacity-100`}
               >
                 <AccountIcon type={account.type} size={13} />
                 <span>{account.name}</span>
@@ -455,20 +455,26 @@ export function ParsePreview({
               </button>
             ))}
 
-            <button
-              onClick={() => handleSourceChange('cash')}
-              className={`${chipBase} ${source === 'cash' ? chipActive : chipInactive}`}
-            >
-              <Wallet weight="duotone" size={13} />
-              <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
-            </button>
-
-            {activeCards.length > 0 && (
+            {(!immutableProviderEvidence || source === 'cash') && (
               <button
+                type="button"
+                disabled={immutableProviderEvidence}
+                onClick={() => handleSourceChange('cash')}
+                className={`${chipBase} ${source === 'cash' ? chipActive : chipInactive} disabled:cursor-default disabled:opacity-100`}
+              >
+                <Wallet weight="duotone" size={13} />
+                <span>{cashAccount ? cashAccount.name : 'Efectivo'}</span>
+              </button>
+            )}
+
+            {(activeCards.length > 0 || isProviderCardPurchase) && (
+              <button
+                type="button"
+                disabled={immutableProviderEvidence}
                 onClick={() => handleSourceChange('credit')}
                 className={`${chipBase} ${
                   source === 'credit' || isPagoTarjetas ? chipActive : chipInactive
-                }`}
+                } disabled:cursor-default disabled:opacity-100`}
               >
                 <CreditCard weight="duotone" size={13} />
                 <span>Tarjeta</span>
