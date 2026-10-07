@@ -97,7 +97,7 @@ export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerP
     <>
       <div
         className={toneContent.containerClassName}
-        style={{ bottom: 'calc(env(safe-area-inset-bottom) + 64px)' }}
+        style={{ bottom: 'var(--gota-bottom-zone-height, calc(env(safe-area-inset-bottom) + 64px))' }}
       >
         <p className="flex-1 text-xs leading-snug text-text-secondary">{toneContent.copy}</p>
         <button onClick={() => setSheetOpen(true)} className={toneContent.buttonClassName}>

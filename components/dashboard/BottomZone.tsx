@@ -22,6 +22,23 @@ export function BottomZone({
 }: Props) {
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const scrollYRef = useRef(0)
+  const zoneRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    const zone = zoneRef.current
+    if (!zone) return
+    const root = document.documentElement
+    const syncHeight = () => {
+      root.style.setProperty('--gota-bottom-zone-height', `${zone.getBoundingClientRect().height}px`)
+    }
+    syncHeight()
+    const observer = new ResizeObserver(syncHeight)
+    observer.observe(zone)
+    return () => {
+      observer.disconnect()
+      root.style.removeProperty('--gota-bottom-zone-height')
+    }
+  }, [])
 
   useEffect(() => {
     const root = document.documentElement
@@ -69,6 +86,7 @@ export function BottomZone({
 
   return (
     <div
+      ref={zoneRef}
       className={`fixed bottom-0 left-0 right-0 z-50 ${
         isComposerOpen ? 'border-transparent' : 'border-t border-[color:var(--color-separator)]'
       }`}
