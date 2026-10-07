@@ -32,7 +32,7 @@ describe('Mercado Pago review UI contract', () => {
   it('keeps the MP browser payload exact and narrow', () => {
     expect(buildConfirmExpensePayload({
       description: ' Shell ', category: 'Alimentos', isWant: false, expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3,
-    })).toEqual({ description: 'Shell', category: 'Alimentos', isWant: false, expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3 })
+    })).toEqual({ description: 'Shell', category: 'Alimentos', isWant: false, isRecurring: false, isExtraordinary: false, expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3 })
     expect(source).toContain('Usar para próximos gastos con saldo MP')
     expect(reviewClientSource).not.toContain('accountId: payload.account_id')
   })
@@ -54,7 +54,8 @@ describe('Mercado Pago review UI contract', () => {
   })
 
   it('offers destructive dismissal from both review detail states', () => {
-    expect(reviewClientSource.match(/Desestimar operación/g)?.length).toBeGreaterThanOrEqual(2)
+    expect(reviewClientSource.match(/secondaryAction=\{\{ label: 'Desestimar'/g)?.length).toBe(2)
+    expect(reviewClientSource).toContain('confirmLabel="Desestimar"')
     expect(reviewClientSource).toContain('Esta operación todavía no se puede confirmar')
   })
 
@@ -62,7 +63,8 @@ describe('Mercado Pago review UI contract', () => {
     expect(reviewClientSource).toContain('onSave={completeConfirmation}')
     expect(reviewClientSource).toContain('outcome?.aliasSaved === false')
     expect(reviewClientSource).not.toContain('onConfirm={confirm} onSave={() => undefined}')
-    expect(parsePreviewSource).toContain("useState(aliasSource === 'mercadopago')")
+    expect(parsePreviewSource).toContain('const [remember, setRemember] = useState(false)')
+    expect(parsePreviewSource.indexOf('await onConfirm(')).toBeLessThan(parsePreviewSource.indexOf('await saveAliasMemory()'))
     expect(parsePreviewSource).toContain("method: 'PATCH'")
     expect(parsePreviewSource).toContain('default_category: form.category')
   })

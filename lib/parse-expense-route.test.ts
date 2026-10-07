@@ -24,6 +24,7 @@ vi.mock('@/lib/counterparty-aliases/server', () => ({
 }))
 vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: mocks.limit }))
 vi.mock('@/lib/observability/sentry', () => ({ captureRouteError: vi.fn() }))
+import auditCases from '../scripts/tests/expense-parser-audit-cases.json'
 import { POST } from '@/app/api/parse-expense/route'
 const request = (input: unknown) =>
   new Request('https://gota.test/api/parse-expense', {
@@ -51,8 +52,26 @@ beforeEach(() => {
   mocks.limit.mockReturnValue(true)
   mocks.match.mockResolvedValue(null)
 })
-afterEach(() => vi.unstubAllEnvs())
+afterEach(() => {
+  vi.unstubAllEnvs()
+  vi.useRealTimers()
+})
 describe('text parsing never invokes a paid fallback', () => {
+  it.each(auditCases)('API audit $id: $input', async (entry) => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(`${entry.today}T15:00:00Z`))
+    mocks.config.mockResolvedValue({
+      data: { default_currency: entry.defaultCurrency },
+    })
+    const result = await POST(request(entry.input))
+    const body = await result.json()
+    expect(body).toMatchObject(entry.expected)
+    if (body.is_valid) {
+      expect(body.source_text).toBe(entry.input.trim())
+      expect(body.auto_confirmed).toBe(false)
+    }
+    expect(mocks.model).not.toHaveBeenCalled()
+  })
   it('prepares text for review even for an allowlisted user', async () => {
     const result = await POST(request('ayer gasté 20 mil en el súper'))
     expect(await result.json()).toMatchObject({

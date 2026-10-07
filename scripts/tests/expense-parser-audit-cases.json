@@ -1,0 +1,3765 @@
+[
+  {
+    "id": "A001",
+    "group": "formatos",
+    "input": "café 20000",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A002",
+    "group": "formatos",
+    "input": "gasté 20000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A003",
+    "group": "formatos",
+    "input": "ayer gasté 20000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A004",
+    "group": "formatos",
+    "input": "café 20000 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A005",
+    "group": "formatos",
+    "input": "café 20000 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A006",
+    "group": "formatos",
+    "input": "café 20000 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A007",
+    "group": "formatos",
+    "input": "café 20.000",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A008",
+    "group": "formatos",
+    "input": "gasté 20.000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A009",
+    "group": "formatos",
+    "input": "ayer gasté 20.000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A010",
+    "group": "formatos",
+    "input": "café 20.000 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A011",
+    "group": "formatos",
+    "input": "café 20.000 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A012",
+    "group": "formatos",
+    "input": "café 20.000 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A013",
+    "group": "formatos",
+    "input": "café 20 mil",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A014",
+    "group": "formatos",
+    "input": "gasté 20 mil en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A015",
+    "group": "formatos",
+    "input": "ayer gasté 20 mil en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A016",
+    "group": "formatos",
+    "input": "café 20 mil en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A017",
+    "group": "formatos",
+    "input": "café 20 mil con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A018",
+    "group": "formatos",
+    "input": "café 20 mil por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A019",
+    "group": "formatos",
+    "input": "café 20k",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A020",
+    "group": "formatos",
+    "input": "gasté 20k en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A021",
+    "group": "formatos",
+    "input": "ayer gasté 20k en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A022",
+    "group": "formatos",
+    "input": "café 20k en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A023",
+    "group": "formatos",
+    "input": "café 20k con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A024",
+    "group": "formatos",
+    "input": "café 20k por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A025",
+    "group": "formatos",
+    "input": "café 20.000,50",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A026",
+    "group": "formatos",
+    "input": "gasté 20.000,50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A027",
+    "group": "formatos",
+    "input": "ayer gasté 20.000,50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A028",
+    "group": "formatos",
+    "input": "café 20.000,50 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A029",
+    "group": "formatos",
+    "input": "café 20.000,50 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A030",
+    "group": "formatos",
+    "input": "café 20.000,50 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A031",
+    "group": "formatos",
+    "input": "café 2,5 mil",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A032",
+    "group": "formatos",
+    "input": "gasté 2,5 mil en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A033",
+    "group": "formatos",
+    "input": "ayer gasté 2,5 mil en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A034",
+    "group": "formatos",
+    "input": "café 2,5 mil en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A035",
+    "group": "formatos",
+    "input": "café 2,5 mil con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A036",
+    "group": "formatos",
+    "input": "café 2,5 mil por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A037",
+    "group": "formatos",
+    "input": "café 2.5k",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A038",
+    "group": "formatos",
+    "input": "gasté 2.5k en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A039",
+    "group": "formatos",
+    "input": "ayer gasté 2.5k en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A040",
+    "group": "formatos",
+    "input": "café 2.5k en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A041",
+    "group": "formatos",
+    "input": "café 2.5k con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A042",
+    "group": "formatos",
+    "input": "café 2.5k por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A043",
+    "group": "formatos",
+    "input": "café $ 20.000",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A044",
+    "group": "formatos",
+    "input": "gasté $ 20.000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A045",
+    "group": "formatos",
+    "input": "ayer gasté $ 20.000 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A046",
+    "group": "formatos",
+    "input": "café $ 20.000 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A047",
+    "group": "formatos",
+    "input": "café $ 20.000 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A048",
+    "group": "formatos",
+    "input": "café $ 20.000 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20000,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A049",
+    "group": "formatos",
+    "input": "café 1.305,50",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A050",
+    "group": "formatos",
+    "input": "gasté 1.305,50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A051",
+    "group": "formatos",
+    "input": "ayer gasté 1.305,50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A052",
+    "group": "formatos",
+    "input": "café 1.305,50 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A053",
+    "group": "formatos",
+    "input": "café 1.305,50 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A054",
+    "group": "formatos",
+    "input": "café 1.305,50 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 1305.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A055",
+    "group": "formatos",
+    "input": "café 20.50",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A056",
+    "group": "formatos",
+    "input": "gasté 20.50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A057",
+    "group": "formatos",
+    "input": "ayer gasté 20.50 en café",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A058",
+    "group": "formatos",
+    "input": "café 20.50 en efectivo",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A059",
+    "group": "formatos",
+    "input": "café 20.50 con débito",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A060",
+    "group": "formatos",
+    "input": "café 20.50 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "amount": 20.5,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A061",
+    "group": "monedas",
+    "input": "café USD 20",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A062",
+    "group": "monedas",
+    "input": "café U$S 20",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A063",
+    "group": "monedas",
+    "input": "café u$d 20",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A064",
+    "group": "monedas",
+    "input": "café 20 dólares",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A065",
+    "group": "monedas",
+    "input": "café 20 pesos",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "ARS"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A066",
+    "group": "monedas",
+    "input": "café ARS 20",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "ARS"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A067",
+    "group": "monedas",
+    "input": "café US$ 20",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A068",
+    "group": "monedas",
+    "input": "café 20 usd",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A069",
+    "group": "monedas",
+    "input": "café 20 dolares estadounidenses",
+    "expected": {
+      "is_valid": true,
+      "amount": 20,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A070",
+    "group": "moneda-no-soportada",
+    "input": "café 20 euros",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A071",
+    "group": "moneda-no-soportada",
+    "input": "café €20",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A072",
+    "group": "moneda-no-soportada",
+    "input": "café 20 reales",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A073",
+    "group": "moneda-no-soportada",
+    "input": "café BRL 20",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A074",
+    "group": "moneda-no-soportada",
+    "input": "café 20 yenes",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A075",
+    "group": "moneda-no-soportada",
+    "input": "café GBP 20",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A076",
+    "group": "moneda-no-soportada",
+    "input": "café 20 USD y 30 ARS",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A077",
+    "group": "moneda-default",
+    "input": "café 20",
+    "expected": {
+      "is_valid": true,
+      "currency": "USD"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "USD"
+  },
+  {
+    "id": "A078",
+    "group": "moneda-default",
+    "input": "café $20",
+    "expected": {
+      "is_valid": true,
+      "currency": "ARS"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "USD"
+  },
+  {
+    "id": "A079",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-01-01",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-01-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A080",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2025-12-31",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-01-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A081",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2025-12-30",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-01-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A082",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-03-01",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A083",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-02-28",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A084",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-02-27",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A085",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2024-03-01",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2024-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A086",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2024-02-29",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2024-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A087",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2024-02-28",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2024-03-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A088",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-01",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A089",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-09-30",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A090",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-09-29",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-01",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A091",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-12-31",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-12-31",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A092",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-12-30",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-12-31",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A093",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-12-29",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-12-31",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A094",
+    "group": "fechas-relativas",
+    "input": "hoy café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-07",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A095",
+    "group": "fechas-relativas",
+    "input": "ayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-06",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A096",
+    "group": "fechas-relativas",
+    "input": "anteayer café 2500",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-05",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A097",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 7/10",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-07",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A098",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 07/10/2026",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-07",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A099",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 29/2/2024",
+    "expected": {
+      "is_valid": true,
+      "date": "2024-02-29",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A100",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 31/12/2025",
+    "expected": {
+      "is_valid": true,
+      "date": "2025-12-31",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A101",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 2026-10-06",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-06",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A102",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el 6 de octubre",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-06",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A103",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el lunes",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-05",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A104",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 el martes pasado",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-06",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A105",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 hace dos días",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-05",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A106",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 hace 2 días",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-05",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A107",
+    "group": "lenguaje-fechas",
+    "input": "café 2500 anoche",
+    "expected": {
+      "is_valid": true,
+      "date": "2026-10-06",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A108",
+    "group": "fechas-invalidas",
+    "input": "café 2500 el 31/2/2026",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A109",
+    "group": "fechas-invalidas",
+    "input": "café 2500 el 29/2/2026",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A110",
+    "group": "fechas-invalidas",
+    "input": "café 2500 el 0/10",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A111",
+    "group": "fechas-invalidas",
+    "input": "café 2500 el 7/13",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A112",
+    "group": "fechas-invalidas",
+    "input": "café 2500 hoy ayer",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A113",
+    "group": "fechas-invalidas",
+    "input": "café 2500 mañana",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A114",
+    "group": "fechas-invalidas",
+    "input": "café 2500 la semana que viene",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A115",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 1 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 1,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A116",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 2 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 2,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A117",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 3 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 3,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A118",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 6 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 6,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A119",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 12 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 12,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A120",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 18 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 18,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A121",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 24 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 24,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A122",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 36 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 36,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A123",
+    "group": "cuotas-numericas",
+    "input": "heladera 600 mil en 72 cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 72,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A124",
+    "group": "cuotas-lenguaje",
+    "input": "heladera 600 mil en tres cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 3,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A125",
+    "group": "cuotas-lenguaje",
+    "input": "heladera 600 mil en seis cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 6,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A126",
+    "group": "cuotas-lenguaje",
+    "input": "heladera 600 mil en doce cuotas",
+    "expected": {
+      "is_valid": true,
+      "amount": 600000,
+      "installments": 12,
+      "payment_method": "CREDIT"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A127",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 60000 en 3 cuotas de 20000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A128",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 600000 en 0 cuotas",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A129",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 600000 en 73 cuotas",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A130",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 600000 en 6 cuotas en efectivo",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A131",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 600000 con débito en 6 cuotas",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A132",
+    "group": "cuotas-ambiguas",
+    "input": "heladera 600000 en 3 cuotas o 6 cuotas",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A133",
+    "group": "medios",
+    "input": "super 2000 con efectivo",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "CASH",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A134",
+    "group": "medios",
+    "input": "super 2000 cash",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "CASH",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A135",
+    "group": "medios",
+    "input": "super 2000 con débito",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "DEBIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A136",
+    "group": "medios",
+    "input": "super 2000 por transferencia",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "TRANSFER",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A137",
+    "group": "medios",
+    "input": "super 2000 transferí",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "TRANSFER",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A138",
+    "group": "medios",
+    "input": "super 2000 con visa",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "CREDIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A139",
+    "group": "medios",
+    "input": "super 2000 con mastercard",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "CREDIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A140",
+    "group": "medios",
+    "input": "super 2000 con tarjeta de crédito",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "CREDIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A141",
+    "group": "medios",
+    "input": "super 2000 con tarjeta de débito",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "DEBIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A142",
+    "group": "medios",
+    "input": "super 2000 con la de débito",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "DEBIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A143",
+    "group": "medios",
+    "input": "super 2000 con Mercado Pago",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "DEBIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "expectation_note": "Mercado Pago es una cuenta, no evidencia de transferencia. DEBIT es el método inmediato predeterminado; la cuenta se valida por separado."
+  },
+  {
+    "id": "A144",
+    "group": "medios",
+    "input": "super 2000 con MODO",
+    "expected": {
+      "is_valid": true,
+      "payment_method": "DEBIT",
+      "amount": 2000
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A145",
+    "group": "medios-ambiguos",
+    "input": "super 2000 efectivo y débito",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A146",
+    "group": "medios-ambiguos",
+    "input": "super 2000 visa o transferencia",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A147",
+    "group": "no-es-gasto",
+    "input": "cobré 50000 de sueldo",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A148",
+    "group": "no-es-gasto",
+    "input": "me pagaron 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A149",
+    "group": "no-es-gasto",
+    "input": "me transfirieron 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A150",
+    "group": "no-es-gasto",
+    "input": "reintegro 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A151",
+    "group": "no-es-gasto",
+    "input": "reembolso 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A152",
+    "group": "no-es-gasto",
+    "input": "devolución 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A153",
+    "group": "no-es-gasto",
+    "input": "pagué la tarjeta 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A154",
+    "group": "no-es-gasto",
+    "input": "pago visa 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A155",
+    "group": "no-es-gasto",
+    "input": "pagué resumen 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A156",
+    "group": "no-es-gasto",
+    "input": "transferí 5000 a mi cuenta",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A157",
+    "group": "no-es-gasto",
+    "input": "transferí 5000 entre mis cuentas",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A158",
+    "group": "no-es-gasto",
+    "input": "devolví una compra de 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A159",
+    "group": "no-es-gasto",
+    "input": "me devolvieron 5000 del súper",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A160",
+    "group": "no-es-gasto",
+    "input": "recibí 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A161",
+    "group": "no-es-gasto",
+    "input": "vendí una mesa por 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A162",
+    "group": "no-es-gasto",
+    "input": "cancelé la compra de 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A163",
+    "group": "no-es-gasto",
+    "input": "voy a comprar café por 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A164",
+    "group": "no-es-gasto",
+    "input": "quiero comprar una heladera de 600000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A165",
+    "group": "no-es-gasto",
+    "input": "presupuesto de plomería 20000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A166",
+    "group": "no-es-gasto",
+    "input": "cotización de cubiertas 200000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A167",
+    "group": "no-es-gasto",
+    "input": "no gasté 2000 en super",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A168",
+    "group": "no-es-gasto",
+    "input": "no pagué 2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A169",
+    "group": "no-es-gasto",
+    "input": "gastaría 2000 en café",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A170",
+    "group": "no-es-gasto",
+    "input": "si compro café gasto 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A171",
+    "group": "no-es-gasto",
+    "input": "transferí 5000 a mi otra cuenta",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A172",
+    "group": "no-es-gasto",
+    "input": "pagué el resumen de la tarjeta 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A173",
+    "group": "no-es-gasto",
+    "input": "pagué mi tarjeta 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A174",
+    "group": "no-es-gasto",
+    "input": "pagué la Visa BBVA 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A175",
+    "group": "no-es-gasto",
+    "input": "me acreditaron 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A176",
+    "group": "no-es-gasto",
+    "input": "café 2500 que no compré",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A177",
+    "group": "montos-ambiguos",
+    "input": "café 2000 y nafta 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A178",
+    "group": "montos-ambiguos",
+    "input": "compré 2 cafés por 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A179",
+    "group": "montos-ambiguos",
+    "input": "super 2000 propina 200",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A180",
+    "group": "montos-ambiguos",
+    "input": "café 2500 de un total de 5000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A181",
+    "group": "montos-ambiguos",
+    "input": "super 2000 descuento 100",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A182",
+    "group": "montos-ambiguos",
+    "input": "super 2000 x 2",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A183",
+    "group": "montos-ambiguos",
+    "input": "super 2000+500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A184",
+    "group": "montos-ambiguos",
+    "input": "super 2000-500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A185",
+    "group": "montos-ambiguos",
+    "input": "super -2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A186",
+    "group": "montos-ambiguos",
+    "input": "super +2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A187",
+    "group": "montos-ambiguos",
+    "input": "super 0",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A188",
+    "group": "montos-ambiguos",
+    "input": "super 999999999999999999999999",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A189",
+    "group": "montos-ambiguos",
+    "input": "café",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A190",
+    "group": "montos-ambiguos",
+    "input": "2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A191",
+    "group": "montos-ambiguos",
+    "input": "super 1.30.000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A192",
+    "group": "montos-ambiguos",
+    "input": "super 20,000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A193",
+    "group": "montos-ambiguos",
+    "input": "super 1e3",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A194",
+    "group": "categorias",
+    "input": "super 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Supermercado",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A195",
+    "group": "categorias",
+    "input": "carrefour 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Supermercado",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A196",
+    "group": "categorias",
+    "input": "coto 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Supermercado",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A197",
+    "group": "categorias",
+    "input": "día 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Supermercado",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A198",
+    "group": "categorias",
+    "input": "ferretería 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Casa/Mantenimiento",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A199",
+    "group": "categorias",
+    "input": "nafta 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Auto/Combustible",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A200",
+    "group": "categorias",
+    "input": "jardín 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Educación",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A201",
+    "group": "categorias",
+    "input": "farmacia 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Farmacia",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A202",
+    "group": "categorias",
+    "input": "Netflix 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Suscripciones",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A203",
+    "group": "categorias",
+    "input": "veterinaria 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Mascotas",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A204",
+    "group": "categorias",
+    "input": "cubiertas 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Auto/Mantenimiento",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A205",
+    "group": "categorias",
+    "input": "ropa 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Ropa e Indumentaria",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A206",
+    "group": "categorias",
+    "input": "café 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Restaurantes",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A207",
+    "group": "categorias",
+    "input": "Uber 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Transporte",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A208",
+    "group": "categorias",
+    "input": "kiosco 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Kiosco y Varios",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A209",
+    "group": "categorias",
+    "input": "pañales 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Hijos",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A210",
+    "group": "categorias",
+    "input": "peluquería 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Cuidado Personal",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A211",
+    "group": "categorias",
+    "input": "heladera 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Muebles y Hogar",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A212",
+    "group": "categorias",
+    "input": "regalo de cumpleaños 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Regalos",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A213",
+    "group": "categorias",
+    "input": "hotel 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Vacaciones",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A214",
+    "group": "categorias",
+    "input": "comisión bancaria 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Cargos Bancarios",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A215",
+    "group": "categorias",
+    "input": "psicóloga 2500",
+    "expected": {
+      "is_valid": true,
+      "category": "Salud",
+      "amount": 2500
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A216",
+    "group": "descripcion-vacia",
+    "input": "ayer 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A217",
+    "group": "descripcion-vacia",
+    "input": "hoy 2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A218",
+    "group": "descripcion-vacia",
+    "input": "ayer con débito 2000",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A219",
+    "group": "descripcion-vacia",
+    "input": "gasté 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A220",
+    "group": "descripcion-vacia",
+    "input": "pagué 2500",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A221",
+    "group": "nombre-comercio",
+    "input": "café 2500",
+    "expected": {
+      "is_valid": true,
+      "description": "cafe"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A222",
+    "group": "nombre-comercio",
+    "input": "mercado pago 2500",
+    "expected": {
+      "is_valid": true,
+      "description": "mercado pago"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A223",
+    "group": "nombre-comercio",
+    "input": "El Bar 2500",
+    "expected": {
+      "is_valid": true,
+      "description": "el bar"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A224",
+    "group": "nombre-comercio",
+    "input": "La Anónima 2500",
+    "expected": {
+      "is_valid": true,
+      "description": "la anonima"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A225",
+    "group": "nombre-comercio",
+    "input": "Día 2500",
+    "expected": {
+      "is_valid": true,
+      "description": "dia"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A226",
+    "group": "nombre-comercio",
+    "input": "MODO 2500 en supermercado",
+    "expected": {
+      "is_valid": true,
+      "description": "modo supermercado"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A227",
+    "group": "normalizacion",
+    "input": "café\n2500",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "category": "Restaurantes"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A228",
+    "group": "normalizacion",
+    "input": "  CAFÉ   2500  ",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "category": "Restaurantes"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A229",
+    "group": "normalizacion",
+    "input": "☕ café 2500",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "category": "Restaurantes"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A230",
+    "group": "normalizacion",
+    "input": "café\t2500",
+    "expected": {
+      "is_valid": true,
+      "amount": 2500,
+      "category": "Restaurantes"
+    },
+    "critical": false,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "A231",
+    "group": "longitud",
+    "input": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "expected": {
+      "is_valid": false
+    },
+    "critical": true,
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS"
+  },
+  {
+    "id": "H001",
+    "group": "ampliación independiente / positivo",
+    "input": "almuerzo 8.450,75 con efectivo",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 8450.75,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-10-07",
+      "payment_method": "CASH",
+      "installments": null
+    }
+  },
+  {
+    "id": "H002",
+    "group": "ampliación independiente / positivo",
+    "input": "anoche uber 3k",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 3000,
+      "currency": "ARS",
+      "category": "Transporte",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H003",
+    "group": "ampliación independiente / positivo",
+    "input": "hace dos días pañales 15600",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 15600,
+      "currency": "ARS",
+      "category": "Hijos",
+      "date": "2026-10-05",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H004",
+    "group": "ampliación independiente / positivo",
+    "input": "compré zapatillas USD 79.90",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 79.9,
+      "currency": "USD",
+      "category": "Ropa e Indumentaria",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H005",
+    "group": "ampliación independiente / positivo",
+    "input": "hotel 120USd",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 120,
+      "currency": "USD",
+      "category": "Vacaciones",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H006",
+    "group": "ampliación independiente / positivo",
+    "input": "heladera 840mil en cuatro cuotas",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 840000,
+      "currency": "ARS",
+      "category": "Muebles y Hogar",
+      "date": "2026-10-07",
+      "payment_method": "CREDIT",
+      "installments": 4
+    }
+  },
+  {
+    "id": "H007",
+    "group": "ampliación independiente / positivo",
+    "input": "lavarropas 918000 en 9 cuotas",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 918000,
+      "currency": "ARS",
+      "category": "Muebles y Hogar",
+      "date": "2026-10-07",
+      "payment_method": "CREDIT",
+      "installments": 9
+    }
+  },
+  {
+    "id": "H008",
+    "group": "ampliación independiente / positivo",
+    "input": "ropa 42000 en 7 cuotas con Visa BBVA",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 42000,
+      "currency": "ARS",
+      "category": "Ropa e Indumentaria",
+      "date": "2026-10-07",
+      "payment_method": "CREDIT",
+      "installments": 7
+    }
+  },
+  {
+    "id": "H009",
+    "group": "ampliación independiente / positivo",
+    "input": "café 3750 el 30/09/2026",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 3750,
+      "currency": "ARS",
+      "category": "Restaurantes",
+      "date": "2026-09-30",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H010",
+    "group": "ampliación independiente / positivo",
+    "input": "farmacia 6000 el 2026-09-29",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 6000,
+      "currency": "ARS",
+      "category": "Farmacia",
+      "date": "2026-09-29",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H011",
+    "group": "ampliación independiente / positivo",
+    "input": "ferretería 8000 el 29 de septiembre",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 8000,
+      "currency": "ARS",
+      "category": "Casa/Mantenimiento",
+      "date": "2026-09-29",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H012",
+    "group": "ampliación independiente / positivo",
+    "input": "peluquería 17500 el jueves pasado",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 17500,
+      "currency": "ARS",
+      "category": "Cuidado Personal",
+      "date": "2026-10-01",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H013",
+    "group": "ampliación independiente / positivo",
+    "input": "colegio 91000 con tarjeta de débito",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 91000,
+      "currency": "ARS",
+      "category": "Educación",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H014",
+    "group": "ampliación independiente / positivo",
+    "input": "nafta 47800 con débito Visa BBVA",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 47800,
+      "currency": "ARS",
+      "category": "Auto/Combustible",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H015",
+    "group": "ampliación independiente / positivo",
+    "input": "regalo 19800 por transferencia desde Banco Nación",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 19800,
+      "currency": "ARS",
+      "category": "Regalos",
+      "date": "2026-10-07",
+      "payment_method": "TRANSFER",
+      "installments": null
+    }
+  },
+  {
+    "id": "H016",
+    "group": "ampliación independiente / positivo",
+    "input": "spotify 4,99 dólares",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 4.99,
+      "currency": "USD",
+      "category": "Suscripciones",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H017",
+    "group": "ampliación independiente / positivo",
+    "input": "comisión bancaria 1350,50",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 1350.5,
+      "currency": "ARS",
+      "category": "Cargos Bancarios",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H018",
+    "group": "ampliación independiente / positivo",
+    "input": "verdulería 3900 con mercadopago",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 3900,
+      "currency": "ARS",
+      "category": "Alimentos",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H019",
+    "group": "ampliación independiente / positivo",
+    "input": "veterinaria 23100 ayer",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 23100,
+      "currency": "ARS",
+      "category": "Mascotas",
+      "date": "2026-10-06",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H020",
+    "group": "ampliación independiente / positivo",
+    "input": "hotel US$ 180,50",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": false,
+    "expected": {
+      "is_valid": true,
+      "amount": 180.5,
+      "currency": "USD",
+      "category": "Vacaciones",
+      "date": "2026-10-07",
+      "payment_method": "DEBIT",
+      "installments": null
+    }
+  },
+  {
+    "id": "H021",
+    "group": "ampliación independiente / rechazo",
+    "input": "me depositaron 85000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H022",
+    "group": "ampliación independiente / rechazo",
+    "input": "me reintegraron 3500",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H023",
+    "group": "ampliación independiente / rechazo",
+    "input": "compraría una heladera 600000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H024",
+    "group": "ampliación independiente / rechazo",
+    "input": "pagaré café 3200",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H025",
+    "group": "ampliación independiente / rechazo",
+    "input": "gasto estimado de nafta 47000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H026",
+    "group": "ampliación independiente / rechazo",
+    "input": "pagué el saldo de mi tarjeta 97000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H027",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 5000 el próximo lunes",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H028",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 5000 el lunes que viene",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H029",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 5000 hace tres días",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H030",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 5000 hace 3 días",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H031",
+    "group": "ampliación independiente / rechazo",
+    "input": "hotel CHF 300",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H032",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 2500abc",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H033",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 2e4",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H034",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 1E+4",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H035",
+    "group": "ampliación independiente / rechazo",
+    "input": "super 2400 hoy y anoche",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H036",
+    "group": "ampliación independiente / rechazo",
+    "input": "heladera 700000 en seis cuotas en 12 cuotas",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H037",
+    "group": "ampliación independiente / rechazo",
+    "input": "super 3000 con tarjeta de débito y crédito",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H038",
+    "group": "ampliación independiente / rechazo",
+    "input": "compré café 3000 y uber 7000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H039",
+    "group": "ampliación independiente / rechazo",
+    "input": "café 4000 el 31 de septiembre",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "H040",
+    "group": "ampliación independiente / rechazo",
+    "input": "super 3000 el 2026-02-29",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S001",
+    "group": "adversarial / financiero",
+    "input": "super −2500",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S002",
+    "group": "adversarial / financiero",
+    "input": "super –2500",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S003",
+    "group": "adversarial / financiero",
+    "input": "super —2500",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S004",
+    "group": "adversarial / financiero",
+    "input": "super + $2500",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S005",
+    "group": "adversarial / financiero",
+    "input": "café 2500 con crédito y débito Visa",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S006",
+    "group": "adversarial / financiero",
+    "input": "café 2500 CHF",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S007",
+    "group": "adversarial / financiero",
+    "input": "café 2500 BTC",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S008",
+    "group": "adversarial / financiero",
+    "input": "café 2500 CAD",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S009",
+    "group": "adversarial / financiero",
+    "input": "café 2500 ARS y USD",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S010",
+    "group": "adversarial / financiero",
+    "input": "café 2500 ayer y el lunes",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S011",
+    "group": "adversarial / financiero",
+    "input": "café 2500 el 31/04/2026",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S012",
+    "group": "adversarial / financiero",
+    "input": "heladera 680000 en 100 cuotas",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S013",
+    "group": "adversarial / financiero",
+    "input": "heladera 680000 en dos cuotas de 340000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S014",
+    "group": "adversarial / financiero",
+    "input": "reembolso del hotel 35000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  },
+  {
+    "id": "S015",
+    "group": "adversarial / financiero",
+    "input": "me acreditaron la devolución de 35000",
+    "today": "2026-10-07",
+    "defaultCurrency": "ARS",
+    "critical": true,
+    "expected": {
+      "is_valid": false
+    }
+  }
+]

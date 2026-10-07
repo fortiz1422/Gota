@@ -125,7 +125,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   const visibleSelected = movements.filter((movement) => selectedIds.has(movement.candidateId)).length
 
   if (pendingCount === 0) return (
-    <section className="mt-12 rounded-card border border-border-subtle bg-bg-secondary/50 px-6 py-10 text-center" aria-label="Sin movimientos pendientes">
+    <section className="mt-8 rounded-card border border-border-subtle bg-bg-primary px-6 py-10 text-center shadow-[var(--shadow-sm)]" aria-label="Sin movimientos pendientes">
       <CheckCircle size={36} weight="light" className="mx-auto text-primary" aria-hidden="true" />
       <h2 className="mt-4 text-lg font-semibold text-text-primary">Estás al día</h2>
       <p className="mt-2 text-sm text-text-secondary">No hay movimientos pendientes de revisar.</p>
@@ -133,7 +133,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
   )
 
   return (
-    <section className="mt-6" aria-labelledby="pending-title">
+    <section className="mt-7" aria-labelledby="pending-title">
       <div className="flex items-center justify-between gap-3">
         <h2 id="pending-title" className="text-sm font-medium text-text-secondary">{pendingCount} {pendingCount === 1 ? 'movimiento para revisar' : 'movimientos para revisar'}</h2>
         {selectionMode ? <button type="button" onClick={onCancelSelection} className="min-h-11 rounded-button px-3 text-sm font-semibold text-text-secondary">Cancelar</button> : (
@@ -155,7 +155,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
         <button type="button" onClick={onBulkDismiss} disabled={visibleSelected === 0} className="mt-3 min-h-11 w-full rounded-button bg-danger px-3 py-3 text-sm font-semibold text-white disabled:opacity-50">Descartar {visibleSelected > 0 ? visibleSelected : ''} seleccionados</button>
         <p className="mt-2 text-xs text-text-secondary">Se retiran de esta lista sin registrar gastos.</p>
       </div>}
-      <div className="mt-3 overflow-hidden rounded-card border border-border-subtle divide-y divide-border-subtle">
+      <div className="mt-3 overflow-hidden rounded-card border border-border-subtle bg-bg-primary shadow-[var(--shadow-sm)] divide-y divide-border-subtle">
         {movements.map((movement) => {
           const presentation = getMercadoPagoReviewPresentation(movement)
           const transfer = movement.kind === 'transfer' || movement.operation?.type === 'money_transfer'
@@ -164,13 +164,18 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
             : presentation.ready && movement.fundingSource?.kind === 'card' ? 'Elegí la tarjeta y categoría'
             : presentation.ready ? 'Revisá la categoría'
             : presentation.title
-          return <article key={movement.candidateId} className="flex items-center gap-2 p-4 hover:bg-bg-secondary/50">
+          return <article key={movement.candidateId} className="flex items-center gap-2 p-4 transition-colors hover:bg-bg-secondary/70 active:bg-primary/[0.04]">
             {selectionMode && <label className="-my-2 -ml-2 flex min-h-11 min-w-11 shrink-0 cursor-pointer items-center justify-center"><input type="checkbox" aria-label={`Seleccionar ${getDisplayExpenseDescription(movement) || 'operación'}`} checked={selectedIds.has(movement.candidateId)} onChange={() => onToggle(movement)} className="h-5 w-5 accent-primary" /></label>}
             <button type="button" onClick={() => onOpen(movement)} className="flex min-w-0 flex-1 items-center gap-3 text-left focus-visible:outline-primary">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-semibold text-text-primary">{getDisplayExpenseDescription(movement) || (transfer ? 'Transferencia' : 'Movimiento de Mercado Pago')}</span>
-                <span className="mt-1 block truncate text-xs text-text-tertiary">{formatObservedDate(getMercadoPagoReviewDate(movement))} · {getMercadoPagoFundingSourceLabel(movement)}{movement.installments && movement.installments > 1 ? ` · ${movement.installments} cuotas` : ''}</span>
-                <span className="mt-1.5 block text-xs text-text-secondary">{hint}</span>
+                <span className="mt-1 flex min-w-0 items-center gap-2 text-xs text-text-tertiary">
+                  <span className="shrink-0">{formatObservedDate(getMercadoPagoReviewDate(movement))}</span>
+                  <span className="min-w-0 truncate rounded-pill bg-bg-tertiary px-2 py-1 text-text-secondary">
+                    {getMercadoPagoFundingSourceLabel(movement)}{movement.installments && movement.installments > 1 ? ` · ${movement.installments} cuotas` : ''}
+                  </span>
+                </span>
+                <span className="mt-2 block text-xs font-medium text-text-secondary">{hint}</span>
               </span>
               <span className="type-amount-sm shrink-0 whitespace-nowrap text-text-primary">{formatMoney(movement)}</span>
               <CaretRight size={14} className="shrink-0 text-text-tertiary" aria-hidden="true" />
@@ -318,8 +323,8 @@ export function MercadoPagoReviewClient() {
     setAliasLoading(false)
     if (movement.attention === 'possible_duplicate') void loadAccounts()
     if (isReviewableMercadoPagoExpense(movement) || isReviewableMercadoPagoWalletPayment(movement) || isReviewableMercadoPagoCardPurchase(movement)) {
-      if (isReviewableMercadoPagoExpense(movement) || isReviewableMercadoPagoWalletPayment(movement)) void loadAccounts()
-      else void loadCards()
+      void loadAccounts()
+      if (isReviewableMercadoPagoCardPurchase(movement)) void loadCards()
       setAliasLoading(true)
       void fetch('/api/counterparty-aliases/resolve', {
         method: 'POST',
@@ -459,17 +464,20 @@ export function MercadoPagoReviewClient() {
   }
 
   return (
-    <main className="mx-auto min-h-app max-w-md bg-bg-primary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
-      <header className="flex items-center gap-3">
-        <Link
-          href="/settings"
-          aria-label="Volver a configuración"
-          className="grid h-11 w-11 place-items-center rounded-full text-text-secondary hover:bg-primary-soft"
-        >
-          <ArrowLeft size={20} />
-        </Link>
-        <div>
-          <h1 className="type-title text-text-primary">Mercado Pago</h1>
+    <main className="mx-auto min-h-app max-w-md bg-bg-secondary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
+      <header className="rounded-card border border-border-subtle bg-bg-primary px-3 py-4 shadow-[var(--shadow-sm)]">
+        <div className="flex items-center gap-3">
+          <Link
+            href="/settings"
+            aria-label="Volver a configuración"
+            className="grid h-11 w-11 place-items-center rounded-full text-text-secondary transition-colors hover:bg-primary-soft"
+          >
+            <ArrowLeft size={20} />
+          </Link>
+          <div>
+            <h1 className="type-title text-text-primary">Mercado Pago</h1>
+            <p className="mt-1 text-xs text-text-tertiary">Revisá lo que Gota encontró antes de incorporarlo.</p>
+          </div>
         </div>
       </header>
 
@@ -609,11 +617,6 @@ export function MercadoPagoReviewClient() {
         canvasTone="standard"
         footer={null}
       >
-        {selected && <div className="mb-5 pt-5">
-          <p className="type-micro text-primary">MERCADO PAGO</p>
-          <p className="mt-2 text-base font-semibold leading-snug text-text-primary">{getDisplayExpenseDescription(selected) || 'Operación de Mercado Pago'}</p>
-          <p className="mt-1 text-sm text-text-secondary">{formatMoney(selected)} · {formatObservedDate(getMercadoPagoReviewDate(selected))} · {getMercadoPagoFundingSourceLabel(selected)}</p>
-        </div>}
         {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando tus preferencias para este comercio…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
@@ -622,9 +625,9 @@ export function MercadoPagoReviewClient() {
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <div className="space-y-2 rounded-input bg-bg-secondary p-3 text-sm text-text-secondary"><p>No tenés tarjetas activas cargadas en Gota.</p><Link href="/settings" className="inline-flex min-h-11 items-center font-semibold text-primary">Agregar una tarjeta</Link></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
-          key={`${selected.candidateId}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
+          key={`${selected.candidateId}:${accounts.length}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
           data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
-          cards={cards} accounts={[]} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
+          cards={cards} accounts={accounts} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
           aliasSource="mercadopago" immutableProviderEvidence embedded
           secondaryAction={{ label: 'Desestimar', onAction: () => requestDismissal(selected), disabled: dismissing || dismissed !== null }}
           cardHelperText={cardMatch.status === 'ambiguous'

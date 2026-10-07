@@ -78,7 +78,7 @@ export async function POST(request: Request) {
       if (!local.is_valid) return NextResponse.json(local)
       let match = null
       try { match = await resolveSavedCounterparty(supabase, user.id, local.description) } catch { /* optional memory */ }
-      return NextResponse.json(enrichParsedExpensePreview(local, match))
+      return NextResponse.json(enrichParsedExpensePreview({ ...local, source_text: input }, match))
     }
     if (!canUsePaidAI(user)) return NextResponse.json({ is_valid: false, reason: PAID_AI_UNAVAILABLE }, { status: 403 })
 

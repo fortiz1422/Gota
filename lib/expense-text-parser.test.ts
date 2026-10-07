@@ -47,7 +47,7 @@ describe('local expense proposals', () => {
       'heladera 600 mil en 6 cuotas',
       600000,
       'ARS',
-      'Otros',
+      'Muebles y Hogar',
       today,
       'CREDIT',
       6,
@@ -98,6 +98,19 @@ describe('local expense proposals', () => {
       expect(ParsedExpenseSchema.safeParse(proposal).success).toBe(true)
     }
   )
+  it('supports previously rejected weekday and written installment phrases', () => {
+    expect(parse('super 2000 el lunes', today)).toMatchObject({
+      is_valid: true,
+      date: '2026-10-05',
+      amount: 2000,
+    })
+    expect(parse('heladera 10000 en tres cuotas', today)).toMatchObject({
+      is_valid: true,
+      installments: 3,
+      amount: 10000,
+      payment_method: 'CREDIT',
+    })
+  })
   it.each([
     'solo cafe',
     'pagué la tarjeta 20000',
@@ -108,7 +121,6 @@ describe('local expense proposals', () => {
     'super -2000',
     'super 1.30.000',
     'super 2000 el 31/2/2026',
-    'super 2000 el lunes',
     'super 2000 hoy ayer',
     'heladera 10000 en 0 cuotas',
     'heladera 10000 en 73 cuotas',
@@ -120,7 +132,6 @@ describe('local expense proposals', () => {
     'super 999999999999999999999999',
     'super 100 el 30/02',
     'super 100 hoy el 1/10',
-    'heladera 10000 en tres cuotas',
     'super 100 mañana',
     'reintegro 20000',
     'me transfirieron 1000',

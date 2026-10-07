@@ -12,6 +12,11 @@ on:
       - '.github/workflows/mercadopago-sql.yml'
       - 'scripts/*mercadopago*'
       - 'docs/supabase-mercadopago-*.sql'
+      - 'app/api/integrations/mercadopago/**'
+      - 'components/mercadopago/**'
+      - 'components/dashboard/ParsePreview.tsx'
+      - 'lib/mercadopago/**'
+      - 'lib/counterparty-aliases/**'
 
 permissions:
   contents: read

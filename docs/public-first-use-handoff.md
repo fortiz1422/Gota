@@ -136,3 +136,31 @@ No tocar movimientos de Facundo ni integraciones MP durante estas verificaciones
 - Publicación: GitHub confirmó que feat/public-first-use sigue en ed81801. Auto-review rechazó create_tree: considera falta de autorización explícita para divulgación externa de esta revisión. No se reintentó por otro mecanismo. La preview sigue mostrando las tarjetas anteriores.
 - Build alternativo con webpack y fuentes locales sustitutas compiló módulos y encontró un bloqueo previo: POST(request?: Request) no es una firma válida de ruta Next.js. Se corrige únicamente a POST(request: Request) y las siete pruebas existentes usan un Request HTTP vacío; siete aprobadas. Sin cambio al cuerpo ni a la lógica financiera/sincronización. Este ajuste debe acompañar la preview, no implica desplegar ni sincronizar cuentas reales.
 - Verificación final: build alternativo `next build --webpack` exitoso (incluye tipos y generación de rutas), con NEXT_FONT_GOOGLE_MOCKED_RESPONSES local y GOTA_LOCAL_VERIFY. Sustituye fuentes solo durante verificación, sin cambios a app/layout ni configuración publicada. No equivale a verificar build Turbopack con fuentes reales ni UI móvil. Total de esta etapa: 45 pruebas existentes aprobadas (38 ayudas/analítica + 7 sync). Árbol de trabajo limpio después de commits. Trabajo visual pendiente de publicar revisión en la rama de preview.
+
+
+### Verificación de walkthrough en preview — 7 de octubre, 09:17 UTC
+
+- GitHub confirma rama `feat/public-first-use` en `d58aa45321dfe27b2b1fae29da4993f9f5f63255`, mensaje de publicación de la revisión local 41ac666. Ya no corresponde el bloqueo de publicación anterior para esta revisión.
+- Preview observada: https://gota-git-feat-public-first-use-facundos-projects-11ee7eb5.vercel.app/
+- Recorrido real: landing → start → sesión anónima nueva → onboarding con BBVA/ARS125000 ficticios → home → Mostrarme → mensajes 1/3, 2/3 y 3/3 → Listo → Ver guía rápida → Omitir. No se registraron gastos ni se modificaron movimientos personales.
+- Confirmados mensajes, borde sin relleno y ausencia de las dos tarjetas de guía rechazadas. Capturas de viewport desktop: gota-walkthrough-1.jpg, gota-walkthrough-2.jpg, gota-walkthrough-3.jpg. No es emulación móvil ni prueba iOS.
+- 34 pruebas focalizadas aprobadas: tour-position, home-empty-state y onboarding-setup.
+- Pendientes: revisar móvil real y las ayudas de Configuración/Análisis en navegador. La auditoría de smart input presente en dos archivos no rastreados es trabajo independiente e incompleto; no se incluye en esta entrega ni acredita exactitud del formulario.
+
+
+### Handoff para Hermes — auditoría determinística de texto, 7 de octubre
+
+- Baseline original 186/231 (80,5%). Se corrige una expectativa inválida: Mercado Pago no prueba transferencia; baseline comparable 187/231. Corpus final 286/286: 176 propuestas y 110 rechazos. Además 22 escenarios de fuente y una comprobación de entidades duplicadas/archivadas.
+- Implementación: vocabulario, fechas/cuotas expresadas en lenguaje natural, monedas no admitidas, ingresos/devoluciones/planes y signos Unicode; referencia de cuenta/tarjeta única en el formulario; desconocidas/ambiguas requieren elección; cuotas no preset visibles. No se cambian motor financiero, permisos ni datos personales.
+- Verificación: 651 pruebas focalizadas pasan, tipos/lint focalizado/diff-check limpios. 286 entradas también recorren API simulada sin modelo pago. Se leen controles del componente real por render HTML para 176 propuestas; no es navegador interactivo. Suite completa previa a última ampliación: 1724 pasan, 8 fallas heredadas de MP/comprobantes.
+- Artefactos: lib/expense-parser-audit.test.ts, lib/expense-preview-source.test.ts, lib/expense-preview-source.ts y scripts/tests/expense-parser-audit-cases.json; exports Gota_auditoria_input.csv, Gota_auditoria_cuentas_tarjetas.csv y Gota_auditoria_input_handoff.md.
+- Supuestos/riesgos: dataset sintético, defaults visibles no equivalen a extracción, categoría modificable/memoria vacía en corpus, gramática limitada; no se midió precisión de producción ni se comparó con LLM. Pendiente preview nueva y prueba móvil interactiva, integración con main y permisos pendientes por separado. Cambios locales, sin publicación de esta revisión del parser ni escritura financiera.
+
+
+### Handoff para Hermes — paquete integrado y contratos, 7 de octubre
+
+- Usuario autorizó corregir las fallas y avanzar con el paquete. Se integra main 50237c4 (#129 pills de fuente y #130 profundidad visual de MP). Conflicto de ParsePreview resuelto conservando pills visibles/inmutables de MP, selección segura del parser, estados accesibles y cuenta fija.
+- Las ocho fallas eran expectativas heredadas: etiquetas recurrente/extraordinario omitidas en payload, recuerdo de comercio activado implícitamente, copy de descarte/header de MP antiguo. Se actualizan expectativas estrictas según contratos existentes y formulario renderizado; no se cambia lógica financiera para satisfacer tests. Se preserva opt-in explícito y campos de evidencia inmutables.
+- Suite completa integrada: 1765 pruebas en 166 archivos, todas pasan. ESLint focalizado limpio. next build --webpack completo con fuentes reales: compilación, tipos y rutas pasan; GOTA_LOCAL_VERIFY evita publicación de sourcemaps y releases durante verificación local. El chequeo tsc inicial corrió simultáneo con build y encontró tipos generados removidos por build; no es fallo de aplicación. Se repite secuencialmente tras build.
+- Se verifica igualdad del árbol remoto d58aa45 y revisión local 41ac666 (580ca6a...), antes de registrar su ascendencia sin duplicar cambios. git push no dispone de credencial HTTPS; publicación por plugin GitHub conforme autorización. Preview objetivo: rama feat/public-first-use, proyecto Gota del equipo existente. No se promueve producción ni se aplican migraciones.
+- Pendiente antes de declarar publicación general: permisos Supabase preparados y aún no aplicados, prueba móvil real y verificación de vinculación/aislamiento indicadas arriba. No asumir que aprobar el paquete elimina esos pendientes.
