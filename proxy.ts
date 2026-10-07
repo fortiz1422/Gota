@@ -82,7 +82,15 @@ export async function proxy(request: NextRequest) {
     if (pathname.startsWith('/api/')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
     }
-    if (pathname === '/') return NextResponse.redirect(new URL('/landing', request.url))
+    if (pathname === '/') {
+      // Root varies by validated session. Never cache either variant publicly.
+      const landing = request.nextUrl.clone()
+      landing.pathname = '/landing'
+      const publicResponse = NextResponse.rewrite(landing)
+      response.cookies.getAll().forEach(cookie => publicResponse.cookies.set(cookie))
+      publicResponse.headers.set('Cache-Control', 'private, no-store')
+      return publicResponse
+    }
     const login = new URL('/login', request.url)
     login.searchParams.set('next', safeDestination(pathname + request.nextUrl.search))
     return NextResponse.redirect(login)
@@ -93,6 +101,7 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(new URL(safeDestination(request.nextUrl.searchParams.get('next')), request.url))
   }
 
+  if (pathname === '/') response.headers.set('Cache-Control', 'private, no-store')
   return response
 }
 

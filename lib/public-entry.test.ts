@@ -11,10 +11,28 @@ beforeEach(() => {
 })
 const run = (path: string) => proxy(new NextRequest('https://gota.test' + path))
 describe('public entry and redirects', () => {
-  it('opens the landing from a shared root URL', async () => {
-    expect((await run('/')).headers.get('location')).toBe(
-      'https://gota.test/landing'
-    )
+  it('serves the public landing at root without changing the visible URL', async () => {
+    const response = await run('/?utm_source=claude')
+    expect(response.headers.get('location')).toBeNull()
+    expect(response.headers.get('x-middleware-rewrite')).toBe('https://gota.test/landing?utm_source=claude')
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+  it.each([true, false])('keeps a validated session on the dashboard (guest=%s)', async isAnonymous => {
+    mocks.user.mockResolvedValue({ data: { user: { id: 'test', is_anonymous: isAnonymous } } })
+    const response = await run('/')
+    expect(response.headers.get('x-middleware-next')).toBe('1')
+    expect(response.headers.get('x-middleware-rewrite')).toBeNull()
+    expect(response.headers.get('Cache-Control')).toBe('private, no-store')
+  })
+  it('preserves auth cookie cleanup when rewriting an expired session to the landing', async () => {
+    mocks.create.mockImplementation((_url, _key, options) => ({ auth: { getUser: async () => {
+      options.cookies.setAll([{ name: 'test-session', value: '', options: { maxAge: 0, path: '/' } }])
+      return { data: { user: null } }
+    } } }))
+    const response = await run('/')
+    expect(response.cookies.get('test-session')?.value).toBe('')
+    expect(response.headers.get('set-cookie')).toContain('Max-Age=0')
+    expect(response.headers.get('x-middleware-rewrite')).toBe('https://gota.test/landing')
   })
   it.each(['/landing', '/privacy', '/terms'])(
     'serves %s without auth dependency',

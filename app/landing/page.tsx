@@ -11,11 +11,18 @@ import {
 import styles from './landing.module.css'
 
 export const metadata: Metadata = {
-  title: 'Gota — Tu plata, clara',
+  metadataBase: new URL('https://gota.money'),
+  alternates: { canonical: 'https://gota.money' },
+  robots: { index: true, follow: true },
+  title: 'Gota — Tu plata clara',
   description:
     'Registrá tus gastos, reuní tus cuentas y entendé cuánto te queda. Empezá sin cuenta, con tus propios datos.',
   openGraph: {
-    title: 'Gota — Tu plata, clara',
+    url: 'https://gota.money',
+    siteName: 'Gota',
+    locale: 'es_AR',
+    type: 'website',
+    title: 'Gota — Tu plata clara',
     description:
       'Lo que tenés. Lo que ya comprometiste. Lo que te queda. Empezá sin cuenta.',
   },
@@ -88,7 +95,7 @@ export default function LandingPage() {
       <section className={styles.hero}>
         <div className={styles.heroCopy}>
           <p className={styles.eyebrow}>
-            <span /> Menos cuentas en la cabeza
+            <span /> En beta privada
           </p>
           <h1>
             Tu plata,
@@ -268,13 +275,14 @@ export default function LandingPage() {
           Ingresar o crear cuenta <ArrowUpRight size={17} aria-hidden />
         </Link>
         <p className={styles.caption}>
-          Gota está en etapa de prueba. Empezá de a poco y revisá tus datos.
+          Gota está en beta privada. Empezá de a poco y revisá tus datos.
         </p>
       </section>
       <footer className={styles.footer}>
         <Logo />
-        <p>Tu plata, clara.</p>
+        <p>Gota · gota.money · Argentina</p>
         <div>
+          <a href="mailto:facundo@gota.money">facundo@gota.money</a>
           <Link href="/privacy">Privacidad</Link>
           <Link href="/terms">Condiciones de uso</Link>
         </div>
