@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { resolveExpensePreviewSource } from '@/lib/expense-preview-source'
 import { Bank, CreditCard, DeviceMobileSpeaker, Star, Wallet } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
@@ -25,6 +26,7 @@ export interface ParsedExpensePreviewData {
   is_extraordinary?: boolean | null
   payment_method: 'CASH' | 'DEBIT' | 'TRANSFER' | 'CREDIT'
   card_id: string | null
+  source_text?: string
   installments?: number | null
   date: string
   detected_alias?: string | null
@@ -83,16 +85,6 @@ function safeDetectedAlias(value: string | null | undefined): string | null {
 
 type SourceKey = string
 
-function getDefaultSource(data: ParsedData, accounts: Account[]): SourceKey {
-  if (data.payment_method === 'CREDIT') return 'credit'
-  const primary = accounts.find((account) => account.is_primary && account.type !== 'cash')
-  if (primary) return primary.id
-  if (data.payment_method === 'CASH') return 'cash'
-  const bankDigital = accounts.filter((account) => account.type !== 'cash')
-  if (bankDigital.length > 0) return bankDigital[0].id
-  return 'cash'
-}
-
 function derivePaymentMethod(
   source: SourceKey,
   accounts: Account[],
@@ -108,7 +100,7 @@ function derivePaymentMethod(
 function deriveAccountId(source: SourceKey, accounts: Account[]): string | null {
   if (source === 'credit') return null
   if (source === 'cash') {
-    return accounts.find((account) => account.type === 'cash')?.id ?? null
+    return accounts.find((account) => !account.archived && account.type === 'cash')?.id ?? null
   }
   return source
 }
@@ -159,16 +151,18 @@ export function ParsePreview({
   data, cards, accounts, onSave, onCancel, onConfirm, embedded = false, aliasSource = 'parser', confirmLabel,
   immutableProviderEvidence = false, fixedAccount = null, cardHelperText = null, secondaryAction,
 }: ParsePreviewProps) {
+  const resolvedSource = resolveExpensePreviewSource(data, accounts, cards)
   const [form, setForm] = useState<ParsedData>({
     ...data,
+    card_id: resolvedSource.cardId,
     date: toDateInput(data.date),
     is_want: data.is_want ?? false,
     is_recurring: data.is_recurring ?? false,
     is_extraordinary: data.is_extraordinary ?? false,
   })
-  const [source, setSource] = useState<SourceKey>(() => fixedAccount?.id ?? getDefaultSource(data, accounts))
+  const [source, setSource] = useState<SourceKey>(() => fixedAccount?.id ?? resolvedSource.source)
   const [installments, setInstallments] = useState(data.installments ?? 1)
-  const [installmentsInput, setInstallmentsInput] = useState('')
+  const [installmentsInput, setInstallmentsInput] = useState(data.installments && ![1, 3, 6, 12, 18, 24].includes(data.installments) ? String(data.installments) : '')
   const [isSaving, setIsSaving] = useState(false)
   const [isChecking, setIsChecking] = useState(false)
   const [saveError, setSaveError] = useState<string | null>(null)
@@ -190,8 +184,8 @@ export function ParsePreview({
   const isCredit = source === 'credit' || isPagoTarjetas
   const needsCard = isCredit
 
-  const bankDigital = accounts.filter((account) => account.type !== 'cash')
-  const cashAccount = accounts.find((account) => account.type === 'cash') ?? null
+  const bankDigital = accounts.filter((account) => !account.archived && account.type !== 'cash')
+  const cashAccount = accounts.find((account) => !account.archived && account.type === 'cash') ?? null
   const activeCards = cards.filter((card) => !card.archived)
 
   const set = <K extends keyof ParsedData>(key: K, value: ParsedData[K]) => {
@@ -271,6 +265,10 @@ export function ParsePreview({
 
   const handleSave = async () => {
     setSaveError(null)
+    if (!source) {
+      setSaveError('Elegí de dónde salió la plata antes de guardar.')
+      return
+    }
     if (!form.category) {
       setSaveError('Elegí una categoría.')
       return
@@ -391,6 +389,7 @@ export function ParsePreview({
           <div className="flex gap-2">
             <input
               type="number"
+              aria-label="Monto"
               inputMode="decimal"
               value={form.amount}
               readOnly={immutableProviderEvidence}
@@ -403,6 +402,7 @@ export function ParsePreview({
                 : (['ARS', 'USD'] as const).map((currency) => (
                   <button
                     key={currency}
+                    aria-pressed={form.currency === currency}
                     onClick={() => set('currency', currency)}
                     className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${
                       form.currency === currency ? 'bg-primary text-bg-primary' : 'text-text-secondary'
@@ -434,10 +434,12 @@ export function ParsePreview({
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             De donde sale
           </label>
+          {!source && <p className="mb-2 text-sm text-warning">No pudimos identificar una única cuenta. Elegí de dónde salió la plata.</p>}
           <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {bankDigital.map((account) => (
               <button
                 key={account.id}
+                aria-pressed={source === account.id}
                 type="button"
                 disabled={immutableProviderEvidence}
                 onClick={() => handleSourceChange(account.id)}
@@ -459,6 +461,7 @@ export function ParsePreview({
               <button
                 type="button"
                 disabled={immutableProviderEvidence}
+                aria-pressed={source === 'cash'}
                 onClick={() => handleSourceChange('cash')}
                 className={`${chipBase} ${source === 'cash' ? chipActive : chipInactive} disabled:cursor-default disabled:opacity-100`}
               >
@@ -471,6 +474,7 @@ export function ParsePreview({
               <button
                 type="button"
                 disabled={immutableProviderEvidence}
+                aria-pressed={source === 'credit' || isPagoTarjetas}
                 onClick={() => handleSourceChange('credit')}
                 className={`${chipBase} ${
                   source === 'credit' || isPagoTarjetas ? chipActive : chipInactive
@@ -489,6 +493,7 @@ export function ParsePreview({
               Tarjeta <span className="text-danger">*</span>
             </label>
             <select
+              aria-label="Tarjeta"
               value={form.card_id ?? ''}
               onChange={(e) => set('card_id', e.target.value || null)}
               className={`w-full rounded-input border bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:outline-none ${
@@ -523,6 +528,7 @@ export function ParsePreview({
               {[1, 3, 6, 12, 18, 24].map((count) => (
                 <button
                   key={count}
+                  aria-pressed={installments === count && installmentsInput === ''}
                   onClick={() => {
                     setInstallments(count)
                     setInstallmentsInput('')
@@ -539,6 +545,7 @@ export function ParsePreview({
                 inputMode="numeric"
                 min={2}
                 max={72}
+                aria-label="Otras cuotas"
                 placeholder="Otro"
                 value={installmentsInput}
                 onChange={(e) => {
@@ -573,6 +580,7 @@ export function ParsePreview({
             Categoría
           </label>
           <select
+            aria-label="Categoría"
             value={form.category}
             onChange={(e) => {
               set('category', e.target.value)
@@ -598,6 +606,7 @@ export function ParsePreview({
           </label>
           <input
             type="date"
+            aria-label="Fecha"
             value={form.date}
             readOnly={immutableProviderEvidence}
             onChange={(e) => set('date', e.target.value)}
@@ -613,6 +622,7 @@ export function ParsePreview({
             <div className="flex flex-wrap gap-2">
               <button
                 type="button"
+                aria-pressed={form.is_want === true}
                 onClick={() => set('is_want', !form.is_want)}
                 className={`${chipBase} ${form.is_want === true ? chipActive : chipInactive}`}
               >
@@ -620,6 +630,7 @@ export function ParsePreview({
               </button>
               <button
                 type="button"
+                aria-pressed={form.is_recurring === true}
                 onClick={() => set('is_recurring', !form.is_recurring)}
                 className={`${chipBase} ${form.is_recurring === true ? chipActive : chipInactive}`}
               >
@@ -627,6 +638,7 @@ export function ParsePreview({
               </button>
               <button
                 type="button"
+                aria-pressed={form.is_extraordinary === true}
                 onClick={() => set('is_extraordinary', !form.is_extraordinary)}
                 className={`${chipBase} ${form.is_extraordinary === true ? chipActive : chipInactive}`}
               >

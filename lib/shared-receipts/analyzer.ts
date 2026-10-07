@@ -9,7 +9,7 @@ interface GeminiGenerator {
       role: string
       parts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }>
     }>
-    generationConfig: { temperature: number }
+    generationConfig: { temperature: number; maxOutputTokens?: number }
   }): Promise<{ response: { text(): string } }>
 }
 
@@ -49,7 +49,7 @@ export async function generateUniversalReceiptProposal(
         parts: [{ text: createUniversalReceiptPrompt() }, { inlineData }],
       },
     ],
-    generationConfig: { temperature: 0.1 },
+    generationConfig: { temperature: 0.1, maxOutputTokens: 1000 },
   })
   const raw = result.response.text().replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/, '').trim()
   return parseReceiptProposal(JSON.parse(raw))

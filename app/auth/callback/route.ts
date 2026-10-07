@@ -1,3 +1,4 @@
+import { safeDestination } from '@/lib/auth-destination'
 import { createClient } from '@/lib/supabase/server'
 import { recordProductEvent } from '@/lib/product-analytics/server'
 import { NextResponse } from 'next/server'
@@ -33,16 +34,5 @@ export async function GET(request: Request) {
   }
 
   const fallbackNext = authIntent === 'anon_email_upgrade' ? '/auth/create-password' : '/'
-  const destination = new URL(fallbackNext, requestUrl.origin)
-  if (next?.startsWith('/') && !next.includes('\\')) {
-    try {
-      const candidate = new URL(next, requestUrl.origin)
-      if (candidate.origin === requestUrl.origin) {
-        return NextResponse.redirect(candidate)
-      }
-    } catch {
-      // Invalid destinations use the known local fallback.
-    }
-  }
-  return NextResponse.redirect(destination)
+  return NextResponse.redirect(new URL(safeDestination(next, fallbackNext), requestUrl.origin))
 }

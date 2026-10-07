@@ -17,6 +17,7 @@ import {
 import { AnalysisView } from './AnalysisView'
 import { AnalyticsEvolution } from './AnalyticsEvolution'
 import { AnalyticsHero } from './AnalyticsHero'
+import { AnalyticsReadingHelp } from './AnalyticsReadingHelp'
 import { AnalyticsModeToggle } from './AnalyticsModeToggle'
 import { BudgetControlHero } from './BudgetControlHero'
 import { BudgetsSection } from './BudgetsSection'
@@ -349,13 +350,15 @@ export function AnalyticsClient({
           />
         ) : null}
 
+        <div className="px-5"><AnalyticsReadingHelp /></div>
+
         {showInsights ? (
           metrics.cantidadTransacciones === 0 && !hasCommitmentData ? (
             <div className="px-5 pt-4">
               <EmptyState
                 icon={ChartLineUp}
                 title="Todavía no hay patrones para mostrar"
-                subtitle="Cuando registres movimientos, Gota va a encontrar hábitos y cambios en tu mes."
+                subtitle="El saldo inicial no alcanza para identificar patrones. Registrá gastos y compromisos del período para empezar a ver categorías y tendencias."
               />
             </div>
           ) : (
@@ -397,10 +400,10 @@ export function AnalyticsClient({
             {workspaceEnabled && metrics.cantidadTransacciones === 0 ? (
               <div className="mx-5 mt-4 rounded-card border border-primary/15 bg-primary/5 px-4 py-4">
                 <h2 className="text-[15px] font-bold text-text-primary">
-                  Tu análisis empieza con el primer movimiento
+                  Todavía no hay gastos registrados en este período
                 </h2>
                 <p className="mt-1 text-[13px] leading-5 text-text-secondary">
-                  Registrá un gasto o ingreso para empezar a ver evolución, categorías y comparaciones.
+                  El saldo inicial no es un ingreso ni un gasto. Registrá tus movimientos para completar el análisis; las comparaciones necesitan datos de los meses comparados.
                 </p>
                 <Link
                   href="/"
@@ -415,8 +418,8 @@ export function AnalyticsClient({
               <div className="mx-5 mt-4 rounded-card border border-warning/20 bg-warning/10 px-4 py-3">
                 <p className="type-meta text-text-primary">
                   Cargá tu ingreso del mes para ver métricas de ahorro.{' '}
-                  <Link href="/settings" className="underline">
-                    Ir a configuración
+                  <Link href="/" className="underline">
+                    Ir a Home → + → Ingreso
                   </Link>
                 </p>
               </div>

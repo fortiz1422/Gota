@@ -140,9 +140,13 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .then((response) => {
-          const clone = response.clone()
-          caches.open(STATIC_CACHE).then((cache) => cache.put(request, clone))
+        .then(async (response) => {
+          const cache = await caches.open(STATIC_CACHE)
+          if (/private|no-store/i.test(response.headers.get('Cache-Control') || '')) {
+            await cache.delete(request)
+          } else {
+            await cache.put(request, response.clone())
+          }
           return response
         })
         .catch(() => caches.match(request))

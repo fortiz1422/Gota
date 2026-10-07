@@ -7,6 +7,7 @@ import { OnboardingNudgeBanner } from '@/components/OnboardingNudgeBanner'
 import { AnonymousBannerToneProvider } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { GotaAssistant } from '@/components/assistant/GotaAssistant'
 import { TourProvider } from '@/components/tour/TourProvider'
+import { canUsePaidAI } from '@/lib/paid-ai-policy'
 import { FF_GOTA_ASSISTANT } from '@/lib/flags'
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -33,7 +34,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
           <div className="relative min-h-app bg-bg-primary">
             <main className="pb-tab-bar">{children}</main>
             <TabBar />
-            {FF_GOTA_ASSISTANT && <GotaAssistant />}
+            {FF_GOTA_ASSISTANT && canUsePaidAI(user) && <GotaAssistant />}
             <AnonymousBanner initialIsAnonymous={user.is_anonymous === true} />
             <OnboardingNudgeBanner />
           </div>

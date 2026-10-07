@@ -86,8 +86,11 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
     <Modal open onClose={onClose}>
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
       <h2 className="text-lg font-semibold text-text-primary">Cuotas en curso</h2>
-      <p className="mb-5 mt-1 text-xs text-text-tertiary">
-        Registrá una compra en cuotas que ya estás pagando.
+      <p className="mb-3 mt-1 text-sm leading-5 text-text-secondary">
+        ¿Compraste en cuotas antes de usar Gota? Registrá las que todavía te quedan por pagar para incluirlas en tus compromisos.
+      </p>
+      <p className="mb-5 text-xs leading-5 text-text-tertiary">
+        Por ejemplo: si compraste en 18 cuotas y ya pagaste 12, la primera pendiente es la 13. Gota registra las 6 restantes, sin cargar las que ya pagaste. Si esta compra ya está en Gota, no la vuelvas a registrar acá.
       </p>
 
       <div className="space-y-5">
@@ -145,12 +148,13 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
           </label>
           <div className="flex items-center gap-3">
             <div className="flex flex-1 items-center gap-2 rounded-input bg-bg-tertiary px-4 py-3">
-              <span className="text-xs text-text-tertiary whitespace-nowrap">Cuota actual</span>
+              <span className="text-xs text-text-tertiary">Primera cuota pendiente</span>
               <input
                 type="number"
                 inputMode="numeric"
                 min={1}
-                placeholder="3"
+                aria-label="Primera cuota pendiente"
+                placeholder="13"
                 value={currentCuota}
                 onChange={(e) => setCurrentCuota(e.target.value)}
                 onFocus={scrollOnFocus}
@@ -178,7 +182,7 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
             </p>
           )}
           {!isNaN(current) && !isNaN(total) && total < current && (
-            <p className="mt-1.5 text-[11px] text-danger">El total debe ser mayor o igual a la cuota actual.</p>
+            <p className="mt-1.5 text-[11px] text-danger">El total debe ser mayor o igual a la primera cuota pendiente.</p>
           )}
         </div>
 

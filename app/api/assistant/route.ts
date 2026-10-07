@@ -1,3 +1,4 @@
+import { canUsePaidAI, PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
 import { NextResponse } from 'next/server'
 import { normalizeAssistantHistory } from '@/lib/assistant/prompt'
 import { FF_GOTA_ASSISTANT } from '@/lib/flags'
@@ -30,6 +31,8 @@ export async function POST(request: Request) {
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
+
+  if (!canUsePaidAI(user)) return NextResponse.json({ error: PAID_AI_UNAVAILABLE }, { status: 403 })
 
   if (!checkRateLimit(`assistant:${user.id}`, 8, 60_000)) {
     return NextResponse.json(

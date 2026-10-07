@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useEffect, useState } from 'react'
+import { createContext, useCallback, useState } from 'react'
 import { TOUR_STEPS } from './tour-steps'
 import { TourOverlay } from './TourOverlay'
 
@@ -10,6 +10,7 @@ interface TourContextValue {
   totalSteps: number
   next: () => void
   skip: () => void
+  start: () => void
 }
 
 export const TourContext = createContext<TourContextValue>({
@@ -18,6 +19,7 @@ export const TourContext = createContext<TourContextValue>({
   totalSteps: TOUR_STEPS.length,
   next: () => {},
   skip: () => {},
+  start: () => {},
 })
 
 interface Props {
@@ -26,43 +28,44 @@ interface Props {
   tourCompleted: boolean
 }
 
-export function TourProvider({ children, onboardingCompleted, tourCompleted }: Props) {
+export function TourProvider({ children }: Props) {
   const [isActive, setIsActive] = useState(false)
   const [currentStep, setCurrentStep] = useState(0)
 
-  useEffect(() => {
-    if (onboardingCompleted && !tourCompleted) {
-      const timer = setTimeout(() => setIsActive(true), 800)
-      return () => clearTimeout(timer)
-    }
-  }, [onboardingCompleted, tourCompleted])
-
-  const finish = useCallback(async (skipped: boolean) => {
-    setIsActive(false)
+  const start = useCallback(() => {
     setCurrentStep(0)
-    try {
-      await fetch('/api/user-config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tour_completed: true }),
-      })
-    } catch {
-      // Silently fail — tour_completed will be retried on next session
-    }
-    // Analytics
-    try {
-      await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          event_name: skipped ? 'tour_skipped' : 'tour_completed',
-          properties: { step: currentStep },
-        }),
-      })
-    } catch {
-      // Best effort
-    }
-  }, [currentStep])
+    setIsActive(true)
+  }, [])
+
+  const finish = useCallback(
+    async (skipped: boolean) => {
+      setIsActive(false)
+      setCurrentStep(0)
+      try {
+        await fetch('/api/user-config', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tour_completed: true }),
+        })
+      } catch {
+        // Silently fail — tour_completed will be retried on next session
+      }
+      // Analytics
+      try {
+        await fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            event_name: skipped ? 'tour_skipped' : 'tour_completed',
+            properties: { step: currentStep },
+          }),
+        })
+      } catch {
+        // Best effort
+      }
+    },
+    [currentStep]
+  )
 
   const next = useCallback(() => {
     if (currentStep < TOUR_STEPS.length - 1) {
@@ -78,7 +81,14 @@ export function TourProvider({ children, onboardingCompleted, tourCompleted }: P
 
   return (
     <TourContext.Provider
-      value={{ isActive, currentStep, totalSteps: TOUR_STEPS.length, next, skip }}
+      value={{
+        isActive,
+        currentStep,
+        totalSteps: TOUR_STEPS.length,
+        next,
+        skip,
+        start,
+      }}
     >
       {children}
       {isActive && <TourOverlay />}

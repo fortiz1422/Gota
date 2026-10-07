@@ -40,6 +40,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
       <button
         onClick={() => setSheet('action')}
         aria-label="Agregar movimiento"
+        data-tour="home-plus"
         className={[
           'flex items-center justify-center rounded-full transition-colors',
           label ? 'h-9 gap-2 px-4 text-[13px] font-semibold' : 'h-9 w-9',
@@ -125,7 +126,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
               <div>
                 <p className="text-sm font-semibold text-text-primary">Cuotas en curso</p>
                 <p className="text-xs text-text-tertiary">
-                  Compras en cuotas que ya estás pagando
+                  Cuotas pendientes de compras que hiciste antes de usar Gota
                 </p>
               </div>
             </button>

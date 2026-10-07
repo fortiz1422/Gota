@@ -296,7 +296,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
             </div>
             <p className="text-[11px] leading-relaxed text-text-tertiary">
               {isNew
-                ? 'El dinero que ya tenés en esta cuenta antes de empezar a registrar.'
+                ? 'El dinero que ya tenés en esta cuenta antes de empezar a registrar. No lo cargues también como ingreso. Si registrás gastos anteriores ya incluidos en ese saldo, volverían a descontarse.'
                 : 'Corrige el punto de partida histórico. No modifica snapshots mensuales.'}
             </p>
           </div>

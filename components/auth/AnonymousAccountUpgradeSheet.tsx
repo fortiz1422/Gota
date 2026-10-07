@@ -20,6 +20,7 @@ export function AnonymousAccountUpgradeSheet({
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [isEmailLoading, setIsEmailLoading] = useState(false)
+  const [acknowledgeSwitch, setAcknowledgeSwitch] = useState(false)
   const [existingEmail, setExistingEmail] = useState('')
   const [existingPassword, setExistingPassword] = useState('')
   const [existingError, setExistingError] = useState<string | null>(null)
@@ -32,6 +33,7 @@ export function AnonymousAccountUpgradeSheet({
     setSuccessMessage(null)
     setIsGoogleLoading(false)
     setIsEmailLoading(false)
+    setAcknowledgeSwitch(false)
     setExistingEmail('')
     setExistingPassword('')
     setExistingError(null)
@@ -49,8 +51,11 @@ export function AnonymousAccountUpgradeSheet({
     setSuccessMessage(null)
     setIsGoogleLoading(true)
     trackEvent('anonymous_link_started', { provider: 'google' })
-    await linkGoogleAccount()
-    setIsGoogleLoading(false)
+    try {
+      const { error } = await linkGoogleAccount()
+      if (error) setErrorMessage('No pudimos vincular Google. Probá con mail o volvé a intentarlo.')
+    } catch { setErrorMessage('No pudimos vincular Google. Revisá tu conexión.') }
+    finally { setIsGoogleLoading(false) }
   }
 
   const handleEmailUpgrade = async () => {
@@ -82,6 +87,7 @@ export function AnonymousAccountUpgradeSheet({
   }
 
   const handleExistingGoogleSignIn = async () => {
+    if (!acknowledgeSwitch) return
     setExistingError(null)
     setIsExistingGoogleLoading(true)
     trackEvent('anonymous_upgrade_existing_account_selected', { provider: 'google' })
@@ -94,6 +100,7 @@ export function AnonymousAccountUpgradeSheet({
   }
 
   const handleExistingEmailSignIn = async () => {
+    if (!acknowledgeSwitch) return
     setExistingError(null)
 
     if (!existingEmail.trim()) {
@@ -171,13 +178,18 @@ export function AnonymousAccountUpgradeSheet({
         <div className="rounded-card border border-border-ocean bg-bg-tertiary p-4">
           <p className="text-sm font-semibold text-text-primary">Ya tengo cuenta</p>
           <p className="mt-1 text-xs leading-snug text-warning">
-            Entrar a una cuenta existente no fusiona automáticamente lo hecho en modo exploración.
+            Entrar a otra cuenta cambia la sesión y no lleva estos movimientos a esa cuenta. Si querés conservarlos en Gota, vinculá un mail nuevo arriba.
           </p>
 
           <div className="mt-4 space-y-3">
+            <a href="/api/export" download className="block text-sm font-semibold text-primary underline">Descargar mis gastos antes de cambiar</a>
+            <label className="flex items-start gap-2 text-xs leading-5 text-text-secondary">
+              <input type="checkbox" checked={acknowledgeSwitch} onChange={event => setAcknowledgeSwitch(event.target.checked)} />
+              Entiendo que estos datos no se trasladan y que puedo perder el acceso a esta sesión sin cuenta.
+            </label>
             <button
               onClick={handleExistingGoogleSignIn}
-              disabled={isExistingGoogleLoading || isExistingEmailLoading}
+              disabled={!acknowledgeSwitch || isExistingGoogleLoading || isExistingEmailLoading}
               className="flex w-full items-center justify-center gap-3 rounded-button bg-white px-4 py-3 text-sm font-semibold text-gray-900 shadow-sm transition-transform hover:scale-[1.01] active:scale-95 disabled:opacity-50"
             >
               <svg className="h-4 w-4" viewBox="0 0 24 24">
@@ -215,7 +227,7 @@ export function AnonymousAccountUpgradeSheet({
 
             <button
               onClick={handleExistingEmailSignIn}
-              disabled={isExistingGoogleLoading || isExistingEmailLoading}
+              disabled={!acknowledgeSwitch || isExistingGoogleLoading || isExistingEmailLoading}
               className="w-full rounded-button bg-primary py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-90 disabled:opacity-50"
             >
               {isExistingEmailLoading ? 'Entrando...' : 'Entrar'}

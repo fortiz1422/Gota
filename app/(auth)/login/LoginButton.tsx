@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import {
   isPasskeySupported,
@@ -88,14 +89,6 @@ function IconGhost() {
   )
 }
 
-function IconCard() {
-  return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-      <rect x="2" y="5" width="20" height="14" rx="3" stroke="currentColor" strokeWidth="1.5" />
-      <path d="M2 10H22" stroke="currentColor" strokeWidth="1.5" />
-    </svg>
-  )
-}
 
 function IconCheck() {
   return (
@@ -235,24 +228,6 @@ function SplashScreen({
   isGoogleLoading: boolean
   isPasskeyLoading: boolean
 }) {
-  const [bal, setBal] = useState(0)
-  const TARGET = 14788.47
-
-  useEffect(() => {
-    let v = 0
-    const step = TARGET / 70
-    const id = setInterval(() => {
-      v += step
-      if (v >= TARGET) {
-        setBal(TARGET)
-        clearInterval(id)
-      } else {
-        setBal(v)
-      }
-    }, 18)
-    return () => clearInterval(id)
-  }, [])
-
   return (
     <div className="min-h-app flex flex-col">
       <Hero>
@@ -261,37 +236,10 @@ function SplashScreen({
       </Hero>
 
       <Sheet>
-        {/* Saldo Vivo preview */}
-        <div className="px-5 pt-7">
-          <div className="rounded-[20px] bg-white p-[18px] shadow-[0_2px_16px_rgba(13,24,41,0.07)]">
-            <p className="mb-1.5 text-[10px] font-bold uppercase tracking-[0.9px] text-primary">
-              Saldo Vivo
-            </p>
-            <p className="text-[30px] font-extrabold leading-none tracking-[-0.03em] text-text-primary">
-              USD{' '}
-              {bal.toLocaleString('es-AR', {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}
-            </p>
-            <div className="mt-1.5 flex items-center gap-2.5">
-              <span className="text-[13px] font-medium text-primary">ARS 10.633.632</span>
-              <span className="text-[11px] text-text-dim">|</span>
-              <span className="text-[13px] font-medium text-primary">USD 7.300,00</span>
-            </div>
-            <div className="mt-3.5 flex items-center gap-3 border-t border-black/[0.06] pt-3.5">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-primary/[0.08] text-primary">
-                <IconCard />
-              </div>
-              <div className="flex-1">
-                <p className="text-[13px] font-semibold text-text-primary">Disponible real</p>
-                <p className="mt-0.5 text-[12px] text-text-secondary">
-                  Ya descuenta deuda en tarjeta
-                </p>
-              </div>
-              <p className="text-sm font-bold text-text-primary">USD 12.606,08</p>
-            </div>
-          </div>
+        <div className="px-6 pt-8">
+          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Ingresar a Gota</h1>
+          <p className="mt-3 text-sm leading-6 text-text-secondary">Si ya tenés una cuenta, usá el mismo mail o Google. Si es tu primera vez, podés crearla acá o empezar sin cuenta.</p>
+          <Link href="/landing" className="mt-4 inline-block text-sm font-semibold text-primary">Conocer Gota</Link>
         </div>
 
         <div className="flex-1" />
@@ -304,7 +252,7 @@ function SplashScreen({
           >
             <IconGoogle /> {isGoogleLoading ? 'Redirigiendo...' : 'Continuar con Google'}
           </button>
-          <button
+          {passkeyAvailable && <button
             onClick={onPasskey}
             disabled={!passkeyAvailable || isGoogleLoading || isPasskeyLoading}
             className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-primary/18 bg-primary/[0.06] py-[15px] text-[15px] font-semibold text-text-primary transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
@@ -315,7 +263,7 @@ function SplashScreen({
               : passkeyAvailable
                 ? 'Continuar con passkey'
                 : 'Passkey no disponible'}
-          </button>
+          </button>}
           <button
             onClick={onEmail}
             className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-black/10 bg-white py-[15px] text-[15px] font-semibold text-text-primary shadow-sm"
@@ -328,12 +276,12 @@ function SplashScreen({
             onClick={onExplore}
             className="flex w-full items-center justify-center gap-2 py-[13px] text-sm font-medium text-text-dim"
           >
-            <IconGhost /> Explorar sin cuenta
+            <IconGhost /> Empezar sin cuenta
           </button>
           <p className="text-center text-[11px] leading-relaxed text-text-dim">
             Al continuar aceptás los{' '}
-            <span className="text-primary">Términos de uso</span> y la{' '}
-            <span className="text-primary">Política de privacidad</span>
+            <Link href="/terms" className="text-primary underline">Términos de uso</Link> y la{' '}
+            <Link href="/privacy" className="text-primary underline">Política de privacidad</Link>
           </p>
         </CTAZone>
       </Sheet>
@@ -439,7 +387,7 @@ function EmailScreen({
 
 // ── Screen 3 — OTP ─────────────────────────────────────────────────────────────
 
-function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
+function OTPScreen({ email, onBack, destination }: { email: string; onBack: () => void; destination: string }) {
   const [code, setCode] = useState(['', '', '', '', '', ''])
   const [seconds, setSeconds] = useState(27)
   const [verified, setVerified] = useState(false)
@@ -470,14 +418,7 @@ function OTPScreen({ email, onBack }: { email: string; onBack: () => void }) {
     }
     if (data.user) {
       setVerified(true)
-      const createdMs = new Date(data.user.created_at).getTime()
-      const lastSignInMs = data.user.last_sign_in_at
-        ? new Date(data.user.last_sign_in_at).getTime()
-        : createdMs
-      const isNew = Math.abs(lastSignInMs - createdMs) < 30_000
-      setTimeout(() => {
-        window.location.href = isNew ? '/onboarding' : '/'
-      }, 1400)
+      window.location.assign(destination)
     }
   }
 
@@ -612,20 +553,21 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
   const handleEnter = async () => {
     setLoading(true)
     setError(null)
-    const { error } = await signInAnonymously()
-    if (error) {
+    try {
+      const { error } = await signInAnonymously()
+      if (error) throw error
+      window.location.href = '/onboarding'
+    } catch {
+      setError('No pudimos empezar sin cuenta. Probá de nuevo o ingresá con tu mail.')
       setLoading(false)
-      setError(error.message)
-      return
     }
-    window.location.href = '/'
   }
 
   const canDo = [
     'Registrar gastos e ingresos',
     'Ver tu Saldo Vivo',
-    'Usar el SmartInput con IA',
-    'Navegar Analytics',
+    'Escribir gastos con tus palabras',
+    'Ver en qué gastás',
   ]
   const cantDo = [
     'Sincronizar entre dispositivos',
@@ -636,7 +578,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
     <div className="min-h-app flex flex-col">
       <Hero compact onBack={onBack}>
         <Wordmark size={26} onDark />
-        <p className="mt-1.5 text-[14px] text-white/65">Modo exploración</p>
+        <p className="mt-1.5 text-[14px] text-white/65">Empezar sin cuenta</p>
       </Hero>
 
       <Sheet>
@@ -671,7 +613,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
               </div>
             ))}
             <p className="mt-4 text-[12px] leading-snug text-text-dim">
-              Tus datos se guardan en este dispositivo hasta que conectes una cuenta.
+              Tus movimientos se guardan en Gota y necesitás internet. Este navegador conserva el acceso: si cerrás sesión o borrás sus datos, lo perdés. Creá una cuenta para poder recuperarlos.
             </p>
           </div>
           {error && <p className="mt-3 text-[13px] text-danger">{error}</p>}
@@ -691,7 +633,7 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
             onClick={onBack}
             className="flex w-full items-center justify-center py-[13px] text-sm font-medium text-text-dim"
           >
-            Mejor me registro
+            Ingresar o crear cuenta
           </button>
         </CTAZone>
       </Sheet>
@@ -703,8 +645,8 @@ function ExploreScreen({ onBack }: { onBack: () => void }) {
 
 type Screen = 'splash' | 'email' | 'otp' | 'explore'
 
-export function LoginButton() {
-  const [screen, setScreen] = useState<Screen>('splash')
+export function LoginButton({ initialScreen = 'splash', destination = '/' }: { initialScreen?: Screen; destination?: string }) {
+  const [screen, setScreen] = useState<Screen>(initialScreen)
   const [otpEmail, setOtpEmail] = useState('')
   const [authError, setAuthError] = useState<string | null>(null)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
@@ -714,7 +656,7 @@ export function LoginButton() {
   const handleGoogle = async () => {
     setAuthError(null)
     setIsGoogleLoading(true)
-    const { data, error } = await signInWithGoogle()
+    const { data, error } = await signInWithGoogle(destination)
     if (error) {
       setIsGoogleLoading(false)
       setAuthError('No pudimos iniciar con Google. Intentá de nuevo.')
@@ -753,7 +695,7 @@ export function LoginButton() {
       return
     }
 
-    window.location.href = '/'
+    window.location.assign(destination)
   }
 
   const handleEmailContinue = (email: string) => {
@@ -786,7 +728,7 @@ export function LoginButton() {
         <EmailScreen onBack={() => setScreen('splash')} onContinue={handleEmailContinue} />
       )}
       {screen === 'otp' && (
-        <OTPScreen email={otpEmail} onBack={() => setScreen('email')} />
+        <OTPScreen destination={destination} email={otpEmail} onBack={() => setScreen('email')} />
       )}
       {screen === 'explore' && (
         <ExploreScreen onBack={() => setScreen('splash')} />

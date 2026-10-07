@@ -115,6 +115,8 @@ describe('Mercado Pago expense review contract', () => {
       description: 'Shell',
       category: 'Alimentos',
       isWant: false,
+      isRecurring: false,
+      isExtraordinary: false,
       expectedLinkedAccountId: 'account-1',
       expectedLinkedAccountVersion: 1,
     })

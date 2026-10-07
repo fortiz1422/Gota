@@ -10,7 +10,7 @@ export default function PrivacyPage() {
   return (
     <main className="min-h-screen bg-bg-primary">
       <div className="mx-auto max-w-md px-5 py-10">
-        <Link href="/" className="type-meta text-text-tertiary hover:text-text-secondary">
+        <Link href="/landing" className="type-meta text-text-tertiary hover:text-text-secondary">
           Volver
         </Link>
 
@@ -32,10 +32,16 @@ export default function PrivacyPage() {
         <section className="mt-8 space-y-3">
           <h2 className="text-sm font-semibold text-text-primary">SmartInput e IA</h2>
           <p className="type-body text-text-secondary">
-            Cuando usas SmartInput, el texto que escribis se envia a un proveedor de IA
-            para interpretar el gasto y completar una propuesta editable. No se usa para
-            publicidad ni para entrenar un modelo propio de Gota.
+            Los gastos escritos se interpretan con reglas, sin enviarlos a un proveedor de IA.
+            El texto llega al servidor de Gota para preparar la revisión y reconocer tus alias.
+            Las funciones de imagen, audio y asistente, cuando están habilitadas para una cuenta,
+            usan Google Gemini para interpretar la entrada o responder consultas.
           </p>
+        </section>
+
+        <section className="mt-8 space-y-3">
+          <h2 className="text-sm font-semibold text-text-primary">Uso sin cuenta</h2>
+          <p className="type-body text-text-secondary">Los movimientos se guardan en los servidores de Gota mediante Supabase. Este navegador conserva una sesión anónima para acceder a ellos. No es almacenamiento offline: necesitás internet. Si borrás la sesión antes de vincular un mail o Google, no vas a poder recuperar el acceso.</p>
         </section>
 
         <section className="mt-8 space-y-3">

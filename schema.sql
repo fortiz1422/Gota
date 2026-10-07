@@ -417,7 +417,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp;
 
 -- Daily expense limit check (50/day)
 CREATE OR REPLACE FUNCTION check_daily_expense_limit(p_user_id UUID)
@@ -430,7 +430,7 @@ BEGIN
   WHERE user_id = p_user_id AND DATE(created_at) = CURRENT_DATE;
   RETURN v_count < 50;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp;
 
 -- Duplicate detection
 CREATE OR REPLACE FUNCTION detect_duplicate_expenses(
@@ -451,7 +451,7 @@ BEGIN
   ORDER BY e.created_at DESC
   LIMIT 5;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp;
 
 -- ============================================
 -- MIGRATIONS — run on existing DBs
@@ -659,7 +659,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp;
 
 -- ============================================
 -- v2.0 — Transferencias entre cuentas
@@ -1114,7 +1114,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$ LANGUAGE plpgsql SECURITY INVOKER SET search_path = public, pg_temp;
 
 -- ============================================
 -- PRODUCT_EVENTS TABLE
@@ -1173,3 +1173,14 @@ CREATE POLICY "product_events_insert_own" ON product_events
 -- Run after migration to confirm:
 -- SELECT tablename FROM pg_tables WHERE schemaname = 'public';
 -- Should return: expenses, monthly_income, user_config, accounts, income_entries, account_period_balance, transfers, yield_accumulator, instruments, recurring_incomes, cards, card_cycles, product_events
+
+-- Browser access: ownership is enforced by underlying RLS, never a definer.
+REVOKE EXECUTE ON FUNCTION public.get_dashboard_data(uuid,date,character varying) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.check_daily_expense_limit(uuid) FROM PUBLIC, anon;
+REVOKE EXECUTE ON FUNCTION public.detect_duplicate_expenses(uuid,numeric,character varying,date) FROM PUBLIC, anon;
+GRANT EXECUTE ON FUNCTION public.get_dashboard_data(uuid,date,character varying) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.check_daily_expense_limit(uuid) TO authenticated, service_role;
+GRANT EXECUTE ON FUNCTION public.detect_duplicate_expenses(uuid,numeric,character varying,date) TO authenticated, service_role;
+ALTER FUNCTION public.handle_new_user() SET search_path = public, pg_temp;
+REVOKE EXECUTE ON FUNCTION public.handle_new_user() FROM PUBLIC, anon, authenticated;
+ALTER VIEW public.user_active_cards SET (security_invoker = true);

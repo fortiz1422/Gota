@@ -12,6 +12,7 @@ import { CommitmentsSummary } from '@/components/dashboard/CommitmentsSummary'
 import { CuentaSheet } from '@/components/settings/CuentaSheet'
 import { CuentasSubSheet } from '@/components/settings/CuentasSubSheet'
 import { Ultimos5 } from '@/components/dashboard/Ultimos5'
+import { HomeWalkthroughInvitation } from '@/components/tour/HomeWalkthroughInvitation'
 import { HomeActivationState } from '@/components/dashboard/HomeActivationState'
 import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
 import { BottomZone } from '@/components/dashboard/BottomZone'
@@ -687,6 +688,7 @@ export function DashboardShell({
                 <button
                   type="button"
                   className="flex min-w-0 flex-1 items-center gap-3 text-left transition-opacity active:opacity-70"
+                  data-tour="disponible-real"
                   onClick={() => openDisponibleSheet('real')}
                 >
                   <div className="min-w-0 flex-1">
@@ -697,7 +699,7 @@ export function DashboardShell({
                       </div>
                     ) : (
                       <p className="mt-0.5 text-[11px] text-text-dim">
-                        Ya descuenta deuda y consumos
+                        Según cuentas y compromisos cargados
                       </p>
                     )}
                   </div>
@@ -757,7 +759,11 @@ export function DashboardShell({
               />
             )}
 
-            {homeEmptyState.showPrimaryActivation && (
+            <HomeWalkthroughInvitation
+              accountId={accounts.find((account) => account.is_primary)?.id ?? accounts[0]?.id}
+              firstUse={homeEmptyState.variant === 'first-use'}
+            />
+            {homeEmptyState.showPrimaryActivation && homeEmptyState.variant !== 'first-use' && (
               <HomeActivationState
                 state={homeEmptyState}
                 onPrimaryAction={promptFirstExpense}

@@ -1,3 +1,4 @@
+import { AccountIdentitySchema } from '@/lib/account-input'
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 
@@ -6,7 +7,8 @@ export async function GET(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = new URL(request.url)
   const includeArchived = searchParams.get('include_archived') === 'true'
@@ -32,9 +34,16 @@ export async function POST(request: Request) {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!user)
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const body = await request.json()
+  const body = await request.json().catch(() => null)
+  const identity = AccountIdentitySchema.safeParse(body)
+  if (!identity.success)
+    return NextResponse.json(
+      { error: 'Nombre, tipo o saldo inválido' },
+      { status: 400 }
+    )
   const {
     name,
     type,
@@ -73,9 +82,11 @@ export async function POST(request: Request) {
       opening_balance_ars: Number(opening_balance_ars) || 0,
       opening_balance_usd: Number(opening_balance_usd) || 0,
       daily_yield_enabled: Boolean(daily_yield_enabled),
-      daily_yield_rate: daily_yield_rate == null ? null : Number(daily_yield_rate),
+      daily_yield_rate:
+        daily_yield_rate == null ? null : Number(daily_yield_rate),
       daily_yield_provider: daily_yield_provider ?? null,
-      daily_yield_cap_amount: daily_yield_cap_amount == null ? null : Number(daily_yield_cap_amount),
+      daily_yield_cap_amount:
+        daily_yield_cap_amount == null ? null : Number(daily_yield_cap_amount),
     })
     .select()
     .single()

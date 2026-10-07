@@ -50,7 +50,7 @@ describe('Mercado Pago sync route', () => {
   })
 
   it('persists partial source summaries and returns their narrow status without ledger calls', async () => {
-    const response = await POST()
+    const response = await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
 
     expect(response.status).toBe(207)
     expect(await response.json()).toMatchObject({ range: { preset: '7d' }, sources: { payments: { status: 'success', count: 2, coverageComplete: true }, reports: { status: 'error', count: 0, coverageComplete: false } } })
@@ -62,7 +62,7 @@ describe('Mercado Pago sync route', () => {
   it('returns pending without turning async report preparation into a fatal response', async () => {
     mocks.sync.mockResolvedValue({ batchId: 'batch-2', startedAt: '2026-09-15T00:00:00.000Z', sources: [{ source: 'payments_search', status: 'success', count: 2, errorCode: null }, { source: 'account_settlement_report', status: 'pending', count: 0, errorCode: null }] })
 
-    const response = await POST()
+    const response = await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
 
     expect(response.status).toBe(200)
     expect(await response.json()).toMatchObject({ range: { preset: '7d' }, sources: { payments: { status: 'success', count: 2, coverageComplete: true }, reports: { status: 'pending', count: 0, coverageComplete: false } } })
@@ -72,7 +72,7 @@ describe('Mercado Pago sync route', () => {
   it('passes a persisted pending report timestamp to prevent duplicate creation while list is empty', async () => {
     mocks.getRuns.mockResolvedValue([{ source: 'account_settlement_report', status: 'pending', count: 0, error_code: null, started_at: '2026-09-15T00:00:00.000Z' }])
 
-    await POST()
+    await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
 
     expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ lastSettlementPendingAt: '2026-09-15T00:00:00.000Z' }))
   })
@@ -83,7 +83,7 @@ describe('Mercado Pago sync route', () => {
     mocks.refresh.mockResolvedValue({ accessToken: 'fresh-access', refreshToken: 'fresh-refresh', userId: null, expiresAt: '2026-10-01T00:00:00.000Z' })
     mocks.encrypt.mockReturnValue('new-ciphertext')
 
-    await POST()
+    await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
 
     expect(mocks.refresh).toHaveBeenCalledWith({ refreshToken: 'refresh-token', config })
     expect(mocks.sync).toHaveBeenCalledWith(expect.objectContaining({ userId: 'user-1', accessToken: 'fresh-access' }))
@@ -92,7 +92,7 @@ describe('Mercado Pago sync route', () => {
   it('does not expose readiness details or sync when server readiness fails', async () => {
     mocks.readiness.mockReturnValue({ ok: false, missing: ['SUPABASE_SERVICE_ROLE_KEY'] })
 
-    const response = await POST()
+    const response = await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
 
     expect(response.status).toBe(503)
     expect(await response.json()).toEqual({ error: 'oauth_not_ready' })

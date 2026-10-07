@@ -38,6 +38,8 @@ describe('shared receipt canonical expense review', () => {
       category: 'Alimentos',
       description: 'Compra',
       is_want: false,
+      is_recurring: false,
+      is_extraordinary: false,
       payment_method: 'DEBIT',
       account_id: 'account-1',
       card_id: null,

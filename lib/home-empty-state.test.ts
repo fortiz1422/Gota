@@ -9,14 +9,15 @@ describe('getHomeEmptyState', () => {
         hasAnyMovement: false,
         hasCurrentMonthMovement: false,
         hasHistoricalMovement: false,
-      }),
+      })
     ).toEqual({
       variant: 'first-use',
       showPrimaryActivation: true,
-      showSecondaryListEmptyState: false,
+      showSecondaryListEmptyState: true,
       deemphasizeAnonymousBanner: false,
       primaryTitle: 'Registrá tu primer movimiento',
-      primaryBody: 'Empezá cargando un gasto, ingreso o transferencia para activar tu Home.',
+      primaryBody:
+        'Empezá cargando un gasto, ingreso o transferencia para empezar tu registro.',
       primaryActionLabel: 'Registrar movimiento',
     })
   })
@@ -28,14 +29,15 @@ describe('getHomeEmptyState', () => {
         hasAnyMovement: false,
         hasCurrentMonthMovement: false,
         hasHistoricalMovement: false,
-      }),
+      })
     ).toEqual({
       variant: 'first-use',
       showPrimaryActivation: true,
-      showSecondaryListEmptyState: false,
+      showSecondaryListEmptyState: true,
       deemphasizeAnonymousBanner: true,
       primaryTitle: 'Registrá tu primer movimiento',
-      primaryBody: 'Empezá cargando un gasto, ingreso o transferencia para activar tu Home.',
+      primaryBody:
+        'Empezá cargando un gasto, ingreso o transferencia para empezar tu registro.',
       primaryActionLabel: 'Registrar movimiento',
     })
   })
@@ -47,14 +49,15 @@ describe('getHomeEmptyState', () => {
         hasAnyMovement: true,
         hasCurrentMonthMovement: false,
         hasHistoricalMovement: true,
-      }),
+      })
     ).toEqual({
       variant: 'monthly-empty',
       showPrimaryActivation: true,
       showSecondaryListEmptyState: true,
       deemphasizeAnonymousBanner: false,
       primaryTitle: 'Todavía no tenés movimientos este mes',
-      primaryBody: 'Sumá un movimiento para ver actividad reciente en tu Home de este mes.',
+      primaryBody:
+        'Sumá un movimiento para ver actividad reciente en tu Home de este mes.',
       primaryActionLabel: 'Registrar movimiento',
     })
   })
@@ -66,7 +69,7 @@ describe('getHomeEmptyState', () => {
         hasAnyMovement: true,
         hasCurrentMonthMovement: true,
         hasHistoricalMovement: true,
-      }),
+      })
     ).toEqual({
       variant: 'active',
       showPrimaryActivation: false,
@@ -85,7 +88,7 @@ describe('getHomeEmptyState', () => {
         hasAnyMovement: false,
         hasCurrentMonthMovement: true,
         hasHistoricalMovement: false,
-      }),
+      })
     ).toEqual({
       variant: 'active',
       showPrimaryActivation: false,

@@ -211,10 +211,10 @@ export function Ultimos5({
                 </p>
                 <p className="mt-1 text-[12px] leading-5 text-text-secondary">
                   {emptyState.variant === 'monthly-empty'
-                    ? 'Cuando cargues el próximo, este bloque se vuelve a poblar automáticamente.'
-                    : 'Cuando registres uno nuevo desde el Smart Input, va a aparecer acá.'}
+                    ? 'Los movimientos de este mes aparecen acá. Podés consultar los anteriores en Ver todos.'
+                    : 'Tus gastos, ingresos y transferencias van a aparecer acá cuando los guardes. El saldo inicial de tu cuenta no es un movimiento.'}
                 </p>
-                {emptyState.variant !== 'monthly-empty' && (
+                {emptyState.variant === 'monthly-empty' && (
                   <button
                     type="button"
                     onClick={openMovimientos}

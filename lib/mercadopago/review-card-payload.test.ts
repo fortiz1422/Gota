@@ -12,17 +12,19 @@ describe('Mercado Pago UI confirmation payload', () => {
       onSave: () => undefined, onCancel: () => undefined, aliasSource: 'mercadopago', immutableProviderEvidence: true, embedded: true,
     }))
     expect(html).not.toContain('Confirmar compra con tarjeta</h2>')
-    expect(html).toContain('Tarjeta de crédito · compra en Mercado Pago')
+    expect(html).toContain('De donde sale')
+    expect(html).toMatch(/<button[^>]*disabled=""[^>]*aria-pressed="true"[^>]*>[\s\S]*?<span>Tarjeta<\/span>/)
     expect(html).toContain('Una cuota · según Mercado Pago')
     expect(html).toContain('Visa')
-    expect(html).not.toContain('De donde sale</label><div')
+    expect(html).toContain('De donde sale</label><div')
+    expect(html).toMatch(/<input[^>]*aria-label="Monto"[^>]*readOnly=""/)
     expect(html).not.toContain('3x')
-    expect(html).not.toContain('Recurrente')
-    expect(html).not.toContain('Extraordinario')
+    expect(html).toContain('Recurrente')
+    expect(html).toContain('Extraordinario')
     expect(html).not.toContain('Pago de Tarjetas</option>')
     expect(html).toContain('Deseo')
-    expect(html).toContain('Recordar comercio y categoría')
-    expect(html).toContain('checked=""')
+    expect(html).toContain('Recordar este comercio para próximas veces')
+    expect(html).not.toContain('checked=""')
   })
 
   it('keeps normal editor installment, category and tag controls available', () => {
@@ -51,7 +53,7 @@ describe('Mercado Pago UI confirmation payload', () => {
       cardId: selected.card_id ?? '', installments: selected.installments,
     })
     expect(JSON.parse(JSON.stringify(uiPayload))).toEqual({
-      description: 'Compra', category: 'Alimentos', isWant: false,
+      description: 'Compra', category: 'Alimentos', isWant: false, isRecurring: false, isExtraordinary: false,
       cardId: selectedCardId, installments: 1,
     })
   })
@@ -71,7 +73,7 @@ describe('Mercado Pago UI confirmation payload', () => {
       expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3,
     })
     expect(JSON.parse(JSON.stringify(uiPayload))).toEqual({
-      description: 'Compra', category: 'Alimentos', isWant: false,
+      description: 'Compra', category: 'Alimentos', isWant: false, isRecurring: false, isExtraordinary: false,
       expectedLinkedAccountId: 'account-1', expectedLinkedAccountVersion: 3,
     })
   })
