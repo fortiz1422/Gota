@@ -231,10 +231,11 @@ export function DashboardShell({
     enabled: FF_SIGNALS_CENTER_V1,
     currency: viewCurrency,
   })
-  const signalsTone = highestUnreadSignalTone(
+  const unreadTone = highestUnreadSignalTone(
     signalsQuery.data?.signals ?? [],
     readSignalVersions,
   )
+  const signalsTone = unreadTone === 'none' && signalsQuery.data?.balanceChecks?.length ? 'new' : unreadTone
   const sharedReceiptsQuery = useQuery<SharedReceiptSummary[]>({
     queryKey: ['shared-receipts', 'needs-review'],
     queryFn: async () => {

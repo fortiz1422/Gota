@@ -1,4 +1,5 @@
 'use client'
+import Link from 'next/link'
 
 import { useRef, useState, useEffect } from 'react'
 import { CaretRight, Trash } from '@phosphor-icons/react'
@@ -234,6 +235,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
       }
     >
       <div className="space-y-5">
+        {account && process.env.NEXT_PUBLIC_BALANCE_RECONCILIATION_ENABLED === 'true' && <div className="flex gap-4">{(['ARS','USD'] as const).map(currency => <Link key={currency} href={`/reconciliation/${account.id}?currency=${currency}`} className="flex min-h-12 flex-1 items-center justify-between text-sm font-bold text-primary">Confirmar {currency}<CaretRight size={16} weight="light" /></Link>)}</div>}
         <InlineError message={error} />
         <div className="space-y-2">
           <h3 className="px-1 type-micro text-text-tertiary">INFORMACIÓN</h3>

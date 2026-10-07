@@ -3,6 +3,8 @@ import { loadFinancialSnapshot } from '@/lib/intelligence/snapshot'
 import type { FinancialSnapshot } from '@/lib/intelligence/types'
 import { createSignalOccurrenceIdentity } from '@/lib/server/signal-occurrence-key'
 import type { createClient } from '@/lib/supabase/server'
+import { readWorkspaces, reconciliationEnabled } from '@/lib/reconciliation/repository'
+import { balanceCheckTask } from '@/lib/reconciliation/tasks'
 
 type SupabaseClient = Awaited<ReturnType<typeof createClient>>
 
@@ -29,9 +31,20 @@ export async function loadIntelligenceSignals(
   const now = dependencies.now ?? (() => new Date())
   const snapshot = await loadSnapshot(params)
 
-  return buildSignalCenter(
+  const model = buildSignalCenter(
     snapshot,
     (candidate) => createSignalOccurrenceIdentity(params.userId, candidate),
     { generatedAt: now().toISOString() },
   )
+  if (reconciliationEnabled() && process.env.BALANCE_RECONCILIATION_SCHEMA_READY === 'true') {
+    const { data: accounts, error } = await params.supabase.from('accounts').select('id,name').eq('user_id', params.userId).eq('archived', false)
+    if (error) throw new Error('reconciliation_accounts_unavailable')
+    const workspaces = await readWorkspaces(params.userId)
+    model.balanceChecks = (accounts ?? []).flatMap(account => {
+      const row = workspaces.find(w => w.account_id === account.id && w.currency === snapshot.currency)
+      const task = balanceCheckTask(account, snapshot.currency, row?.state ?? null, now())
+      return task ? [task] : []
+    })
+  }
+  return model
 }
