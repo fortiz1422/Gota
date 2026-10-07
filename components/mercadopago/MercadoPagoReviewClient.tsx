@@ -465,7 +465,7 @@ export function MercadoPagoReviewClient() {
 
   return (
     <main className="mx-auto min-h-app max-w-md bg-bg-secondary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
-      <header className="-mx-5 -mt-[max(20px,env(safe-area-inset-top))] rounded-b-[28px] border-b border-border-subtle bg-bg-primary px-5 pb-5 pt-[max(20px,env(safe-area-inset-top))] shadow-[var(--shadow-sm)]">
+      <header className="rounded-card border border-border-subtle bg-bg-primary px-3 py-4 shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-3">
           <Link
             href="/settings"
