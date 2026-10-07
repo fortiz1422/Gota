@@ -40,6 +40,9 @@ describe('funding source proposals read from actual review controls', () => {
     ['café 3200 con Mercado Pago', 'mp', null],
     ['café 3200 con mercadopago', 'mp', null],
     ['café 3200 desde Banco Nación', 'bna', null],
+    ['almuerzo 5000 banco Nación', 'bna', null],
+    ['almuerzo 5000 banco Francés', 'bbva', null],
+    ['almuerzo 5000 banco Brubank', '', null],
     ['café 3200 por transferencia desde BBVA', 'bbva', null],
     ['café 3200 por transferencia desde Mercado Pago', 'mp', null],
     ['café 3200 con transferencia', 'bbva', null],
@@ -121,6 +124,17 @@ describe('funding source proposals read from actual review controls', () => {
     })
   })
   it('does not resolve two accounts with the same name or an archived card id', () => {
+    expect(
+      resolveExpensePreviewSource(
+        {
+          payment_method: 'DEBIT',
+          card_id: null,
+          source_text: 'almuerzo 5000 banco Nación',
+        },
+        accounts.filter((account) => account.id !== 'bna'),
+        cards
+      )
+    ).toEqual({ source: '', cardId: null, needsChoice: true })
     expect(
       resolveExpensePreviewSource(
         {

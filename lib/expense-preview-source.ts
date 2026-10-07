@@ -5,8 +5,8 @@ const normalize = (value: string) =>
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/banco frances|frances/g, 'bbva')
-    .replace(/banco nacion/g, 'nacion')
+    .replace(/banco frances/g, 'banco bbva')
+    .replace(/\bfrances\b/g, 'bbva')
     .replace(/mercadopago/g, 'mercado pago')
 const words = (value: string) =>
   normalize(value)
@@ -48,9 +48,10 @@ export function resolveExpensePreviewSource(
   if (data.payment_method === 'CASH')
     return { source: 'cash', cardId: null, needsChoice: false }
   const text = normalize(data.source_text ?? '')
-  const clause = text.match(
-    /\b(?:con|desde|usando|via|debito de|transferencia de)\s+(.+)$/
-  )?.[1]
+  const clause =
+    text.match(
+      /\b(?:con|desde|usando|via|debito de|transferencia de)\s+(.+)$/
+    )?.[1] ?? text.match(/\bbanco\s+(.+)$/)?.[1]
   const tokens = clause ? words(clause) : []
   const matchesName = (name: string) => {
     const nameWords = words(name)
