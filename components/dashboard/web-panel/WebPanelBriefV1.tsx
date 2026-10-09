@@ -142,10 +142,11 @@ export function WebPanelBriefV1({
     () => buildWebBrief({ model: displaySignalsModel, historical }),
     [displaySignalsModel, historical],
   )
-  const signalTone = highestUnreadSignalTone(
+  const unreadTone = highestUnreadSignalTone(
     rawSignalsModel?.signals ?? [],
     readSignalVersions,
   )
+  const signalTone = unreadTone === 'none' && rawSignalsModel?.balanceChecks?.length ? 'new' : unreadTone
   const equation = useMemo(
     () => buildMoneyEquation({
       saldoVivo: data.heroBreakdown[viewCurrency] ?? 0,

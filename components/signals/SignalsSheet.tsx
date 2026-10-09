@@ -174,6 +174,7 @@ export function SignalsSheet({
           >
             {tab === 'now' ? (
               <SignalsNowView
+                balanceChecks={model?.balanceChecks}
                 signals={model?.signals ?? []}
                 coverage={model?.coverage ?? []}
                 dataQuality={model?.dataQuality ?? 'insufficient'}

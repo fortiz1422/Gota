@@ -1,0 +1,130 @@
+{
+  "results": [
+    {
+      "scenario": "Guardar y salir y retomar conserva el borrador de transferencia sin alterar saldo",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Transferencia única explica ambos ajustes; conserva 950000/350000 y total 1300000",
+      "status": "PASS"
+    },
+    {
+      "scenario": "Desvincular/revincular transferencia existente no crea otra; guardas protegen los dos lados",
+      "status": "PASS"
+    }
+  ],
+  "balances": [
+    {
+      "name": "BBVA",
+      "saldo": 950000
+    },
+    {
+      "name": "Mercado Pago",
+      "saldo": 350000
+    },
+    {
+      "name": "Nación",
+      "saldo": 0
+    }
+  ],
+  "requests": [
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": "draft",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": "draft",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": "resolve",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000002",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": "resolve",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "accountId": "10000000-0000-4000-8000-000000000001",
+      "action": null,
+      "status": 200
+    }
+  ],
+  "errors": [],
+  "method": "UI React + Next API + RPC + SQL en PGlite; autenticación simulada"
+}

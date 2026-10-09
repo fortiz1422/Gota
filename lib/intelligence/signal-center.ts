@@ -69,6 +69,7 @@ export type SignalCoverage = {
 }
 
 export type SignalCenterModel = {
+  balanceChecks?: import('@/lib/reconciliation/tasks').BalanceCheckTask[]
   generatedAt: string
   month: string
   currency: Currency

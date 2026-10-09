@@ -1,4 +1,6 @@
 'use client'
+import Link from 'next/link'
+import type { BalanceCheckTask } from '@/lib/reconciliation/tasks'
 
 import { ArrowClockwise, CaretRight, CheckCircle, CircleNotch, Receipt } from '@phosphor-icons/react'
 import type { DataQuality } from '@/lib/intelligence/types'
@@ -13,6 +15,7 @@ import {
 } from '@/lib/intelligence/signal-center-display'
 
 interface Props {
+  balanceChecks?: BalanceCheckTask[]
   signals: SignalOccurrence[]
   coverage: SignalCoverage[]
   dataQuality: DataQuality
@@ -29,6 +32,7 @@ interface Props {
 }
 
 export function SignalsNowView({
+  balanceChecks = [],
   signals,
   coverage,
   dataQuality,
@@ -44,7 +48,7 @@ export function SignalsNowView({
   onMercadoPagoSelected,
 }: Props) {
   const mercadoPagoPending = pendingMercadoPagoReviewBucketCount(mercadoPago)
-  if (loading && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
+  if (loading && pendingReceipts.length === 0 && mercadoPagoPending === 0 && balanceChecks.length === 0) {
     return (
       <div role="status" className="grid min-h-56 place-items-center px-6 text-center">
         <div>
@@ -55,7 +59,7 @@ export function SignalsNowView({
     )
   }
 
-  if (error && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
+  if (error && pendingReceipts.length === 0 && mercadoPagoPending === 0 && balanceChecks.length === 0) {
     return (
       <div role="alert" className="mx-5 mt-6 rounded-[18px] border border-danger/15 bg-danger-soft p-5">
         <p className="font-bold text-text-primary">No pudimos cargar tus señales</p>
@@ -70,13 +74,14 @@ export function SignalsNowView({
   }
 
 
-  if (signals.length === 0 && pendingReceipts.length === 0 && mercadoPagoPending === 0) {
+  if (signals.length === 0 && pendingReceipts.length === 0 && mercadoPagoPending === 0 && balanceChecks.length === 0) {
     const emptyState = resolveSignalsEmptyState({ coverage, dataQuality })
     return <EmptyState {...emptyState} />
   }
 
   return (
     <div className="px-5 pb-8 pt-5">
+      {balanceChecks.map(task => <Link key={`${task.accountId}:${task.currency}`} href={task.href} className="mb-3 flex min-h-16 items-center justify-between border-b border-separator py-3 text-sm font-bold text-primary"><span>{task.label}</span><CaretRight size={16} weight="light" aria-hidden="true" /></Link>)}
       {isHistoricalContext && (
         <p className="mb-3 rounded-[14px] bg-primary-soft px-3 py-2.5 text-xs font-semibold leading-relaxed text-primary">
           Estas son Señales de hoy. El mes histórico sigue visible detrás.
