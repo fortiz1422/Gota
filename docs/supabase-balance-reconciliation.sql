@@ -93,7 +93,7 @@ create trigger reconciliation_ledger_guard before insert or update or delete on 
 
 create function public.save_balance_reconciliation(
   p_user_id uuid,p_account_id uuid,p_currency text,p_expected_version integer,
-  p_ledger_fingerprint text,p_request_id uuid,p_intent_hash text,p_state jsonb,p_expense jsonb default null
+  p_ledger_fingerprint text,p_request_id uuid,p_intent_hash text,p_state jsonb,p_expense jsonb default null,p_income jsonb default null
 ) returns jsonb language plpgsql security invoker set search_path=pg_catalog,pg_temp as $$
 declare w public.balance_reconciliation_workspaces; prior public.balance_reconciliation_audit; snap jsonb;
 begin
@@ -114,6 +114,9 @@ begin
     or jsonb_typeof(p_state->'adjustments') is distinct from 'array' or jsonb_typeof(p_state->'resolutions') is distinct from 'array' then
     raise exception 'invalid workspace' using errcode='22023';
   end if;
+  if p_expense is not null and p_income is not null then
+    raise exception 'one reconciliation movement per request' using errcode='22023';
+  end if;
   if p_expense is not null then
     if coalesce(p_expense->>'payment_method','') not in ('CASH','DEBIT','TRANSFER') or coalesce(p_expense->>'category','') in ('','Pago de Tarjetas')
       or p_expense->>'account_id' is distinct from p_account_id::text or p_expense->>'currency' is distinct from p_currency
@@ -125,6 +128,17 @@ begin
       values((p_expense->>'id')::uuid,p_user_id,p_account_id,(p_expense->>'amount')::numeric,p_currency,
         p_expense->>'category',p_expense->>'description',p_expense->>'payment_method',null,(p_expense->>'date')::timestamptz);
   end if;
+  if p_income is not null then
+    if coalesce(p_income->>'category','') not in ('salary','freelance','other')
+      or p_income->>'account_id' is distinct from p_account_id::text or p_income->>'currency' is distinct from p_currency
+      or coalesce((p_income->>'amount')::numeric,0)<1 or p_income->>'date' is null or (p_income->>'date')::timestamptz>now()
+      or coalesce(length(trim(p_income->>'description')),0)=0 or length(p_income->>'description')>100 then
+      raise exception 'invalid reconciliation income' using errcode='22023';
+    end if;
+    insert into public.income_entries(id,user_id,account_id,amount,currency,category,description,date)
+      values((p_income->>'id')::uuid,p_user_id,p_account_id,(p_income->>'amount')::numeric,p_currency,
+        p_income->>'category',p_income->>'description',(p_income->>'date')::timestamptz);
+  end if;
   insert into public.balance_reconciliation_workspaces(user_id,account_id,currency,state,version)
     values(p_user_id,p_account_id,p_currency,p_state,1)
     on conflict(user_id,account_id,currency) do update set state=excluded.state,version=balance_reconciliation_workspaces.version+1,updated_at=now()
@@ -133,5 +147,5 @@ begin
     values(w.id,p_user_id,p_request_id,p_intent_hash,w.version,p_state);
   return to_jsonb(w);
 end $$;
-revoke all on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb) from public,anon,authenticated;
-grant execute on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb) to service_role;
+revoke all on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb,jsonb) to service_role;

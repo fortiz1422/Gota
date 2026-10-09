@@ -36,6 +36,7 @@ export type Resolution = {
   reversedAt: string | null
 }
 export type Draft = {
+  kind?: 'expense' | 'income'
   amount: string
   description: string
   category: string
@@ -134,7 +135,7 @@ export function addCheckpoint(
       },
     ],
     step:
-      checkpoint.confirmed === checkpoint.expected ? 'check' : 'discrepancy',
+      checkpoint.confirmed === checkpoint.expected ? 'resolved' : 'discrepancy',
     snoozedUntil: null,
   }
 }

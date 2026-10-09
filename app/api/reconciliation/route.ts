@@ -23,6 +23,8 @@ import {
 } from '@/lib/reconciliation/repository'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { z } from 'zod'
+import { balanceCheckTask } from '@/lib/reconciliation/tasks'
+import { reconciliationErrorMessage } from '@/lib/reconciliation/errors'
 
 const selection = z.object({
   accountId: z.string().uuid(),
@@ -79,6 +81,7 @@ async function context(request: Request) {
     account,
     accountId,
     currency,
+    rows,
     snapshot: after,
     row,
     state: row?.state ?? emptyWorkspace(accountId, currency),
@@ -88,7 +91,11 @@ async function context(request: Request) {
 async function evidence(
   ctx: Awaited<ReturnType<typeof context>>,
   command: Command
-): Promise<{ movement: MovementEvidence; expense?: Record<string, unknown> }> {
+): Promise<{
+  movement: MovementEvidence
+  expense?: Record<string, unknown>
+  income?: Record<string, unknown>
+}> {
   const checkpoint = command.targetId
     ? ctx.state.checkpoints.find(
         (c) =>
@@ -106,40 +113,50 @@ async function evidence(
         draft.date
     )
       throw new Error('date_required')
+    const kind = draft.kind ?? 'expense'
     const amount = moneyToMinor(draft.amount)
     if (
       amount < 100 ||
       !draft.description.trim() ||
       !draft.category.trim() ||
-      draft.category === 'Pago de Tarjetas'
+      draft.category === 'Pago de Tarjetas' ||
+      (kind === 'income' &&
+        !['salary', 'freelance', 'other'].includes(draft.category))
     )
-      throw new Error('invalid_expense')
+      throw new Error(kind === 'income' ? 'invalid_income' : 'invalid_expense')
     if (
       draft.date === checkpointDay(checkpoint.observedAt) &&
       !command.sameDayBefore
     )
       throw new Error('same_day_confirmation')
     const id = randomUUID()
+    const row = {
+      id,
+      account_id: ctx.accountId,
+      currency: ctx.currency,
+      amount: amount / 100,
+      description: draft.description.trim(),
+      category: draft.category,
+      date: dateInputToISO(draft.date),
+    }
     return {
       movement: {
         id,
-        kind: 'expense',
+        kind,
         accountId: ctx.accountId,
         currency: ctx.currency,
-        effect: -amount,
+        effect: kind === 'income' ? amount : -amount,
         occurredAt: `${draft.date}T00:00:00-03:00`,
         includedBeforeCheckpoint: false,
       },
-      expense: {
-        id,
-        account_id: ctx.accountId,
-        currency: ctx.currency,
-        amount: amount / 100,
-        description: draft.description.trim(),
-        category: draft.category,
-        payment_method: ctx.account.type === 'cash' ? 'CASH' : 'DEBIT',
-        date: dateInputToISO(draft.date),
-      },
+      ...(kind === 'income'
+        ? { income: row }
+        : {
+            expense: {
+              ...row,
+              payment_method: ctx.account.type === 'cash' ? 'CASH' : 'DEBIT',
+            },
+          }),
     }
   }
   if (!command.movementId || !command.movementKind)
@@ -212,10 +229,7 @@ function failure(error: unknown) {
               : 422
   return json(
     {
-      error:
-        code === 'state_changed' || code === 'balance_changed'
-          ? 'Cambió el saldo. Volvé a confirmarlo.'
-          : 'No pudimos completar este paso. Revisá los datos y reintentá.',
+      error: reconciliationErrorMessage(code),
       code: error instanceof z.ZodError ? 'invalid_input' : code,
     },
     status
@@ -224,17 +238,45 @@ function failure(error: unknown) {
 export async function GET(request: Request) {
   try {
     const ctx = await context(request)
-    const { data: candidates, error } = await ctx.supabase
-      .from('expenses')
-      .select('id,description,amount,date,payment_method,category')
-      .eq('user_id', ctx.user.id)
-      .eq('account_id', ctx.accountId)
-      .eq('currency', ctx.currency)
-      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
-      .neq('category', 'Pago de Tarjetas')
-      .order('created_at', { ascending: false })
-      .limit(100)
-    if (error) throw new Error('candidates_unavailable')
+    const [expenses, incomes, accounts] = await Promise.all([
+      ctx.supabase
+        .from('expenses')
+        .select('id,description,amount,date,payment_method,category')
+        .eq('user_id', ctx.user.id)
+        .eq('account_id', ctx.accountId)
+        .eq('currency', ctx.currency)
+        .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
+        .neq('category', 'Pago de Tarjetas')
+        .order('created_at', { ascending: false })
+        .limit(100),
+      ctx.supabase
+        .from('income_entries')
+        .select('id,description,amount,date,category')
+        .eq('user_id', ctx.user.id)
+        .eq('account_id', ctx.accountId)
+        .eq('currency', ctx.currency)
+        .order('created_at', { ascending: false })
+        .limit(100),
+      ctx.supabase
+        .from('accounts')
+        .select('id,name')
+        .eq('user_id', ctx.user.id)
+        .eq('archived', false)
+        .order('name'),
+    ])
+    if (expenses.error || incomes.error || accounts.error)
+      throw new Error('candidates_unavailable')
+    const queue = (accounts.data ?? []).filter((account) => {
+      const row = ctx.rows.find(
+        (r) => r.account_id === account.id && r.currency === ctx.currency
+      )
+      return balanceCheckTask(
+        account,
+        ctx.currency,
+        row?.state ?? null,
+        new Date()
+      )
+    })
     return json({
       userId: ctx.user.id,
       account: { id: ctx.accountId, name: ctx.account.name },
@@ -243,7 +285,11 @@ export async function GET(request: Request) {
       version: ctx.row?.version ?? 0,
       expected: ctx.expected,
       fingerprint: ctx.snapshot.fingerprint,
-      candidates: candidates ?? [],
+      queue,
+      candidates: [
+        ...(expenses.data ?? []).map((c) => ({ ...c, kind: 'expense' })),
+        ...(incomes.data ?? []).map((c) => ({ ...c, kind: 'income' })),
+      ],
     })
   } catch (error) {
     return failure(error)
@@ -290,6 +336,7 @@ export async function POST(request: Request) {
       intentHash,
       state,
       expense: resolved?.expense,
+      income: resolved?.income,
     })
     return json({ saved: true })
   } catch (error) {

@@ -64,6 +64,7 @@ export async function saveWorkspace(input: {
   intentHash: string
   state: Workspace
   expense?: Record<string, unknown>
+  income?: Record<string, unknown>
 }) {
   const { data, error } = await database().rpc('save_balance_reconciliation', {
     p_user_id: input.userId,
@@ -75,6 +76,7 @@ export async function saveWorkspace(input: {
     p_intent_hash: input.intentHash,
     p_state: input.state,
     p_expense: input.expense ?? null,
+    p_income: input.income ?? null,
   })
   if (error)
     throw new Error(error.code === '55000' ? 'state_changed' : 'save_failed')

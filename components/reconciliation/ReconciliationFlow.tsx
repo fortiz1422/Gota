@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowClockwise } from '@phosphor-icons/react'
 import {
-  balanceCorrection,
   remaining,
   observedResidual,
   checkpointDay,
@@ -15,10 +14,17 @@ import {
 import type { Command } from '@/lib/reconciliation/commands'
 import { formatArDecimal, parseArSignedDecimalInput } from '@/lib/ar-input'
 import { MovementDraftSteps } from './MovementDraftSteps'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { restoreDraft } from '@/lib/reconciliation/draft'
+import {
+  nextReconciliationAccount,
+  nextReconciliationHref,
+  type QueueAccount,
+} from '@/lib/reconciliation/queue'
 import { hasPendingExplanation } from '@/lib/reconciliation/tasks'
 
 type Candidate = {
+  kind?: 'expense' | 'income'
   id: string
   description: string
   amount: number
@@ -26,6 +32,7 @@ type Candidate = {
 }
 type Data = {
   userId: string
+  queue?: QueueAccount[]
   candidates: Candidate[]
   account: { id: string; name: string }
   state: Workspace
@@ -44,9 +51,11 @@ const buttonClass =
 export function ReconciliationFlow({
   accountId,
   currency,
+  visitedAccounts = [],
 }: {
   accountId: string
   currency: 'ARS' | 'USD'
+  visitedAccounts?: string[]
 }) {
   const cache = useQueryClient()
   const endpoint = `/api/reconciliation?accountId=${encodeURIComponent(accountId)}&currency=${currency}`
@@ -68,6 +77,15 @@ export function ReconciliationFlow({
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [history, setHistory] = useState(false)
+  const [blockedReversal, setBlockedReversal] = useState<string | null>(null)
+  const [confirmation, setConfirmation] = useState<{
+    title: string
+    description: string
+    label: string
+    balanceAfter: number
+    command: Omit<Command, 'requestId' | 'version' | 'fingerprint'>
+    trigger: HTMLElement
+  } | null>(null)
   const draftRef = useRef(draft)
   const initialized = useRef(false)
   const saving = useRef(false)
@@ -173,6 +191,15 @@ export function ReconciliationFlow({
       }
     }
   }
+  const leave = async (href: string) => {
+    if (saving.current) return
+    if (
+      editing &&
+      !(await command({ action: 'draft', draft: draftRef.current }, true))
+    )
+      return
+    window.location.assign(href)
+  }
   if (query.isLoading)
     return (
       <p role="status" className="text-text-secondary p-6">
@@ -203,8 +230,16 @@ export function ReconciliationFlow({
   const candidates = data.candidates.filter(
     (c) =>
       targetCheckpoint &&
+      (c.kind === 'income' ? 1 : -1) ===
+        Math.sign(
+          adjustment
+            ? remaining(data.state, adjustment)
+            : observedResidual(data.state, targetCheckpoint)
+        ) &&
       c.date.slice(0, 10) <= checkpointDay(targetCheckpoint.observedAt) &&
-      !targetCheckpoint.includedMovementIds.includes(`expense:${c.id}`) &&
+      !targetCheckpoint.includedMovementIds.includes(
+        `${c.kind ?? 'expense'}:${c.id}`
+      ) &&
       !data.state.resolutions.some(
         (r) => r.movementId === c.id && !r.reversedAt
       )
@@ -215,6 +250,26 @@ export function ReconciliationFlow({
     (data.state.step === 'resolved' && hasPendingExplanation(data.state))
   const settled =
     data.state.step === 'resolved' && !hasPendingExplanation(data.state)
+
+  const nextAccount = nextReconciliationAccount(
+    data.queue ?? [],
+    accountId,
+    visitedAccounts
+  )
+  const nextHref = nextAccount
+    ? nextReconciliationHref(
+        nextAccount.id,
+        accountId,
+        currency,
+        visitedAccounts
+      )
+    : null
+  const gap = adjustment
+    ? remaining(data.state, adjustment)
+    : checkpoint
+      ? observedResidual(data.state, checkpoint)
+      : 0
+  const income = gap > 0
 
   return (
     <div className="min-h-app mx-auto max-w-lg px-5 pt-[calc(env(safe-area-inset-top)+1rem)] pb-10">
@@ -231,6 +286,39 @@ export function ReconciliationFlow({
           <h1 className="type-title text-text-primary">{data.account.name}</h1>
         </div>
       </header>
+      {confirmation && (
+        <ConfirmationSurface
+          open
+          appearance="minimal"
+          onClose={() => setConfirmation(null)}
+          onConfirm={async () => {
+            if (await command(confirmation.command)) setConfirmation(null)
+          }}
+          triggerElement={confirmation.trigger}
+          title={confirmation.title}
+          description={confirmation.description}
+          confirmLabel={confirmation.label}
+          busy={busy}
+        >
+          <dl className="space-y-2">
+            <div className="flex justify-between gap-3">
+              <dt>Saldo actual</dt>
+              <dd>{money(data.expected, currency)}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt>Saldo después</dt>
+              <dd className="font-bold">
+                {money(confirmation.balanceAfter, currency)}
+              </dd>
+            </div>
+          </dl>
+          {error && (
+            <p role="alert" className="text-danger mt-3">
+              {error}
+            </p>
+          )}
+        </ConfirmationSurface>
+      )}
       {error && (
         <p role="alert" className="text-danger mb-4 text-sm">
           {error}
@@ -240,17 +328,13 @@ export function ReconciliationFlow({
         {settled ? (
           <div role="status" className="space-y-4">
             <h2 className="type-body-lg">
-              Listo, esta diferencia está cerrada.
+              {checkpoint?.delta === 0
+                ? 'Saldo confirmado.'
+                : 'Diferencia resuelta.'}
             </h2>
             <p className="text-text-secondary text-sm">
               Saldo actual: {money(data.expected, currency)}
             </p>
-            <Link
-              href="/"
-              className="rounded-button bg-primary flex min-h-12 items-center justify-center text-sm font-bold text-white"
-            >
-              Volver a Home
-            </Link>
           </div>
         ) : isCheck ? (
           <form
@@ -352,11 +436,6 @@ export function ReconciliationFlow({
               </>
             ) : (
               <>
-                {!adjustment && (
-                  <p className="text-text-secondary text-sm">
-                    Todavía no aplicaste un ajuste.
-                  </p>
-                )}
                 {!editing && !selected ? (
                   <div className="space-y-3">
                     {candidates.map((c) => (
@@ -378,19 +457,18 @@ export function ReconciliationFlow({
                     <button
                       disabled={busy}
                       onClick={() => {
+                        const nextDraft: Draft = {
+                          ...blank,
+                          kind: income ? 'income' : 'expense',
+                        }
+                        changeDraft(nextDraft)
                         setEditing(true)
-                        void command({ action: 'draft', draft: blank })
+                        void command({ action: 'draft', draft: nextDraft })
                       }}
                       className={buttonClass}
                     >
-                      Encontré un movimiento
+                      {income ? 'Encontré un ingreso' : 'Encontré un gasto'}
                     </button>
-                    <Link
-                      href="/mercadopago/review"
-                      className="text-primary flex min-h-12 items-center justify-center text-sm font-bold"
-                    >
-                      Revisar Mercado Pago
-                    </Link>
                     <Link
                       href="/movimientos"
                       className="text-primary flex min-h-12 items-center justify-center text-sm font-bold"
@@ -436,7 +514,7 @@ export function ReconciliationFlow({
                           await command({
                             action: 'resolve',
                             targetId: adjustment?.id,
-                            movementKind: 'expense',
+                            movementKind: selected.kind ?? 'expense',
                             movementId: selected.id,
                             included: existingIncluded,
                             sameDayBefore: existingBefore,
@@ -486,33 +564,39 @@ export function ReconciliationFlow({
                     }}
                   />
                 )}
-                <button
-                  disabled={busy}
-                  onClick={async () => {
-                    if (await command({ action: 'later' }))
-                      window.location.assign('/')
-                  }}
-                  className="text-text-secondary min-h-11 w-full text-sm"
-                >
-                  Seguir después
-                </button>
               </>
             )}
           </section>
         )}
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => {
-            setEditing(false)
-            void command({ action: 'check' })
-          }}
-          className="text-primary mt-6 flex min-h-11 items-center gap-2 text-sm"
-        >
-          <ArrowClockwise size={16} weight="light" />
-          Confirmar saldo de nuevo
-        </button>
+        {!isCheck && (
+          <div className="border-separator mt-6 space-y-3 border-t pt-5">
+            {nextHref && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void leave(nextHref)}
+                className={buttonClass}
+              >
+                Guardar y continuar
+              </button>
+            )}
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void leave('/')}
+              className="rounded-button border-border-strong text-primary min-h-12 w-full border text-sm font-bold"
+            >
+              {nextHref ? 'Guardar y salir' : 'Guardar y terminar'}
+            </button>
+            {nextAccount && (
+              <p className="type-meta text-text-secondary text-center">
+                Sigue {nextAccount.name}
+              </p>
+            )}
+          </div>
+        )}
         <details
+          data-reconciliation-history
           className="border-separator mt-6 border-t pt-4"
           open={history}
           onToggle={(event) => setHistory(event.currentTarget.open)}
@@ -521,10 +605,20 @@ export function ReconciliationFlow({
             Ver historial
           </summary>
           <div className="mt-4 space-y-4">
-            <p className="type-meta text-text-secondary">
-              Corrección neta vigente:{' '}
-              {money(balanceCorrection(data.state), currency)}
-            </p>
+            {checkpoint && (
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => {
+                  setEditing(false)
+                  void command({ action: 'check' })
+                }}
+                className="text-primary flex min-h-11 items-center gap-2 text-sm"
+              >
+                <ArrowClockwise size={16} weight="light" />
+                Confirmar saldo de nuevo
+              </button>
+            )}
             {data.state.checkpoints.map((c) => (
               <p key={c.id} className="type-meta text-text-secondary">
                 {new Date(c.observedAt).toLocaleString('es-AR', {
@@ -533,56 +627,121 @@ export function ReconciliationFlow({
                 · {money(c.confirmed, currency)}
               </p>
             ))}
-            {data.state.resolutions
-              .filter((r) => !r.reversedAt)
-              .map((r) => (
-                <button
-                  key={r.id}
-                  disabled={busy}
-                  onClick={() =>
-                    void command({ action: 'undo', targetId: r.id })
-                  }
-                  className="text-primary block min-h-11 text-sm"
-                >
-                  Desvincular {money(r.effect, currency)}
-                </button>
-              ))}
-            {data.state.adjustments
-              .filter((a) => !a.reversedAt)
-              .map((a) => (
-                <div key={a.id} className="flex flex-wrap gap-4">
-                  {!a.manuallyClosed && remaining(data.state, a) !== 0 && (
+            {data.state.resolutions.some((r) => !r.reversedAt) && (
+              <details>
+                <summary className="text-text-secondary cursor-pointer text-sm">
+                  Movimientos vinculados
+                </summary>
+                {data.state.resolutions
+                  .filter((r) => !r.reversedAt)
+                  .map((r) => (
                     <button
+                      key={r.id}
                       disabled={busy}
-                      onClick={() =>
-                        void command({ action: 'close', targetId: a.id })
+                      onClick={(event) =>
+                        setConfirmation({
+                          title: '¿Desvincular este movimiento?',
+                          description: 'El movimiento se conserva.',
+                          label: 'Desvincular',
+                          balanceAfter: data.expected + r.effect,
+                          command: { action: 'undo', targetId: r.id },
+                          trigger: event.currentTarget,
+                        })
                       }
-                      className="text-text-secondary min-h-11 text-sm"
+                      className="text-primary block min-h-11 text-sm"
                     >
-                      Dejar de buscar esta diferencia
+                      Desvincular {money(r.effect, currency)}
                     </button>
+                  ))}
+              </details>
+            )}
+            {data.state.adjustments.map((a) => {
+              const pending = remaining(data.state, a)
+              const linked = data.state.resolutions.some(
+                (r) => r.adjustmentId === a.id && !r.reversedAt
+              )
+              const status = a.reversedAt
+                ? 'Revertido'
+                : a.manuallyClosed
+                  ? 'Búsqueda cerrada'
+                  : pending === 0
+                    ? 'Explicado'
+                    : pending !== a.amount
+                      ? 'Explicado parcialmente'
+                      : 'Sin explicar'
+              return (
+                <section key={a.id} className="border-separator border-t pt-4">
+                  <p className="text-text-primary text-sm font-bold">
+                    Ajuste {money(a.amount, currency)}
+                  </p>
+                  <p className="type-meta text-text-secondary mt-1">
+                    {new Date(a.effectiveAt).toLocaleDateString('es-AR', {
+                      timeZone: 'America/Argentina/Buenos_Aires',
+                    })}{' '}
+                    · {status}
+                  </p>
+                  {!a.reversedAt && (
+                    <>
+                      {pending !== 0 && pending !== a.amount && (
+                        <p className="type-meta text-text-secondary mt-1">
+                          Pendiente: {money(pending, currency)}
+                        </p>
+                      )}
+                      <details className="mt-2">
+                        <summary className="text-primary cursor-pointer text-sm">
+                          Ver detalle
+                        </summary>
+                        <div className="mt-2 flex flex-wrap gap-4">
+                          {!a.manuallyClosed && pending !== 0 && (
+                            <button
+                              disabled={busy}
+                              onClick={() =>
+                                void command({
+                                  action: 'close',
+                                  targetId: a.id,
+                                })
+                              }
+                              className="text-text-secondary min-h-11 text-sm"
+                            >
+                              Dejar de buscar
+                            </button>
+                          )}
+                          <button
+                            disabled={busy}
+                            onClick={(event) => {
+                              if (linked) {
+                                setBlockedReversal(a.id)
+                                return
+                              }
+                              setBlockedReversal(null)
+                              setConfirmation({
+                                title: '¿Revertir este ajuste?',
+                                description: `Se revierte el ajuste de ${money(a.amount, currency)}.`,
+                                label: 'Revertir',
+                                balanceAfter: data.expected - a.amount,
+                                command: { action: 'reverse', targetId: a.id },
+                                trigger: event.currentTarget,
+                              })
+                            }}
+                            className="text-primary min-h-11 text-sm"
+                          >
+                            Revertir ajuste
+                          </button>
+                        </div>
+                        {linked && blockedReversal === a.id && (
+                          <p
+                            role="alert"
+                            className="type-meta text-text-secondary"
+                          >
+                            Desvinculá sus movimientos antes de revertirlo.
+                          </p>
+                        )}
+                      </details>
+                    </>
                   )}
-                  <button
-                    disabled={
-                      busy ||
-                      data.state.resolutions.some(
-                        (r) => r.adjustmentId === a.id && !r.reversedAt
-                      )
-                    }
-                    onClick={() => {
-                      if (
-                        window.confirm(
-                          `¿Revertir este ajuste? Tu saldo cambiará ${money(-a.amount, currency)}.`
-                        )
-                      )
-                        void command({ action: 'reverse', targetId: a.id })
-                    }}
-                    className="text-primary min-h-11 text-sm"
-                  >
-                    Revertir ajuste
-                  </button>
-                </div>
-              ))}
+                </section>
+              )
+            })}
           </div>
         </details>
       </div>

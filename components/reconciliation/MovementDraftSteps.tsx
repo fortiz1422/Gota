@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { formatDate } from '@/lib/format'
 import type { Draft } from '@/lib/reconciliation/domain'
 import { formatArDecimal, parseArSignedDecimalInput } from '@/lib/ar-input'
 import { CATEGORIES } from '@/lib/validation/schemas'
@@ -21,6 +22,17 @@ export function MovementDraftSteps({
   onSave: () => Promise<boolean>
   onConfirm: (included: boolean, sameDayBefore: boolean) => Promise<boolean>
 }) {
+  const income = draft.kind === 'income'
+  const categories = income
+    ? [
+        { value: 'salary', label: 'Sueldo' },
+        { value: 'freelance', label: 'Trabajo independiente' },
+        { value: 'other', label: 'Otro ingreso' },
+      ]
+    : CATEGORIES.filter((c) => c !== 'Pago de Tarjetas').map((c) => ({
+        value: c,
+        label: c,
+      }))
   const [step, setStep] = useState(() =>
     !draft.amount
       ? 0
@@ -35,7 +47,7 @@ export function MovementDraftSteps({
   const [included, setIncluded] = useState(false)
   const [before, setBefore] = useState(false)
   const valid = [
-    Boolean(draft.amount && !draft.amount.startsWith('-')),
+    Boolean(draft.amount && Number(draft.amount) >= 1),
     Boolean(draft.description.trim()),
     Boolean(draft.date),
     Boolean(draft.category),
@@ -45,7 +57,7 @@ export function MovementDraftSteps({
     'mt-3 min-h-12 w-full rounded-input border border-border-strong bg-bg-primary px-4 text-base text-text-primary'
   const titles = [
     '¿Cuánto fue?',
-    '¿Qué movimiento encontraste?',
+    income ? '¿Qué ingreso encontraste?' : '¿Qué gasto encontraste?',
     '¿Cuándo ocurrió?',
     '¿En qué categoría va?',
     '¿Ya estaba en el saldo que confirmaste?',
@@ -121,10 +133,10 @@ export function MovementDraftSteps({
             className={inputClass}
           >
             <option value="">Elegir categoría</option>
-            {CATEGORIES.filter(
-              (category) => category !== 'Pago de Tarjetas'
-            ).map((category) => (
-              <option key={category}>{category}</option>
+            {categories.map((category) => (
+              <option key={category.value} value={category.value}>
+                {category.label}
+              </option>
             ))}
           </select>
         </label>
@@ -132,7 +144,8 @@ export function MovementDraftSteps({
       {step === 4 && (
         <>
           <p className="text-text-secondary text-sm">
-            {draft.description} · {formatArDecimal(draft.amount)} · {draft.date}
+            {draft.description} · {formatArDecimal(draft.amount)} ·{' '}
+            {formatDate(draft.date)}
           </p>
           <label className="flex min-h-11 items-center gap-3 text-sm">
             <input
@@ -155,7 +168,9 @@ export function MovementDraftSteps({
           <p className="type-meta text-text-secondary">
             {adjusted
               ? 'Reemplaza parte del ajuste. Tu saldo actual no cambia.'
-              : 'Se registra como movimiento real.'}
+              : income
+                ? 'Se registra el ingreso real.'
+                : 'Se registra el gasto real.'}
           </p>
         </>
       )}
