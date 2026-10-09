@@ -1,6 +1,8 @@
 import { z } from 'zod'
 export const DraftSchema = z.object({
-  kind: z.enum(['expense', 'income']).optional(),
+  kind: z.enum(['expense', 'income', 'transfer']).optional(),
+  counterAccountId: z.string().uuid().optional(),
+  direction: z.enum(['in', 'out']).optional(),
   amount: z.string().max(30),
   description: z.string().max(100),
   category: z.string().max(80),

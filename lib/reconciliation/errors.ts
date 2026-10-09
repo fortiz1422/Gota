@@ -1,4 +1,7 @@
 const messages: Record<string, string> = {
+  invalid_transfer: 'Elegí otra cuenta propia y un importe válido.',
+  peer_confirmation_required:
+    'La otra cuenta tiene un ajuste. Elegí qué diferencia explica la transferencia o revisá su saldo antes de cargarla.',
   state_changed: 'Cambió el saldo. Volvé a confirmarlo.',
   balance_changed: 'Cambió el saldo. Volvé a confirmarlo.',
   date_required: 'Elegí la fecha real del movimiento.',

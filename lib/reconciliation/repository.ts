@@ -82,3 +82,30 @@ export async function saveWorkspace(input: {
     throw new Error(error.code === '55000' ? 'state_changed' : 'save_failed')
   return data as WorkspaceRow
 }
+
+/** One ledger movement and one or two explicit links, in a single transaction. */
+export async function saveTransferReconciliation(input: {
+  userId: string
+  fingerprint: string
+  requestId: string
+  intentHash: string
+  transfer?: Record<string, unknown>
+  changes: {
+    accountId: string
+    currency: string
+    version: number
+    state: Workspace
+  }[]
+}) {
+  const { data, error } = await database().rpc('save_transfer_reconciliation', {
+    p_user_id: input.userId,
+    p_ledger_fingerprint: input.fingerprint,
+    p_request_id: input.requestId,
+    p_intent_hash: input.intentHash,
+    p_transfer: input.transfer ?? null,
+    p_changes: input.changes,
+  })
+  if (error)
+    throw new Error(error.code === '55000' ? 'state_changed' : 'save_failed')
+  return data
+}

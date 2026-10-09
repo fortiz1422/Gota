@@ -38,10 +38,12 @@ On 2026-10-08, Chromium exercised three fictitious accounts through the actual R
 
 ## Deliberate limits and follow-up
 
-- The UI supports expense and income evidence/reconstruction. Existing own-transfer evidence is accepted by the deterministic API, but transfer creation/selection remains absent from this screen.
+- The UI supports expense, income and own-transfer evidence. New own transfers use the current currency (ARS→ARS or USD→USD) with equal amounts; existing transfers can link their native source/destination currency legs. Same-account currency conversions, new FX transfers and fees remain outside this creation form. Transfers do not create expense/income records. Both legs require explicit evidence confirmation; posted peer corrections require choosing an eligible peer difference or reviewing that account first. A unique service-only `save_transfer_reconciliation` RPC commits the new transfer and one/two workspace links atomically under the user ledger lock.
 - Credit-card purchases and card-payment evidence are not linked in this MVP. Existing commitments, installments and card accounting retain their classification.
 - Candidate lists are capped at the latest 100 entries for each of expenses and income. No complete interval import or subset-sum matcher is claimed.
 - Financial audit is append-only for browser roles; service-role writes must remain confined to validated commands. Snapshot JSON is the additive MVP representation, not a general ledger rewrite.
 - Manual closure records an unexplained correction; it does not create a historical category or assign an unknown month. An explicit report treatment for unexplained balance corrections remains future work.
 - No MP schedule is activated, no Web Push is sent, and no bank-statement parser or autonomous agent is added.
 - No existing personal data is backfilled or rewritten. Production migration and activation remain separate rollout actions.
+
+Transfer validation: `node scripts/test-reconciliation-transfers-sql.mjs <test-db-provider>` covers rollback after the second workspace fails, both-account ownership/version checks, strict replay, linked-transfer mutation guards and browser-role ACL. Native PostgreSQL multi-session concurrency and staging RPC adoption remain pending.

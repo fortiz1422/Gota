@@ -13,6 +13,11 @@ import {
 } from '@/lib/reconciliation/domain'
 import type { Command } from '@/lib/reconciliation/commands'
 import { formatArDecimal, parseArSignedDecimalInput } from '@/lib/ar-input'
+import {
+  TransferDraftForm,
+  type TransferTarget,
+  type TransferCandidate,
+} from './TransferDraftForm'
 import { MovementDraftSteps } from './MovementDraftSteps'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { restoreDraft } from '@/lib/reconciliation/draft'
@@ -24,7 +29,11 @@ import {
 import { hasPendingExplanation } from '@/lib/reconciliation/tasks'
 
 type Candidate = {
-  kind?: 'expense' | 'income'
+  kind?: 'expense' | 'income' | 'transfer'
+  effect?: number
+  peerAccountId?: string
+  peerCurrency?: 'ARS' | 'USD'
+  peerEffect?: number
   id: string
   description: string
   amount: number
@@ -33,6 +42,9 @@ type Candidate = {
 type Data = {
   userId: string
   queue?: QueueAccount[]
+  accounts?: QueueAccount[]
+  transferCorrections?: { accountId: string; currency: 'ARS' | 'USD' }[]
+  transferTargets?: TransferTarget[]
   candidates: Candidate[]
   account: { id: string; name: string }
   state: Workspace
@@ -149,6 +161,8 @@ export function ReconciliationFlow({
         await query.refetch()
         await Promise.all([
           cache.invalidateQueries({ queryKey: ['dashboard'] }),
+          cache.invalidateQueries({ queryKey: ['reconciliation'] }),
+          cache.invalidateQueries({ queryKey: ['transfers'] }),
           cache.invalidateQueries({ queryKey: ['intelligence', 'signals'] }),
         ])
         return true
@@ -230,7 +244,11 @@ export function ReconciliationFlow({
   const candidates = data.candidates.filter(
     (c) =>
       targetCheckpoint &&
-      (c.kind === 'income' ? 1 : -1) ===
+      (c.kind === 'transfer'
+        ? Math.sign(c.effect ?? 0)
+        : c.kind === 'income'
+          ? 1
+          : -1) ===
         Math.sign(
           adjustment
             ? remaining(data.state, adjustment)
@@ -469,6 +487,26 @@ export function ReconciliationFlow({
                     >
                       {income ? 'Encontré un ingreso' : 'Encontré un gasto'}
                     </button>
+                    <button
+                      disabled={
+                        busy ||
+                        !(data.accounts ?? []).some((a) => a.id !== accountId)
+                      }
+                      type="button"
+                      onClick={() => {
+                        const nextDraft: Draft = {
+                          ...blank,
+                          kind: 'transfer',
+                          direction: income ? 'in' : 'out',
+                        }
+                        changeDraft(nextDraft)
+                        setEditing(true)
+                        void command({ action: 'draft', draft: nextDraft })
+                      }}
+                      className="rounded-button border-border-strong text-primary min-h-12 w-full border text-sm font-bold"
+                    >
+                      Fue una transferencia propia
+                    </button>
                     <Link
                       href="/movimientos"
                       className="text-primary flex min-h-12 items-center justify-center text-sm font-bold"
@@ -476,6 +514,60 @@ export function ReconciliationFlow({
                       Revisar movimientos
                     </Link>
                   </div>
+                ) : selected?.kind === 'transfer' ||
+                  (editing && draft.kind === 'transfer') ? (
+                  <TransferDraftForm
+                    key={selected?.id ?? 'new-transfer'}
+                    draft={draft}
+                    candidate={
+                      selected?.kind === 'transfer'
+                        ? (selected as TransferCandidate)
+                        : undefined
+                    }
+                    accounts={(data.accounts ?? []).filter(
+                      (a) => a.id !== accountId
+                    )}
+                    targets={data.transferTargets ?? []}
+                    corrections={data.transferCorrections ?? []}
+                    currency={currency}
+                    gap={gap}
+                    checkpointDay={
+                      targetCheckpoint
+                        ? checkpointDay(targetCheckpoint.observedAt)
+                        : ''
+                    }
+                    adjusted={Boolean(adjustment)}
+                    busy={busy}
+                    onChange={changeDraft}
+                    onBack={() => {
+                      if (selected) setSelected(null)
+                      else setEditing(false)
+                    }}
+                    onConfirm={async (
+                      included,
+                      sameDayBefore,
+                      transferPeer
+                    ) => {
+                      const saved = await command({
+                        action: 'resolve',
+                        targetId: adjustment?.id,
+                        included,
+                        sameDayBefore,
+                        transferPeer,
+                        ...(selected
+                          ? {
+                              movementId: selected.id,
+                              movementKind: 'transfer' as const,
+                            }
+                          : { draft: draftRef.current }),
+                      })
+                      if (saved) {
+                        setSelected(null)
+                        clearDraft()
+                      }
+                      return saved
+                    }}
+                  />
                 ) : selected ? (
                   <div className="space-y-4">
                     <p className="type-body-lg">
@@ -641,7 +733,10 @@ export function ReconciliationFlow({
                       onClick={(event) =>
                         setConfirmation({
                           title: '¿Desvincular este movimiento?',
-                          description: 'El movimiento se conserva.',
+                          description:
+                            r.movementKind === 'transfer'
+                              ? 'La transferencia y el vínculo de la otra cuenta se conservan.'
+                              : 'El movimiento se conserva.',
                           label: 'Desvincular',
                           balanceAfter: data.expected + r.effect,
                           command: { action: 'undo', targetId: r.id },

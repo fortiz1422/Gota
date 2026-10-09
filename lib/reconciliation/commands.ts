@@ -34,6 +34,14 @@ export const CommandSchema = z.object({
   movementId: z.string().uuid().optional(),
   movementKind: z.enum(['expense', 'income', 'transfer']).optional(),
   draft: DraftSchema.optional(),
+  transferPeer: z
+    .object({
+      accountId: z.string().uuid(),
+      targetId: z.string().optional(),
+      included: z.boolean(),
+      sameDayBefore: z.boolean(),
+    })
+    .optional(),
   sameDayBefore: z.boolean().optional(),
 })
 export type Command = z.infer<typeof CommandSchema>

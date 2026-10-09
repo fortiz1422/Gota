@@ -11,6 +11,8 @@ import {
   emptyWorkspace,
   moneyToMinor,
   checkpointDay,
+  remaining,
+  observedResidual,
   type MovementEvidence,
 } from '@/lib/reconciliation/domain'
 import { dateInputToISO } from '@/lib/format'
@@ -20,6 +22,7 @@ import {
   readWorkspaces,
   reconciliationEnabled,
   saveWorkspace,
+  saveTransferReconciliation,
 } from '@/lib/reconciliation/repository'
 import { checkRateLimit } from '@/lib/rate-limit'
 import { z } from 'zod'
@@ -95,6 +98,10 @@ async function evidence(
   movement: MovementEvidence
   expense?: Record<string, unknown>
   income?: Record<string, unknown>
+  transfer?: Record<string, unknown>
+  peerAccountId?: string
+  peerCurrency?: 'ARS' | 'USD'
+  peerEffect?: number
 }> {
   const checkpoint = command.targetId
     ? ctx.state.checkpoints.find(
@@ -113,6 +120,55 @@ async function evidence(
         draft.date
     )
       throw new Error('date_required')
+    if (draft.kind === 'transfer') {
+      const amount = moneyToMinor(draft.amount)
+      if (
+        amount < 100 ||
+        !draft.counterAccountId ||
+        draft.counterAccountId === ctx.accountId ||
+        !draft.direction
+      )
+        throw new Error('invalid_transfer')
+      const { data: peer, error } = await ctx.supabase
+        .from('accounts')
+        .select('id')
+        .eq('id', draft.counterAccountId)
+        .eq('user_id', ctx.user.id)
+        .eq('archived', false)
+        .single()
+      if (error || !peer) throw new Error('account_unavailable')
+      if (
+        draft.date === checkpointDay(checkpoint.observedAt) &&
+        !command.sameDayBefore
+      )
+        throw new Error('same_day_confirmation')
+      const id = randomUUID()
+      const effect = draft.direction === 'in' ? amount : -amount
+      return {
+        movement: {
+          id,
+          kind: 'transfer',
+          accountId: ctx.accountId,
+          currency: ctx.currency,
+          effect,
+          occurredAt: `${draft.date}T00:00:00-03:00`,
+          includedBeforeCheckpoint: false,
+        },
+        peerAccountId: peer.id,
+        peerCurrency: ctx.currency,
+        peerEffect: -effect,
+        transfer: {
+          id,
+          from_account_id: effect < 0 ? ctx.accountId : peer.id,
+          to_account_id: effect > 0 ? ctx.accountId : peer.id,
+          amount_from: amount / 100,
+          amount_to: amount / 100,
+          currency_from: ctx.currency,
+          currency_to: ctx.currency,
+          date: draft.date,
+        },
+      }
+    }
     const kind = draft.kind ?? 'expense'
     const amount = moneyToMinor(draft.amount)
     if (
@@ -176,14 +232,38 @@ async function evidence(
   if (error || !data) throw new Error('movement_unavailable')
   const row = data as unknown as Record<string, unknown>
   let effect = 0
+  let peerAccountId: string | undefined
+  let peerCurrency: 'ARS' | 'USD' | undefined
+  let peerEffect: number | undefined
   if (command.movementKind === 'transfer') {
     if (
       row.from_account_id === ctx.accountId &&
       row.currency_from === ctx.currency
-    )
+    ) {
       effect -= moneyToMinor(String(row.amount_from))
-    if (row.to_account_id === ctx.accountId && row.currency_to === ctx.currency)
+      peerAccountId = String(row.to_account_id)
+      peerCurrency = row.currency_to as 'ARS' | 'USD'
+      peerEffect = moneyToMinor(String(row.amount_to))
+    }
+    if (
+      row.to_account_id === ctx.accountId &&
+      row.currency_to === ctx.currency
+    ) {
       effect += moneyToMinor(String(row.amount_to))
+      peerAccountId = String(row.from_account_id)
+      peerCurrency = row.currency_from as 'ARS' | 'USD'
+      peerEffect = -moneyToMinor(String(row.amount_from))
+    }
+    if (!effect || !peerAccountId || peerAccountId === ctx.accountId)
+      throw new Error('invalid_transfer')
+    const { data: peer, error: peerError } = await ctx.supabase
+      .from('accounts')
+      .select('id')
+      .eq('id', peerAccountId)
+      .eq('user_id', ctx.user.id)
+      .eq('archived', false)
+      .single()
+    if (peerError || !peer) throw new Error('account_unavailable')
   } else {
     if (row.account_id !== ctx.accountId || row.currency !== ctx.currency)
       throw new Error('wrong_account_or_currency')
@@ -200,6 +280,9 @@ async function evidence(
   if (date === checkpointDay(checkpoint.observedAt) && !command.sameDayBefore)
     throw new Error('same_day_confirmation')
   return {
+    peerAccountId,
+    peerCurrency,
+    peerEffect,
     movement: {
       id: command.movementId,
       kind: command.movementKind,
@@ -238,33 +321,61 @@ function failure(error: unknown) {
 export async function GET(request: Request) {
   try {
     const ctx = await context(request)
-    const [expenses, incomes, accounts] = await Promise.all([
-      ctx.supabase
-        .from('expenses')
-        .select('id,description,amount,date,payment_method,category')
-        .eq('user_id', ctx.user.id)
-        .eq('account_id', ctx.accountId)
-        .eq('currency', ctx.currency)
-        .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
-        .neq('category', 'Pago de Tarjetas')
-        .order('created_at', { ascending: false })
-        .limit(100),
-      ctx.supabase
-        .from('income_entries')
-        .select('id,description,amount,date,category')
-        .eq('user_id', ctx.user.id)
-        .eq('account_id', ctx.accountId)
-        .eq('currency', ctx.currency)
-        .order('created_at', { ascending: false })
-        .limit(100),
-      ctx.supabase
-        .from('accounts')
-        .select('id,name')
-        .eq('user_id', ctx.user.id)
-        .eq('archived', false)
-        .order('name'),
-    ])
-    if (expenses.error || incomes.error || accounts.error)
+    const [expenses, incomes, accounts, outgoing, incoming] = await Promise.all(
+      [
+        ctx.supabase
+          .from('expenses')
+          .select('id,description,amount,date,payment_method,category')
+          .eq('user_id', ctx.user.id)
+          .eq('account_id', ctx.accountId)
+          .eq('currency', ctx.currency)
+          .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
+          .neq('category', 'Pago de Tarjetas')
+          .order('created_at', { ascending: false })
+          .limit(100),
+        ctx.supabase
+          .from('income_entries')
+          .select('id,description,amount,date,category')
+          .eq('user_id', ctx.user.id)
+          .eq('account_id', ctx.accountId)
+          .eq('currency', ctx.currency)
+          .order('created_at', { ascending: false })
+          .limit(100),
+        ctx.supabase
+          .from('accounts')
+          .select('id,name')
+          .eq('user_id', ctx.user.id)
+          .eq('archived', false)
+          .order('name'),
+        ctx.supabase
+          .from('transfers')
+          .select(
+            'id,from_account_id,to_account_id,amount_from,amount_to,currency_from,currency_to,date'
+          )
+          .eq('user_id', ctx.user.id)
+          .eq('from_account_id', ctx.accountId)
+          .eq('currency_from', ctx.currency)
+          .order('date', { ascending: false })
+          .limit(100),
+        ctx.supabase
+          .from('transfers')
+          .select(
+            'id,from_account_id,to_account_id,amount_from,amount_to,currency_from,currency_to,date'
+          )
+          .eq('user_id', ctx.user.id)
+          .eq('to_account_id', ctx.accountId)
+          .eq('currency_to', ctx.currency)
+          .order('date', { ascending: false })
+          .limit(100),
+      ]
+    )
+    if (
+      expenses.error ||
+      incomes.error ||
+      accounts.error ||
+      outgoing.error ||
+      incoming.error
+    )
       throw new Error('candidates_unavailable')
     const queue = (accounts.data ?? []).filter((account) => {
       const row = ctx.rows.find(
@@ -286,9 +397,76 @@ export async function GET(request: Request) {
       expected: ctx.expected,
       fingerprint: ctx.snapshot.fingerprint,
       queue,
+      accounts: accounts.data ?? [],
+      transferCorrections: ctx.rows
+        .filter((r) =>
+          r.state.adjustments.some(
+            (a) => !a.reversedAt && remaining(r.state, a) !== 0
+          )
+        )
+        .map((r) => ({ accountId: r.account_id, currency: r.currency })),
+      transferTargets: ctx.rows.flatMap((row) => {
+        if (row.account_id === ctx.accountId) return []
+        const adjustments = row.state.adjustments.filter(
+          (a) =>
+            !a.reversedAt && !a.manuallyClosed && remaining(row.state, a) !== 0
+        )
+        const targets = adjustments.map((a) => ({
+          accountId: row.account_id,
+          currency: row.currency,
+          targetId: a.id,
+          checkpointDay: checkpointDay(
+            row.state.checkpoints.find((c) => c.id === a.checkpointId)!
+              .observedAt
+          ),
+          amount: remaining(row.state, a),
+        }))
+        const cp = row.state.checkpoints.at(-1)
+        if (
+          cp &&
+          !row.state.adjustments.some(
+            (a) => a.checkpointId === cp.id && !a.reversedAt
+          ) &&
+          observedResidual(row.state, cp) !== 0
+        )
+          targets.push({
+            accountId: row.account_id,
+            currency: row.currency,
+            targetId: '',
+            checkpointDay: checkpointDay(cp.observedAt),
+            amount: observedResidual(row.state, cp),
+          })
+        return targets
+      }),
       candidates: [
         ...(expenses.data ?? []).map((c) => ({ ...c, kind: 'expense' })),
         ...(incomes.data ?? []).map((c) => ({ ...c, kind: 'income' })),
+        ...(outgoing.data ?? [])
+          .filter((t) => t.to_account_id !== ctx.accountId)
+          .map((t) => ({
+            id: t.id,
+            kind: 'transfer',
+            date: t.date,
+            amount: t.amount_from,
+            effect: -moneyToMinor(String(t.amount_from)),
+            peerAccountId: t.to_account_id,
+            peerCurrency: t.currency_to,
+            peerEffect: moneyToMinor(String(t.amount_to)),
+            description: `A ${accounts.data?.find((a) => a.id === t.to_account_id)?.name ?? 'otra cuenta'}`,
+          })),
+        ...(incoming.data ?? [])
+          .filter((t) => t.from_account_id !== ctx.accountId)
+          .map((t) => ({
+            id: t.id,
+            kind: 'transfer',
+            date: t.date,
+            amount: t.amount_to,
+            effect: moneyToMinor(String(t.amount_to)),
+            peerAccountId: t.from_account_id,
+            peerCurrency: t.currency_from,
+            peerEffect: -moneyToMinor(String(t.amount_from)),
+            description: `Desde ${accounts.data?.find((a) => a.id === t.from_account_id)?.name ?? 'otra cuenta'}`,
+          })),
       ],
     })
   } catch (error) {
@@ -326,6 +504,97 @@ export async function POST(request: Request) {
       movementIds: ctx.snapshot.movementIds,
       movement: resolved?.movement,
     })
+    if (resolved?.movement.kind === 'transfer') {
+      const changes = [
+        {
+          accountId: ctx.accountId,
+          currency: ctx.currency,
+          version: command.version,
+          state,
+        },
+      ]
+      if (
+        resolved.transfer &&
+        !command.transferPeer &&
+        ctx.rows.some(
+          (r) =>
+            r.account_id === resolved.peerAccountId &&
+            r.currency === resolved.peerCurrency &&
+            r.state.adjustments.some(
+              (a) => !a.reversedAt && remaining(r.state, a) !== 0
+            )
+        )
+      )
+        throw new Error('peer_confirmation_required')
+      if (command.transferPeer) {
+        const peer = command.transferPeer
+        if (peer.accountId !== resolved.peerAccountId)
+          throw new Error('wrong_account_or_currency')
+        const { data: account, error } = await ctx.supabase
+          .from('accounts')
+          .select('id')
+          .eq('id', peer.accountId)
+          .eq('user_id', ctx.user.id)
+          .eq('archived', false)
+          .single()
+        if (error || !account) throw new Error('account_unavailable')
+        const row = ctx.rows.find(
+          (r) =>
+            r.account_id === peer.accountId &&
+            r.currency === resolved.peerCurrency
+        )
+        if (!row) throw new Error('checkpoint_missing')
+        const cp = peer.targetId
+          ? row.state.checkpoints.find(
+              (c) =>
+                c.id ===
+                row.state.adjustments.find((a) => a.id === peer.targetId)
+                  ?.checkpointId
+            )
+          : row.state.checkpoints.at(-1)
+        if (!cp) throw new Error('checkpoint_missing')
+        if (
+          String(resolved.movement.occurredAt).slice(0, 10) ===
+            checkpointDay(cp.observedAt) &&
+          !peer.sameDayBefore
+        )
+          throw new Error('same_day_confirmation')
+        const peerState = applyCommand(
+          row.state,
+          { ...command, targetId: peer.targetId, included: peer.included },
+          {
+            now: new Date().toISOString(),
+            expected: 0,
+            movementIds: ctx.snapshot.movementIds,
+            movement: {
+              ...resolved.movement,
+              accountId: peer.accountId,
+              currency: row.currency,
+              effect: resolved.peerEffect!,
+              includedBeforeCheckpoint: cp.includedMovementIds.includes(
+                `transfer:${resolved.movement.id}`
+              ),
+            },
+          }
+        )
+        changes.push({
+          accountId: peer.accountId,
+          currency: row.currency,
+          version: row.version,
+          state: peerState,
+        })
+      }
+      await saveTransferReconciliation({
+        userId: ctx.user.id,
+        fingerprint: command.fingerprint,
+        requestId: command.requestId,
+        intentHash,
+        transfer: resolved.transfer,
+        changes,
+      })
+      return json({ saved: true })
+    }
+    if (command.transferPeer) throw new Error('invalid_transfer')
     await saveWorkspace({
       userId: ctx.user.id,
       accountId: ctx.accountId,

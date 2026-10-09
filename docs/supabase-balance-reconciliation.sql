@@ -149,3 +149,62 @@ begin
 end $$;
 revoke all on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb,jsonb) from public,anon,authenticated;
 grant execute on function public.save_balance_reconciliation(uuid,uuid,text,integer,text,uuid,text,jsonb,jsonb,jsonb) to service_role;
+
+-- Unique RPC name avoids ambiguity with the earlier expense/income signature.
+-- Prepared only. No production schema is modified by this file.
+create function public.save_transfer_reconciliation(
+  p_user_id uuid,p_ledger_fingerprint text,p_request_id uuid,p_intent_hash text,
+  p_transfer jsonb,p_changes jsonb
+) returns jsonb language plpgsql security invoker set search_path=pg_catalog,pg_temp as $$
+declare prior public.balance_reconciliation_audit; change jsonb; snap jsonb; result jsonb; i integer:=0;
+begin
+  perform pg_advisory_xact_lock(hashtextextended('gota-ledger:user:'||p_user_id::text,0));
+  select * into prior from public.balance_reconciliation_audit where user_id=p_user_id and request_id=p_request_id;
+  if found then
+    if prior.intent_hash<>p_intent_hash then raise exception 'idempotency conflict' using errcode='55000'; end if;
+    return jsonb_build_object('saved',true);
+  end if;
+  snap:=public.balance_reconciliation_ledger_snapshot(p_user_id);
+  if snap->>'fingerprint' is distinct from p_ledger_fingerprint then raise exception 'ledger changed' using errcode='55000'; end if;
+  if jsonb_typeof(p_changes) is distinct from 'array' or jsonb_array_length(p_changes) not between 1 and 2 then
+    raise exception 'invalid transfer changes' using errcode='22023';
+  end if;
+  if jsonb_array_length(p_changes)=2 and p_changes->0->>'accountId'=p_changes->1->>'accountId' then
+    raise exception 'distinct accounts required' using errcode='22023';
+  end if;
+  -- Validate both owners/versions before touching the ledger.
+  for change in select value from jsonb_array_elements(p_changes) loop
+    if not exists(select 1 from public.accounts where id=(change->>'accountId')::uuid and user_id=p_user_id and not archived) then
+      raise exception 'account unavailable' using errcode='P0002';
+    end if;
+    if coalesce((select version from public.balance_reconciliation_workspaces where user_id=p_user_id and account_id=(change->>'accountId')::uuid and currency=change->>'currency'),0) is distinct from (change->>'version')::integer then
+      raise exception 'workspace changed' using errcode='55000';
+    end if;
+  end loop;
+  if p_transfer is not null then
+    if p_transfer->>'from_account_id' is not distinct from p_transfer->>'to_account_id'
+      or coalesce(p_transfer->>'currency_from','') not in ('ARS','USD')
+      or p_transfer->>'currency_from' is distinct from p_transfer->>'currency_to'
+      or coalesce((p_transfer->>'amount_from')::numeric,0)<1
+      or (p_transfer->>'amount_from')::numeric is distinct from (p_transfer->>'amount_to')::numeric
+      or p_transfer->>'date' is null or (p_transfer->>'date')::date>(now() at time zone 'America/Argentina/Buenos_Aires')::date
+      or not exists(select 1 from public.accounts where id=(p_transfer->>'from_account_id')::uuid and user_id=p_user_id and not archived)
+      or not exists(select 1 from public.accounts where id=(p_transfer->>'to_account_id')::uuid and user_id=p_user_id and not archived) then
+      raise exception 'invalid reconciliation transfer' using errcode='22023';
+    end if;
+    insert into public.transfers(id,user_id,from_account_id,to_account_id,amount_from,amount_to,currency_from,currency_to,date)
+      values((p_transfer->>'id')::uuid,p_user_id,(p_transfer->>'from_account_id')::uuid,(p_transfer->>'to_account_id')::uuid,
+        (p_transfer->>'amount_from')::numeric,(p_transfer->>'amount_to')::numeric,p_transfer->>'currency_from',p_transfer->>'currency_to',(p_transfer->>'date')::date);
+  end if;
+  for change in select value from jsonb_array_elements(p_changes) loop
+    -- All calls stay inside this transaction/user lock. A later failure rolls back
+    -- the transfer, both workspaces and both audit records.
+    snap:=public.balance_reconciliation_ledger_snapshot(p_user_id);
+    result:=public.save_balance_reconciliation(p_user_id,(change->>'accountId')::uuid,change->>'currency',(change->>'version')::integer,
+      snap->>'fingerprint',case when i=0 then p_request_id else gen_random_uuid() end,p_intent_hash,change->'state',null,null);
+    i:=i+1;
+  end loop;
+  return jsonb_build_object('saved',true);
+end $$;
+revoke all on function public.save_transfer_reconciliation(uuid,text,uuid,text,jsonb,jsonb) from public,anon,authenticated;
+grant execute on function public.save_transfer_reconciliation(uuid,text,uuid,text,jsonb,jsonb) to service_role;

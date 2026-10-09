@@ -36,7 +36,9 @@ export type Resolution = {
   reversedAt: string | null
 }
 export type Draft = {
-  kind?: 'expense' | 'income'
+  kind?: 'expense' | 'income' | 'transfer'
+  counterAccountId?: string
+  direction?: 'in' | 'out'
   amount: string
   description: string
   category: string
