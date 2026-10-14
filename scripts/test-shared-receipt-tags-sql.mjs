@@ -1,0 +1,24 @@
+import { pathToFileURL, fileURLToPath } from 'node:url';
+const { PGlite } = await import(pathToFileURL(process.argv[2]).href);
+import { readFileSync } from 'node:fs';
+import assert from 'node:assert/strict';
+const db=new PGlite();
+const root=fileURLToPath(new URL('..', import.meta.url));
+const base=readFileSync(root+'/docs/supabase-shared-receipts.sql','utf8');
+const fn=base.slice(base.indexOf('create or replace function public.confirm_shared_receipt_purchase('),base.indexOf('revoke all on function public.confirm_shared_receipt_purchase'));
+await db.exec(`create table accounts(id uuid,user_id uuid,archived boolean);create table cards(id uuid,user_id uuid,archived boolean,closing_day int,due_day int);create table card_cycles(id uuid default gen_random_uuid(),user_id uuid,card_id uuid,period_month date,closing_date date,due_date date,status text,unique(card_id,period_month));create table shared_receipts(id uuid,user_id uuid,status text,parsed_payload jsonb,confirmation_payload_hash text,matched_expense_id uuid,confirmed_at timestamptz,updated_at timestamptz);create table expenses(id uuid default gen_random_uuid(),user_id uuid,amount numeric,currency text,category text,description text,is_want boolean,is_recurring boolean,is_extraordinary boolean,payment_method text,card_id uuid,card_cycle_id uuid,account_id uuid,date date,installment_group_id uuid,installment_number int,installment_total int,source_shared_receipt_id uuid);`);
+// Exercise migration against the old deployed INSERT shape.
+await db.exec(fn.replace('is_want, is_recurring, is_extraordinary,','is_want,').replace("      coalesce((p_payload->>'is_recurring')::boolean, false), coalesce((p_payload->>'is_extraordinary')::boolean, false),\n",''));
+const migration=readFileSync(root+'/docs/supabase-shared-receipt-confirmation-tags.sql','utf8');
+await db.exec(migration);await db.exec(migration);
+const u='00000000-0000-4000-8000-000000000001',r='00000000-0000-4000-8000-000000000002',a='00000000-0000-4000-8000-000000000003';
+await db.query('insert into accounts values($1,$2,false)',[a,u]);await db.query("insert into shared_receipts(id,user_id,status,parsed_payload) values($1,$2,'needs_review',$3)",[r,u,JSON.stringify({transaction_type:'purchase'})]);
+const payload={transaction_type:'purchase',amount:12345,currency:'ARS',category:'Educación',description:'Ejemplo ficticio',is_want:false,is_recurring:true,is_extraordinary:false,payment_method:'TRANSFER',account_id:a,card_id:null,date:'2026-01-10',installments:1};
+const hash='a'.repeat(64);
+assert.equal((await db.query('select * from confirm_shared_receipt_purchase($1,$2,$3,$4)',[u,r,JSON.stringify(payload),hash])).rows[0].outcome,'confirmed');
+assert.deepEqual((await db.query('select amount::int,is_recurring,is_extraordinary from expenses')).rows,[{amount:12345,is_recurring:true,is_extraordinary:false}]);
+assert.equal((await db.query('select * from confirm_shared_receipt_purchase($1,$2,$3,$4)',[u,r,JSON.stringify(payload),hash])).rows[0].outcome,'replay');
+assert.equal((await db.query('select count(*)::int n from expenses')).rows[0].n,1);
+console.log('PASS: migration idempotency, confirmation, tag persistence and replay without duplicate. Disposable DB only.');
+await assert.rejects(db.query('select * from confirm_shared_receipt_purchase($1,$2,$3,$4)',['00000000-0000-4000-8000-000000000099',r,JSON.stringify(payload),hash]));
+await db.close();

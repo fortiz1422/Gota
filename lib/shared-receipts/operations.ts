@@ -107,6 +107,8 @@ export const ConfirmSharedPurchaseSchema = z
     category: z.enum(CATEGORIES),
     description: z.string().trim().min(1).max(100),
     is_want: z.boolean().nullable(),
+    is_recurring: z.boolean().optional(),
+    is_extraordinary: z.boolean().optional(),
     payment_method: z.enum(['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
     account_id: z.uuid().nullable(),
     card_id: z.uuid().nullable(),

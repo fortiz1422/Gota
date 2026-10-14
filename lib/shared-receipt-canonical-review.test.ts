@@ -113,7 +113,7 @@ describe('shared receipt canonical expense review', () => {
       embedded: true,
     }))
 
-    expect(html).toContain('Sugerencia:')
+    expect(html).toContain('Comercio sugerido:')
     expect(html).toContain('Alejandro La Briola · Alimentos')
     expect(html).toContain('Texto detectado: La briola')
   })

@@ -662,10 +662,13 @@ export function ParsePreview({
               <span className="block font-medium">Recordar este comercio para próximas veces</span>
               {data.alias_match ? (
                 <span className="mt-1 block text-xs text-text-tertiary">
-                  {data.alias_match.match_type === 'suggestion' ? 'Sugerencia' : 'Comercio reconocido'}:{' '}
+                  {data.alias_match.match_type === 'suggestion' ? 'Comercio sugerido' : 'Alias guardado'}:{' '}
                   {data.alias_match.display_name}
                   {data.alias_match.default_category ? ` · ${data.alias_match.default_category}` : ''}
                   <span className="block">Texto detectado: {detectedAlias}</span>
+                  {data.alias_match.match_type === 'exact' && (
+                    <span className="block">Ya está vinculado. Marcá la casilla para actualizar el comercio o su categoría.</span>
+                  )}
                 </span>
               ) : (
                 <span className="mt-1 block text-xs text-text-tertiary">Texto detectado: {detectedAlias}</span>
