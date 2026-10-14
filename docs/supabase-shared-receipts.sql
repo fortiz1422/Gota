@@ -312,12 +312,13 @@ begin
     v_row_cents := v_base_cents
       + case when v_index = v_installments - 1 then v_total_cents - v_base_cents * v_installments else 0 end;
     insert into public.expenses (
-      user_id, amount, currency, category, description, is_want,
+      user_id, amount, currency, category, description, is_want, is_recurring, is_extraordinary,
       payment_method, card_id, card_cycle_id, account_id, date,
       installment_group_id, installment_number, installment_total, source_shared_receipt_id
     ) values (
       p_user_id, v_row_cents::numeric / 100, p_payload->>'currency',
       p_payload->>'category', p_payload->>'description', (p_payload->>'is_want')::boolean,
+      coalesce((p_payload->>'is_recurring')::boolean, false), coalesce((p_payload->>'is_extraordinary')::boolean, false),
       v_payment_method, v_card_id, v_cycle_id, v_account_id, v_expense_date,
       v_installment_group_id,
       case when v_installments > 1 then v_index + 1 else null end,
