@@ -71,8 +71,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ is_valid: false, reason: 'Usá una frase de hasta 500 caracteres.' }, { status: 400 })
     }
 
-    // Text never calls the paid model, including failures and ambiguities.
-    if (!receiptInlineData && !voiceInlineData) {
+    // Accounts with paid AI enabled use Gemini first, as before the public launch.
+    if (!receiptInlineData && !voiceInlineData && !canUsePaidAI(user)) {
       const { data: config } = await supabase.from('user_config').select('default_currency').eq('user_id', user.id).maybeSingle()
       const local = parseTextExpenseFallback(input, todayAR(), { defaultCurrency: config?.default_currency === 'USD' ? 'USD' : 'ARS' })
       if (!local.is_valid) return NextResponse.json(local)
@@ -116,7 +116,7 @@ export async function POST(request: Request) {
     } catch {
       // Existing financial parsing must keep working when alias reads fail.
     }
-    return NextResponse.json(enrichParsedExpensePreview(validated, match))
+    return NextResponse.json(enrichParsedExpensePreview({ ...validated, source_text: input }, match))
   } catch (error) {
     captureRouteError(error, {
       route: 'POST /api/parse-expense',
@@ -130,7 +130,17 @@ export async function POST(request: Request) {
         reason: 'No pude interpretar ese gasto. Revisa que tenga descripcion y monto.',
       })
     }
-
+    if (input && !receiptInlineData && !voiceInlineData) {
+      const fallback = parseTextExpenseFallback(input, todayAR())
+      if (!fallback.is_valid) return NextResponse.json(fallback)
+      let match = null
+      try {
+        match = await resolveSavedCounterparty(supabase, user.id, fallback.description)
+      } catch {
+        // Alias memory is optional; local parsing must remain available.
+      }
+      return NextResponse.json(enrichParsedExpensePreview({ ...fallback, source_text: input }, match))
+    }
 
     return NextResponse.json({
       is_valid: false,
