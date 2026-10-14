@@ -37,7 +37,7 @@ beforeEach(() => {
   vi.stubEnv('GOTA_PAID_AI_ENABLED', 'true')
   vi.stubEnv('GOTA_PAID_AI_USER_IDS', 'owner')
   mocks.user.mockResolvedValue({
-    data: { user: { id: 'owner', is_anonymous: false } },
+    data: { user: { id: 'public-user', is_anonymous: false } },
   })
   mocks.config.mockResolvedValue({ data: { default_currency: 'ARS' } })
   const chain = {
@@ -56,7 +56,7 @@ afterEach(() => {
   vi.unstubAllEnvs()
   vi.useRealTimers()
 })
-describe('text parsing never invokes a paid fallback', () => {
+describe('public text parsing never invokes a paid fallback', () => {
   it.each(auditCases)('API audit $id: $input', async (entry) => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(`${entry.today}T15:00:00Z`))
@@ -72,7 +72,7 @@ describe('text parsing never invokes a paid fallback', () => {
     }
     expect(mocks.model).not.toHaveBeenCalled()
   })
-  it('prepares text for review even for an allowlisted user', async () => {
+  it('prepares text for review for a public user', async () => {
     const result = await POST(request('ayer gasté 20 mil en el súper'))
     expect(await result.json()).toMatchObject({
       is_valid: true,
