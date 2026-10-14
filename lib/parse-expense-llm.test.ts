@@ -12,9 +12,9 @@ const request = (input: string) => new Request('https://gota.test/api/parse-expe
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ input }),
 })
 const proposal = {
-  is_valid: true, amount: 8200, currency: 'ARS', description: 'Raíz Atelier',
+  is_valid: true, amount: 7300, currency: 'ARS', description: 'Cafetería de prueba',
   category: 'Restaurantes', is_want: true, payment_method: 'TRANSFER', card_id: null,
-  date: '2026-10-14',
+  date: '2026-01-15',
 }
 beforeEach(() => {
   vi.resetAllMocks()
@@ -28,11 +28,11 @@ afterEach(() => vi.unstubAllEnvs())
 
 describe('allowlisted text uses the previous LLM flow', () => {
   it('uses Gemini directly and returns a proposal requiring confirmation', async () => {
-    const input = 'Pagué ocho mil doscientos por el desayuno en Raíz'
+    const input = 'Pagué siete mil trescientos por el desayuno en la cafetería'
     const result = await POST(request(input))
     expect(await result.json()).toMatchObject({ ...proposal, source_text: input, auto_confirmed: false })
     expect(mocks.model).toHaveBeenCalledTimes(1)
-    expect(mocks.match).toHaveBeenCalledWith(expect.anything(), 'owner', 'Raíz Atelier')
+    expect(mocks.match).toHaveBeenCalledWith(expect.anything(), 'owner', 'Cafetería de prueba')
   })
   it('preserves a model rejection without replacing it with a local guess', async () => {
     mocks.model.mockResolvedValue({ response: { text: () => JSON.stringify({ is_valid: false, reason: 'Falta el monto' }) } })
@@ -50,6 +50,6 @@ describe('allowlisted text uses the previous LLM flow', () => {
   })
   it('does not lose the model proposal when alias storage is unavailable', async () => {
     mocks.match.mockRejectedValue(new Error('no table'))
-    expect(await (await POST(request('desayuno 8200'))).json()).toMatchObject({ ...proposal, auto_confirmed: false })
+    expect(await (await POST(request('desayuno 7300'))).json()).toMatchObject({ ...proposal, auto_confirmed: false })
   })
 })
