@@ -10,7 +10,8 @@
     "lint:fix": "eslint . --fix",
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
-    "test": "vitest run"
+    "test": "vitest run",
+    "test:e2e:landing": "playwright test -c e2e/landing/playwright.config.ts"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
@@ -28,6 +29,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@playwright/test": "1.64.1",
     "@tailwindcss/forms": "^0.5.11",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",

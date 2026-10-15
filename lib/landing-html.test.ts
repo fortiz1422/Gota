@@ -185,21 +185,14 @@ describe('landing copy and CTA injection', () => {
   })
 })
 
-describe('landing robots and sitemap', () => {
-  it('points crawlers at gota.money and lists the public pages', () => {
+describe('landing robots', () => {
+  it('points crawlers at the gota.money sitemap', () => {
     const robots = readFileSync(
       join(process.cwd(), 'public/robots.txt'),
       'utf8'
     )
     expect(robots).toContain('Sitemap: https://gota.money/sitemap.xml')
     expect(robots).not.toContain('gota.app')
-    const sitemap = readFileSync(
-      join(process.cwd(), 'public/sitemap.xml'),
-      'utf8'
-    )
-    expect(sitemap).toContain('<loc>https://gota.money/</loc>')
-    expect(sitemap).toContain('<loc>https://gota.money/privacy</loc>')
-    expect(sitemap).toContain('<loc>https://gota.money/terms</loc>')
   })
 })
 

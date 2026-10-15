@@ -1,0 +1,1198 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gota — ¿Tenés claro cómo viene tu plata? (mockup v5.7 · borrador)</title>
+<meta name="description" content="Entre bancos, tarjetas y cuotas, es fácil perder la cuenta. Gota te la ordena. Gota, tu plata clara.">
+<link rel="preload" href="/landing/v57/fonts/gyByhwUxId8gMEwcGFU.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/landing/v57/fonts/geist.css">
+<style>
+:root{
+  --bg:#F8F9F7;
+  --ink:#152F3B;
+  --muted:#536770;
+  --blue:#2178A8;
+  --blue-hover:#185E83;
+  --value:#153B50;
+  --value-body:#D3E0E7;
+  --value-sub:#A2CEDB;
+  --blob:#E4EDF0;
+  --trust:#E7EEF0;
+  --cta-band:#EDF2F2;
+  --inset:#F2F6F6;
+  --card:#FFFFFF;
+  --line:#E2E8E7;
+  --faq-line:#D8E1E3;
+  --meta:#83959D;
+  --meta-2:#68808B;
+  --label:#456878;
+  --ok:#1A7A42;
+  --warn:#B84A12;
+  --danger:#A61E1E;
+  --ok-soft:rgba(26,122,66,.09);
+  --warn-soft:rgba(184,74,18,.10);
+  --blue-soft:rgba(33,120,168,.09);
+  --wrap:1180px;
+  --font:Geist,"Geist Sans",system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
+  --r-cta:14px;
+  --r-card:20px;
+  --r-inset:12px;
+}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--ink);
+  font-family:var(--font);
+  font-size:16px;
+  line-height:1.8;
+  -webkit-font-smoothing:antialiased;
+  overflow-x:hidden;
+}
+a{color:inherit;text-decoration:none}
+img{display:block;max-width:100%}
+.wrap{max-width:var(--wrap);margin:0 auto;padding:0 36px}
+.num{font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+
+/* eyebrow */
+.eyebrow{
+  font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;
+  color:var(--blue);display:flex;align-items:center;gap:9px;margin:0 0 24px;
+}
+.eyebrow::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--blue);flex:0 0 auto}
+
+h1,h2,h3{margin:0;color:var(--ink)}
+h1{font-size:clamp(48px,6.2vw,72px);font-weight:650;line-height:1;letter-spacing:-.065em}
+h1 em{font-style:normal;color:var(--blue)}
+h2{font-size:clamp(30px,3.8vw,47px);font-weight:600;line-height:1.13;letter-spacing:-.045em}
+h3{font-size:21px;font-weight:600;letter-spacing:-.03em;line-height:1.25}
+p{margin:0}
+.lead{font-size:23px;line-height:1.5;letter-spacing:-.025em}
+.muted{color:var(--muted)}
+.meta{font-size:14px;line-height:1.8;color:var(--meta)}
+
+/* buttons */
+.cta{
+  display:inline-flex;align-items:center;justify-content:center;gap:16px;
+  padding:18px 24px;background:var(--blue);color:#fff;border:0;
+  border-radius:var(--r-cta);font:650 15px/1 var(--font);
+  box-shadow:0 6px 16px #2178A815;cursor:pointer;transition:background .2s;
+}
+.cta:hover{background:var(--blue-hover)}
+.cta .arrow{font-size:18px;line-height:1}
+.textLink{
+  display:inline-flex;align-items:center;gap:14px;
+  font-size:13px;font-weight:650;color:var(--blue);
+}
+.textLink:hover{color:var(--blue-hover)}
+
+/* header */
+.header{
+  max-width:var(--wrap);margin:0 auto;height:96px;
+  display:flex;align-items:center;justify-content:space-between;padding:0 36px;
+}
+.header .logo{display:flex;align-items:center}
+.header .logo img{width:108px;height:32px}
+.header nav{display:flex;align-items:center;gap:36px;font-size:14px;font-weight:600}
+.header nav a{color:var(--ink)}
+.header nav a:hover{color:var(--blue)}
+.header .nav-login{color:var(--muted)}
+
+/* hero */
+.hero{padding:48px 0 92px}
+.hero .wrap{
+  display:grid;grid-template-columns:1.1fr 1fr;gap:52px;align-items:center;
+}
+.hero .lead{margin-top:28px;max-width:34ch}
+.hero .actions{margin-top:32px;display:flex;flex-wrap:wrap;align-items:center;gap:22px}
+.hero .fine{margin-top:16px;font-size:12px;line-height:1.7;color:var(--muted)}
+
+/* simulator */
+.sim-wrap{position:relative}
+.sim-blob{
+  position:absolute;inset:-28px -20px -36px -28px;
+  background:var(--blob);border-radius:120px 120px 36px 36px;
+  transform:rotate(-6deg);z-index:0;
+}
+.sim{
+  position:relative;z-index:1;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);
+  padding:26px;
+}
+.sim-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sim-head .title{font-size:14px;font-weight:600;color:var(--label)}
+.tag-ex{
+  font-size:11px;font-weight:650;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--meta-2);background:var(--inset);border:1px solid var(--line);
+  border-radius:999px;padding:5px 10px;
+}
+.sim-field{margin-bottom:16px}
+.sim-field label{
+  display:block;font-size:12px;font-weight:650;color:var(--meta-2);
+  letter-spacing:.02em;margin-bottom:8px;
+}
+.sim-field .input-row{
+  display:flex;align-items:center;gap:8px;
+  background:var(--inset);border:1px solid var(--line);border-radius:var(--r-inset);
+  padding:12px 14px;
+}
+.sim-field .input-row:focus-within{border-color:var(--blue);box-shadow:0 0 0 3px #2178A822}
+.sim-field .prefix{font-size:16px;font-weight:600;color:var(--muted)}
+.sim-field input{
+  flex:1;min-width:0;border:0;background:transparent;outline:0;
+  font:650 22px/1.1 var(--font);color:var(--ink);letter-spacing:-.035em;
+  font-variant-numeric:tabular-nums;
+}
+.sim-field.committed .input-row{background:var(--warn-soft);border-color:rgba(184,74,18,.18)}
+.sim-field.committed .prefix,.sim-field.committed input{color:var(--warn)}
+.sim-out{
+  margin-top:8px;padding:18px;border-radius:var(--r-inset);
+  background:var(--blue-soft);
+}
+.sim-out .k{font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--blue)}
+.sim-out .v{font-size:clamp(32px,4vw,40px);font-weight:650;letter-spacing:-.045em;line-height:1.1;margin-top:6px;color:var(--ink)}
+.sim-out .v.neg{color:var(--danger)}
+.sim-bar{display:flex;height:7px;border-radius:8px;overflow:hidden;margin-top:14px;background:#C8E0E9}
+.sim-bar b{display:block;background:var(--blue);min-width:0}
+.sim-bar s{display:block;background:rgba(184,74,18,.45);text-decoration:none;min-width:0}
+.sim-legend{display:flex;justify-content:space-between;font-size:12px;color:var(--meta);margin-top:8px}
+.sim-eq{margin-top:14px;font-size:13px;color:var(--muted);line-height:1.5}
+
+/* sections */
+section.block{padding:96px 0}
+section.band{padding:88px 0;background:var(--value);color:#fff}
+section.band h2{color:#fff}
+section.band .lead{color:var(--value-body);margin-top:18px;max-width:44ch}
+section.band .eyebrow{color:var(--value-sub)}
+section.band .eyebrow::before{background:var(--value-sub)}
+section.soft{background:var(--trust)}
+section.cta-band{background:var(--cta-band)}
+
+.head2{display:flex;justify-content:space-between;align-items:end;gap:40px;margin-bottom:44px}
+.head2 p{max-width:40ch;color:var(--muted);font-size:16px;line-height:1.8}
+
+/* timeline (card cycle) */
+.tl-grid{display:grid;grid-template-columns:1fr 1.15fr;gap:56px;align-items:start}
+.tl-copy .lead{margin-top:18px;font-size:18px;max-width:38ch;color:var(--muted);line-height:1.55;letter-spacing:-.015em}
+.tl-bullets{list-style:none;padding:0;margin:28px 0 0;display:grid;gap:14px}
+.tl-bullets li{
+  display:flex;gap:12px;align-items:flex-start;
+  font-size:15px;color:var(--ink);line-height:1.45;
+}
+.tl-bullets li::before{
+  content:"";flex:0 0 8px;height:8px;margin-top:7px;border-radius:50%;background:var(--blue);
+}
+.timeline{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:28px 26px;
+}
+.tl-track{position:relative;display:grid;gap:0;padding-left:28px}
+.tl-track::before{
+  content:"";position:absolute;left:7px;top:10px;bottom:10px;width:2px;background:var(--line);
+}
+.tl-step{position:relative;padding:0 0 28px}
+.tl-step:last-child{padding-bottom:0}
+.tl-step .dot{
+  position:absolute;left:-28px;top:4px;width:16px;height:16px;border-radius:50%;
+  background:var(--card);border:2px solid var(--blue);z-index:1;
+}
+.tl-step.done .dot{background:var(--blue)}
+.tl-step.now .dot{background:var(--blue);box-shadow:0 0 0 4px var(--blue-soft)}
+.tl-step .when{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+.tl-step h3{font-size:17px;margin-bottom:6px}
+.tl-step p{font-size:14px;color:var(--muted);line-height:1.55;max-width:36ch}
+.tl-step .amt{margin-top:10px;display:inline-flex;align-items:center;gap:8px;font-size:14px;font-weight:650;padding:6px 10px;border-radius:8px;background:var(--inset);color:var(--ink)}
+.tl-step.now .amt{background:var(--warn-soft);color:var(--warn)}
+.tl-step.pay .amt{background:var(--ok-soft);color:var(--ok)}
+
+/* accounts */
+.acc-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:40px}
+.acc-card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:26px;
+}
+.acc-card .row{display:flex;justify-content:space-between;align-items:baseline;padding:12px 0;border-bottom:1px solid var(--line)}
+.acc-card .row:last-child{border-bottom:0;padding-bottom:0}
+.acc-card .row:first-child{padding-top:0}
+.acc-card .k{font-size:15px;color:var(--muted)}
+.acc-card .v{font-size:18px;font-weight:650;letter-spacing:-.03em}
+.acc-card .cur{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--meta-2);margin-bottom:14px}
+.acc-note{
+  margin-top:20px;padding:18px;background:var(--inset);border-radius:var(--r-inset);
+  font-size:14px;color:var(--muted);line-height:1.6;
+}
+
+/* NL secondary */
+.nl-sec{padding:64px 0}
+.nl-box{
+  display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:32px 36px;
+}
+.nl-box h2{font-size:clamp(24px,3vw,32px)}
+.nl-box .sub{margin-top:12px;color:var(--muted);font-size:15px;max-width:36ch;line-height:1.6}
+.nl-demo{display:flex;flex-direction:column;gap:12px}
+.nl-chip{
+  display:flex;flex-wrap:wrap;align-items:center;gap:10px;
+  padding:14px 16px;background:var(--inset);border-radius:var(--r-inset);border:1px solid var(--line);
+}
+.nl-chip .q{font-size:15px;color:var(--ink);font-weight:500}
+.nl-chip .q::before{content:"“"} .nl-chip .q::after{content:"”"}
+.nl-chip .parts{display:flex;flex-wrap:wrap;gap:6px}
+.nl-chip .parts span{
+  font-size:12px;font-weight:650;padding:6px 9px;border-radius:8px;
+  background:var(--card);border:1px solid var(--line);color:var(--label);
+}
+.nl-review{
+  font-size:13px;color:var(--muted);padding-left:2px;line-height:1.5;
+}
+
+/* cómo funciona (v3) */
+.how-sec{padding:64px 0}
+.how-head{margin-bottom:28px}
+.how-head .sub{margin-top:12px;color:var(--muted);font-size:16px;max-width:52ch;line-height:1.6}
+.how-grid{display:grid;grid-template-columns:minmax(0,1fr);gap:20px}
+.step-n{
+  display:inline-grid;place-items:center;width:26px;height:26px;border-radius:50%;
+  background:var(--blue-soft);color:var(--blue);font-size:12px;font-weight:700;margin-bottom:14px;
+}
+.nl-box h3{font-size:clamp(22px,2.6vw,28px);letter-spacing:-.04em}
+.ios-box{
+  display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:32px 36px;
+}
+.ios-box h3{font-size:clamp(22px,2.6vw,28px);letter-spacing:-.04em}
+.ios-box .sub{margin-top:12px;color:var(--muted);font-size:15px;max-width:38ch;line-height:1.6}
+.ios-box .steps{list-style:none;padding:0;margin:18px 0 0;display:grid;gap:8px;counter-reset:s}
+.ios-box .steps li{display:flex;gap:10px;font-size:14px;color:var(--ink);line-height:1.45}
+.ios-box .steps li::before{counter-increment:s;content:counter(s);flex:0 0 20px;height:20px;border-radius:50%;background:var(--inset);border:1px solid var(--line);font-size:11px;font-weight:700;color:var(--label);display:grid;place-items:center;margin-top:1px}
+.step-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.step-row .step-n{margin-bottom:0}
+.only-ios{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+  color:var(--label);background:var(--inset);border:1px solid var(--line);border-radius:999px;padding:4px 10px;
+}
+.ios-box .fineprint{margin-top:16px;font-size:12px;color:var(--meta);line-height:1.6}
+.gif-ph{
+  position:relative;background:var(--inset);border:1px dashed var(--faq-line);border-radius:var(--r-inset);
+  padding:40px 18px 20px;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;align-items:stretch;
+}
+.gif-ph .ph-badge{position:absolute;top:10px;left:12px;margin:0}
+.ph-frame{
+  background:var(--card);border:1px solid var(--line);border-radius:16px;padding:10px 9px 12px;
+  display:flex;flex-direction:column;gap:7px;min-height:190px;
+}
+.ph-frame .notch{width:36%;height:5px;border-radius:4px;background:var(--line);margin:0 auto 4px}
+.ph-frame .cap{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--meta-2);text-align:center;margin-top:auto;line-height:1.3}
+.ph-line{height:7px;border-radius:4px;background:var(--inset)}
+.ph-line.w60{width:60%}.ph-line.w80{width:80%}.ph-line.w40{width:40%}
+.ph-amt{font-size:15px;font-weight:650;letter-spacing:-.03em;color:var(--ink);text-align:center}
+.ph-sheet{margin-top:auto;border-top:1px solid var(--line);padding-top:8px;display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.ph-sheet i{display:block;aspect-ratio:1;border-radius:8px;background:var(--inset)}
+.ph-sheet i.on{background:var(--blue)}
+.ph-toast{font-size:10.5px;line-height:1.35;color:var(--ink);background:var(--blue-soft);border-radius:8px;padding:7px}
+.ph-pill{font-size:10px;font-weight:650;text-align:center;color:var(--blue);border:1px solid var(--blue);border-radius:8px;padding:5px 4px}
+
+/* analytics (v3) */
+.ana-box{
+  display:grid;grid-template-columns:1fr 1.2fr;gap:40px;align-items:center;
+}
+.ana-box .sub{margin-top:16px;color:var(--muted);font-size:16px;max-width:38ch;line-height:1.6}
+.ana-list{list-style:none;padding:0;margin:22px 0 0;display:grid;gap:10px}
+.ana-list li{display:flex;gap:10px;font-size:15px;color:var(--ink);line-height:1.45}
+.ana-list li::before{content:"";flex:0 0 8px;height:8px;margin-top:7px;border-radius:50%;background:var(--blue)}
+.ana-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:26px}
+.ana-card .sim-head{margin-bottom:18px}
+.ana-insight{padding:16px 18px;border-radius:var(--r-inset);background:var(--blue-soft);font-size:15px;line-height:1.5;color:var(--ink)}
+.ana-insight b{font-weight:650}
+.ana-insight .k{display:block;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--blue);margin-bottom:6px}
+.ana-rows{margin-top:18px;display:grid;gap:14px}
+.ana-row .top{display:flex;justify-content:space-between;font-size:14px;color:var(--muted)}
+.ana-row .top .v{font-weight:650;color:var(--ink)}
+.ana-row .bar{height:7px;border-radius:8px;background:var(--inset);margin-top:6px;overflow:hidden}
+.ana-row .bar b{display:block;height:100%;background:var(--blue);border-radius:8px}
+.ana-row.hl .bar b{background:var(--warn)}
+.ana-row.hl .top span:first-child{color:var(--ink);font-weight:600}
+.ana-foot{margin-top:16px;font-size:12px;color:var(--meta);line-height:1.5}
+
+
+/* hero v4 */
+.hero h1.h1-eq{font-size:clamp(40px,4.7vw,58px);line-height:1.04;letter-spacing:-.055em;max-width:15ch}
+.hero .lead.lead-sm{font-size:19px;line-height:1.55;letter-spacing:-.015em;color:var(--muted);max-width:40ch}
+.hero .lead.lead-sm b{color:var(--ink);font-weight:600}
+.sim-field .hint{display:block;font-size:12px;color:var(--meta);line-height:1.4;margin-top:7px}
+.sim-op{display:flex;align-items:center;gap:10px;margin:-4px 0 10px;color:var(--meta-2);font-size:12px;font-weight:650}
+.sim-op .sym{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--inset);border:1px solid var(--line);font-size:15px;font-weight:700;color:var(--label);line-height:1}
+.sim-op::after{content:"";flex:1;height:1px;background:var(--line)}
+.sim-formula{
+  margin-top:14px;padding:12px 14px;border-radius:var(--r-inset);border:1px solid var(--line);background:var(--inset);
+  display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr) auto minmax(0,1fr);align-items:start;gap:6px;
+}
+.sim-formula .t{display:flex;flex-direction:column;min-width:0}
+.sim-formula .t .lb{font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--meta-2);line-height:1.3}
+.sim-formula .t .nv{font-size:15px;font-weight:650;letter-spacing:-.03em;color:var(--ink);line-height:1.4;margin-top:3px;white-space:nowrap}
+.sim-formula .t.c .nv{color:var(--warn)}
+.sim-formula .t.r .lb{color:var(--blue)}
+.sim-formula .t.r .nv.neg{color:var(--danger)}
+.sim-formula .o{font-size:16px;font-weight:700;color:var(--meta-2);padding-top:12px;line-height:1}
+
+/* análisis v4: fuga silenciosa + mapa de hábitos */
+.ana-mods{margin-top:16px;display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ana-mod{border:1px solid var(--line);border-radius:var(--r-inset);padding:16px;background:var(--card);min-width:0}
+.ana-mod .mh{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--label);margin-bottom:10px}
+.ana-mod .mh i{display:grid;place-items:center;width:24px;height:24px;border-radius:50%;background:var(--inset);border:1px solid var(--line);font-style:normal;color:var(--label)}
+.ana-mod .big{font-size:24px;font-weight:650;letter-spacing:-.04em;line-height:1.1;color:var(--warn)}
+.ana-mod .cap{font-size:12px;color:var(--meta);line-height:1.4;margin-top:4px}
+.dots{display:flex;flex-wrap:wrap;gap:4px;margin-top:12px}
+.dots span{width:8px;height:8px;border-radius:2px;background:var(--warn)}
+.hab{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+.hab span{height:14px;border-radius:3px;background:var(--inset);border:1px solid var(--line)}
+.hab .l1{background:#D6E7F0;border-color:#D6E7F0}.hab .l2{background:#9CC6DD;border-color:#9CC6DD}.hab .l3{background:var(--blue);border-color:var(--blue)}
+.hab-leg{display:flex;align-items:center;gap:4px;margin-top:10px;font-size:11px;color:var(--meta)}
+.hab-leg span{width:10px;height:10px;border-radius:2px;display:inline-block}
+
+/* planificá v4 */
+.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.plan-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:26px;min-width:0}
+.plan-card .pk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+.plan-card h3{font-size:21px}
+.plan-card .ps{font-size:15px;color:var(--muted);margin-top:6px;line-height:1.5}
+.plan-card .ex{margin-top:20px;padding:16px;border-radius:var(--r-inset);background:var(--inset);display:grid;gap:14px}
+.pb .top{display:flex;justify-content:space-between;gap:10px;font-size:13px;color:var(--muted)}
+.pb .top .v{font-weight:650;color:var(--ink);white-space:nowrap}
+.pb .bar{height:7px;border-radius:8px;background:#DCE6E9;margin-top:6px;overflow:hidden}
+.pb .bar b{display:block;height:100%;background:var(--blue);border-radius:8px}
+.pb.over .bar b{background:var(--warn)} .pb.over .top .v{color:var(--warn)}
+.ex-head{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ex-head .tag-ex{font-size:10px;padding:4px 8px;white-space:nowrap}
+.ex-head .t{font-size:12px;font-weight:650;color:var(--meta-2)}
+.plan-wide{grid-column:1/-1;display:grid;grid-template-columns:1fr 1.15fr;gap:36px;align-items:center}
+.seg{display:inline-flex;gap:2px;padding:3px;background:var(--inset);border:1px solid var(--line);border-radius:999px;margin-top:18px}
+.seg button{font:650 13px/1 var(--font);color:var(--muted);background:transparent;border:0;border-radius:999px;padding:10px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(21,47,59,.12)}
+.seg-def{margin-top:14px;font-size:14px;color:var(--muted);line-height:1.6;max-width:46ch;min-height:4.8em}
+.seg-def b{color:var(--ink);font-weight:600}
+.cmpm{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:12px}
+.cmpm .c{min-width:0}
+.cmpm .c .lb{font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--meta-2)}
+.cmpm .c .nv{font-size:22px;font-weight:650;letter-spacing:-.04em;color:var(--ink);line-height:1.2;margin-top:4px}
+.cmpm .c .sb{font-size:11px;color:var(--meta);margin-top:2px}
+.cmpm .c.cur .nv{color:var(--ink)}
+.delta{font-size:12px;font-weight:700;color:var(--warn);background:var(--warn-soft);border-radius:999px;padding:6px 10px;white-space:nowrap}
+.ex[hidden]{display:none}
+.plan-note{font-size:12px;color:var(--meta);line-height:1.5}
+.plan-sec{margin-top:18px;font-size:14px;color:var(--label);font-weight:600}
+
+
+/* comparison table */
+.cmp-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-top:8px;border-radius:var(--r-card);border:1px solid var(--line);background:var(--card)}
+.cmp-hint{display:none;font-size:12px;color:var(--meta);margin:0 0 10px}
+.compare{
+  width:100%;min-width:720px;border-collapse:separate;border-spacing:0;
+  background:var(--card);border:0;border-radius:0;
+}
+.compare th,.compare td{
+  padding:16px 18px;text-align:left;border-bottom:1px solid var(--line);
+  font-size:14px;vertical-align:middle;line-height:1.4;
+}
+.compare tr:last-child td,.compare tr:last-child th{border-bottom:0}
+.compare thead th{
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--meta-2);background:var(--inset);
+}
+.compare thead th.g{color:var(--ink);background:#EAF3F7}
+.compare tbody th{
+  font-weight:500;color:var(--ink);text-align:left;font-size:14px;background:var(--card);
+  width:22%;position:sticky;left:0;z-index:1;box-shadow:1px 0 0 var(--line);
+}
+.compare thead th:first-child{position:sticky;left:0;z-index:2;background:var(--inset)}
+.compare td{color:var(--muted)}
+.compare td.g{font-weight:650;color:var(--ink);background:#F7FBFC}
+.compare .yes{color:var(--ok);font-weight:650}
+.compare .no{color:var(--meta)}
+.compare .lose td.g{background:#FBF7F6}
+.compare .lose .no-g{color:var(--warn);font-weight:650}
+.honest{margin-top:18px;font-size:14px;color:var(--muted);max-width:70ch;line-height:1.7}
+
+/* trust */
+.trust-grid{display:grid;grid-template-columns:1fr 1.35fr;gap:56px;align-items:start}
+.trust-grid .lead{margin-top:18px;font-size:18px;color:var(--muted);max-width:36ch;line-height:1.55}
+.trust-list{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.trust-item{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:22px;
+}
+.trust-item .ic{
+  width:36px;height:36px;border-radius:10px;background:var(--inset);border:1px solid var(--line);
+  display:grid;place-items:center;margin-bottom:14px;color:var(--ink);
+}
+.trust-item h3{font-size:17px}
+.trust-item p{font-size:14px;color:var(--muted);margin-top:6px;line-height:1.55}
+
+/* pricing */
+.price-grid{display:grid;grid-template-columns:1fr 1fr;gap:56px;align-items:center}
+.price-card{
+  background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:32px;
+  position:relative;
+}
+.ph-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+  color:var(--meta-2);background:var(--inset);border:1px dashed var(--faq-line);
+  border-radius:8px;padding:5px 9px;margin-bottom:14px;
+}
+.price-card .big{font-size:52px;font-weight:650;letter-spacing:-.045em;line-height:1;margin:8px 0 6px}
+.price-card .plan{font-size:14px;color:var(--muted);margin-bottom:18px}
+.price-card ul{list-style:none;padding:0;margin:0 0 26px;display:grid;gap:10px}
+.price-card li{display:flex;gap:10px;font-size:15px;color:var(--muted);line-height:1.4}
+.price-card li::before{
+  content:"";flex:0 0 18px;height:18px;margin-top:2px;border-radius:50%;
+  background:var(--blue-soft) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4 8.5l2.5 2.5L12 5.5' fill='none' stroke='%232178A8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/14px no-repeat;
+}
+
+/* faq */
+.faq-grid{display:grid;grid-template-columns:1fr 1.4fr;gap:80px}
+details{border-bottom:1px solid var(--faq-line)}
+details:first-child{border-top:1px solid var(--faq-line)}
+summary{
+  list-style:none;cursor:pointer;display:flex;justify-content:space-between;align-items:center;
+  gap:20px;padding:22px 0;font-size:17px;font-weight:600;letter-spacing:-.02em;
+}
+summary::-webkit-details-marker{display:none}
+summary::after{content:"+";font-weight:400;font-size:24px;color:var(--muted);transition:transform .2s}
+details[open] summary::after{transform:rotate(45deg)}
+details .a{padding:0 0 22px;color:var(--muted);max-width:62ch;font-size:15px;line-height:1.7}
+
+/* final */
+.final{padding:100px 0;text-align:center}
+.final h2{font-size:clamp(32px,4.5vw,52px)}
+.final p{color:var(--muted);margin:18px auto 32px;max-width:40ch;font-size:16px}
+
+/* footer */
+footer{border-top:1px solid var(--line);padding:36px 0 48px;font-size:14px;color:var(--muted)}
+footer .wrap{display:flex;justify-content:space-between;align-items:center;gap:24px;flex-wrap:wrap}
+footer .logo img{width:90px;height:27px;opacity:.9}
+footer nav{display:flex;gap:22px;flex-wrap:wrap}
+footer a:hover{color:var(--ink)}
+
+:focus-visible{outline:3px solid var(--blue);outline-offset:6px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}*{transition:none!important}}
+
+/* responsive */
+@media (max-width:900px){
+  .cmp-hint{display:block}
+
+  .wrap,.header{padding-left:24px;padding-right:24px}
+  .header{height:78px}
+  .header nav .hide-m{display:none}
+  .header nav{gap:16px}
+  .hero{padding:28px 0 72px}
+  .hero .wrap,.tl-grid,.trust-grid,.price-grid,.faq-grid,.nl-box,.acc-grid,.ios-box,.ana-box,.plan-grid,.plan-wide{grid-template-columns:minmax(0,1fr);gap:32px}
+  .hero .wrap > *,.tl-grid > *,.trust-grid > *,.price-grid > *,.faq-grid > *,.nl-box > *,.ios-box > *,.ana-box > *,.plan-grid > *,.plan-wide > *{min-width:0}
+  .hero h1.h1-eq{font-size:clamp(34px,8.6vw,48px)}
+  .hero .lead.lead-sm{font-size:17px}
+  .plan-card{padding:20px}
+  .plan-wide{gap:24px}
+  .hero{overflow:hidden}
+  .hero h1{font-size:clamp(40px,10vw,56px)}
+  .hero .lead{font-size:19px}
+  .sim-blob{inset:-14px -6px -18px -6px;border-radius:48px 48px 28px 28px;transform:rotate(-3deg)}
+  section.block{padding:72px 0}
+  section.band{padding:64px 0}
+  .head2{flex-direction:column;align-items:flex-start;gap:16px;margin-bottom:32px}
+  .faq-grid{gap:36px}
+  .nl-sec{padding:48px 0}
+  .nl-box,.ios-box{padding:24px}
+  .how-sec{padding:48px 0}
+  .gif-ph{gap:8px;padding:40px 10px 14px}
+  .ph-frame{min-height:170px;padding:9px 7px 10px}
+  .ph-frame .cap{font-size:9px;letter-spacing:.03em}
+  .ph-toast{font-size:10px}
+  .final{padding:72px 0}
+  .hero .actions{flex-direction:column;align-items:stretch}
+  .hero .actions .cta{width:100%}
+  .trust-list{grid-template-columns:1fr}
+  footer .wrap{flex-direction:column;align-items:flex-start}
+}
+@media (max-width:480px){
+  h1{font-size:40px}
+  .sim{padding:20px}
+  .sim-field input{font-size:20px}
+  .compare th,.compare td{padding:12px 10px;font-size:13px}
+  .compare thead th{font-size:10px}
+  .acc-card{padding:20px}
+  .ana-mods{grid-template-columns:minmax(0,1fr)}
+  .sim-formula{padding:10px;gap:4px}
+  .sim-formula .t .lb{font-size:9.5px;letter-spacing:.02em}
+  .sim-formula .t .nv{font-size:13px}
+  .sim-formula .o{font-size:14px}
+  .cmpm{grid-template-columns:minmax(0,1fr) minmax(0,1fr);row-gap:14px}
+  .cmpm .delta{grid-column:1/-1;grid-row:2;justify-self:start}
+  .cmpm .c .nv{font-size:20px;white-space:nowrap}
+  .seg button{padding:10px 12px}
+}
+/* ===== v5 ===== */
+.hero .wrap{grid-template-columns:1.05fr 1fr;grid-template-areas:"copy sim" "act sim";column-gap:56px;row-gap:0;align-items:center}
+.hero-copy{grid-area:copy;align-self:end}
+.sim-wrap{grid-area:sim}
+.hero-actions{grid-area:act;align-self:start}
+.hero h1.h1-v5{font-size:clamp(40px,4.6vw,60px);line-height:1.04;letter-spacing:-.055em;max-width:16ch}
+.hero h1.h1-v5 em{display:block;margin-top:.12em}
+.hero-sub{margin-top:22px;font-size:19px;line-height:1.5;letter-spacing:-.015em;color:var(--muted);max-width:36ch}
+.hero-actions .actions{margin-top:30px}
+.lrow{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:8px}
+.lrow label{margin-bottom:0!important}
+.lrow .unit{font-size:11px;color:var(--meta);white-space:nowrap}
+.sim-op{margin:-6px 0 8px}
+.sim-op .sym{width:22px;height:22px;font-size:14px}
+.out-hint{font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:4px}
+.sim-eq{margin-top:12px;font-size:13px;color:var(--muted)}
+.sim-eq b{color:var(--ink);font-weight:650}
+.amts{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.amts .amt{margin-top:0!important}
+.tl-step.pay .amt.same{background:var(--blue-soft);color:var(--blue)}
+.honest{margin-top:22px}
+.mid-cta{padding:56px 0}
+.mid-wrap{display:flex;justify-content:space-between;align-items:center;gap:32px;flex-wrap:wrap}
+.mid-wrap h2{font-size:clamp(26px,3vw,36px)}
+.mid-wrap p{margin-top:8px;color:var(--muted);font-size:16px}
+.more-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:start}
+.more-card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-card);padding:24px;min-width:0}
+.more-card .pk{font-size:11px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--blue);margin-bottom:8px}
+.more-card h3{font-size:20px}
+.more-card .ps{font-size:14.5px;color:var(--muted);margin-top:6px;line-height:1.55}
+.more-card .ps b{color:var(--ink);font-weight:600}
+.more-card .ex{margin-top:18px;padding:14px;border-radius:var(--r-inset);background:var(--inset);display:grid;gap:10px}
+.mrow{display:flex;justify-content:space-between;gap:10px;font-size:13.5px;color:var(--muted);line-height:1.3}
+.mrow b{color:var(--ink);font-weight:650;white-space:nowrap}
+.mrow.tot{border-top:1px solid var(--line);padding-top:9px}
+.mrow.tot span{color:var(--ink);font-weight:600}
+.more-card .ins{font-size:14px;line-height:1.45;color:var(--ink)}
+.more-card .ins b{font-weight:650}
+.more-card .dots{margin-top:0}
+.more-card .hab span{height:10px}
+@media (max-width:900px){
+  .hero{padding:10px 0 56px}
+  .hero .wrap{grid-template-columns:minmax(0,1fr);grid-template-areas:"copy" "sim" "act";row-gap:14px}
+  .hero h1.h1-v5{font-size:31px;line-height:1.08;letter-spacing:-.05em;max-width:none}
+  .hero-sub{margin-top:10px;font-size:15.5px;line-height:1.45}
+  .hero-actions .actions{margin-top:8px}
+  .sim{padding:16px 16px 14px}
+  .sim-head{margin-bottom:6px}
+  .sim-field{margin-bottom:6px}
+  .lrow{margin-bottom:5px}
+  .sim-field .input-row{padding:8px 12px}
+  .sim-field input{font-size:20px}
+  .sim-field .hint{margin-top:4px;font-size:11.5px}
+  .sim-op{margin:-2px 0 4px}
+  .sim-out{margin-top:2px;padding:10px 14px}
+  .sim-out .v{font-size:30px;margin-top:2px}
+  .out-hint{font-size:12px}
+  .sim-bar{margin-top:8px}
+  .sim-legend{margin-top:4px;font-size:11px}
+  .sim-eq{margin-top:8px;font-size:12.5px}
+  .sim-blob{inset:-8px -4px -10px -4px}
+  .header{height:64px}
+  .more-grid{grid-template-columns:minmax(0,1fr)}
+  .mid-wrap .cta{width:100%}
+}
+@media (max-width:360px){
+  .hero h1.h1-v5{font-size:27px}
+  .lrow .unit{font-size:10px}
+  .tag-ex{font-size:10px;padding:4px 8px}
+}
+
+/* v5.1 */
+.sim-note{margin-top:4px;font-size:12px;color:var(--meta);line-height:1.45}
+.sim-out .v.neg{font-size:clamp(22px,2.6vw,28px);line-height:1.2;color:var(--danger)}
+.sim-eq b.neg{color:var(--danger)}
+.cuotas-note{margin-top:26px;padding:16px 18px;border-radius:var(--r-inset);background:var(--card);border:1px solid var(--line);font-size:14px;line-height:1.55;color:var(--muted);max-width:44ch}
+.cuotas-note .ex1{display:inline-flex;margin-top:10px;font-size:13px;font-weight:650;color:var(--ink);background:var(--inset);border-radius:8px;padding:6px 10px}
+.gif-ph{border:1px solid var(--line);padding:18px}
+@media (max-width:900px){
+  .hero .wrap{grid-template-areas:"copy" "act" "sim"}
+  .hero-actions .actions{margin-top:0}
+  .hero-actions .textLink{display:none}
+  .hero-actions .fine{margin-top:8px}
+  .gif-ph{padding:12px 10px}
+  .sim-note{font-size:11.5px}
+}
+/* v5.2: tres métodos de carga */
+.how-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:20px;align-items:stretch}
+.how-grid > .nl-box,.how-grid > .ios-box{display:flex;flex-direction:column;justify-content:flex-start;gap:24px;padding:26px}
+.how-grid > * > .nl-demo,.how-grid > * > .gif-ph{margin-top:auto}
+.how-grid .sub{max-width:none}
+.how-grid h3{font-size:clamp(20px,1.9vw,23px)}
+.how-grid .gif-ph{gap:8px;padding:12px 10px}
+.how-grid .ph-frame{min-height:176px;padding:9px 7px 10px}
+.how-grid .ph-frame .cap{font-size:9px;letter-spacing:.03em}
+.how-grid .ph-toast{font-size:10px}
+.mp-list{list-style:none;padding:0;margin:16px 0 0;display:grid;gap:8px}
+.mp-list li{display:flex;gap:10px;font-size:14px;color:var(--ink);line-height:1.45}
+.mp-list li::before{content:"";flex:0 0 7px;height:7px;margin-top:7px;border-radius:50%;background:var(--blue)}
+.mp-list b{font-weight:650}
+.ph-pill.mp-pill{background:var(--blue);color:#fff}
+.ph-sync{font-size:10px;font-weight:650;text-align:center;color:var(--ok);background:var(--ok-soft);border-radius:8px;padding:5px 4px}
+.ph-mv{display:flex;align-items:center;gap:6px;background:var(--inset);border-radius:8px;padding:6px}
+.ph-mv i{flex:0 0 14px;height:14px;border-radius:50%;background:var(--line)}
+.ph-mv b{font-size:11px;font-weight:650;color:var(--ink);margin-left:auto}
+.ph-amt,.ph-mv b{white-space:nowrap}
+@media (max-width:420px){
+  .ph-mv i{display:none}
+  .ph-mv{padding:6px 5px}
+  .how-grid .ph-amt{font-size:13px}
+  .ph-sync,.how-grid .ph-pill{font-size:9px;padding:5px 2px}
+}
+@media (max-width:1100px){
+  .how-grid{grid-template-columns:minmax(0,1fr)}
+  .how-grid > * > .gif-ph{max-width:520px;width:100%}
+}
+@media (max-width:900px){
+  .how-grid > .nl-box,.how-grid > .ios-box{padding:22px;gap:20px}
+}
+/* v5.3 */
+.cuotas-note{background:var(--blue-soft);border:0;border-left:3px solid var(--blue);max-width:46ch;padding:18px 20px}
+.cuotas-note h3{font-size:16px;letter-spacing:-.02em;margin-bottom:6px}
+.cuotas-note p{font-size:14px;line-height:1.6;color:var(--ink)}
+.cuotas-note b{font-weight:650;white-space:nowrap}
+.tl-tag{display:inline-block;margin-bottom:20px}
+/* v5.6: H1 editorial + firma como segundo golpe */
+.hero h1.h1-v56{font-size:clamp(52px,5.5vw,78px);font-weight:700;line-height:.98;letter-spacing:-.065em;max-width:12ch}
+.hero h1.h1-v56 em{display:block;margin-top:.04em;color:var(--blue)}
+.hero .wrap{grid-template-areas:"copy sim" "act sim" "sign sim"}
+.hero-sign2{grid-area:sign;align-self:start;margin-top:44px;padding-top:22px;border-top:1px solid var(--line);
+  font-size:clamp(30px,2.9vw,40px);font-weight:700;line-height:1.05;letter-spacing:-.05em;color:var(--ink)}
+.hero-sign2 span{color:var(--blue)}
+@media (max-width:900px){
+  .hero h1.h1-v56{font-size:clamp(40px,11.6vw,48px);line-height:.98;letter-spacing:-.06em;max-width:none}
+  .hero .wrap{grid-template-areas:"copy" "act" "sign" "sim"}
+  .hero-sign2{margin-top:6px;padding-top:16px;font-size:clamp(28px,8.4vw,34px)}
+}
+/* v5.7: firma dentro del bloque de texto, antes del CTA; blob sin solaparse en mobile */
+.hero .wrap{grid-template-areas:"copy sim" "act sim"}
+.hero-copy .hero-sign2{margin-top:26px;padding-top:20px}
+@media (max-width:900px){
+  .hero .wrap{grid-template-areas:"copy" "act" "sim"}
+  .hero-copy .hero-sign2{margin-top:14px;padding-top:14px}
+  .hero-actions{margin-top:4px}
+  .sim-blob{inset:10px -4px -10px -4px;transform:rotate(-2deg)}
+}
+</style>
+</head>
+<body>
+
+<header class="header">
+  <a class="logo" href="#" aria-label="Gota, inicio">
+    <img src="/brand/gota-wordmark-primary.svg" width="108" height="32" alt="gota.">
+  </a>
+  <nav aria-label="Navegación principal">
+    <a class="hide-m" href="#tarjeta">Tarjetas</a>
+    <a class="hide-m" href="#como-funciona">Cómo se carga</a>
+    <a class="hide-m" href="#ademas">Y además</a>
+    <a class="hide-m" href="#preguntas">Preguntas</a>
+    <a class="nav-login" href="/login">Ingresar</a>
+  </nav>
+</header>
+
+<main>
+
+<!-- HERO + SIMULADOR -->
+<section class="hero" aria-labelledby="hero-title">
+  <div class="wrap">
+    <div class="hero-copy">
+      <h1 id="hero-title" class="h1-v5 h1-v56">¿Tenés claro <em>cómo viene tu plata?</em></h1>
+      <p class="hero-sub">Entre bancos, tarjetas y cuotas, es fácil perder la cuenta. Gota te la ordena.</p>
+      <p class="hero-sign2">Gota, tu plata <span>clara.</span></p>
+    </div>
+
+    <div class="sim-wrap">
+      <div class="sim-blob" aria-hidden="true"></div>
+      <div class="sim" role="group" aria-label="Simulador: cuánto tenés disponible hoy, datos de ejemplo">
+        <div class="sim-head">
+          <span class="title">¿Cuánto tenés disponible hoy?</span>
+          <span class="tag-ex">ejemplo</span>
+        </div>
+
+        <div class="sim-field">
+          <div class="lrow"><label for="sim-saldo">Saldo vivo</label><span class="unit" id="u1">en pesos, sin centavos</span></div>
+          <div class="input-row">
+            <span class="prefix">$</span>
+            <input id="sim-saldo" class="num" type="text" inputmode="numeric" pattern="[0-9.]*" maxlength="15" value="500.000" autocomplete="off" aria-describedby="u1 sim-saldo-hint">
+          </div>
+          <span class="hint" id="sim-saldo-hint">La plata que tenés hoy en tus cuentas.</span>
+        </div>
+
+        <div class="sim-op" aria-hidden="true"><span class="sym">−</span></div>
+
+        <div class="sim-field committed">
+          <div class="lrow"><label for="sim-tarjeta">Tarjetas pendientes de pago</label><span class="unit" id="u2">en pesos, sin centavos</span></div>
+          <div class="input-row">
+            <span class="prefix">$</span>
+            <input id="sim-tarjeta" class="num" type="text" inputmode="numeric" pattern="[0-9.]*" maxlength="15" value="180.000" autocomplete="off" aria-describedby="u2 sim-tarjeta-hint">
+          </div>
+          <span class="hint" id="sim-tarjeta-hint">Compras y cuotas de los resúmenes que todavía no pagaste.</span>
+        </div>
+
+        <div class="sim-op" aria-hidden="true"><span class="sym">=</span></div>
+
+        <div class="sim-out" aria-live="polite">
+          <div class="k">Disponible real</div>
+          <div class="v num" id="disponible">$ 320.000</div>
+          <p class="out-hint">Tu saldo menos los compromisos pendientes de tus tarjetas.</p>
+          <div class="sim-bar" aria-hidden="true">
+            <b id="bar-ok" style="width:64%"></b>
+            <s id="bar-commit" style="width:36%"></s>
+          </div>
+          <div class="sim-legend"><span>Podés gastar</span><span>Ya es de la tarjeta</span></div>
+        </div>
+        <p class="sim-eq" id="sim-eq"><span class="num" id="eq-saldo">$ 500.000</span> − <span class="num" id="eq-tarjeta">$ 180.000</span> = <b class="num" id="eq-disp">$ 320.000</b></p>
+        <p class="sim-note">Según lo que cargaste. No incluye gastos que todavía no registraste.</p>
+      </div>
+    </div>
+
+    <div class="hero-actions">
+      <div class="actions">
+        <a class="cta" href="/start">Probá Gota sin cuenta <span class="arrow" aria-hidden="true">→</span></a>
+        <a class="textLink" href="#tarjeta">Cómo trata las tarjetas <span aria-hidden="true">→</span></a>
+      </div>
+      <p class="fine">Sin mail ni contraseña. No pedimos claves bancarias.</p>
+    </div>
+  </div>
+</section>
+
+<!-- CÓMO TRATA LAS TARJETAS -->
+<section class="block soft" id="tarjeta" aria-labelledby="card-title">
+  <div class="wrap tl-grid">
+    <div class="tl-copy">
+      <p class="eyebrow">Tus tarjetas</p>
+      <h2 id="card-title">Cómo trata Gota las tarjetas</h2>
+      <p class="lead">Cuando comprás con crédito, tu saldo no baja inmediatamente. Gota organiza cada consumo en el resumen que corresponde para mostrarte cuánto de tu plata ya está comprometida.</p>
+      <ul class="tl-bullets">
+        <li>Cada tarjeta con sus fechas de cierre y vencimiento.</li>
+        <li>Compras organizadas por resumen.</li>
+        <li>Sabés cuánto tenés que pagar y cuándo.</li>
+      </ul>
+      <div class="cuotas-note" role="note" aria-labelledby="cuotas-title">
+        <h3 id="cuotas-title">¿Compraste en cuotas?</h3>
+        <p>Gota distribuye cada cuota en el resumen que le corresponde. Si comprás <b class="num">$ 600.000</b> en 6 cuotas, cada ciclo recibe <b class="num">$ 100.000</b>. Las cuotas que vienen se suman a su resumen cuando corresponde, sin descontarte los <b class="num">$ 600.000</b> de golpe.</p>
+      </div>
+    </div>
+    <div class="timeline" aria-label="Ciclo de una compra con tarjeta en 1 pago">
+      <span class="tag-ex tl-tag">Compra en 1 pago</span>
+      <div class="tl-track">
+        <div class="tl-step done">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="when">Hoy</div>
+          <h3>Comprás con crédito</h3>
+          <p>Tu saldo no cambia, pero Gota descuenta el consumo de tu disponible real.</p>
+          <div class="amt num">Tarjetas pendientes de pago + $ 45.000</div>
+        </div>
+        <div class="tl-step now">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="when">Durante el ciclo</div>
+          <h3>Se acumulan tus consumos</h3>
+          <p>Cada compra queda asignada al resumen que corresponde.</p>
+          <div class="amt num">Tarjetas pendientes de pago · $ 180.000</div>
+        </div>
+        <div class="tl-step">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="when">Cierre</div>
+          <h3>Cierra el resumen</h3>
+          <p>Sabés cuánto tenés que pagar y hasta cuándo.</p>
+        </div>
+        <div class="tl-step pay">
+          <span class="dot" aria-hidden="true"></span>
+          <div class="when">Vencimiento</div>
+          <h3>Pagás el resumen</h3>
+          <p>Bajan tu saldo y la deuda de la tarjeta al mismo tiempo. Tu disponible real no vuelve a descontarse.</p>
+          <div class="amts">
+            <span class="amt num">Saldo vivo − $ 180.000</span>
+            <span class="amt num">Tarjeta − $ 180.000</span>
+            <span class="amt num same">Disponible real: igual</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- CARGAR ES FÁCIL -->
+<section class="how-sec" id="como-funciona" aria-labelledby="how-title">
+  <div class="wrap">
+    <div class="how-head">
+      <p class="eyebrow">Cargar es fácil</p>
+      <h2 id="how-title">Registrá tus movimientos como te quede cómodo</h2>
+      <p class="sub">Tres formas de sumar tus movimientos. Elegí la que te quede cómoda; en todas, revisás antes de que se guarde.</p>
+    </div>
+    <div class="how-grid">
+      <div class="nl-box" id="escribir">
+        <div>
+          <span class="step-n" aria-hidden="true">1</span>
+          <h3>Escribí como hablás</h3>
+          <p class="sub">Si algo no cierra, te pregunta antes de guardar. Vos confirmás monto, fecha y de dónde salió.</p>
+        </div>
+        <div class="nl-demo">
+          <div class="nl-chip">
+            <span class="q">ayer gasté 20 mil en el súper</span>
+            <div class="parts">
+              <span>$ 20.000</span>
+              <span>Súper</span>
+              <span>ayer</span>
+            </div>
+          </div>
+          <div class="nl-chip">
+            <span class="q">cena con amigos 35 mil con la visa</span>
+            <div class="parts">
+              <span>$ 35.000</span>
+              <span>Salidas</span>
+              <span>Visa</span>
+            </div>
+          </div>
+          <p class="nl-review">Revisión antes de guardar · si el monto o la cuenta no cierran, Gota te lo marca.</p>
+        </div>
+      </div>
+
+      <div class="ios-box mp-box" id="mercado-pago">
+        <div>
+          <div class="step-row"><span class="step-n" aria-hidden="true">2</span><span class="only-ios">opcional</span></div>
+          <h3>Conectá Mercado Pago. Gota hace el resto más fácil.</h3>
+          <p class="sub">Sincronizá tu saldo y encontrá tus movimientos de Mercado Pago sin cargarlos uno por uno. Revisás los nuevos antes de sumarlos a tus finanzas.</p>
+          <ul class="mp-list">
+            <li><span><b>Saldo:</b> el de tu cuenta de Mercado Pago se sincroniza.</span></li>
+            <li><span><b>Movimientos:</b> Gota detecta los nuevos y vos los revisás antes de que se registren.</span></li>
+            <li>Menos carga repetida a mano. La conexión es opcional.</li>
+          </ul>
+        </div>
+        <div class="gif-ph" role="img" aria-label="Conexión con Mercado Pago, saldo sincronizado y movimientos nuevos para revisar en Gota">
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-line w60"></span>
+            <span class="ph-line w40"></span>
+            <span class="ph-pill mp-pill">Conectar</span>
+            <span class="cap">Conectás<br>una vez</span>
+          </div>
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-line w40"></span>
+            <span class="ph-amt num">$ 85.000</span>
+            <span class="ph-sync">Sincronizado</span>
+            <span class="cap">Saldo de<br>Mercado Pago</span>
+          </div>
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-mv"><i></i><b class="num">$ 4.200</b></span>
+            <span class="ph-mv"><i></i><b class="num">$ 9.800</b></span>
+            <span class="ph-pill">2 para revisar</span>
+            <span class="cap">Revisás<br>lo nuevo</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="ios-box" id="atajo-ios">
+        <div>
+          <div class="step-row"><span class="step-n" aria-hidden="true">3</span><span class="only-ios">con atajo de iOS</span></div>
+          <h3>Compartí comprobantes de MODO desde el iPhone</h3>
+          <p class="sub">Con un atajo de iOS, compartís el comprobante de MODO y llega a Gota. Sin chat de por medio.</p>
+          <ol class="steps">
+            <li>Abrís el comprobante en MODO y tocás Compartir.</li>
+            <li>Elegís «Compartir con Gota».</li>
+            <li>Lo revisás en Gota y confirmás antes de guardar.</li>
+          </ol>
+          <p class="fineprint">El atajo se configura una vez.</p>
+        </div>
+        <div class="gif-ph" role="img" aria-label="Comprobante de MODO, hoja para compartir de iOS y aviso de comprobante recibido en Gota">
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-line w40"></span>
+            <span class="ph-amt num">$ 12.500</span>
+            <span class="ph-line w80"></span>
+            <span class="ph-line w60"></span>
+            <span class="cap">Comprobante<br>en MODO</span>
+          </div>
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-line w60"></span>
+            <div class="ph-sheet"><i></i><i class="on"></i><i></i></div>
+            <span class="ph-pill">Compartir con Gota</span>
+            <span class="cap">Hoja para<br>compartir</span>
+          </div>
+          <div class="ph-frame">
+            <span class="notch"></span>
+            <span class="ph-toast">Comprobante recibido. Abrí Gota para revisarlo.</span>
+            <span class="ph-line w80"></span>
+            <span class="ph-line w40"></span>
+            <span class="cap">Revisás<br>en Gota</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <p class="honest">No pedimos claves bancarias. La conexión con Mercado Pago es opcional, y Gota no puede mover tu plata.</p>
+  </div>
+</section>
+
+<!-- CTA INTERMEDIO -->
+<section class="mid-cta cta-band" aria-labelledby="mid-title">
+  <div class="wrap mid-wrap">
+    <div>
+      <h2 id="mid-title">¿Cuánto tenés disponible hoy?</h2>
+      <p>Empezá con tu saldo y sumá tu tarjeta para ver cuánto te queda disponible.</p>
+    </div>
+    <a class="cta" href="/start">Empezá sin cuenta <span class="arrow" aria-hidden="true">→</span></a>
+  </div>
+</section>
+
+<!-- Y ADEMÁS -->
+<section class="block" id="ademas" aria-labelledby="more-title">
+  <div class="wrap">
+    <div class="head2">
+      <div>
+        <p class="eyebrow">Y además</p>
+        <h2 id="more-title">Lo que viene con tu número</h2>
+      </div>
+      <p>Cuando ya sabés cuánto podés gastar, Gota te ayuda a ordenar el resto.</p>
+    </div>
+    <div class="more-grid">
+
+      <div class="more-card" id="cuentas">
+        <p class="pk">Cuentas separadas</p>
+        <h3>Toda tu plata, sin mezclar</h3>
+        <p class="ps">Varias cuentas, pesos y dólares por separado.</p>
+        <div class="ex">
+          <div class="ex-head"><span class="t">ARS · pesos</span><span class="tag-ex">ejemplo</span></div>
+          <div class="mrow"><span>Cuenta sueldo</span><b class="num">$ 320.000</b></div>
+          <div class="mrow"><span>Mercado Pago</span><b class="num">$ 85.000</b></div>
+          <div class="mrow"><span>Efectivo</span><b class="num">$ 95.000</b></div>
+          <div class="mrow tot"><span>Saldo vivo en pesos</span><b class="num">$ 500.000</b></div>
+          <div class="ex-head" style="margin-top:6px"><span class="t">USD · dólares</span></div>
+          <div class="mrow"><span>Caja de ahorro USD</span><b class="num">U$S 1.240</b></div>
+          <div class="mrow"><span>Ahorro en casa</span><b class="num">U$S 400</b></div>
+        </div>
+      </div>
+
+      <div class="more-card" id="analisis">
+        <p class="pk">Análisis</p>
+        <h3>Entendé en qué se te&nbsp;va</h3>
+        <p class="ps"><b>Fuga Silenciosa</b> suma tus compras más chicas. <b>Mapa de hábitos</b> te muestra qué días gastás más.</p>
+        <div class="ex">
+          <div class="ex-head"><span class="t">Este mes</span><span class="tag-ex">datos de ejemplo</span></div>
+          <p class="ins"><b class="num">23 gastos chicos</b> explican el <b class="num">18%</b> del mes.</p>
+          <div class="dots" aria-hidden="true"><span style="opacity:0.30"></span><span style="opacity:0.33"></span><span style="opacity:0.35"></span><span style="opacity:0.38"></span><span style="opacity:0.40"></span><span style="opacity:0.43"></span><span style="opacity:0.46"></span><span style="opacity:0.48"></span><span style="opacity:0.51"></span><span style="opacity:0.53"></span><span style="opacity:0.56"></span><span style="opacity:0.59"></span><span style="opacity:0.61"></span><span style="opacity:0.64"></span><span style="opacity:0.67"></span><span style="opacity:0.69"></span><span style="opacity:0.72"></span><span style="opacity:0.74"></span><span style="opacity:0.77"></span><span style="opacity:0.80"></span><span style="opacity:0.82"></span><span style="opacity:0.85"></span><span style="opacity:0.87"></span></div>
+          <div class="hab" aria-hidden="true"><span></span><span class="l1"></span><span class="l2"></span><span></span><span class="l1"></span><span class="l3"></span><span class="l2"></span><span class="l1"></span><span></span><span class="l2"></span><span class="l1"></span><span></span><span class="l3"></span><span class="l3"></span><span></span><span class="l1"></span><span class="l1"></span><span class="l2"></span><span></span><span class="l2"></span><span class="l3"></span><span class="l1"></span><span></span><span class="l1"></span><span></span><span class="l1"></span><span class="l2"></span><span class="l2"></span></div>
+        </div>
+      </div>
+
+      <div class="more-card" id="planifica">
+        <p class="pk">Planificá</p>
+        <h3>Presupuesto y metas</h3>
+        <p class="ps">Seguimiento del gasto contra lo planeado y objetivos de ahorro con progreso real.</p>
+        <div class="ex">
+          <div class="ex-head"><span class="t">Presupuesto</span><span class="tag-ex">datos de ejemplo</span></div>
+          <div class="pb"><div class="top"><span>Súper</span><span class="v num">$ 98.000 de $ 140.000</span></div><div class="bar"><b style="width:70%"></b></div></div>
+          <div class="pb over"><div class="top"><span>Salidas</span><span class="v num">$ 64.000 de $ 60.000</span></div><div class="bar"><b style="width:100%"></b></div></div>
+          <div class="ex-head" style="margin-top:6px"><span class="t">Meta</span></div>
+          <div class="pb"><div class="top"><span>Vacaciones</span><span class="v num">$ 240.000 de $ 500.000</span></div><div class="bar"><b style="width:48%"></b></div></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- E · TRUST -->
+<section class="band" id="confianza" aria-labelledby="trust-title">
+  <div class="wrap trust-grid">
+    <div>
+      <p class="eyebrow">Confianza</p>
+      <h2 id="trust-title">Gota no toca tu plata.</h2>
+      <p class="lead">Ordena lo que cargás, lo que confirmás y, si conectás Mercado Pago, el saldo que se sincroniza. No puede pagar, transferir ni mover tu plata.</p>
+    </div>
+    <div class="trust-list">
+      <div class="trust-item">
+        <div class="ic" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg>
+        </div>
+        <h3>No pedimos claves del banco</h3>
+        <p>Nunca te vamos a pedir la clave de tu banco ni de tu billetera.</p>
+      </div>
+      <div class="trust-item">
+        <div class="ic" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>
+        </div>
+        <h3>Mercado Pago, opcional</h3>
+        <p>Si lo conectás, se sincroniza tu saldo y los movimientos nuevos entran para que los revises. Ninguno se registra sin tu ok.</p>
+      </div>
+      <div class="trust-item">
+        <div class="ic" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+        </div>
+        <h3>Te pregunta antes de guardar</h3>
+        <p>Si algo no cierra —monto, cuenta o fecha— te lo marca y vos decidís.</p>
+      </div>
+      <div class="trust-item">
+        <div class="ic" aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"><path d="M14 3h7v7"/><path d="M10 14L21 3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        </div>
+        <h3>Exportás en CSV</h3>
+        <p>Tus datos son tuyos, exportalos en CSV cuando quieras.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- FAQ -->
+<section class="block" id="preguntas" aria-labelledby="faq-title">
+  <div class="wrap faq-grid">
+    <div>
+      <p class="eyebrow">Preguntas</p>
+      <h2 id="faq-title">Lo esencial, sin letra chica.</h2>
+    </div>
+    <div>
+      <details open>
+        <summary>¿Qué es el disponible real?</summary>
+        <p class="a">Es una estimación de cuánto podés gastar después de considerar los compromisos que registraste en Gota. Cuanto más completos estén tus movimientos, más preciso será.</p>
+      </details>
+      <details>
+        <summary>¿Tengo que crear una cuenta?</summary>
+        <p class="a">No para empezar. El acceso queda ligado a este navegador. Creá una cuenta cuando quieras usar Gota en otro dispositivo.</p>
+      </details>
+      <details>
+        <summary>¿Tengo que conectar mi banco o mi billetera?</summary>
+        <p class="a">No. Podés sumar tus gastos escribiendo o con comprobantes de MODO desde el iPhone. Si querés, conectás Mercado Pago: se sincroniza tu saldo y revisás los movimientos nuevos antes de sumarlos. No pedimos claves bancarias y Gota no puede mover tu plata.</p>
+      </details>
+      <details>
+        <summary>¿Tengo que instalar algo?</summary>
+        <p class="a">No. Gota funciona en el navegador del celu o la compu, y podés agregarla a la pantalla de inicio.</p>
+      </details>
+    </div>
+  </div>
+</section>
+
+<!-- FINAL CTA -->
+<section class="final cta-band" aria-labelledby="final-title">
+  <div class="wrap">
+    <h2 id="final-title">Descubrí cuánto te queda disponible.</h2>
+    <p>Empezá sin cuenta. Cargá un saldo y una tarjeta. Mirá el número.</p>
+    <a class="cta" href="/start">Probá Gota sin cuenta <span class="arrow" aria-hidden="true">→</span></a>
+  </div>
+</section>
+
+</main>
+
+<footer>
+  <div class="wrap">
+    <a class="logo" href="#" aria-label="Gota">
+      <img src="/brand/gota-wordmark-primary.svg" width="90" height="27" alt="gota.">
+    </a>
+    <span>Hecho en Argentina · gota.money</span>
+    <nav aria-label="Legales">
+      <a href="mailto:facundo@gota.money">facundo@gota.money</a>
+      <a href="/privacy">Privacidad</a>
+      <a href="/terms">Condiciones de uso</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var saldoEl = document.getElementById('sim-saldo');
+  var tarjetaEl = document.getElementById('sim-tarjeta');
+  var outEl = document.getElementById('disponible');
+  var barOk = document.getElementById('bar-ok');
+  var barCommit = document.getElementById('bar-commit');
+  var eqSaldo = document.getElementById('eq-saldo');
+  var eqTarjeta = document.getElementById('eq-tarjeta');
+  var eqDisp = document.getElementById('eq-disp');
+
+  var MAX_DIGITS = 12;
+  // Solo pesos enteros: se ignora todo lo que venga después de una coma
+  // ("500.000,50" -> 500000). Los puntos son separadores de miles.
+  function intPart(str) {
+    var t = String(str == null ? '' : str);
+    var c = t.indexOf(',');
+    if (c !== -1) t = t.slice(0, c);
+    return t.replace(/[^\d]/g, '').replace(/^0+(?=\d)/, '').slice(0, MAX_DIGITS);
+  }
+  function parseAR(str) {
+    var d = intPart(str);
+    return d ? (parseInt(d, 10) || 0) : 0;
+  }
+
+  function formatAR(n) {
+    var neg = n < 0;
+    var abs = Math.abs(Math.round(n));
+    var s = String(abs).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (neg ? '− $ ' : '$ ') + s;
+  }
+
+  function formatInput(n) {
+    var abs = Math.abs(Math.round(n));
+    return String(abs).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+  }
+
+  function recalc() {
+    var saldo = parseAR(saldoEl.value);
+    var tarjeta = parseAR(tarjetaEl.value);
+    var disp = saldo - tarjeta;
+    outEl.textContent = disp < 0 ? 'Te faltan ' + formatAR(-disp) + ' para cubrir la tarjeta' : formatAR(disp);
+    outEl.classList.toggle('neg', disp < 0);
+    var total = Math.max(saldo, tarjeta, 1);
+    var okPct = Math.max(0, Math.min(100, (Math.max(disp, 0) / total) * 100));
+    var commitPct = Math.max(0, Math.min(100, (tarjeta / total) * 100));
+    if (okPct + commitPct > 100) {
+      var scale = 100 / (okPct + commitPct);
+      okPct *= scale;
+      commitPct *= scale;
+    }
+    barOk.style.width = okPct + '%';
+    barCommit.style.width = commitPct + '%';
+    // v4: ecuación explícita
+    eqSaldo.textContent = formatAR(saldo);
+    eqTarjeta.textContent = formatAR(tarjeta);
+    eqDisp.textContent = disp < 0 ? 'te faltan ' + formatAR(-disp) : formatAR(disp);
+    eqDisp.classList.toggle('neg', disp < 0);
+  }
+
+  function onInput(el) {
+    var start = el.selectionStart;
+    var before = el.value;
+    var digitsBefore = intPart(before.slice(0, start)).length;
+    var d = intPart(before);
+    var n = d ? parseInt(d, 10) : 0;
+    el.value = d ? formatInput(n) : '';
+    // restore caret roughly by digit count
+    var pos = 0, seen = 0;
+    for (var i = 0; i < el.value.length; i++) {
+      if (/\d/.test(el.value[i])) seen++;
+      if (seen >= digitsBefore) { pos = i + 1; break; }
+      pos = i + 1;
+    }
+    try { el.setSelectionRange(pos, pos); } catch (e) {}
+    recalc();
+  }
+
+  // Al tipear una coma se entra en "centavos": la coma y los dígitos que
+  // sigan al final no se agregan, así no se pegan a los pesos.
+  function guard(el) {
+    el.addEventListener('beforeinput', function (e) {
+      if (e.inputType !== 'insertText' || e.data == null) {
+        if (/^delete/.test(e.inputType)) el._cents = false;
+        return;
+      }
+      if (e.data.length === 1) {
+        if (e.data === ',') { el._cents = true; e.preventDefault(); return; }
+        var atEnd = el.selectionStart === el.value.length && el.selectionEnd === el.value.length;
+        if (el._cents && atEnd) { e.preventDefault(); return; }
+        if (!/[\d]/.test(e.data)) { e.preventDefault(); return; }
+      }
+    });
+    ['focus', 'blur', 'click'].forEach(function (ev) { el.addEventListener(ev, function () { el._cents = false; }); });
+    el.addEventListener('input', function () { onInput(el); });
+  }
+  guard(saldoEl);
+  guard(tarjetaEl);
+  recalc();
+})();
+
+</script>
+</body>
+</html>
