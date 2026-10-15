@@ -5,7 +5,7 @@
 - `/start` crea la sesión anónima una sola vez y, si ya hay sesión, retoma el onboarding o abre el home.
 - Onboarding en dos pasos: cuenta y tarjetas. El alta de tarjeta es la misma en onboarding, Tarjetas y configuración: día de cierre, día de vencimiento, «No las sé, completar después» y la respuesta Sí / No / No sé todavía.
 - `due_day` puede ser NULL y ya no tiene DEFAULT 10. No se inventa un vencimiento.
-- La lista de tarjetas muestra «Faltan las fechas de cierre», «Resumen sin pagar», «Gastos sin cargar desde el …» o «Al día». «No sé» queda en «Resumen sin pagar» hasta contestar «No» o «Ya lo pagué».
+- La lista de tarjetas muestra «Faltan las fechas de cierre», «Resumen sin pagar», «Resumen por revisar», «Gastos sin cargar desde el …» o «Al día». «Resumen sin pagar» es solo para «Sí». «No sé todavía» dice «Resumen por revisar» y sigue en la nota del home.
 - El home muestra una sola nota, «Falta información de N tarjetas · tu disponible puede ser menor», y el aviso «Guardá tu acceso para no perder tus datos.»
 - El detalle pregunta por gastos desde el cierre con la carga que ya existe, y «¿Ya pagaste ese resumen?» con «Ya lo pagué» / «Todavía no». «Todavía no» vuelve a preguntar a los 7 días y no baja la nota.
 
@@ -18,7 +18,7 @@
 ## Decisiones conservadoras
 
 - Una tarjeta vieja, sin respuesta Sí / No / No sé, no entra en la nota ni cambia de estado. No hay forma de distinguir un `due_day` 10 inventado de uno cargado, y esta entrega no reescribe filas.
-- «No sé todavía» no es «Al día». Usa el mismo estado «Resumen sin pagar» y sigue en la nota del home.
+- «No sé todavía» no es «Al día». La lista dice «Resumen por revisar» y la tarjeta sigue en la nota del home. «Resumen sin pagar» queda solo para «Sí».
 - «Todavía no» esconde la pregunta hasta la fecha y deja la nota y «Resumen sin pagar».
 - «¿Ya pagaste ese resumen?» queda fijo en el cierre anterior o igual al alta. No avanza con los cierres siguientes. Pregunta recién el día después del vencimiento, y sigue hasta «No» o «Ya lo pagué».
 - La pregunta de gastos se cierra con «No la usé», «Listo, ya están todos» o el día después del primer cierre posterior al alta. El día del cierre sigue preguntando. Cargar un gasto no la cierra.

@@ -260,8 +260,11 @@ export function describeCardSetup(
   if (missingDates) {
     listLabel = 'Faltan las fechas de cierre'
     listTone = 'warning'
-  } else if (statementIsOpen(card) || unknownStatement) {
+  } else if (statementIsOpen(card)) {
     listLabel = 'Resumen sin pagar'
+    listTone = 'warning'
+  } else if (unknownStatement) {
+    listLabel = 'Resumen por revisar'
     listTone = 'warning'
   } else if (expensesView) {
     listLabel = `Gastos sin cargar desde el ${expensesView.sinceLabel}`

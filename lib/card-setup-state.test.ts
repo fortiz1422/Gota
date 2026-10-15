@@ -85,10 +85,13 @@ describe('list states', () => {
       [],
       today,
     )
-    expect(described.listLabel).toBe('Resumen sin pagar')
-    expect(described.listLabel).not.toBe('Falta completar')
+    expect(described.listLabel).toBe('Resumen por revisar')
     expect(described.countsTowardHomeNote).toBe(true)
     expect(described.unknownStatement).toBe(true)
+    expect(describeCardSetup(card({ statement_answer: 'yes' }), [], today).listLabel).toBe('Resumen sin pagar')
+    expect(
+      describeCardSetup(card({ statement_answer: 'unknown', closing_day: null, due_day: null }), [], today).listLabel,
+    ).toBe('Faltan las fechas de cierre')
   })
 
   it('uses only the spec list states and never pendiente as a label', () => {
@@ -106,7 +109,7 @@ describe('list states', () => {
       'Faltan las fechas de cierre',
       'Resumen sin pagar',
       'Gastos sin cargar desde el 24/09',
-      'Resumen sin pagar',
+      'Resumen por revisar',
       'Al día',
       '¿Resumen sin pagar? Sí',
     ])
