@@ -7,6 +7,7 @@ import { ArrowLeft, CaretDown, CaretUp, CheckCircle, ClockCounterClockwise } fro
 import { formatAmount } from '@/lib/format'
 import type { EnrichedCycle } from '@/lib/card-summaries'
 import type { Account, Card, Currency, Expense } from '@/types/database'
+import { CardDetailSetup } from '@/components/cards/CardDetailSetup'
 import { CycleExpensesDetail } from './CycleExpensesDetail'
 import { EditCycleModal } from './EditCycleModal'
 import { LegacyCardPaymentModal } from './LegacyCardPaymentModal'
@@ -733,6 +734,12 @@ export function CardDetailClient({
       </header>
 
       <div className="space-y-6 px-4 py-5 pb-32">
+        <CardDetailSetup
+          card={currentCard}
+          accounts={accounts}
+          expenses={expenses}
+          onCardChange={setCurrentCard}
+        />
         {/* Hero financiero */}
         {renderHero()}
 

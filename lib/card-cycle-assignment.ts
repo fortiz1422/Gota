@@ -62,9 +62,11 @@ function buildCyclePayload(
     previousCycle && previousCycle.closing_date >= `${periodMonth}-01`
       ? addMonths(previousCycle.closing_date.substring(0, 7), 1)
       : periodMonth
+  if (card.due_day == null) return null
   const closingDate = buildCycleDate(closingMonth, card.closing_day ?? 1)
   const dueMonth = resolveDueMonth(closingMonth, card.closing_day, card.due_day)
-  const dueDate = buildCycleDate(dueMonth, card.due_day ?? Math.min((card.closing_day ?? 1) + 10, 31))
+  if (!dueMonth) return null
+  const dueDate = buildCycleDate(dueMonth, card.due_day)
 
   return {
     user_id: userId,
@@ -80,17 +82,20 @@ function buildCyclePayload(
 // a purchase instead of creating cycles before a financial transaction.
 export function buildCardCyclePlan(userId: string, card: Card, baseDate: string, installments: number, existingCycles: CycleForAssignment[] = []) {
   if (!Number.isInteger(installments) || installments < 1 || installments > 72) throw new Error('Invalid installments')
+  if (card.due_day == null) return []
   const basePeriodMonth = getCyclePeriodMonthForDate(card, baseDate, existingCycles)
   const knownCycles: CycleForAssignment[] = [...existingCycles]
-  return Array.from({ length: installments }, (_, i) => {
+  const plans = Array.from({ length: installments }, (_, i) => {
     const periodMonth = addMonths(basePeriodMonth, i)
     const existing = existingCycles.find(cycle => cycle.card_id === card.id && cycle.period_month.substring(0, 7) === periodMonth)
     const payload = existing
       ? { user_id: userId, card_id: card.id, period_month: `${periodMonth}-01`, closing_date: existing.closing_date, due_date: existing.due_date, status: 'open' as const }
       : buildCyclePayload(userId, card, periodMonth, knownCycles)
+    if (!payload) return null
     knownCycles.push(payload)
     return payload
   })
+  return plans.filter((payload): payload is NonNullable<typeof payload> => payload != null)
 }
 
 export async function resolveCardCycleAssignments({
@@ -130,6 +135,7 @@ export async function resolveCardCycleAssignments({
 
   const existingCycles = (existingCyclesData ?? []) as CardCycle[]
   const payloads = buildCardCyclePlan(userId, card as Card, baseDate, installments, existingCycles)
+  if (payloads.length === 0) return []
   const periodMonths = payloads.map(payload => payload.period_month.substring(0, 7))
 
   // Insert only — never overwrite existing cycles (closing_date/due_date would be corrupted)

@@ -21,6 +21,12 @@ export const TOUR_STEPS: TourStep[] = [
     position: 'bottom',
   },
   {
+    target: 'card-information',
+    title: 'Lo que falta de tus tarjetas',
+    body: 'Si falta un cierre, un resumen o gastos desde el cierre, esta nota lo dice. Abrila para ver cada tarjeta. Cerrar la guía no borra la tarea.',
+    position: 'bottom',
+  },
+  {
     target: 'home-plus',
     title: 'Más formas de registrar',
     body: 'Desde el + cargás ingresos, transferencias y cuotas en curso de compras anteriores a Gota. Para agregar cuentas o tarjetas, entrá a Configuración.',

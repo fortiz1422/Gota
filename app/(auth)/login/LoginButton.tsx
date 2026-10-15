@@ -3,13 +3,13 @@
 import Link from 'next/link'
 import { useState, useEffect, useRef } from 'react'
 import {
-  isPasskeySupported,
   signInAnonymously,
   signInWithGoogle,
   signInWithPasskey,
   sendOtpEmail,
   verifyOtpToken,
 } from '@/lib/auth'
+import styles from '@/components/onboarding/landing-flow.module.css'
 
 // ── Icons ──────────────────────────────────────────────────────────────────────
 
@@ -58,37 +58,6 @@ function IconMail({ className = '' }: { className?: string }) {
     </svg>
   )
 }
-
-function IconPasskey() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="9" cy="12" r="3.25" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M12.5 12H21M18 12V14.5M15.5 12V13.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconGhost() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3C8.13 3 5 6.13 5 10V20L7.5 18L10 20L12 18L14 20L16.5 18L19 20V10C19 6.13 15.87 3 12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="9.5" cy="10.5" r="1" fill="currentColor" />
-      <circle cx="14.5" cy="10.5" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
 
 function IconCheck() {
   return (
@@ -210,81 +179,52 @@ function CTAZone({ children }: { children: React.ReactNode }) {
 // ── Screen 1 — Splash ──────────────────────────────────────────────────────────
 
 function SplashScreen({
-  passkeyAvailable,
   onPasskey,
   onGoogle,
   onEmail,
-  onExplore,
   authError,
   isGoogleLoading,
   isPasskeyLoading,
 }: {
-  passkeyAvailable: boolean
   onPasskey: () => void
   onGoogle: () => void
   onEmail: () => void
-  onExplore: () => void
   authError: string | null
   isGoogleLoading: boolean
   isPasskeyLoading: boolean
 }) {
   return (
-    <div className="min-h-app flex flex-col">
-      <Hero>
-        <Wordmark size={52} onDark />
-        <p className="mt-2 text-base italic font-normal text-white/70">Tu plata, clara.</p>
-      </Hero>
-
-      <Sheet>
-        <div className="px-6 pt-8">
-          <h1 className="text-2xl font-bold tracking-tight text-text-primary">Ingresar a Gota</h1>
-          <p className="mt-3 text-sm leading-6 text-text-secondary">Si ya tenés una cuenta, usá el mismo mail o Google. Si es tu primera vez, podés crearla acá o empezar sin cuenta.</p>
-          <Link href="/landing" className="mt-4 inline-block text-sm font-semibold text-primary">Conocer Gota</Link>
+    <div className={`${styles.shell} min-h-app`}>
+      <div className={styles.screen}>
+        <div className={styles.top}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img className={styles.wordmark} src="/brand/gota-wordmark-primary.svg" alt="Gota" />
         </div>
-
-        <div className="flex-1" />
-
-        <CTAZone>
-          <button
-            onClick={onGoogle}
-            disabled={isGoogleLoading || isPasskeyLoading}
-            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] bg-text-primary py-[15px] text-[15px] font-semibold text-white"
-          >
-            <IconGoogle /> {isGoogleLoading ? 'Redirigiendo...' : 'Continuar con Google'}
+        <div style={{ height: 40 }} />
+        <p className={styles.eyebrow}>Ingresar</p>
+        <h1 className={styles.title}>Volvé a tu <em>plata.</em></h1>
+        <p className={styles.lead}>Entrá con la cuenta con la que guardaste tu acceso.</p>
+        <div className={styles.grow} />
+        <div className={styles.footer}>
+          <button type="button" className={styles.cta} onClick={onGoogle} disabled={isGoogleLoading || isPasskeyLoading}>
+            <IconGoogle />
+            {isGoogleLoading ? 'Redirigiendo...' : 'Seguir con Google'}
+            {!isGoogleLoading ? <b>→</b> : null}
           </button>
-          {passkeyAvailable && <button
-            onClick={onPasskey}
-            disabled={!passkeyAvailable || isGoogleLoading || isPasskeyLoading}
-            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-primary/18 bg-primary/[0.06] py-[15px] text-[15px] font-semibold text-text-primary transition-colors hover:bg-primary/[0.08] disabled:opacity-50"
-          >
-            <IconPasskey />
-            {isPasskeyLoading
-              ? 'Abriendo passkey...'
-              : passkeyAvailable
-                ? 'Continuar con passkey'
-                : 'Passkey no disponible'}
-          </button>}
-          <button
-            onClick={onEmail}
-            className="flex w-full items-center justify-center gap-2.5 rounded-[14px] border border-black/10 bg-white py-[15px] text-[15px] font-semibold text-text-primary shadow-sm"
-          >
-            <IconMail className="text-text-secondary" /> Continuar con email
-          </button>
-          {authError && <p className="text-center text-[12px] leading-snug text-danger">{authError}</p>}
-          <div className="my-0.5 h-px bg-black/[0.08]" />
-          <button
-            onClick={onExplore}
-            className="flex w-full items-center justify-center gap-2 py-[13px] text-sm font-medium text-text-dim"
-          >
-            <IconGhost /> Empezar sin cuenta
-          </button>
-          <p className="text-center text-[11px] leading-relaxed text-text-dim">
-            Al continuar aceptás los{' '}
-            <Link href="/terms" className="text-primary underline">Términos de uso</Link> y la{' '}
-            <Link href="/privacy" className="text-primary underline">Política de privacidad</Link>
+          <div className="mt-5 flex justify-center gap-7">
+            <button type="button" className={styles.linkButton} onClick={onEmail}>Entrar con mail</button>
+            <button type="button" className={styles.linkButton} onClick={onPasskey} disabled={isPasskeyLoading}>
+              {isPasskeyLoading ? 'Abriendo passkey...' : 'Usar passkey'}
+            </button>
+          </div>
+          {authError ? <p role="alert" className={styles.error}>{authError}</p> : null}
+          <div className="my-[26px] h-px bg-[#D8E1E3]" />
+          <p className="m-0 text-center text-sm text-[#536770]">
+            ¿Primera vez? <Link href="/start" className={styles.linkButton}>Probá Gota sin cuenta →</Link>
           </p>
-        </CTAZone>
-      </Sheet>
+          <p className={styles.signature}>Gota, tu plata clara.</p>
+        </div>
+      </div>
     </div>
   )
 }
@@ -651,7 +591,6 @@ export function LoginButton({ initialScreen = 'splash', destination = '/' }: { i
   const [authError, setAuthError] = useState<string | null>(null)
   const [isGoogleLoading, setIsGoogleLoading] = useState(false)
   const [isPasskeyLoading, setIsPasskeyLoading] = useState(false)
-  const passkeyAvailable = isPasskeySupported()
 
   const handleGoogle = async () => {
     setAuthError(null)
@@ -708,16 +647,11 @@ export function LoginButton({ initialScreen = 'splash', destination = '/' }: { i
     <div className="min-h-app flex flex-col bg-bg-primary">
       {screen === 'splash' && (
         <SplashScreen
-          passkeyAvailable={passkeyAvailable}
           onPasskey={handlePasskey}
           onGoogle={handleGoogle}
           onEmail={() => {
             setAuthError(null)
             setScreen('email')
-          }}
-          onExplore={() => {
-            setAuthError(null)
-            setScreen('explore')
           }}
           authError={authError}
           isGoogleLoading={isGoogleLoading}

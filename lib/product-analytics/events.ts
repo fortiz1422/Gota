@@ -1,5 +1,9 @@
 export const PRODUCT_EVENT_NAMES = [
   'onboarding_started',
+  'onboarding_step_viewed',
+  'onboarding_cards_skipped',
+  'onboarding_card_saved',
+  'onboarding_card_dates_deferred',
   'onboarding_completed',
   'first_account_created',
   'first_expense_created',

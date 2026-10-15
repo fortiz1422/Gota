@@ -7,6 +7,7 @@ import { InlineError } from '@/components/ui/InlineError'
 import { usePaidAICapability } from '@/hooks/usePaidAICapability'
 import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
+import { applyExpensePreset, type ExpensePreset } from '@/lib/expense-preset'
 import type { Account, Card } from '@/types/database'
 import { ParsePreview, type ParsedExpensePreviewData } from './ParsePreview'
 
@@ -20,6 +21,7 @@ interface SmartInputProps {
   variant?: 'default' | 'bottom-zone'
   focusSignal?: number
   previewMode?: 'modal' | 'embedded'
+  expensePreset?: ExpensePreset | null
 }
 
 type InputMethod = 'text' | 'voice'
@@ -38,6 +40,7 @@ export function SmartInput({
   variant = 'default',
   focusSignal = 0,
   previewMode = 'modal',
+  expensePreset = null,
 }: SmartInputProps) {
   const router = useRouter()
   const paidAIAllowed = usePaidAICapability()
@@ -114,7 +117,7 @@ export function SmartInput({
         if (inputMethod === 'voice') {
           trackEvent('smartinput_voice_succeeded', { variant })
         }
-        handleParseResult(data, inputMethod)
+        handleParseResult(applyExpensePreset(data, expensePreset), inputMethod)
         return
       }
 

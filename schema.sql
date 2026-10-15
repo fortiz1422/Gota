@@ -889,8 +889,12 @@ CREATE TABLE IF NOT EXISTS cards (
   user_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
   name        VARCHAR(100) NOT NULL,
   closing_day INTEGER,
-  due_day     INTEGER NOT NULL DEFAULT 10,
+  due_day     INTEGER,
   account_id  UUID REFERENCES accounts(id) ON DELETE SET NULL,
+  statement_answer TEXT CHECK (statement_answer IS NULL OR statement_answer IN ('yes', 'no', 'unknown')),
+  statement_resolved TEXT CHECK (statement_resolved IS NULL OR statement_resolved IN ('paid')),
+  statement_ask_after DATE,
+  post_close_expenses TEXT CHECK (post_close_expenses IS NULL OR post_close_expenses IN ('none', 'done')),
   archived    BOOLEAN NOT NULL DEFAULT false,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()

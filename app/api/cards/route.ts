@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
 import { ZodError } from 'zod'
 import { parseCardCreate } from '@/lib/cards/input'
+import { cardInsertPayload } from '@/lib/cards/persist'
 
 export async function GET() {
   const supabase = await createClient()
@@ -35,20 +36,9 @@ export async function POST(request: Request) {
     if (error instanceof ZodError) return NextResponse.json({ error: 'Invalid card data' }, { status: 400 })
     throw error
   }
-  const { name, closing_day, due_day, account_id, last_four } = body
-
-  const computedDueDay = due_day ?? (closing_day ? Math.min(closing_day + 10, 31) : 10)
-
   const { data, error } = await supabase
     .from('cards')
-    .insert({
-      user_id: user.id,
-      name: name.trim(),
-      closing_day: closing_day ?? null,
-      due_day: computedDueDay,
-      account_id: account_id ?? null,
-      last_four: last_four ?? null,
-    })
+    .insert(cardInsertPayload(user.id, body))
     .select()
     .single()
 

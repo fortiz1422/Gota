@@ -53,16 +53,18 @@ export function buildConfirmedCardCyclePayload({
   }
 }
 
-export function resolveDueMonth(periodMonth: string, closingDay: number | null, dueDay: number | null): string {
+export function resolveDueMonth(periodMonth: string, closingDay: number | null, dueDay: number | null): string | null {
+  if (dueDay == null) return null
   const safeClosingDay = closingDay ?? 1
-  const safeDueDay = dueDay ?? Math.min(safeClosingDay + 10, 31)
-  return safeDueDay > safeClosingDay ? periodMonth : addMonths(periodMonth, 1)
+  return dueDay > safeClosingDay ? periodMonth : addMonths(periodMonth, 1)
 }
 
-export function buildLegacyCardCycle(card: Card, periodMonth: string): ResolvedCardCycle {
+export function buildLegacyCardCycle(card: Card, periodMonth: string): ResolvedCardCycle | null {
+  if (card.due_day == null) return null
   const closingDate = buildCycleDate(periodMonth, card.closing_day ?? 1)
   const dueMonth = resolveDueMonth(periodMonth, card.closing_day, card.due_day)
-  const dueDate = buildCycleDate(dueMonth, card.due_day ?? Math.min((card.closing_day ?? 1) + 10, 31))
+  if (!dueMonth) return null
+  const dueDate = buildCycleDate(dueMonth, card.due_day)
 
   return {
     id: `legacy-${card.id}-${periodMonth}`,
@@ -89,6 +91,7 @@ export function mergeResolvedCycles(card: Card, storedCycles: CardCycle[], perio
 
   return periodMonths
     .map((periodMonth) => storedByMonth.get(periodMonth) ?? buildLegacyCardCycle(card, periodMonth))
+    .filter((cycle): cycle is ResolvedCardCycle => cycle != null)
     .sort((a, b) => b.period_month.localeCompare(a.period_month))
 }
 

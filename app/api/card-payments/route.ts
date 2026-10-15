@@ -182,8 +182,9 @@ function getPeriodFrom(cycle: ResolvedCardCycle, card: Card, allCycles: Resolved
 
   const prevClosingDate = prevCycle
     ? prevCycle.closing_date
-    : buildLegacyCardCycle(card, prevMonth).closing_date
+    : buildLegacyCardCycle(card, prevMonth)?.closing_date
 
+  if (!prevClosingDate) return `${cycle.period_month.substring(0, 7)}-01`
   return addOneDay(prevClosingDate)
 }
 

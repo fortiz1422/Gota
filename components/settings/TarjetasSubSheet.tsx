@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaretRight, CreditCard, Plus, X } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
-import { formatCompact } from '@/lib/format'
+import { formatCompact, todayAR } from '@/lib/format'
+import { describeCardSetup } from '@/lib/card-setup-state'
 import type { CardSummary } from '@/app/api/cards/summary/route'
 import type { Currency } from '@/types/database'
 
@@ -59,52 +60,36 @@ function buildHeaderTotals(cards: CardSummary[]) {
 export function TarjetasSubSheet({ open, onClose }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<CardSummary[]>([])
+  const [prevOpen, setPrevOpen] = useState(false)
   const [loading, setLoading] = useState(false)
-  const [newName, setNewName] = useState('')
-  const [isSaving, setIsSaving] = useState(false)
-  const [addingCard, setAddingCard] = useState(false)
-  const inputRef = useRef<HTMLInputElement>(null)
+
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    setLoading(open)
+  }
 
   useEffect(() => {
-    if (!open) return
-    setLoading(true)
-    setAddingCard(false)
-    setNewName('')
+    if (!loading) return
+    let cancelled = false
     fetch('/api/cards/summary')
       .then((r) => r.json())
-      .then((data) => setCards(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [open])
-
-  useEffect(() => {
-    if (addingCard) setTimeout(() => inputRef.current?.focus(), 50)
-  }, [addingCard])
+      .then((data) => {
+        if (!cancelled) setCards(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        if (!cancelled) setCards([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [loading])
 
   const handleCardTap = (cardId: string) => {
     onClose()
     router.push(`/tarjetas/${cardId}`)
-  }
-
-  const addCard = async () => {
-    const name = newName.trim()
-    if (!name) return
-    setIsSaving(true)
-    try {
-      const res = await fetch('/api/cards', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name }),
-      })
-      if (!res.ok) throw new Error()
-      const newCard: { id: string } = await res.json()
-      onClose()
-      router.push(`/tarjetas/${newCard.id}`)
-    } catch {
-      alert('Error al agregar tarjeta.')
-    } finally {
-      setIsSaving(false)
-    }
   }
 
   const headerTotals = buildHeaderTotals(cards)
@@ -123,7 +108,6 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
                 <span className="font-semibold text-text-secondary">
                   {formatCompact(headerTotals.primaryTotal, headerTotals.defaultCurrency)}
                 </span>
-                {' pendiente'}
                 {headerTotals.secondaryTotal > 0 && (
                   <span className="text-text-dim">
                     {' · '}{formatCompact(headerTotals.secondaryTotal, headerTotals.secondaryCurrency)}
@@ -155,7 +139,7 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
             </div>
             <p className="text-[14px] font-semibold text-text-primary">Sin tarjetas todavía</p>
             <p className="mt-1 text-[12px] leading-5 text-text-tertiary">
-              Agregá una para seguir cierres, vencimientos y saldos pendientes.
+              Agregá una para seguir cierres y vencimientos.
             </p>
           </div>
         ) : (
@@ -163,6 +147,16 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
             {cards.map((card, i) => {
               const { label: closingLabel, urgent } = closingBadge(card.closing_day)
               const amountLabel = pendingLabel(card)
+              const setup = describeCardSetup({
+                name: card.name,
+                closing_day: card.closing_day,
+                due_day: card.due_day,
+                created_at: card.created_at ?? '2020-01-01',
+                statement_answer: card.statement_answer ?? null,
+                statement_resolved: card.statement_resolved ?? null,
+                statement_ask_after: card.statement_ask_after ?? null,
+                post_close_expenses: card.post_close_expenses ?? null,
+              }, [], todayAR())
 
               return (
                 <button
@@ -184,13 +178,18 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
                       {card.name}
                     </span>
                     <span className={`text-[11px] ${urgent ? 'text-warning' : 'text-text-tertiary'}`}>
-                      {card.account_name ? `${card.account_name} · ` : ''}
-                      {closingLabel}
+                      {setup.tracked
+                        ? (setup.cycleLine === 'Sin fechas' ? (card.account_name ?? 'Sin cuenta') : setup.cycleLine)
+                        : `${card.account_name ? `${card.account_name} · ` : ''}${closingLabel}`}
                     </span>
                   </div>
 
                   <div className="flex shrink-0 items-center gap-2">
-                    {amountLabel ? (
+                    {setup.tracked && setup.listLabel ? (
+                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-semibold ${setup.listTone === 'ok' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>
+                        {setup.listLabel}
+                      </span>
+                    ) : amountLabel ? (
                       <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold tabular-nums ${amountBadgeClass(urgent)}`}>
                         {amountLabel}
                       </span>
@@ -207,60 +206,19 @@ export function TarjetasSubSheet({ open, onClose }: Props) {
           </div>
         )}
 
-        {/* Add card */}
-        {addingCard ? (
-          <div className="card-s5 overflow-hidden">
-            <div className="flex items-center gap-3 px-[18px] pb-2 pt-3.5">
-              <div
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-                style={{ background: 'rgba(33,120,168,0.10)' }}
-              >
-                <Plus size={15} className="text-primary" />
-              </div>
-              <input
-                ref={inputRef}
-                type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter') void addCard()
-                  if (e.key === 'Escape') { setAddingCard(false); setNewName('') }
-                }}
-                placeholder="Nombre de la tarjeta"
-                className="flex-1 bg-transparent text-[14px] text-text-primary placeholder:text-text-tertiary focus:outline-none"
-              />
-              <button
-                onClick={() => void addCard()}
-                disabled={!newName.trim() || isSaving}
-                className="text-[13px] font-semibold text-primary disabled:opacity-40"
-              >
-                {isSaving ? '…' : 'Agregar'}
-              </button>
-              <button
-                onClick={() => { setAddingCard(false); setNewName('') }}
-                className="text-[12px] text-text-tertiary"
-              >
-                Cancelar
-              </button>
-            </div>
-            <p className="px-[18px] pb-3.5 text-[11px] text-text-tertiary">
-              Podés configurar ciclo y cuenta desde la tarjeta.
-            </p>
+        <button
+          type="button"
+          onClick={() => {
+            onClose()
+            router.push('/tarjetas')
+          }}
+          className="flex w-full items-center gap-3 rounded-[14px] border border-dashed border-primary/30 px-[18px] py-3.5 text-left"
+        >
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full" style={{ background: 'rgba(33,120,168,0.10)' }}>
+            <Plus size={15} className="text-primary" />
           </div>
-        ) : (
-          <button
-            onClick={() => setAddingCard(true)}
-            className="flex w-full items-center gap-3 rounded-[14px] border border-dashed border-primary/30 px-[18px] py-3.5 transition-colors hover:bg-primary/5 active:opacity-70"
-          >
-            <div
-              className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full"
-              style={{ background: 'rgba(33,120,168,0.10)' }}
-            >
-              <Plus size={15} className="text-primary" />
-            </div>
-            <span className="text-[14px] font-medium text-text-secondary">Nueva tarjeta</span>
-          </button>
-        )}
+          <span className="text-[14px] font-medium text-text-secondary">+ Agregar tarjeta</span>
+        </button>
       </div>
     </Modal>
   )

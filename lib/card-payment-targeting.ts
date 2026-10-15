@@ -19,15 +19,36 @@ export function resolveExplicitResolvedCycle(
     return cycles.find((cycle) => cycle.id === reference.cycle_id) ?? null
   }
 
-  if (!reference.cycle?.period_month) return null
+  const explicitCycle = reference.cycle
+  if (!explicitCycle?.period_month) return null
 
-  return (
-    cycles.find((cycle) => cycle.period_month.startsWith(reference.cycle!.period_month)) ?? {
-      ...buildLegacyCardCycle(card, reference.cycle.period_month),
-      closing_date: reference.cycle.closing_date,
-      due_date: reference.cycle.due_date,
-    }
-  )
+  const matched = cycles.find((cycle) => cycle.period_month.startsWith(explicitCycle.period_month))
+  if (matched) return matched
+
+  const legacy = buildLegacyCardCycle(card, explicitCycle.period_month)
+  const periodMonth = explicitCycle.period_month.length === 7
+    ? `${explicitCycle.period_month}-01`
+    : explicitCycle.period_month
+  return {
+    ...(legacy ?? {
+      id: `explicit-${card.id}-${explicitCycle.period_month}`,
+      user_id: card.user_id,
+      card_id: card.id,
+      period_month: periodMonth,
+      closing_date: explicitCycle.closing_date,
+      due_date: explicitCycle.due_date,
+      status: 'open' as const,
+      amount_draft: null,
+      amount_paid: null,
+      paid_at: null,
+      dates_confirmed_at: null,
+      created_at: explicitCycle.closing_date,
+      updated_at: explicitCycle.closing_date,
+      source: 'legacy' as const,
+    }),
+    closing_date: explicitCycle.closing_date,
+    due_date: explicitCycle.due_date,
+  }
 }
 
 export function getAutoTargetCycles<

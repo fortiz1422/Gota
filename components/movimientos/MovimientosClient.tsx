@@ -127,18 +127,23 @@ interface Props {
   initialData?: ApiResponse
   initialCategoria?: string
   initialSoloPercibidos?: boolean
+  initialTarjetas?: string[]
 }
 
-export function MovimientosClient({ initialMonth, initialData, initialCategoria, initialSoloPercibidos }: Props) {
+export function MovimientosClient({ initialMonth, initialData, initialCategoria, initialSoloPercibidos, initialTarjetas = [] }: Props) {
   const router = useRouter()
   const [selectedMonth, setSelectedMonth] = useState(initialMonth)
+  const presetTarjetas = initialTarjetas.filter(Boolean)
   const [activeFilters, setActiveFilters] = useState<ActiveFilters>(() => {
-    if (!initialCategoria) return EMPTY_FILTERS
-    return {
-      ...EMPTY_FILTERS,
-      categorias: [initialCategoria],
-      origenes: initialSoloPercibidos ? ['percibido', 'pago_tarjeta'] : [],
-    }
+    const base: ActiveFilters = initialCategoria
+      ? {
+          ...EMPTY_FILTERS,
+          categorias: [initialCategoria],
+          origenes: initialSoloPercibidos ? ['percibido', 'pago_tarjeta'] : [],
+        }
+      : EMPTY_FILTERS
+    if (presetTarjetas.length === 0) return base
+    return { ...base, tarjetas: presetTarjetas }
   })
   const [filterOpen, setFilterOpen] = useState(false)
   const [page, setPage] = useState(1)
@@ -159,9 +164,9 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
   const [statsCurrency, setStatsCurrency] = useState<'ARS' | 'USD'>(
     initialData?.statsCurrency ?? 'ARS'
   )
-  const [isLoading, setIsLoading] = useState(!initialData)
+  const [isLoading, setIsLoading] = useState(!initialData || presetTarjetas.length > 0)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
-  const skipFirstFetch = useRef(!!initialData)
+  const skipFirstFetch = useRef(!!initialData && presetTarjetas.length === 0)
 
   useEffect(() => {
     if (initialCategoria) window.scrollTo({ top: 0 })

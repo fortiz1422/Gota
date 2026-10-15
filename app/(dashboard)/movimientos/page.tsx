@@ -18,7 +18,7 @@ type ApiMovement =
 export default async function MovimientosPage({
   searchParams,
 }: {
-  searchParams: Promise<{ month?: string; categoria?: string; soloPercibidos?: string }>
+  searchParams: Promise<{ month?: string; categoria?: string; soloPercibidos?: string; tarjetas?: string }>
 }) {
   const supabase = await createClient()
   const {
@@ -27,7 +27,11 @@ export default async function MovimientosPage({
 
   if (!user) redirect('/login')
 
-  const { month, categoria, soloPercibidos } = await searchParams
+  const { month, categoria, soloPercibidos, tarjetas } = await searchParams
+  const initialTarjetas = (tarjetas ?? '')
+    .split(',')
+    .map((id) => id.trim())
+    .filter((id) => /^[0-9a-f-]{36}$/i.test(id))
   const initialMonth = month ?? getCurrentMonth()
   const startOfMonth = initialMonth + '-01'
   const endOfMonth = addMonths(initialMonth, 1) + '-01'
@@ -167,6 +171,7 @@ export default async function MovimientosPage({
       initialData={initialData}
       initialCategoria={categoria}
       initialSoloPercibidos={soloPercibidos === 'true'}
+      initialTarjetas={initialTarjetas}
     />
   )
 }

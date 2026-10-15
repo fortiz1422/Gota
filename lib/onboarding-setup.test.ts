@@ -79,7 +79,7 @@ describe('onboarding balances', () => {
 })
 
 describe('setup save sequencing and recovery', () => {
-  it('saves the account before completion and disables the old auto tour', async () => {
+  it('saves the account before completion and leaves the home tour available', async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(json(account))
@@ -99,7 +99,6 @@ describe('setup save sequencing and recovery', () => {
       default_currency: 'ARS',
       hero_balance_mode: 'default_currency',
       onboarding_completed: true,
-      tour_completed: true,
     })
   })
   it('never completes configuration after an account failure', async () => {
@@ -143,6 +142,17 @@ describe('setup save sequencing and recovery', () => {
       saveAccountSetup(input, { fetcher, onAccountSaved: vi.fn() })
     ).rejects.toThrow('confirmar el guardado')
     expect(fetcher).toHaveBeenCalledTimes(1)
+  })
+  it('saves the account without finishing onboarding when another step remains', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(json(account))
+      .mockResolvedValueOnce(json({ ok: true }))
+    await saveAccountSetup(input, { fetcher, onAccountSaved: vi.fn(), complete: false })
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({
+      default_currency: 'ARS',
+      hero_balance_mode: 'default_currency',
+    })
   })
   it('uses a stable UUID for the same user, different UUIDs across users', () => {
     const first = firstSetupAccountId('user-a')

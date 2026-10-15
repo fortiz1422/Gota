@@ -219,7 +219,7 @@ export function computeCompromisos(
         if (hasCycle) continue
 
         const implicitCycle = buildLegacyCardCycle(card, prevMonth)
-        if (implicitCycle.closing_date >= today) continue
+        if (!implicitCycle || implicitCycle.closing_date >= today) continue
 
         const amount = computeStatementAmount(
           implicitCycle,
@@ -242,7 +242,7 @@ export function computeCompromisos(
 
       if (!foundEnCurso && card.closing_day !== null) {
         const legacy = buildLegacyCardCycle(card, selectedMonth)
-        if (legacy.closing_date >= today) {
+        if (legacy && legacy.closing_date >= today) {
           const periodFrom = getPeriodFrom(legacy, card, cardCycles)
           const liveSpend = calcularMontoResumen(
             expenses,

@@ -49,7 +49,7 @@ function normalizeQuote(raw: Partial<InitialQuote>): InitialQuote | null {
 }
 
 type LoadDashboardPageDataParams = {
-  searchParams: Promise<{ month?: string; currency?: string }>
+  searchParams: Promise<{ month?: string; currency?: string; cargar?: string; card?: string }>
 }
 
 export async function loadDashboardPageData({
@@ -78,7 +78,7 @@ export async function loadDashboardPageData({
     )
   }
 
-  const { month, currency: currencyParam } = await searchParams
+  const { month, currency: currencyParam, cargar, card } = await searchParams
   const selectedMonth = month ?? getCurrentMonth()
   const viewCurrency = (
     currencyParam === 'USD' || currencyParam === 'ARS'
@@ -120,5 +120,6 @@ export async function loadDashboardPageData({
     isAnonymous: user.is_anonymous === true,
     initialData,
     initialQuote,
+    expensePreset: cargar === '1' && /^[0-9a-f-]{36}$/i.test(card ?? '') ? { cardId: card as string } : null,
   }
 }
