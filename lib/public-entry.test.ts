@@ -41,6 +41,29 @@ describe('public entry and redirects', () => {
       expect(mocks.create).not.toHaveBeenCalled()
     }
   )
+  it.each(['/robots.txt', '/sitemap.xml', '/landing/v57/fonts/geist.css'])(
+    'serves %s without auth dependency',
+    async (path) => {
+      const response = await run(path)
+      expect(response.headers.get('x-middleware-next')).toBe('1')
+      expect(response.headers.get('location')).toBeNull()
+      expect(mocks.create).not.toHaveBeenCalled()
+    }
+  )
+  it.each([true, false])(
+    'keeps /landing public with a session (anonymous=%s)',
+    async (isAnonymous) => {
+      mocks.user.mockResolvedValue({
+        data: { user: { id: 'session', is_anonymous: isAnonymous } },
+      })
+      const response = await run('/landing')
+      expect(response.headers.get('x-middleware-next')).toBe('1')
+      expect(response.headers.get('x-middleware-rewrite')).toBeNull()
+      expect(response.headers.get('location')).toBeNull()
+      expect(response.headers.get('set-cookie')).toBeNull()
+      expect(mocks.create).not.toHaveBeenCalled()
+    }
+  )
   it('opens the explicit guest entry without creating a user', async () => {
     expect((await run('/start')).headers.get('location')).toBeNull()
   })

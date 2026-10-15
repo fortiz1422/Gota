@@ -1,3 +1,4 @@
 User-agent: *
 Allow: /
-Sitemap: https://gota.app/sitemap.xml
+
+Sitemap: https://gota.money/sitemap.xml

@@ -21,7 +21,9 @@ export async function proxy(request: NextRequest) {
     pathname.startsWith('/landing/') ||
     pathname === '/terms' ||
     pathname === '/privacy' ||
-    pathname.startsWith('/privacy/')
+    pathname.startsWith('/privacy/') ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml'
 
   // Public product pages work without auth and never refresh a personal session.
   if (isPublicPath) return NextResponse.next()
