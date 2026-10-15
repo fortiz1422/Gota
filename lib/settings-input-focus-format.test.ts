@@ -6,7 +6,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf
 const SETTINGS_LINE_INPUT_FILES = [
 
   '../components/settings/AccountSection.tsx',
-  '../components/settings/CardsSection.tsx',
+  '../components/cards/CardSetupForm.tsx',
   '../components/settings/CounterpartyAliasesPanel.tsx',
   '../components/settings/DeleteAccountControl.tsx',
   '../components/settings/SharedReceiptDevicesPanel.tsx',
@@ -24,7 +24,10 @@ describe('Settings line input focus and number format', () => {
 
   it.each(SETTINGS_LINE_INPUT_FILES)('%s suppresses the global rectangular focus outline locally', (path) => {
     const source = read(path)
-    const lineControls = source.match(/className="[^"]*focus:ring-0[^"]*"/g) ?? []
+    const lineControls = [
+      ...(source.match(/className="[^"]*focus:ring-0[^"]*"/g) ?? []),
+      ...(source.match(/'[^']*focus:ring-0[^']*'/g) ?? []),
+    ]
 
     expect(lineControls.length).toBeGreaterThan(0)
     for (const control of lineControls) {
@@ -43,7 +46,7 @@ describe('Settings line input focus and number format', () => {
   })
 
   it('does not locale-group card suffixes or calendar days', () => {
-    const cards = read('../components/settings/CardsSection.tsx')
+    const cards = read('../components/cards/CardSetupForm.tsx')
     const subscriptions = read('../components/settings/SubscriptionBottomSheet.tsx')
 
     expect(cards).toContain('value={lastFour}')

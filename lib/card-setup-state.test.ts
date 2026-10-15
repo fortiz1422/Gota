@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   countCardsNeedingInformation,
+  declaredStatementClose,
   describeCardSetup,
   expensesSinceClose,
   firstCloseAfterSignup,
   homeCardInformationNote,
   postponeStatementAsk,
+  statementAnswerPhrase,
   type CardSetupRecord,
   type SetupExpense,
 } from './card-setup-state'
@@ -68,7 +70,7 @@ describe('list states', () => {
     expect(describeCardSetup(card({ closing_day: null, due_day: null }), [], today).listLabel).toBe(
       'Faltan las fechas de cierre',
     )
-    expect(describeCardSetup(card(), [], today).listLabel).toBe('Resumen sin cargar')
+    expect(describeCardSetup(card(), [], today).listLabel).toBe('Resumen sin pagar')
     expect(describeCardSetup(card({ statement_answer: 'no', created_at: beforeFirstClose }), [], today).listLabel).toBe(
       'Gastos sin cargar desde el 24/09',
     )
@@ -83,15 +85,40 @@ describe('list states', () => {
       [],
       today,
     )
-    expect(described.listLabel).toBe('Falta completar')
+    expect(described.listLabel).toBe('Resumen sin pagar')
+    expect(described.listLabel).not.toBe('Falta completar')
     expect(described.countsTowardHomeNote).toBe(true)
     expect(described.unknownStatement).toBe(true)
+  })
+
+  it('uses only the spec list states and never pendiente as a label', () => {
+    expect(statementAnswerPhrase('yes')).toBe('¿Resumen sin pagar? Sí')
+    expect(statementAnswerPhrase('unknown')).toBe('¿Resumen sin pagar? No sé')
+    const labels = [
+      describeCardSetup(card({ closing_day: null, due_day: null }), [], today).listLabel,
+      describeCardSetup(card(), [], today).listLabel,
+      describeCardSetup(card({ statement_answer: 'no', created_at: beforeFirstClose }), [], today).listLabel,
+      describeCardSetup(card({ statement_answer: 'unknown', post_close_expenses: 'done' }), [], today).listLabel,
+      describeCardSetup(card({ statement_answer: 'no', post_close_expenses: 'none' }), [], today).listLabel,
+      describeCardSetup(card(), [], today).answerPhrase,
+    ]
+    expect(labels).toEqual([
+      'Faltan las fechas de cierre',
+      'Resumen sin pagar',
+      'Gastos sin cargar desde el 24/09',
+      'Resumen sin pagar',
+      'Al día',
+      '¿Resumen sin pagar? Sí',
+    ])
+    for (const label of labels) expect(label?.toLowerCase()).not.toContain('pendiente')
+    expect(labels).not.toContain('Resumen sin cargar')
+    expect(labels).not.toContain('Falta completar')
   })
 })
 
 describe('statement question', () => {
   it('asks with the due date that the person entered, and offers ya lo pagué and todavía no', () => {
-    const described = describeCardSetup(card(), [], today)
+    const described = describeCardSetup(card({ created_at: '2026-09-28' }), [], today)
     expect(described.statement).toEqual({
       title: '¿Ya pagaste ese resumen?',
       body: 'Venció el 05/10. Si todavía no, te volvemos a preguntar en 7 días.',
@@ -101,7 +128,7 @@ describe('statement question', () => {
   })
 
   it('keeps the statement note before the due date without inventing a payment', () => {
-    const described = describeCardSetup(card(), [], '2026-09-30')
+    const described = describeCardSetup(card({ created_at: '2026-09-28' }), [], '2026-09-30')
     expect(described.statement?.title).toBe('Tu resumen sin pagar')
     expect(described.statement?.body).toBe('Marcaste que tenés un resumen cerrado sin pagar.')
     expect(described.statement?.actions).toEqual(['paid', 'later'])
@@ -113,7 +140,7 @@ describe('statement question', () => {
     expect(snoozed.statement?.actions).toEqual([])
     expect(snoozed.statement?.body).toBe('Te volvemos a preguntar el 22/10.')
     expect(snoozed.countsTowardHomeNote).toBe(true)
-    expect(snoozed.listLabel).toBe('Resumen sin cargar')
+    expect(snoozed.listLabel).toBe('Resumen sin pagar')
 
     const after = describeCardSetup(card({ statement_ask_after: '2026-10-22' }), [], '2026-10-22')
     expect(after.statement?.actions).toEqual(['paid', 'later'])
@@ -122,7 +149,21 @@ describe('statement question', () => {
   it('drops the statement note only for no or ya lo pagué', () => {
     expect(describeCardSetup(card({ statement_answer: 'no' }), [], today).statement).toBeNull()
     expect(describeCardSetup(card({ statement_resolved: 'paid' }), [], today).statement).toBeNull()
-    expect(describeCardSetup(card({ statement_resolved: 'paid' }), [], today).listLabel).not.toBe('Resumen sin cargar')
+    expect(describeCardSetup(card({ statement_resolved: 'paid' }), [], today).listLabel).not.toBe('Resumen sin pagar')
+  })
+
+  it('keeps asking about the statement declared at signup after later closes', () => {
+    const declared = card({ created_at: '2026-09-28' })
+    expect(declaredStatementClose(declared)).toBe('2026-09-24')
+    expect(describeCardSetup(declared, [], '2026-10-05').statement?.title).toBe('Tu resumen sin pagar')
+    expect(describeCardSetup(declared, [], '2026-10-06').statement).toMatchObject({
+      title: '¿Ya pagaste ese resumen?',
+      body: 'Venció el 05/10. Si todavía no, te volvemos a preguntar en 7 días.',
+    })
+    expect(describeCardSetup(declared, [], '2026-10-25').statement?.title).toBe('¿Ya pagaste ese resumen?')
+    expect(describeCardSetup(declared, [], '2026-12-27').statement?.body).toContain('Venció el 05/10')
+    expect(describeCardSetup({ ...declared, statement_answer: 'no' }, [], '2026-12-27').statement).toBeNull()
+    expect(describeCardSetup({ ...declared, statement_resolved: 'paid' }, [], '2026-12-27').statement).toBeNull()
   })
 
   it('asks without a date after 60 days when due day is null', () => {
@@ -174,7 +215,15 @@ describe('expenses since close', () => {
     expect(describeCardSetup(card({ statement_answer: 'no', post_close_expenses: 'none' }), [], '2026-09-23').expenses).toBeNull()
     expect(describeCardSetup(card({ statement_answer: 'no', post_close_expenses: 'done' }), [], '2026-09-23').expenses).toBeNull()
     expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-23').expenses).not.toBeNull()
-    expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-24').expenses).toBeNull()
-    expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-24').listLabel).toBe('Al día')
+    expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-24').expenses).not.toBeNull()
+    expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-25').expenses).toBeNull()
+    expect(describeCardSetup(card({ statement_answer: 'no' }), [], '2026-09-25').listLabel).toBe('Al día')
+    const signedUpOnTheTenth = card({ statement_answer: 'no', created_at: '2026-10-10' })
+    expect(describeCardSetup(signedUpOnTheTenth, [], '2026-10-24').expenses).not.toBeNull()
+    expect(describeCardSetup(signedUpOnTheTenth, [], '2026-10-25').expenses).toBeNull()
+    const signedUpOnCloseDay = card({ statement_answer: 'no', created_at: '2026-10-24' })
+    expect(firstCloseAfterSignup(24, '2026-10-24')).toBe('2026-11-24')
+    expect(describeCardSetup(signedUpOnCloseDay, [], '2026-11-24').expenses).not.toBeNull()
+    expect(describeCardSetup(signedUpOnCloseDay, [], '2026-11-25').expenses).toBeNull()
   })
 })

@@ -33,6 +33,8 @@ type Props = {
   onSubmit: (value: CardSetupSubmit) => Promise<void>
 }
 
+const appLineClass = 'w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-base font-semibold text-text-primary outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0'
+
 const ANSWERS: Array<{ value: StatementAnswer; label: string }> = [
   { value: 'yes', label: 'Sí' },
   { value: 'no', label: 'No' },
@@ -135,7 +137,7 @@ export function CardSetupForm({
         <input
           value={name}
           onChange={(event) => setName(event.target.value)}
-          className={app ? 'w-full border-0 border-b border-border-strong bg-transparent px-0 py-2 text-base font-semibold text-text-primary outline-none' : `${styles.amount} ${styles.dayInput}`}
+          className={app ? appLineClass : `${styles.amount} ${styles.dayInput}`}
           autoComplete="off"
         />
       </label>

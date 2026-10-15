@@ -1,23 +1,15 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CaretRight, CreditCard, Plus, Trash } from '@phosphor-icons/react'
 import { CollapsibleSection } from '@/components/ui/CollapsibleSection'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
-import { describeCardSetup, type StatementAnswer } from '@/lib/card-setup-state'
+import { CardSetupForm } from '@/components/cards/CardSetupForm'
+import { describeCardSetup } from '@/lib/card-setup-state'
 import { todayAR } from '@/lib/format'
-import { buildCardLastFourPayload, validateCardLastFour } from '@/lib/shared-receipts-ui'
 import type { Account, Card } from '@/types/database'
-
-const lineInputClass = 'w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-base font-semibold text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0'
-
-const ANSWERS: Array<{ value: StatementAnswer; label: string }> = [
-  { value: 'yes', label: 'Sí' },
-  { value: 'no', label: 'No' },
-  { value: 'unknown', label: 'No sé todavía' },
-]
 
 function closingInfo(closingDay: number, month: string): { diff: number; label: string } {
   const [year, monthNumber] = month.split('-').map(Number)
@@ -29,13 +21,6 @@ function closingInfo(closingDay: number, month: string): { diff: number; label: 
   if (diff === 0) return { diff, label: 'Cierra hoy' }
   if (diff > 0) return { diff, label: `Cierra en ${diff}d` }
   return { diff, label: `Cerró hace ${Math.abs(diff)}d` }
-}
-
-function dayValue(value: string): number | null {
-  if (!value.trim()) return null
-  const day = Number(value)
-  if (!Number.isInteger(day) || day < 1 || day > 31) return null
-  return day
 }
 
 interface CardTaskProps {
@@ -50,64 +35,10 @@ interface CardTaskProps {
 
 function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved }: CardTaskProps) {
   const isNew = card === null
-  const [name, setName] = useState(card?.name ?? '')
-  const [lastFour, setLastFour] = useState(card?.last_four ?? '')
-  const [closing, setClosing] = useState(card?.closing_day ? String(card.closing_day) : '')
-  const [due, setDue] = useState(card?.due_day ? String(card.due_day) : '')
-  const [datesUnknown, setDatesUnknown] = useState(Boolean(card && card.closing_day == null && card.due_day == null && card.statement_answer))
-  const [accountId, setAccountId] = useState(card?.account_id ?? '')
-  const [answer, setAnswer] = useState<StatementAnswer | null>(card?.statement_answer ?? null)
-  const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [archiveTrigger, setArchiveTrigger] = useState<HTMLElement | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const nameRef = useRef<HTMLInputElement>(null)
-  const requireAnswer = isNew || card?.statement_answer != null
-
-  const save = async () => {
-    const trimmed = name.trim()
-    if (!trimmed || saving) return
-    if (requireAnswer && !answer) {
-      setError('Elegí si tenés un resumen cerrado sin pagar.')
-      return
-    }
-    const closingDay = datesUnknown ? null : dayValue(closing)
-    const dueDay = datesUnknown ? null : dayValue(due)
-    if (!datesUnknown && (closingDay == null || dueDay == null)) {
-      setError('Completá el día de cierre y el de vencimiento, o elegí «No las sé».')
-      return
-    }
-    const lastFourResult = validateCardLastFour(lastFour)
-    if (!lastFourResult.valid) {
-      setError(lastFourResult.message)
-      return
-    }
-
-    setSaving(true)
-    setError(null)
-    try {
-      const response = await fetch(isNew ? '/api/cards' : `/api/cards/${card.id}`, {
-        method: isNew ? 'POST' : 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: trimmed,
-          closing_day: closingDay,
-          due_day: dueDay,
-          account_id: accountId || null,
-          ...buildCardLastFourPayload(lastFour),
-          ...(answer ? { statement_answer: answer } : {}),
-        }),
-      })
-      if (!response.ok) throw new Error()
-      onSaved(await response.json() as Card)
-      onClose()
-    } catch {
-      setError(isNew ? 'No pudimos agregar la tarjeta.' : 'No pudimos guardar los cambios.')
-    } finally {
-      setSaving(false)
-    }
-  }
 
   const remove = async () => {
     if (!card) return
@@ -133,67 +64,33 @@ function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved 
       appearance="compact"
       navigationTitle={isNew ? 'Nueva tarjeta' : 'Editar tarjeta'}
       triggerElement={triggerElement}
-      initialFocusRef={nameRef}
       eyebrow="TARJETAS"
       title={isNew ? 'Nueva tarjeta' : card.name}
       description={isNew ? 'Cargá su identidad y, si querés, dejá el ciclo configurado ahora.' : 'Revisá identidad, ciclo y cuenta asociada.'}
-      footer={
-        <button type="button" onClick={() => void save()} disabled={saving || !name.trim()} className="w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50">
-          {saving ? 'Guardando…' : isNew ? 'Agregar tarjeta' : 'Guardar cambios'}
-        </button>
-      }
+      footer={null}
     >
       <div className="space-y-5">
         {error ? <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
-        <section data-card-edit-information className="surface-module overflow-hidden rounded-card border border-border-subtle bg-white">
-          <label className="block px-4 pb-4 pt-4">
-            <span className="mb-1 block text-xs font-semibold text-text-secondary">Nombre</span>
-            <input ref={nameRef} value={name} onChange={(event) => setName(event.target.value)} placeholder="Ej. Visa Galicia" className={lineInputClass} />
-          </label>
-          <label className="block border-t border-border-subtle px-4 py-4">
-            <span className="mb-1 block text-xs font-semibold text-text-secondary">Últimos 4 dígitos <span className="font-normal text-text-tertiary">(opcional)</span></span>
-            <input inputMode="numeric" autoComplete="off" maxLength={4} value={lastFour} onChange={(event) => { setLastFour(event.target.value.replace(/\D/g, '').slice(0, 4)); setError(null) }} placeholder="1234" className={lineInputClass} />
-            <span className="mt-1 block text-xs text-text-tertiary">Sólo se guarda el sufijo para reconocerla: •••• 1234.</span>
-          </label>
+        <section data-card-edit-information data-card-edit-cycle className="border-b border-border-strong">
+          <CardSetupForm
+            variant="app"
+            accounts={accounts}
+            defaultAccountId={card?.account_id}
+            initial={card}
+            requireAnswer={isNew || card?.statement_answer != null}
+            submitLabel={isNew ? 'Guardar tarjeta' : 'Guardar cambios'}
+            onSubmit={async (input) => {
+              const response = await fetch(isNew ? '/api/cards' : `/api/cards/${card.id}`, {
+                method: isNew ? 'POST' : 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(input),
+              })
+              if (!response.ok) throw new Error(isNew ? 'No pudimos agregar la tarjeta.' : 'No pudimos guardar los cambios.')
+              onSaved(await response.json() as Card)
+              onClose()
+            }}
+          />
         </section>
-        <section data-card-edit-cycle className="surface-module rounded-card border border-border-subtle bg-white p-4">
-          <h3 className="text-sm font-semibold text-text-primary">Ciclo habitual</h3>
-          <p className="mt-1 text-xs leading-5 text-text-tertiary">El día del mes, no una fecha de calendario. Si no las sabés, no inventamos un vencimiento.</p>
-          <div className="mt-4 grid grid-cols-2 gap-3">
-            <label className="block">
-              <span className="mb-1 block text-xs text-text-secondary">Cierre habitual</span>
-              <input inputMode="numeric" value={datesUnknown ? '' : closing} disabled={datesUnknown} placeholder="1 a 31" onChange={(event) => { setDatesUnknown(false); setClosing(event.target.value.replace(/\D/g, '').slice(0, 2)) }} className={lineInputClass} />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-xs text-text-secondary">Vencimiento habitual</span>
-              <input inputMode="numeric" value={datesUnknown ? '' : due} disabled={datesUnknown} placeholder="1 a 31" onChange={(event) => { setDatesUnknown(false); setDue(event.target.value.replace(/\D/g, '').slice(0, 2)) }} className={lineInputClass} />
-            </label>
-          </div>
-          <button type="button" className="mt-3 text-sm font-semibold text-primary" onClick={() => { setDatesUnknown(true); setClosing(''); setDue('') }}>
-            No las sé, completar después
-          </button>
-          <p className="mb-2 mt-4 text-sm font-semibold text-text-primary">¿Tenés un resumen cerrado pendiente de pagar?</p>
-          <div className="flex flex-wrap gap-2">
-            {ANSWERS.map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={answer === option.value}
-                className={`rounded-full border px-3 py-2 text-sm font-semibold ${answer === option.value ? 'border-primary bg-primary text-white' : 'border-border-strong bg-white text-text-primary'}`}
-                onClick={() => setAnswer(option.value)}
-              >
-                {option.label}
-              </button>
-            ))}
-          </div>
-        </section>
-        <label className="surface-module block rounded-card border border-border-subtle bg-white p-4">
-          <span className="mb-1 block text-xs font-semibold text-text-secondary">Cuenta asociada</span>
-          <select value={accountId} onChange={(event) => setAccountId(event.target.value)} className="w-full border-0 border-b border-border-strong bg-transparent px-0 pb-2 pt-1 text-sm text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
-            <option value="">Sin cuenta asociada</option>
-            {accounts.map((account) => <option key={account.id} value={account.id}>{account.name}</option>)}
-          </select>
-        </label>
         {!isNew && card ? (
           <button data-card-edit-archive type="button" onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }} disabled={removing} className="surface-module flex min-h-[66px] w-full items-center justify-center gap-2 rounded-card border border-danger/15 bg-white text-sm font-semibold text-danger disabled:opacity-50">
             <Trash size={17} /> Archivar tarjeta

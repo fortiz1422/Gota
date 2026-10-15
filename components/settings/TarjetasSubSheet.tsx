@@ -60,17 +60,32 @@ function buildHeaderTotals(cards: CardSummary[]) {
 export function TarjetasSubSheet({ open, onClose }: Props) {
   const router = useRouter()
   const [cards, setCards] = useState<CardSummary[]>([])
+  const [prevOpen, setPrevOpen] = useState(false)
   const [loading, setLoading] = useState(false)
 
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    setLoading(open)
+  }
+
   useEffect(() => {
-    if (!open) return
-    setLoading(true)
+    if (!loading) return
+    let cancelled = false
     fetch('/api/cards/summary')
       .then((r) => r.json())
-      .then((data) => setCards(Array.isArray(data) ? data : []))
-      .catch(() => {})
-      .finally(() => setLoading(false))
-  }, [open])
+      .then((data) => {
+        if (!cancelled) setCards(Array.isArray(data) ? data : [])
+      })
+      .catch(() => {
+        if (!cancelled) setCards([])
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [loading])
 
   const handleCardTap = (cardId: string) => {
     onClose()

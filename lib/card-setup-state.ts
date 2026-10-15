@@ -101,7 +101,7 @@ export function homeCardInformationNote(count: number): string | null {
 
 export function statementAnswerPhrase(answer: StatementAnswer): string {
   const label = answer === 'yes' ? 'Sí' : answer === 'no' ? 'No' : 'No sé'
-  return `¿Resumen cerrado pendiente? ${label}`
+  return `¿Resumen sin pagar? ${label}`
 }
 
 export function isTrackedSetupCard(card: CardSetupRecord): boolean {
@@ -131,7 +131,7 @@ export function firstCloseAfterSignup(closingDay: number, createdAt: string): st
 export function expensesQuestionDismissed(card: CardSetupRecord, today: string): boolean {
   if (!isTrackedSetupCard(card) || card.closing_day == null) return true
   if (card.post_close_expenses === 'none' || card.post_close_expenses === 'done') return true
-  return today >= firstCloseAfterSignup(card.closing_day, card.created_at)
+  return today > firstCloseAfterSignup(card.closing_day, card.created_at)
 }
 
 export function statementIsOpen(card: CardSetupRecord): boolean {
@@ -142,9 +142,16 @@ export function statementAskSnoozed(card: CardSetupRecord, today: string): boole
   return Boolean(card.statement_ask_after && card.statement_ask_after > today)
 }
 
-function closedStatementDueDate(card: CardSetupRecord, today: string): string | null {
+/** The statement declared at signup: the close on or before the card was created. Later closes do not move it. */
+export function declaredStatementClose(card: CardSetupRecord): string | null {
+  if (card.closing_day == null) return null
+  return lastCloseOnOrBefore(argentinaDate(card.created_at), card.closing_day)
+}
+
+function closedStatementDueDate(card: CardSetupRecord): string | null {
   if (card.closing_day == null || card.due_day == null) return null
-  const close = lastCloseOnOrBefore(today, card.closing_day)
+  const close = declaredStatementClose(card)
+  if (!close) return null
   const closeMonth = close.slice(0, 7)
   const dueMonth = card.due_day > card.closing_day ? closeMonth : addMonths(closeMonth, 1)
   return buildCycleDate(dueMonth, card.due_day)
@@ -155,9 +162,9 @@ function statementOverdue(card: CardSetupRecord, today: string): { overdue: bool
     const elapsed = diffDays(argentinaDate(card.created_at), today)
     return { overdue: elapsed >= STATEMENT_DAYS_WITHOUT_DUE, dueDate: null }
   }
-  const dueDate = closedStatementDueDate(card, today)
+  const dueDate = closedStatementDueDate(card)
   if (!dueDate) return { overdue: false, dueDate: null }
-  return { overdue: dueDate <= today, dueDate }
+  return { overdue: dueDate < today, dueDate }
 }
 
 function statementBlock(card: CardSetupRecord, today: string): CardSetupStatement | null {
@@ -253,14 +260,11 @@ export function describeCardSetup(
   if (missingDates) {
     listLabel = 'Faltan las fechas de cierre'
     listTone = 'warning'
-  } else if (statementIsOpen(card)) {
-    listLabel = 'Resumen sin cargar'
+  } else if (statementIsOpen(card) || unknownStatement) {
+    listLabel = 'Resumen sin pagar'
     listTone = 'warning'
   } else if (expensesView) {
     listLabel = `Gastos sin cargar desde el ${expensesView.sinceLabel}`
-    listTone = 'warning'
-  } else if (unknownStatement) {
-    listLabel = 'Falta completar'
     listTone = 'warning'
   }
 

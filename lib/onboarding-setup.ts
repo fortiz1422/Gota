@@ -76,9 +76,7 @@ export async function saveAccountSetup(
     body: JSON.stringify({
       default_currency: input.currency,
       hero_balance_mode: 'default_currency',
-      ...(complete
-        ? { onboarding_completed: true, tour_completed: true }
-        : {}),
+      ...(complete ? { onboarding_completed: true } : {}),
     }),
   })
   if (!configResponse.ok)
@@ -93,7 +91,6 @@ export async function completeOnboarding(fetcher: typeof fetch = fetch): Promise
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       onboarding_completed: true,
-      tour_completed: true,
     }),
   })
   if (!response.ok) throw new Error('No pudimos abrir Gota. Intentá de nuevo.')

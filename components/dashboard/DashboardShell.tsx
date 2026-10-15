@@ -727,7 +727,7 @@ export function DashboardShell({
                 const note = homeCardInformationNote(countCardsNeedingInformation(cards, todayAR()))
                 if (!note) return null
                 return (
-                  <Link href="/tarjetas" className="mt-3 flex items-center justify-between gap-3 text-[13px] font-medium text-warning">
+                  <Link href="/tarjetas" data-tour="card-information" className="mt-3 flex items-center justify-between gap-3 text-[13px] font-medium text-warning">
                     <span>{note}</span>
                     <span aria-hidden>›</span>
                   </Link>

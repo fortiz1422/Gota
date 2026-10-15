@@ -59,37 +59,6 @@ function IconMail({ className = '' }: { className?: string }) {
   )
 }
 
-function IconPasskey() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <circle cx="9" cy="12" r="3.25" stroke="currentColor" strokeWidth="1.7" />
-      <path
-        d="M12.5 12H21M18 12V14.5M15.5 12V13.5"
-        stroke="currentColor"
-        strokeWidth="1.7"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-    </svg>
-  )
-}
-
-function IconGhost() {
-  return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-      <path
-        d="M12 3C8.13 3 5 6.13 5 10V20L7.5 18L10 20L12 18L14 20L16.5 18L19 20V10C19 6.13 15.87 3 12 3Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinejoin="round"
-      />
-      <circle cx="9.5" cy="10.5" r="1" fill="currentColor" />
-      <circle cx="14.5" cy="10.5" r="1" fill="currentColor" />
-    </svg>
-  )
-}
-
-
 function IconCheck() {
   return (
     <svg width="52" height="52" viewBox="0 0 52 52" fill="none">

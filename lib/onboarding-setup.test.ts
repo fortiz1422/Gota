@@ -79,7 +79,7 @@ describe('onboarding balances', () => {
 })
 
 describe('setup save sequencing and recovery', () => {
-  it('saves the account before completion and disables the old auto tour', async () => {
+  it('saves the account before completion and leaves the home tour available', async () => {
     const fetcher = vi
       .fn()
       .mockResolvedValueOnce(json(account))
@@ -99,7 +99,6 @@ describe('setup save sequencing and recovery', () => {
       default_currency: 'ARS',
       hero_balance_mode: 'default_currency',
       onboarding_completed: true,
-      tour_completed: true,
     })
   })
   it('never completes configuration after an account failure', async () => {
