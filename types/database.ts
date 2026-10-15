@@ -647,32 +647,44 @@ export type Database = {
           user_id: string
           name: string
           closing_day: number | null
-          due_day: number
+          due_day: number | null
           account_id: string | null
           last_four: string | null
           archived: boolean
           created_at: string
           updated_at: string
+          statement_answer?: 'yes' | 'no' | 'unknown' | null
+          statement_resolved?: 'paid' | null
+          statement_ask_after?: string | null
+          post_close_expenses?: 'none' | 'done' | null
         }
         Insert: {
           id?: string
           user_id: string
           name: string
           closing_day?: number | null
-          due_day?: number
+          due_day?: number | null
           account_id?: string | null
           last_four?: string | null
           archived?: boolean
           created_at?: string
           updated_at?: string
+          statement_answer?: 'yes' | 'no' | 'unknown' | null
+          statement_resolved?: 'paid' | null
+          statement_ask_after?: string | null
+          post_close_expenses?: 'none' | 'done' | null
         }
         Update: {
           name?: string
           closing_day?: number | null
-          due_day?: number
+          due_day?: number | null
           account_id?: string | null
           last_four?: string | null
           archived?: boolean
+          statement_answer?: 'yes' | 'no' | 'unknown' | null
+          statement_resolved?: 'paid' | null
+          statement_ask_after?: string | null
+          post_close_expenses?: 'none' | 'done' | null
         }
         Relationships: []
       }

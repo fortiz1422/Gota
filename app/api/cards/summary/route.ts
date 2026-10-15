@@ -17,6 +17,11 @@ export interface CardSummary {
   pending_ars: number
   pending_usd: number
   default_currency: 'ARS' | 'USD'
+  created_at?: string
+  statement_answer?: 'yes' | 'no' | 'unknown' | null
+  statement_resolved?: 'paid' | null
+  statement_ask_after?: string | null
+  post_close_expenses?: 'none' | 'done' | null
 }
 
 export async function GET() {
@@ -44,7 +49,7 @@ export async function GET() {
     supabase.from('user_config').select('default_currency').eq('user_id', user.id).single(),
     supabase
       .from('cards')
-      .select('id, name, closing_day, due_day, account_id')
+      .select('*')
       .eq('user_id', user.id)
       .eq('archived', false)
       .order('created_at', { ascending: true }),
@@ -126,6 +131,11 @@ export async function GET() {
       currentMonth,
       today,
     ),
+    created_at: 'created_at' in card ? String(card.created_at) : undefined,
+    statement_answer: 'statement_answer' in card ? card.statement_answer : null,
+    statement_resolved: 'statement_resolved' in card ? card.statement_resolved : null,
+    statement_ask_after: 'statement_ask_after' in card ? card.statement_ask_after : null,
+    post_close_expenses: 'post_close_expenses' in card ? card.post_close_expenses : null,
     pending_usd: sumCardSummaryPreview(
       buildEnrichedCardCycles({
         card: card as Card,

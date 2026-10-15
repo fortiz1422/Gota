@@ -42,6 +42,7 @@ export async function saveAccountSetup(
   options: {
     fetcher?: typeof fetch
     onAccountSaved: (account: SetupAccount) => void
+    complete?: boolean
   }
 ): Promise<void> {
   const fetcher = options.fetcher ?? fetch
@@ -68,18 +69,32 @@ export async function saveAccountSetup(
     )
   options.onAccountSaved(saved)
 
+  const complete = options.complete ?? true
   const configResponse = await fetcher('/api/user-config', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       default_currency: input.currency,
       hero_balance_mode: 'default_currency',
-      onboarding_completed: true,
-      tour_completed: true,
+      ...(complete
+        ? { onboarding_completed: true, tour_completed: true }
+        : {}),
     }),
   })
   if (!configResponse.ok)
     throw new Error(
       'Tu cuenta quedó guardada. Falta terminar la configuración: reintentá acá.'
     )
+}
+
+export async function completeOnboarding(fetcher: typeof fetch = fetch): Promise<void> {
+  const response = await fetcher('/api/user-config', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      onboarding_completed: true,
+      tour_completed: true,
+    }),
+  })
+  if (!response.ok) throw new Error('No pudimos abrir Gota. Intentá de nuevo.')
 }

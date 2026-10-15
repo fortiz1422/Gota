@@ -23,6 +23,10 @@ import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBan
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
+import { SaveAccessNotice } from '@/components/dashboard/SaveAccessNotice'
+import { countCardsNeedingInformation, homeCardInformationNote } from '@/lib/card-setup-state'
+import { todayAR } from '@/lib/format'
+import type { ExpensePreset } from '@/lib/expense-preset'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { HomeActionSlotRow } from '@/components/intelligence/HomeActionSlotRow'
 import { HomeAmbientLine } from '@/components/intelligence/HomeAmbientLine'
@@ -90,6 +94,7 @@ interface Props {
   isAnonymous: boolean
   initialData: DashboardApiData
   initialQuote: CotizacionApiData | null
+  expensePreset?: ExpensePreset | null
 }
 
 type CotizacionApiData = {
@@ -150,6 +155,7 @@ export function DashboardShell({
   isAnonymous,
   initialData,
   initialQuote,
+  expensePreset = null,
 }: Props) {
   const queryClient = useQueryClient()
   const router = useRouter()
@@ -170,7 +176,7 @@ export function DashboardShell({
   const [keyboardOffset, setKeyboardOffset] = useState(0)
   const [amountsVisible, setAmountsVisible] = useState(true)
   const [snoozedActionKeys, setSnoozedActionKeys] = useState<string[]>([])
-  const [focusSignal, setFocusSignal] = useState(0)
+  const [focusSignal, setFocusSignal] = useState(expensePreset ? 1 : 0)
   const [sharedReceiptPreviewOpen, setSharedReceiptPreviewOpen] = useState(false)
   const [sharedReceiptPreview, setSharedReceiptPreview] = useState<PendingSharedReceipt | null>(null)
   const [heroBalanceModeOverride, setHeroBalanceModeOverride] = useState<HeroBalanceMode | null>(() => {
@@ -717,6 +723,16 @@ export function DashboardShell({
                   <CaretRight size={13} weight="bold" className="mt-0.5 shrink-0 text-text-dim" />
                 </button>
               </div>
+              {(() => {
+                const note = homeCardInformationNote(countCardsNeedingInformation(cards, todayAR()))
+                if (!note) return null
+                return (
+                  <Link href="/tarjetas" className="mt-3 flex items-center justify-between gap-3 text-[13px] font-medium text-warning">
+                    <span>{note}</span>
+                    <span aria-hidden>›</span>
+                  </Link>
+                )
+              })()}
               {hasCommittedGoals ? (
                 <button
                   type="button"
@@ -736,6 +752,8 @@ export function DashboardShell({
                 </button>
               ) : null}
             </div>
+
+            {isAnonymous ? <SaveAccessNotice /> : null}
 
             {/* Acción transitoria: cero o una, nunca deja placeholder */}
             {homeAction && (
@@ -880,6 +898,7 @@ export function DashboardShell({
         keyboardOffset={keyboardOffset}
         onAfterSave={invalidateDashboardData}
         focusSignal={focusSignal}
+        expensePreset={expensePreset}
       />
 
       <SharedReceiptPreviewModal

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { usePathname } from 'next/navigation'
 import { AnonymousAccountUpgradeSheet } from '@/components/auth/AnonymousAccountUpgradeSheet'
 import {
   useAnonymousBannerTone,
@@ -45,6 +46,7 @@ export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerP
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const seenTrackedRef = useRef(false)
   const supabase = useMemo(() => createClient(), [])
+  const pathname = usePathname()
   const { tone } = useAnonymousBannerTone()
   const toneContent = getToneContent(tone)
 
@@ -91,7 +93,7 @@ export function AnonymousBanner({ initialIsAnonymous = false }: AnonymousBannerP
     return () => window.removeEventListener('gota:bottom-composer', syncComposerState)
   }, [])
 
-  if (!isAnon || isComposerOpen) return null
+  if (!isAnon || isComposerOpen || pathname === '/') return null
 
   return (
     <>

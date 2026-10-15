@@ -63,4 +63,8 @@ describe('shared pure installment cycle planner', () => {
     expect(rows.map(row => row.period_month)).toEqual(['2026-06-01','2026-07-01','2026-08-01'])
     expect(rows.map(row => row.closing_date)).toEqual(['2026-07-02','2026-08-02','2026-09-02'])
   })
+
+  it('does not plan cycles with a fictional due date', () => {
+    expect(buildCardCyclePlan('user-1', makeCard({ due_day: null }), '2026-07-01', 3)).toEqual([])
+  })
 })

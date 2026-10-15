@@ -28,9 +28,9 @@ describe('card cycle due date resolution', () => {
     expect(resolveDueMonth('2026-05', 12, 17)).toBe('2026-05')
 
     const cycle = buildLegacyCardCycle(makeCard({ closing_day: 12, due_day: 17 }), '2026-05')
-    expect(cycle.closing_date).toBe('2026-05-12')
-    expect(cycle.due_date).toBe('2026-05-17')
-    expect(cycle.dates_confirmed_at).toBeNull()
+    expect(cycle?.closing_date).toBe('2026-05-12')
+    expect(cycle?.due_date).toBe('2026-05-17')
+    expect(cycle?.dates_confirmed_at).toBeNull()
   })
 
   it('moves due date to the next month when due_day is on or before closing_day', () => {
@@ -38,8 +38,14 @@ describe('card cycle due date resolution', () => {
     expect(resolveDueMonth('2026-05', 12, 12)).toBe('2026-06')
 
     const cycle = buildLegacyCardCycle(makeCard({ closing_day: 26, due_day: 1 }), '2026-05')
-    expect(cycle.closing_date).toBe('2026-05-26')
-    expect(cycle.due_date).toBe('2026-06-01')
+    expect(cycle?.closing_date).toBe('2026-05-26')
+    expect(cycle?.due_date).toBe('2026-06-01')
+  })
+
+  it('does not invent a due date when due_day is null', () => {
+    expect(resolveDueMonth('2026-05', 12, null)).toBeNull()
+    expect(buildLegacyCardCycle(makeCard({ closing_day: 12, due_day: null }), '2026-05')).toBeNull()
+    expect(buildLegacyCardCycle(makeCard({ closing_day: null, due_day: null }), '2026-05')).toBeNull()
   })
 })
 

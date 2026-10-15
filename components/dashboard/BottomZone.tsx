@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { SmartInput } from '@/components/dashboard/SmartInput'
 import { TabBar } from '@/components/navigation/TabBar'
+import type { ExpensePreset } from '@/lib/expense-preset'
 import type { Account, Card } from '@/types/database'
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   keyboardOffset?: number
   onAfterSave?: () => void
   focusSignal?: number
+  expensePreset?: ExpensePreset | null
 }
 
 export function BottomZone({
@@ -19,6 +21,7 @@ export function BottomZone({
   keyboardOffset = 0,
   onAfterSave,
   focusSignal = 0,
+  expensePreset = null,
 }: Props) {
   const [isComposerOpen, setIsComposerOpen] = useState(false)
   const scrollYRef = useRef(0)
@@ -113,6 +116,7 @@ export function BottomZone({
           onFocusChange={setIsComposerOpen}
           variant="bottom-zone"
           focusSignal={focusSignal}
+          expensePreset={expensePreset}
         />
         {!isComposerOpen && <TabBar integrated />}
       </div>

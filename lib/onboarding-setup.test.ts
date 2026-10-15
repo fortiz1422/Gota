@@ -144,6 +144,17 @@ describe('setup save sequencing and recovery', () => {
     ).rejects.toThrow('confirmar el guardado')
     expect(fetcher).toHaveBeenCalledTimes(1)
   })
+  it('saves the account without finishing onboarding when another step remains', async () => {
+    const fetcher = vi
+      .fn()
+      .mockResolvedValueOnce(json(account))
+      .mockResolvedValueOnce(json({ ok: true }))
+    await saveAccountSetup(input, { fetcher, onAccountSaved: vi.fn(), complete: false })
+    expect(JSON.parse(fetcher.mock.calls[1][1].body)).toEqual({
+      default_currency: 'ARS',
+      hero_balance_mode: 'default_currency',
+    })
+  })
   it('uses a stable UUID for the same user, different UUIDs across users', () => {
     const first = firstSetupAccountId('user-a')
     expect(first).toMatch(

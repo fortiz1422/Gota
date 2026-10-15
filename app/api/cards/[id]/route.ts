@@ -1,8 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse } from 'next/server'
-import type { CardUpdate } from '@/types/database'
 import { ZodError } from 'zod'
 import { parseCardUpdate } from '@/lib/cards/input'
+import { cardUpdatePayload } from '@/lib/cards/persist'
 
 export async function PATCH(
   request: Request,
@@ -22,15 +22,7 @@ export async function PATCH(
     if (error instanceof ZodError) return NextResponse.json({ error: 'Invalid card data' }, { status: 400 })
     throw error
   }
-  const { name, closing_day, due_day, account_id, last_four, archived } = body
-
-  const update: CardUpdate = {}
-  if (name !== undefined) update.name = name.trim()
-  if (closing_day !== undefined) update.closing_day = closing_day
-  if (due_day !== undefined) update.due_day = due_day
-  if (account_id !== undefined) update.account_id = account_id
-  if (last_four !== undefined) update.last_four = last_four
-  if (archived !== undefined) update.archived = archived
+  const update = cardUpdatePayload(body)
 
   const { data, error } = await supabase
     .from('cards')
