@@ -35,7 +35,9 @@ Archivos: `docs/supabase-cards-due-day-nullable.sql` y `docs/supabase-cards-due-
 
 El UP solo hace `DROP NOT NULL`, `DROP DEFAULT` y agrega columnas nulas. No hay `UPDATE` ni `DELETE` sobre `cards`.
 
-El DOWN borra las columnas nuevas, repone el default y se niega a restaurar `NOT NULL` si hay `due_day` nulos, para no escribir un 10 inventado.
+El DOWN es una sola transacción. Antes de borrar columnas o reponer el default, mira si hay `due_day` NULL. Si los hay, aborta con `due_day has NULLs; refusing to restore NOT NULL without rewriting card rows` y no cambia nada. Si no hay nulos, borra las cuatro columnas, repone `DEFAULT 10` y restaura `NOT NULL`. No escribe `due_day = 10` en filas existentes.
+
+Verificación: con una fila `due_day` NULL el script falla y el esquema queda como después del UP (columnas nuevas presentes, `due_day` nullable, sin default). Sin nulos, el DOWN deja `due_day integer NOT NULL DEFAULT 10` y sin esas columnas. El orden está cubierto en `lib/cards/due-day-migration.test.ts`.
 
 No se aplicó en ningún proyecto remoto. El único proyecto Supabase accesible es `wfwkrenyoxiswaeafpjc` (`fortiz1422's Project`), la base compartida con producción, y no tiene ramas de staging. Producción no se toca.
 

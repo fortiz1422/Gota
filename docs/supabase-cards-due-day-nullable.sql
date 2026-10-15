@@ -3,8 +3,9 @@
 -- No modifica filas de cards: no hay UPDATE ni DELETE. Los vencimientos ya guardados
 -- quedan como están, sean reales o heredados del default viejo.
 --
--- Reversible: ver el bloque DOWN al final. El DOWN no rellena NULL con 10.
--- Si ya existen due_day NULL, el DOWN no vuelve a poner NOT NULL.
+-- Reversible: docs/supabase-cards-due-day-nullable-down.sql
+-- El DOWN no rellena NULL con 10. Si hay due_day NULL, aborta antes de
+-- cualquier cambio y no deja el esquema a medias.
 
 -- UP
 ALTER TABLE public.cards ALTER COLUMN due_day DROP NOT NULL;
@@ -40,19 +41,5 @@ BEGIN
   END IF;
 END $$;
 
--- DOWN
--- ALTER TABLE public.cards DROP CONSTRAINT IF EXISTS cards_statement_answer_check;
--- ALTER TABLE public.cards DROP CONSTRAINT IF EXISTS cards_statement_resolved_check;
--- ALTER TABLE public.cards DROP CONSTRAINT IF EXISTS cards_post_close_expenses_check;
--- ALTER TABLE public.cards DROP COLUMN IF EXISTS statement_answer;
--- ALTER TABLE public.cards DROP COLUMN IF EXISTS statement_resolved;
--- ALTER TABLE public.cards DROP COLUMN IF EXISTS statement_ask_after;
--- ALTER TABLE public.cards DROP COLUMN IF EXISTS post_close_expenses;
--- ALTER TABLE public.cards ALTER COLUMN due_day SET DEFAULT 10;
--- DO $$
--- BEGIN
---   IF EXISTS (SELECT 1 FROM public.cards WHERE due_day IS NULL) THEN
---     RAISE EXCEPTION 'due_day has NULLs; refusing to restore NOT NULL without rewriting card rows';
---   END IF;
---   ALTER TABLE public.cards ALTER COLUMN due_day SET NOT NULL;
--- END $$;
+-- DOWN ejecutable: docs/supabase-cards-due-day-nullable-down.sql
+-- BEGIN; control de NULL; recién ahí DROP de columnas, SET DEFAULT 10 y SET NOT NULL; COMMIT.
