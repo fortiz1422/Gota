@@ -43,10 +43,24 @@ Chromium local 138 y Playwright 1.64.1, escala 1. Por restricciones de descarga,
 
 ## Release y rollback
 
-Producción observada: `dpl_G5ZwGkx5Hzfv2kachGMoUv2m3p7L`, READY, commit base `b8e25fe`, proyecto Gota `prj_nyZGQADbn6IWx28sJoEF54BfN6Ij`, dominio `https://gota.money`.
+Release verificado el 17/10/2026, después de las 17:40 ART:
 
-No hay cambio de esquema ni transformación de datos que revertir. Conservar este despliegue como rollback; si hiciera falta, restaurarlo desde Vercel. Revalidar el despliegue vigente antes de promover el nuevo build.
+- PR integrado: https://github.com/fortiz1422/Gota/pull/141.
+- Rama preservada: `feat/forms-redesign-20261017`. Commit de código publicado: `9629ef234339100264c5f42ba38a4eb26c7a8dd6`; los commits posteriores de esta rama sólo documentan el cierre.
+- Commit de producción: `1de7e49a556cdf34c52b9a1947371a99d625ab8b` en `main`.
+- Despliegue: `dpl_3AVJeH9q2BwDLfqsvSAHoAf2RC1i`, READY, proyecto `prj_nyZGQADbn6IWx28sJoEF54BfN6Ij`.
+- URL de build: https://gota-kudwrht4j-facundos-projects-11ee7eb5.vercel.app.
+- Alias de producción asignados: `gota.money` y `www.gota.money`.
+- El árbol de código publicado es `79e7b8d690ae4e0ab72969b8164394db71bb8808`, idéntico al local sin imágenes. Los archivos de aplicación coinciden con la revisión que pasó QA.
+- HTTP 200 en `/` y `/login`, con TLS validado. El CSS público `991e28208c5c548c.css` contiene las variantes nuevas.
+- Smoke de navegador en producción a 390 y 1440 px: `/` y `/login` con HTTP 200, sin overflow horizontal ni errores JS observados. Chromium usó el proxy del entorno y su contexto de prueba omitió validación de certificados por la CA interna; la verificación HTTPS separada sí validó TLS. No se cambió la configuración de seguridad del sitio.
 
-Facundo autorizó explícitamente publicar el código en `fortiz1422/Gota`. La terminal no tiene credenciales Git; la publicación utiliza la conexión autenticada de GitHub. La revisión automática bloqueó además las imágenes, por lo que se excluyen de la rama pública y se conserva el paquete privado completo. No se publica ninguna imagen rechazada por otro medio. El código de aplicación es idéntico al que pasó las pruebas; sólo cambian documentación y distribución de los archivos de QA. El release de producción sigue pendiente de verificar READY y dominio.
+Rollback disponible y comprobado en READY: `dpl_G5ZwGkx5Hzfv2kachGMoUv2m3p7L`, commit `b8e25fe0fa19edc8f35a396c23ffa0aa5d649477`.
 
-Para continuar: publicar la rama revisada, crear/verificar el build de Vercel del commit exacto y comprobar estado READY y dominio de producción antes de dar el release por terminado. Mantener la rama disponible para revisión y rollback.
+No hay cambio de esquema ni transformación de datos que revertir. Para rollback, restaurar ese despliegue anterior desde Vercel y verificar dominio/commit; no ejecutar SQL ni revertir datos. La rama queda disponible y el merge #141 permite también un revert de código si corresponde.
+
+Facundo autorizó explícitamente publicar el código en `fortiz1422/Gota`. La terminal no tiene credenciales Git; la publicación se realizó con la conexión autenticada de GitHub. La revisión automática bloqueó las imágenes, por lo que no forman parte de la rama pública y se conserva el paquete privado completo. No se publica ninguna imagen rechazada por otro medio. El código de aplicación es idéntico al que pasó las pruebas; sólo cambian documentación y distribución de los archivos de QA.
+
+Límite de observabilidad: la conexión Vercel devuelve 403 al leer logs de build/runtime y el preview protegido. No había CLI autenticada para el fallback. Se verificaron estado READY, SHA, aliases, dominio público y recursos; no se afirma que los logs estén libres de errores. No se desactivó protección ni se ampliaron permisos para pasar las pruebas. Las verificaciones públicas fueron de sólo lectura; no se crearon movimientos ni se afectó el canon.
+
+Pendiente opcional: restablecer acceso de lectura a logs de Vercel para una observación más amplia. No queda un paso de publicación o despliegue pendiente.
