@@ -2,10 +2,13 @@
 
 import { useId, useRef, type ReactNode } from 'react'
 import { Warning, X } from '@phosphor-icons/react'
+import { FormSurfaceHeader, type FormSurfaceVariant } from './FormSurfaceHeader'
 import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
 interface ConfirmationSurfaceProps {
+  variant?: FormSurfaceVariant
+  hero?: ReactNode
   open: boolean
   onClose: () => void
   onConfirm: () => void
@@ -21,6 +24,8 @@ interface ConfirmationSurfaceProps {
 }
 
 export function ConfirmationSurface({
+  variant,
+  hero,
   open,
   onClose,
   onConfirm,
@@ -53,10 +58,11 @@ export function ConfirmationSurface({
     >
       <div
         data-confirmation-surface
+        data-surface-variant={variant}
         data-confirmation-appearance={appearance}
         className={`flex h-full min-h-0 flex-col ${compact ? 'bg-bg-secondary' : ''}`}
       >
-        {compact ? (
+        {variant ? (<FormSurfaceHeader showNavigationTitle={compact} variant={variant} titleId={titleId} title={title} closeTitle={title} navigationTitle={compact && !minimal ? 'Confirmar' : undefined} eyebrow={eyebrow} description={description} onClose={onClose} closeRef={cancelRef} busy={busy} hero={hero} />) : compact ? (
           <>
             <header
               className="border-border-subtle bg-bg-primary/95 grid shrink-0 grid-cols-[44px_1fr_44px] items-center border-b px-[14px] pb-2 backdrop-blur-xl"

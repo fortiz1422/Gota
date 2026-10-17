@@ -151,7 +151,7 @@ export function AccountsSection({ initialAccounts, month, standalone = false, on
         </CollapsibleSection>
       )}
 
-      <ChoiceSurface
+      <ChoiceSurface variant="r"
         appearance="compact"
         open={choosingType}
         onClose={() => setChoosingType(false)}

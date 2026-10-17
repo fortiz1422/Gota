@@ -144,7 +144,7 @@ export function AccountSection({
               <span className={styles.rowBody}><span className={styles.rowTitle}>{accessLabel}</span><span className={styles.rowDescription}>{hasEmailProvider ? 'Acceso con mail y contraseña' : hasGoogle ? 'Sumá una contraseña a tu acceso con Google' : 'Entrá también con tu mail'}</span></span>
               <CaretRight size={16} weight="light" />
             </button>
-            <SettingsDetail title="Passkeys" description="Biometría, PIN o llavero del dispositivo" icon={<Fingerprint size={20} weight="light" />}>
+            <SettingsDetail surfaceVariant="r" title="Passkeys" description="Biometría, PIN o llavero del dispositivo" icon={<Fingerprint size={20} weight="light" />}>
               <PasskeysPanel variant="mobile" />
             </SettingsDetail>
             {hasEmailProvider && <button type="button" onClick={handleSendReset} disabled={isSendingReset} className={styles.row}>
@@ -180,7 +180,7 @@ export function AccountSection({
         </button>
       </div>
 
-      <TaskSurface
+      <TaskSurface variant="r"
         open={passwordModalOpen}
         onClose={closePasswordTask}
         appearance="compact"

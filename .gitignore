@@ -16,6 +16,7 @@
 /playwright-report/
 /blob-report/
 e2e/landing/test-results/
+e2e/forms/test-results/
 
 # next.js
 /.next/

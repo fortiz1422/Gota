@@ -214,7 +214,7 @@ export function CounterpartyAliasesPanel() {
         <CaretRight size={14} className="text-text-dim" />
       </button>
 
-      <ManagementSurface
+      <ManagementSurface variant="r"
         open={open}
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
@@ -278,7 +278,7 @@ export function CounterpartyAliasesPanel() {
         </section>
       </ManagementSurface>
 
-      <TaskSurface
+      <TaskSurface variant="r"
         open={creating || Boolean(selected)}
         onClose={closeEditor}
         appearance="compact"
@@ -343,7 +343,7 @@ export function CounterpartyAliasesPanel() {
         </div>
       </TaskSurface>
 
-      <ConfirmationSurface
+      <ConfirmationSurface variant="r"
         appearance="compact"
         open={confirmation !== null}
         onClose={() => setConfirmation(null)}

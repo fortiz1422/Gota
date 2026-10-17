@@ -46,7 +46,7 @@ export function CuentasSubSheet({ open, onClose, onChanged }: Props) {
   }
 
   return (
-    <ManagementSurface open={open} onClose={handleClose} eyebrow="TU PLATA" title="Cuentas" description="Administrá dónde está tu dinero y su punto de partida.">
+    <ManagementSurface variant="r" open={open} onClose={handleClose} eyebrow="TU PLATA" title="Cuentas" description="Administrá dónde está tu dinero y su punto de partida.">
       {loading ? (
         <div className="space-y-2" aria-label="Cargando cuentas">{[0, 1, 2].map((item) => <div key={item} className="h-[72px] animate-pulse rounded-card bg-bg-tertiary" />)}</div>
       ) : error ? (

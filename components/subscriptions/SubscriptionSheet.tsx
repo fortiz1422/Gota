@@ -100,31 +100,14 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
 
   return (
     <Modal open onClose={onClose}>
+      <div data-legacy-blue-form>
+      <header className="form-legacy-header">
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
       <h2 className="text-lg font-semibold text-text-primary">Nueva suscripción</h2>
       <p className="mb-5 mt-1 text-xs text-text-tertiary">
         Se insertará automáticamente cada mes en la fecha indicada.
       </p>
-
-      <div className="space-y-5">
-        {/* Descripción */}
-        <div>
-          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-            Descripción
-          </label>
-          <input
-            type="text"
-            placeholder="Ej. Netflix, Spotify, Gym..."
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            onFocus={scrollOnFocus}
-            maxLength={100}
-            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
-          />
-        </div>
-
-        {/* Monto + Moneda */}
-        <div>
+<div className="form-legacy-hero"><div>
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             Monto
           </label>
@@ -152,7 +135,26 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
               ))}
             </div>
           </div>
+        </div></div></header>
+      <div className="form-legacy-body space-y-5">
+        {/* Descripción */}
+        <div>
+          <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+            Descripción
+          </label>
+          <input
+            type="text"
+            placeholder="Ej. Netflix, Spotify, Gym..."
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            onFocus={scrollOnFocus}
+            maxLength={100}
+            className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary placeholder:text-text-disabled focus:border-primary focus:outline-none"
+          />
         </div>
+
+        {/* Monto + Moneda */}
+
 
         {/* Categoría */}
         <div>
@@ -287,6 +289,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
         >
           Cancelar
         </button>
+      </div>
       </div>
     </Modal>
   )

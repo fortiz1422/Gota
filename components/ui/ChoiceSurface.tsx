@@ -2,10 +2,13 @@
 
 import { useId, type ReactNode, type RefObject } from 'react'
 import { X } from '@phosphor-icons/react'
+import { FormSurfaceHeader, type FormSurfaceVariant } from './FormSurfaceHeader'
 import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
 interface ChoiceSurfaceProps {
+  variant?: FormSurfaceVariant
+  hero?: ReactNode
   open: boolean
   onClose: () => void
   eyebrow: string
@@ -19,6 +22,8 @@ interface ChoiceSurfaceProps {
 }
 
 export function ChoiceSurface({
+  variant,
+  hero,
   open,
   onClose,
   eyebrow,
@@ -45,8 +50,9 @@ export function ChoiceSurface({
       triggerRef={triggerRef}
       triggerElement={triggerElement}
     >
-      <div data-choice-surface data-choice-appearance={appearance} className={`flex h-full min-h-0 flex-col ${compact ? 'bg-bg-secondary' : 'bg-bg-primary'}`}>
-        {compact ? (
+      <div data-choice-surface
+        data-surface-variant={variant} data-choice-appearance={appearance} className={`flex h-full min-h-0 flex-col ${compact ? 'bg-bg-secondary' : 'bg-bg-primary'}`}>
+        {variant ? (<FormSurfaceHeader showNavigationTitle={compact} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} hero={hero} />) : compact ? (
           <>
             <header className="grid shrink-0 grid-cols-[44px_1fr_44px] items-center border-b border-border-subtle bg-bg-primary/95 px-[14px] pb-2 backdrop-blur-xl" style={{ paddingTop: 'max(8px, env(safe-area-inset-top))' }}>
               <button type="button" onClick={onClose} aria-label={`Cerrar ${title}`} className="flex h-11 w-11 items-center justify-center rounded-full text-text-secondary hover:bg-primary-soft">

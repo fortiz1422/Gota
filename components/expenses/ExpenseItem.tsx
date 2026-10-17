@@ -316,6 +316,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
         setConfirmDelete(false)
         setError(null)
       }}>
+        <div data-legacy-blue-form>
+        <header className="form-legacy-header">
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
         <h2 className="text-lg font-semibold text-text-primary">
           {isSubscriptionExpense
@@ -324,6 +326,29 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota')
               : 'Editar gasto'}
         </h2>
+{!isSubscriptionExpense && (!isInstallmentGroup || editingGroup) && <div className="form-legacy-hero"><div>
+              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+                Monto
+              </label>
+              <div className="flex gap-1">
+                <input
+                  type="number"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
+                  className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                />
+                <button
+                  onClick={() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'))}
+                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
+                  className="rounded-input bg-bg-tertiary px-2 py-2 text-[10px] font-semibold text-text-secondary"
+                >
+                  {currency}
+                </button>
+              </div>
+            </div></div>}
+</header>
+<div className="form-legacy-body">
 
         {open && <MercadoPagoExpenseOrigin key={expense.id} expenseId={expense.id} />}
 
@@ -445,27 +470,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
               />
             </div>
-            <div>
-              <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
-                Monto
-              </label>
-              <div className="flex gap-1">
-                <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
-                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
-                />
-                <button
-                  onClick={() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'))}
-                  disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className="rounded-input bg-bg-tertiary px-2 py-2 text-[10px] font-semibold text-text-secondary"
-                >
-                  {currency}
-                </button>
-              </div>
-            </div>
+
           </div>
 
           <div className="grid grid-cols-2 gap-3">
@@ -663,6 +668,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
         </div>
         </>
         )}
+        </div>
+        </div>
       </Modal>
     </>
   )

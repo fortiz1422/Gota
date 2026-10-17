@@ -11,6 +11,7 @@
     "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\"",
     "test": "vitest run",
+    "test:e2e:forms": "playwright test -c e2e/forms/playwright.config.ts",
     "test:e2e:landing": "playwright test -c e2e/landing/playwright.config.ts"
   },
   "dependencies": {

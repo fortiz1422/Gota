@@ -2,10 +2,13 @@
 
 import { useId, type ReactNode, type RefObject } from 'react'
 import { X } from '@phosphor-icons/react'
+import { FormSurfaceHeader, type FormSurfaceVariant } from './FormSurfaceHeader'
 import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
 interface ManagementSurfaceProps {
+  variant?: FormSurfaceVariant
+  hero?: ReactNode
   open: boolean
   onClose: () => void
   eyebrow: string
@@ -18,6 +21,8 @@ interface ManagementSurfaceProps {
 }
 
 export function ManagementSurface({
+  variant,
+  hero,
   open,
   onClose,
   eyebrow,
@@ -41,8 +46,9 @@ export function ManagementSurface({
       initialFocusRef={initialFocusRef}
       triggerRef={triggerRef}
     >
-      <div data-management-surface className="flex h-full min-h-0 flex-col bg-bg-primary">
-        <BlueHeaderZone
+      <div data-management-surface
+        data-surface-variant={variant} className="flex h-full min-h-0 flex-col bg-bg-primary">
+        {variant ? (<FormSurfaceHeader showNavigationTitle={false} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} hero={hero} />) : (        <BlueHeaderZone
           className="shrink-0 px-[14px] pb-7 text-white"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
         >
@@ -62,7 +68,7 @@ export function ManagementSurface({
             </div>
             <div className="h-11 w-5 shrink-0" aria-hidden="true" />
           </div>
-        </BlueHeaderZone>
+        </BlueHeaderZone>)}
 
         <div data-management-scroll className="relative -mt-3 min-h-0 flex-1 overflow-y-auto overscroll-contain px-[22px] pb-8 pt-3">
           {children}

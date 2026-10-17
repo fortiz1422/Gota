@@ -338,7 +338,7 @@ export function PasskeysPanel({ variant = 'mobile' }: PasskeysPanelProps) {
 
       {successMessage && <p className="text-xs font-medium text-success">{successMessage}</p>}
     </div>
-    <ConfirmationSurface
+    <ConfirmationSurface variant={compact ? 'r' : undefined}
       appearance={compact ? 'compact' : 'brand'}
       open={deleteConfirmation !== null}
       onClose={() => setDeleteConfirmation(null)}

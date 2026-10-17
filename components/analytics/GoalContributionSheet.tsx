@@ -136,7 +136,20 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
   if (!open || !goal) return null
 
   return (
-    <TaskSurface
+    <TaskSurface variant="blue-hero" hero={(<div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
+            Monto ({goal.currency})
+          </label>
+          <input
+            ref={amountRef}
+            type="text"
+            inputMode="decimal"
+            placeholder="0"
+            value={formatArDecimal(amount)}
+            onChange={(e) => setAmount(parseArDecimalInput(e.target.value))}
+            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary placeholder:text-text-muted outline-none focus:border-primary focus:ring-0"
+          />
+        </div>)}
       open={open}
       onClose={handleClose}
       eyebrow="PLANIFICAR"
@@ -169,20 +182,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
       </p>
 
       <div className="space-y-3">
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Monto ({goal.currency})
-          </label>
-          <input
-            ref={amountRef}
-            type="text"
-            inputMode="decimal"
-            placeholder="0"
-            value={formatArDecimal(amount)}
-            onChange={(e) => setAmount(parseArDecimalInput(e.target.value))}
-            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary placeholder:text-text-muted outline-none focus:border-primary focus:ring-0"
-          />
-        </div>
+
 
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
@@ -234,31 +234,29 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
               <button
                 type="button"
                 onClick={() => setAvailabilityEffect('none')}
-                className={`w-full rounded-card border px-3 py-3 text-left ${
+                aria-pressed={availabilityEffect === 'none'}
+                className={`w-full rounded-pill border px-3 py-3 text-left ${
                   availabilityEffect === 'none'
                     ? 'border-primary bg-primary/10'
                     : 'border-border-subtle bg-white'
                 }`}
               >
                 <p className="text-[13px] font-semibold text-text-primary">Solo registrar el avance</p>
-                <p className="mt-1 text-[12px] text-text-tertiary">
-                  No cambia lecturas de disponibilidad. Es el camino por defecto.
-                </p>
+                {availabilityEffect === 'none' && <p className="mt-1 text-[12px] text-text-tertiary">No cambia lecturas de disponibilidad. Es el camino por defecto.</p>}
               </button>
 
               <button
                 type="button"
                 onClick={() => setAvailabilityEffect('committed_only')}
-                className={`w-full rounded-card border px-3 py-3 text-left ${
+                aria-pressed={availabilityEffect === 'committed_only'}
+                className={`w-full rounded-pill border px-3 py-3 text-left ${
                   availabilityEffect === 'committed_only'
                     ? 'border-primary bg-primary/10'
                     : 'border-border-subtle bg-white'
                 }`}
               >
                 <p className="text-[13px] font-semibold text-text-primary">Dejarla comprometida dentro de una cuenta</p>
-                <p className="mt-1 text-[12px] text-text-tertiary">
-                  Baja tu Disponible libre, pero no toca Saldo Vivo ni Disponible real.
-                </p>
+                {availabilityEffect === 'committed_only' && <p className="mt-1 text-[12px] text-text-tertiary">Baja tu Disponible libre, pero no toca Saldo Vivo ni Disponible real.</p>}
               </button>
             </div>
 

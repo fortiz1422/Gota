@@ -72,7 +72,7 @@ export function MercadoPagoReadOnlySettingsCard() {
   return <>
     <MercadoPagoConnectionView state={state} onManage={() => setManage(true)} />
     {error && <p role="alert" className="mt-2 text-xs text-danger">No pudimos consultar la conexión. Abrí Gestionar conexión para reintentar.</p>}
-    <TaskSurface open={manage} onClose={() => setManage(false)} eyebrow="MERCADO PAGO" title="Gestionar conexión" description="Cuenta vinculada y consultas manuales." footer={null} showIntro={false} appearance="compact" canvasTone="standard">
+    <TaskSurface variant="r" open={manage} onClose={() => setManage(false)} eyebrow="MERCADO PAGO" title="Gestionar conexión" description="Cuenta vinculada y consultas manuales." footer={null} showIntro={false} appearance="compact" canvasTone="standard">
       {manage && <LegacyMercadoPagoSettingsCard />}
     </TaskSurface>
   </>

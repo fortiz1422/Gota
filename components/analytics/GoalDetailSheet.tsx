@@ -82,33 +82,33 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
 
   return (
     <>
-      <ManagementSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={displayGoal.name} description="Revisá el progreso, los aportes y el estado de tu meta.">
-        <div className="mb-4 flex items-start gap-2">
+      <ManagementSurface variant="blue-hero" hero={<>         <div className="mb-4 flex items-start gap-2">
           <div className="flex min-w-0 items-center gap-2">
             {displayGoal.emoji ? <span className="text-[22px]">{displayGoal.emoji}</span> : null}
           </div>
-          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="ml-auto rounded-pill px-2.5 py-1 text-[12px] font-semibold text-primary transition-colors hover:bg-primary-soft">Editar</button>
+          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="ml-auto rounded-pill px-2.5 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-primary-soft">Editar</button>
         </div>
 
-        <GoalProgressBar pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
+        <GoalProgressBar tone="onBlue" pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
 
-        <div className="mt-3 flex items-baseline justify-between">
-          <p className="text-[20px] font-bold text-text-primary">
+        <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="form-amount-lg text-white">
             {formatAmount(displayGoal.currentAmount, displayGoal.currency)}
           </p>
-          <p className="text-[13px] text-text-tertiary">de {formatAmount(displayGoal.targetAmount, displayGoal.currency)}</p>
+          <p className="text-[13px] text-white/80">de {formatAmount(displayGoal.targetAmount, displayGoal.currency)}</p>
         </div>
 
         {displayGoal.remainingAmount > 0 ? (
-          <p className="mt-1 text-[13px] text-text-secondary">
+          <p className="mt-1 text-[13px] text-white/90">
             Faltan {formatAmount(displayGoal.remainingAmount, displayGoal.currency)}
           </p>
         ) : (
-          <p className="mt-1 text-[13px]" style={{ color: 'var(--color-success)' }}>
+          <p className="mt-1 text-[13px] text-white">
             Superaste tu meta por {formatAmount(displayGoal.currentAmount - displayGoal.targetAmount, displayGoal.currency)}
           </p>
         )}
 
+ </>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={displayGoal.name} description="Revisá el progreso, los aportes y el estado de tu meta.">
         <div className="mt-4 space-y-2 rounded-card bg-bg-tertiary p-4">
           <div className="flex items-center justify-between text-[13px]">
             <span className="text-text-tertiary">Estado de avance</span>

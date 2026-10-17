@@ -143,7 +143,45 @@ export function IncomeModal({
   }
 
   return (
-    <TaskSurface
+    <TaskSurface variant="blue-hero" hero={(<section aria-labelledby="income-amount">
+          <p id="income-amount" className="type-micro text-primary">
+            MONTO
+          </p>
+          <div className="form-amount-line border-border-strong focus-within:border-primary mt-2 flex items-baseline gap-2 border-b transition-colors">
+            <span className="type-amount text-text-secondary">
+              {currency === 'ARS' ? '$' : 'US$'}
+            </span>
+            <input
+              ref={amountRef}
+              id="income-amount-input"
+              type="text"
+              inputMode="decimal"
+              placeholder="0"
+              value={formatMonetaryInput(amount)}
+              onChange={(e) =>
+                setAmount(normalizeMonetaryInput(e.target.value, amount))
+              }
+              aria-label="Monto"
+              size={Math.min(12, Math.max(1, formatMonetaryInput(amount).length))}
+              style={{ width: `${Math.max(1, formatMonetaryInput(amount).length)}ch` }}
+              className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:ring-0"
+            />
+
+          </div><fieldset className="flex rounded-input bg-bg-tertiary p-1">
+              <legend className="sr-only">Moneda</legend>
+              {(['ARS', 'USD'] as const).map((c) => (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={currency === c}
+                  onClick={() => setCurrency(c)}
+                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
+                >
+                  {c}
+                </button>
+              ))}
+            </fieldset>
+        </section>)}
       open
       onClose={onClose}
       appearance="compact"
@@ -171,44 +209,8 @@ export function IncomeModal({
         </>
       }
     >
-      <div className="space-y-7 pb-2">
-        <section aria-labelledby="income-amount">
-          <p id="income-amount" className="type-micro text-primary">
-            MONTO
-          </p>
-          <div className="border-border-strong focus-within:border-primary mt-2 flex items-baseline gap-2 border-b transition-colors">
-            <span className="type-amount text-text-secondary">
-              {currency === 'ARS' ? '$' : 'US$'}
-            </span>
-            <input
-              ref={amountRef}
-              id="income-amount-input"
-              type="text"
-              inputMode="decimal"
-              placeholder="0"
-              value={formatMonetaryInput(amount)}
-              onChange={(e) =>
-                setAmount(normalizeMonetaryInput(e.target.value, amount))
-              }
-              aria-label="Monto"
-              className="type-amount text-text-primary min-w-0 flex-1 border-0 bg-transparent py-3 outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0"
-            />
-            <fieldset className="flex rounded-input bg-bg-tertiary p-1">
-              <legend className="sr-only">Moneda</legend>
-              {(['ARS', 'USD'] as const).map((c) => (
-                <button
-                  key={c}
-                  type="button"
-                  aria-pressed={currency === c}
-                  onClick={() => setCurrency(c)}
-                  className={`rounded-button px-3 py-1.5 text-sm font-medium transition-colors ${currency === c ? 'bg-primary text-bg-primary' : 'text-text-secondary'}`}
-                >
-                  {c}
-                </button>
-              ))}
-            </fieldset>
-          </div>
-        </section>
+      <div className="form-fields space-y-4 pb-2">
+
         {accounts.length > 0 && (
           <section>
             <label className={labelClass}>¿A dónde entra?</label>

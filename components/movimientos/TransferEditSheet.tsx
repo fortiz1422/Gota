@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useState } from 'react'
+import { Bank } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { InlineError } from '@/components/ui/InlineError'
@@ -156,7 +157,16 @@ export function TransferEditSheet({
 
   return (
     <>
-      <TaskSurface
+      <TaskSurface variant="blue-hero" hero={(<div><input
+              ref={amountFromRef}
+              id="transfer-edit-from-amount"
+              type="text"
+              inputMode="decimal"
+              value={formatMonetaryInput(amountFrom)}
+              onChange={(e) => updateFrom(e.target.value)}
+              aria-label="Monto de origen"
+              className={`${fieldClass} mt-2`}
+            />{currencyToggle(currencyFrom, (value) => changeCurrency('from', value))}</div>)}
         open
         onClose={onClose}
         appearance="compact"
@@ -189,12 +199,13 @@ export function TransferEditSheet({
           </>
         }
       >
-        <div className="space-y-7 pb-2">
+        <div className="form-fields space-y-4 pb-2">
           <section>
             <label htmlFor="transfer-edit-from-account" className={labelClass}>
               Desde
             </label>
-            <div className="border-border-strong flex items-center gap-3 border-b">
+            <div className="form-account-row flex items-center gap-3">
+            <span aria-hidden="true" className="form-account-avatar"><Bank size={18} weight="duotone" /></span>
               <select
                 id="transfer-edit-from-account"
                 value={fromAccountId}
@@ -207,26 +218,16 @@ export function TransferEditSheet({
                   </option>
                 ))}
               </select>
-              {currencyToggle(currencyFrom, (value) =>
-                changeCurrency('from', value)
-              )}
+
             </div>
-            <input
-              ref={amountFromRef}
-              id="transfer-edit-from-amount"
-              type="text"
-              inputMode="decimal"
-              value={formatMonetaryInput(amountFrom)}
-              onChange={(e) => updateFrom(e.target.value)}
-              aria-label="Monto de origen"
-              className={`${fieldClass} mt-2`}
-            />
+
           </section>
           <section>
             <label htmlFor="transfer-edit-to-account" className={labelClass}>
               Hasta
             </label>
-            <div className="border-border-strong flex items-center gap-3 border-b">
+            <div className="form-account-row flex items-center gap-3">
+            <span aria-hidden="true" className="form-account-avatar"><Bank size={18} weight="duotone" /></span>
               <select
                 id="transfer-edit-to-account"
                 value={toAccountId}
