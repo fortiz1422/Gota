@@ -167,7 +167,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
         <CaretRight size={14} className="text-text-dim" />
       </button>
 
-      <ManagementSurface
+      <ManagementSurface variant="r"
         open={open}
         onClose={() => setOpen(false)}
         triggerRef={triggerRef}
@@ -218,7 +218,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
         </section>
       </ManagementSurface>
 
-      <TaskSurface
+      <TaskSurface variant="r"
         open={creating}
         onClose={closeCredentialTask}
         appearance="compact"
@@ -258,7 +258,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
         )}
       </TaskSurface>
 
-      <ConfirmationSurface
+      <ConfirmationSurface variant="r"
         appearance="compact"
         open={confirmation !== null}
         onClose={() => setConfirmation(null)}

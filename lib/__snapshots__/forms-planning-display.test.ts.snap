@@ -1,0 +1,11 @@
+// Vitest Snapshot v1, https://vitest.dev/guide/snapshot.html
+
+exports[`default progress bar remains identical: behind 1`] = `"<div class="relative h-2 w-full overflow-hidden rounded-full bg-bg-tertiary"><div class="h-full rounded-full transition-all duration-300" style="width:50%;background:var(--color-warning)"></div></div>"`;
+
+exports[`default progress bar remains identical: completed 1`] = `"<div class="relative h-2 w-full overflow-hidden rounded-full bg-bg-tertiary"><div class="h-full rounded-full transition-all duration-300" style="width:50%;background:var(--color-success)"></div></div>"`;
+
+exports[`default progress bar remains identical: no_date 1`] = `"<div class="relative h-2 w-full overflow-hidden rounded-full bg-bg-tertiary"><div class="h-full rounded-full transition-all duration-300" style="width:50%;background:var(--color-primary)"></div></div>"`;
+
+exports[`default progress bar remains identical: on_track 1`] = `"<div class="relative h-2 w-full overflow-hidden rounded-full bg-bg-tertiary"><div class="h-full rounded-full transition-all duration-300" style="width:50%;background:var(--color-success)"></div></div>"`;
+
+exports[`default progress bar remains identical: paused 1`] = `"<div class="relative h-2 w-full overflow-hidden rounded-full bg-bg-tertiary"><div class="h-full rounded-full transition-all duration-300" style="width:50%;background:var(--color-text-secondary)"></div></div>"`;

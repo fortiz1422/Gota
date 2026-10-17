@@ -80,7 +80,7 @@ export function SubscriptionsSubSheet({
 
   return (
     <>
-      <ManagementSurface
+      <ManagementSurface variant="r"
         open={open}
         onClose={handleClose}
         triggerRef={triggerRef}

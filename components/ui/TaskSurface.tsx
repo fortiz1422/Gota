@@ -2,10 +2,13 @@
 
 import { useId, type ReactNode, type RefObject } from 'react'
 import { X } from '@phosphor-icons/react'
+import { FormSurfaceHeader, type FormSurfaceVariant } from './FormSurfaceHeader'
 import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
 interface TaskSurfaceProps {
+  variant?: FormSurfaceVariant
+  hero?: ReactNode
   open: boolean
   onClose: () => void
   eyebrow: string
@@ -25,6 +28,8 @@ interface TaskSurfaceProps {
 }
 
 export function TaskSurface({
+  variant,
+  hero,
   open,
   onClose,
   eyebrow,
@@ -60,10 +65,11 @@ export function TaskSurface({
     >
       <div
         data-task-surface
+        data-surface-variant={variant}
         data-task-appearance={appearance}
         className={`flex h-full min-h-0 flex-col ${compact ? canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary' : 'bg-bg-primary'}`}
       >
-        {compact ? (
+        {variant ? (<FormSurfaceHeader showNavigationTitle={compact || !showIntro} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} navigationTitle={navigationTitle} showIntro={showIntro} hero={hero} />) : compact ? (
           <>
             <header
               data-task-header="compact"

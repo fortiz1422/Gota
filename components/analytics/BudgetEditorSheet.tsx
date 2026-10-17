@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
+import { formatAmount } from '@/lib/format'
 import { InlineError } from '@/components/ui/InlineError'
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
 import type { BudgetItemMetrics } from '@/lib/budgets/types'
@@ -129,7 +130,7 @@ export function BudgetEditorSheet({
   const initialFocusRef = mode === 'create' || !firstItem?.id ? categoryRef : amountRef
 
   return (
-    <TaskSurface open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
+    <TaskSurface variant="blue-hero" hero={<div><p className="form-eyebrow">TOTAL MENSUAL</p><p className="form-amount-lg">{formatAmount(draftItems.reduce((total, item) => { const value = Number(item.amount); return total + (Number.isFinite(value) && value > 0 ? value : 0) }, 0), currency)}</p></div>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
@@ -140,13 +141,9 @@ export function BudgetEditorSheet({
       <h2 className="sr-only">
         {mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'}
       </h2>
-      <p className="mt-1 text-xs text-text-tertiary">
-        {mode === 'create'
-          ? `Definí montos mensuales en ${currency} por categoría.`
-          : 'Podés ajustar montos, agregar categorías o sacar las que ya no quieras seguir.'}
-      </p>
 
-      <div className="mt-5 space-y-3">
+
+      <div className="form-blue-card mt-5 space-y-3">
         {draftItems.map((item, index) => (
           <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto]">
             {mode === 'create' || !item.id ? (

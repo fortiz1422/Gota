@@ -173,7 +173,7 @@ export function SubscriptionBottomSheet({
 
   return (
     <>
-      <TaskSurface
+      <TaskSurface variant="r"
         open
         onClose={onClose}
         appearance="compact"
@@ -198,11 +198,16 @@ export function SubscriptionBottomSheet({
           </>
         )}
       >
+        {subscription ? (
+          <section className="mb-4">
+            <button type="button" onClick={(event) => { setDecisionTrigger(event.currentTarget); setArchiveConfirmOpen(true) }} className="form-archive">Archivar suscripción</button>
+          </section>
+        ) : null}
         <section data-subscription-edit-charge className="surface-module rounded-card border border-border-subtle bg-white px-4 pb-5 pt-4" aria-labelledby={`${descriptionId}-section`}>
           <p id={`${descriptionId}-section`} className="type-micro text-primary">COBRO</p>
           <label htmlFor={descriptionId} className="mb-2 mt-4 block type-meta font-semibold text-text-secondary">Descripción</label>
           <div className="flex min-h-14 items-center gap-3 border-b border-border-strong focus-within:border-primary">
-            <Receipt size={18} weight="light" className="shrink-0 text-primary" />
+            <Receipt size={18} weight="duotone" className="shrink-0 text-primary" />
             <input ref={descriptionRef} id={descriptionId} type="text" placeholder="Ej. Netflix, Spotify, gimnasio" value={description} onChange={(event) => { setDescription(event.target.value); if (error) setError(null) }} maxLength={100} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </div>
 
@@ -225,7 +230,7 @@ export function SubscriptionBottomSheet({
           <div className="border-y border-border-subtle py-3">
             <label htmlFor={dayId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Día de cobro</label>
             <div className="flex min-h-12 items-center gap-3 border-b border-border-strong focus-within:border-primary">
-              <CalendarBlank size={18} weight="light" className="text-primary" />
+              <CalendarBlank size={18} weight="duotone" className="text-primary" />
               <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
               <span className="type-body text-text-tertiary">de cada mes</span>
             </div>
@@ -260,15 +265,10 @@ export function SubscriptionBottomSheet({
           )}
         </section>
 
-        {subscription ? (
-          <section className="mt-8 border-t border-border-subtle pt-5">
-            <button type="button" onClick={(event) => { setDecisionTrigger(event.currentTarget); setArchiveConfirmOpen(true) }} className="min-h-11 type-body text-danger">Archivar suscripción</button>
-            <p className="type-meta text-text-tertiary">Deja de generar nuevos cobros; no elimina movimientos anteriores.</p>
-          </section>
-        ) : null}
+
       </TaskSurface>
 
-      <ChoiceSurface
+      <ChoiceSurface variant="r"
         appearance="compact"
         open={pendingPayload !== null}
         onClose={() => setPendingPayload(null)}
@@ -289,7 +289,7 @@ export function SubscriptionBottomSheet({
         </div>
       </ChoiceSurface>
 
-      <ConfirmationSurface
+      <ConfirmationSurface variant="r"
         appearance="compact"
         open={archiveConfirmOpen}
         onClose={() => setArchiveConfirmOpen(false)}
@@ -302,7 +302,7 @@ export function SubscriptionBottomSheet({
         busy={isArchiving}
         destructive
       >
-        <span data-subscription-archive>Tus movimientos anteriores permanecen sin cambios.</span>
+        <span data-subscription-archive>Deja de generar nuevos cobros; no elimina movimientos anteriores. Tus movimientos anteriores permanecen sin cambios.</span>
       </ConfirmationSurface>
     </>
   )

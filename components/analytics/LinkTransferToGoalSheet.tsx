@@ -100,7 +100,7 @@ export function LinkTransferToGoalSheet({ open, goal, onClose, onLinked, trigger
   if (!open || !goal) return null
 
   return (
-    <ChoiceSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Vincular transferencia" description={`Elegí una transferencia en ${goal.currency} para registrarla como aporte.`} appearance="compact">
+    <ChoiceSurface variant="blue-hero" open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Vincular transferencia" description={`Elegí una transferencia en ${goal.currency} para registrarla como aporte.`} appearance="compact">
       <div className="mb-4 flex items-center gap-2">
         {goal.emoji ? <span className="text-[20px]">{goal.emoji}</span> : null}
         <div>

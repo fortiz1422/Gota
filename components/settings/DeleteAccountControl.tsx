@@ -52,7 +52,7 @@ export function DeleteAccountControl() {
         Eliminar mi cuenta
       </button>
 
-      <TaskSurface
+      <TaskSurface variant="r"
         open={showConfirm}
         onClose={resetConfirm}
         appearance="compact"

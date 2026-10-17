@@ -191,3 +191,6 @@ From the dashboard plus-button, the user can open lightweight sheets to add:
 - The app is designed around a mobile PWA mental model even though it is technically a web app.
 - Some older flows still exist in code but are not clearly part of the current design language, especially the legacy monthly-income configuration components.
 - Several strings in source files contain encoding issues; this is a quality risk because the product tone matters heavily in this UI.
+
+
+Formularios: ver `docs/design-system-final.md` §Formularios. Cuentas usa SettingsDetail/ManagementSurface y TaskSurface; las variantes visuales se activan por instancia.

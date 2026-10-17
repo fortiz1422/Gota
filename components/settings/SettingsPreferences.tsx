@@ -88,7 +88,7 @@ export function SettingsPreferences({
           <p>Tu disponible considera solamente las cuentas y compromisos que cargaste.</p>
         </ContextualHelp>
         <div className={styles.rowGroup}>
-          <SettingsDetail title="Cuentas" description="Administrá tus cuentas y saldos por período" icon={<Bank size={20} weight="light" />}>
+          <SettingsDetail surfaceVariant="r" title="Cuentas" description="Administrá tus cuentas y saldos por período" icon={<Bank size={20} weight="light" />}>
         <div className={styles.period}>
           <div>
             <p className={styles.periodLabel}>Período de consulta</p>

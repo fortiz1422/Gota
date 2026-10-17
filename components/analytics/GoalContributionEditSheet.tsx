@@ -87,7 +87,19 @@ export function GoalContributionEditSheet({
   if (!open || !contribution) return null
 
   return (
-    <TaskSurface open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" initialFocusRef={amountRef} footer={(
+    <TaskSurface variant="blue-hero" hero={(<div>
+          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
+            Monto ({goalCurrency})
+          </label>
+          <input
+            ref={amountRef}
+            type="text"
+            inputMode="decimal"
+            value={formatArDecimal(amount)}
+            onChange={(event) => setAmount(parseArDecimalInput(event.target.value))}
+            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary outline-none focus:border-primary focus:ring-0"
+          />
+        </div>)} open={open} onClose={handleClose} triggerElement={triggerElement} eyebrow="PLANIFICAR" title="Editar aporte" description="Ajustá monto, fecha o nota sin rehacer el registro." appearance="compact" canvasTone="standard" initialFocusRef={amountRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-[13px] font-semibold text-white disabled:opacity-60">
@@ -107,19 +119,7 @@ export function GoalContributionEditSheet({
       </p>
 
       <div className="mt-4 space-y-3">
-        <div>
-          <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
-            Monto ({goalCurrency})
-          </label>
-          <input
-            ref={amountRef}
-            type="text"
-            inputMode="decimal"
-            value={formatArDecimal(amount)}
-            onChange={(event) => setAmount(parseArDecimalInput(event.target.value))}
-            className="w-full border-0 border-b border-border-subtle bg-transparent px-0 py-3 text-[14px] text-text-primary outline-none focus:border-primary focus:ring-0"
-          />
-        </div>
+
 
         <div>
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">

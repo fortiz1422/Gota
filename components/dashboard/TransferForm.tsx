@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
+import { Bank } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { InlineError } from '@/components/ui/InlineError'
 import { todayAR } from '@/lib/format'
@@ -170,7 +171,17 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
   )
 
   return (
-    <TaskSurface
+    <TaskSurface variant="blue-hero" hero={(<div><input
+            ref={amountFromRef}
+            id="transfer-from-amount"
+            type="text"
+            inputMode="decimal"
+            placeholder={currencyFrom === 'ARS' ? '$ 0' : 'USD 0'}
+            value={formatMonetaryInput(amountFrom)}
+            onChange={(e) => updateAmountFrom(e.target.value)}
+            aria-label="Monto de origen"
+            className={`${fieldClass} mt-2`}
+          />{currencyToggle(currencyFrom, (value) => changeCurrency('from', value))}</div>)}
       open
       onClose={onClose}
       appearance="compact"
@@ -197,12 +208,13 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
         </>
       }
     >
-      <div className="space-y-7 pb-2">
+      <div className="form-fields space-y-4 pb-2">
         <section>
           <label htmlFor="transfer-from-account" className={labelClass}>
             Desde
           </label>
-          <div className="border-border-strong flex items-center gap-3 border-b">
+          <div className="form-account-row flex items-center gap-3">
+            <span aria-hidden="true" className="form-account-avatar"><Bank size={18} weight="duotone" /></span>
             <select
               id="transfer-from-account"
               value={fromAccountId}
@@ -215,27 +227,16 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
                 </option>
               ))}
             </select>
-            {currencyToggle(currencyFrom, (value) =>
-              changeCurrency('from', value)
-            )}
+
           </div>
-          <input
-            ref={amountFromRef}
-            id="transfer-from-amount"
-            type="text"
-            inputMode="decimal"
-            placeholder={currencyFrom === 'ARS' ? '$ 0' : 'USD 0'}
-            value={formatMonetaryInput(amountFrom)}
-            onChange={(e) => updateAmountFrom(e.target.value)}
-            aria-label="Monto de origen"
-            className={`${fieldClass} mt-2`}
-          />
+
         </section>
         <section>
           <label htmlFor="transfer-to-account" className={labelClass}>
             Hasta
           </label>
-          <div className="border-border-strong flex items-center gap-3 border-b">
+          <div className="form-account-row flex items-center gap-3">
+            <span aria-hidden="true" className="form-account-avatar"><Bank size={18} weight="duotone" /></span>
             <select
               id="transfer-to-account"
               value={toAccountId}

@@ -22,7 +22,7 @@ const OPTIONS: { value: HeroBalanceMode; label: string; description: string }[] 
 
 export function HeroBalanceModeSheet({ open, onClose, value, onChange, isSaving = false, triggerRef }: Props) {
   return (
-    <ChoiceSurface
+    <ChoiceSurface variant="r"
       appearance="compact"
       open={open}
       onClose={onClose}

@@ -7,6 +7,7 @@ import { NestedSettingsModalContext } from '@/components/ui/NestedSettingsModalC
 import styles from './MobileSettings.module.css'
 
 interface SettingsDetailProps {
+  surfaceVariant?: 'r' | 'blue-hero'
   title: string
   description: string
   icon: ReactNode
@@ -15,6 +16,7 @@ interface SettingsDetailProps {
 }
 
 export function SettingsDetail({
+  surfaceVariant,
   title,
   description,
   icon,
@@ -42,6 +44,7 @@ export function SettingsDetail({
       </button>
 
       <ManagementSurface
+        variant={surfaceVariant}
         open={open}
         onClose={() => setOpen(false)}
         triggerRef={trigger}

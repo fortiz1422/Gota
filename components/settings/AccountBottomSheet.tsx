@@ -213,7 +213,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const inputClass = editInputClass
 
   return (
-    <TaskSurface
+    <TaskSurface variant="r"
       open
       onClose={onClose}
       eyebrow={TYPE_LABELS[type].toUpperCase()}
@@ -235,6 +235,24 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
       }
     >
       <div className="space-y-5">
+        {!isNew && (
+          <button
+            data-account-edit-archive
+            type="button"
+            onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }}
+            disabled={isDeleting}
+            className="form-archive inline-flex items-center gap-2"
+          >
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-danger-soft text-danger">
+              <Trash size={17} weight="duotone" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-primary-r">Archivar cuenta</span>
+
+            </span>
+            <CaretRight size={17} className="shrink-0 text-danger/45" />
+          </button>
+        )}
         {account && process.env.NEXT_PUBLIC_BALANCE_RECONCILIATION_ENABLED === 'true' && <div className="flex gap-4">{(['ARS','USD'] as const).map(currency => <Link key={currency} href={`/reconciliation/${account.id}?currency=${currency}`} className="flex min-h-12 flex-1 items-center justify-between text-sm font-bold text-primary">Confirmar {currency}<CaretRight size={16} weight="light" /></Link>)}</div>}
         <InlineError message={error} />
         <div className="space-y-2">
@@ -272,7 +290,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
                 </span>
               )}
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-2">
               <label className="space-y-1">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-text-tertiary">ARS</span>
                 <input
@@ -457,26 +475,9 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
         </div>
 
 
-        {!isNew && (
-          <button
-            data-account-edit-archive
-            type="button"
-            onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }}
-            disabled={isDeleting}
-            className="surface-module flex min-h-[66px] w-full items-center gap-3 rounded-card border border-danger/10 bg-white px-3.5 py-3 text-left transition-colors hover:border-danger/20 disabled:opacity-50"
-          >
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-danger-soft text-danger">
-              <Trash size={17} weight="regular" />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-danger">Archivar cuenta</span>
-              <span className="mt-0.5 block text-[11px] text-text-tertiary">Conserva sus movimientos y su historial.</span>
-            </span>
-            <CaretRight size={17} className="shrink-0 text-danger/45" />
-          </button>
-        )}
+
       </div>
-      <ConfirmationSurface
+      <ConfirmationSurface variant="r"
         open={confirmArchive}
         onClose={() => setConfirmArchive(false)}
         onConfirm={() => void handleDelete()}
