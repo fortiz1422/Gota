@@ -30,6 +30,8 @@ async function open(page: Page, screen: string) {
     }
     const primary = page.locator('[data-task-footer] button').first()
     if (await primary.count()) {
+      // Content-positioned actions may require vertical scroll on a small screen.
+      if (await primary.locator('..').getAttribute('data-footer-placement') === 'after-content') await primary.scrollIntoViewIfNeeded()
       await expect.poll(async () => { const box = await primary.boundingBox(); return box!.y + box!.height }).toBeLessThanOrEqual(page.viewportSize()!.height)
     }
   }

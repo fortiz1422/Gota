@@ -35,6 +35,7 @@ interface CardTaskProps {
 
 function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved }: CardTaskProps) {
   const isNew = card === null
+  const [saving, setSaving] = useState(false)
   const [removing, setRemoving] = useState(false)
   const [confirmArchive, setConfirmArchive] = useState(false)
   const [archiveTrigger, setArchiveTrigger] = useState<HTMLElement | null>(null)
@@ -58,7 +59,7 @@ function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved 
   }
 
   return (
-    <TaskSurface
+    <TaskSurface variant="r" busy={saving || removing}
       open
       onClose={onClose}
       appearance="compact"
@@ -71,8 +72,14 @@ function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved 
     >
       <div className="space-y-5">
         {error ? <p role="alert" className="rounded-input bg-danger/10 px-3 py-2 text-xs text-danger">{error}</p> : null}
-        <section data-card-edit-information data-card-edit-cycle className="border-b border-border-strong">
+        {!isNew && card ? (
+          <button data-card-edit-archive type="button" onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }} disabled={saving || removing} className="form-archive inline-flex min-h-11 items-center gap-2 text-danger disabled:opacity-50">
+            <Trash size={17} /> Archivar tarjeta
+          </button>
+        ) : null}
+        <section data-card-edit-information data-card-edit-cycle className="surface-module rounded-card p-4">
           <CardSetupForm
+            onSavingChange={setSaving}
             variant="app"
             accounts={accounts}
             defaultAccountId={card?.account_id}
@@ -91,11 +98,7 @@ function CardTask({ card, accounts, triggerElement, onClose, onSaved, onRemoved 
             }}
           />
         </section>
-        {!isNew && card ? (
-          <button data-card-edit-archive type="button" onClick={(event) => { setArchiveTrigger(event.currentTarget); setConfirmArchive(true) }} disabled={removing} className="surface-module flex min-h-[66px] w-full items-center justify-center gap-2 rounded-card border border-danger/15 bg-white text-sm font-semibold text-danger disabled:opacity-50">
-            <Trash size={17} /> Archivar tarjeta
-          </button>
-        ) : null}
+
         <ConfirmationSurface
           appearance="compact"
           open={confirmArchive}
@@ -165,7 +168,7 @@ export function CardsSection({ cards: initialCards, standalone = false, month, a
             const accountName = accounts.find((account) => account.id === card.account_id)?.name
             const setup = describeCardSetup(card, [], todayAR())
             return (
-              <li key={card.id} className="flex items-stretch">
+              <li key={card.id} className="form-card-list-row flex flex-wrap items-stretch">
                 <button type="button" onClick={() => router.push(`/tarjetas/${card.id}`)} className="flex min-h-[72px] min-w-0 flex-1 items-center gap-3 px-4 py-3 text-left hover:bg-primary/5">
                   <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-warning/10 text-warning"><CreditCard size={17} weight="duotone" /></span>
                   <span className="min-w-0 flex-1">
@@ -175,7 +178,7 @@ export function CardsSection({ cards: initialCards, standalone = false, month, a
                   {setup.tracked && setup.listLabel ? <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${setup.listTone === 'ok' ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'}`}>{setup.listLabel}</span> : info ? <span className={`shrink-0 rounded-full px-2 py-1 text-[10px] font-semibold ${info.diff >= 0 && info.diff <= 5 ? 'bg-warning/10 text-warning' : 'bg-bg-tertiary text-text-tertiary'}`}>{info.label}</span> : <span className="shrink-0 text-[10px] text-text-tertiary">Sin ciclo</span>}
                   <CaretRight size={14} className="shrink-0 text-text-dim" />
                 </button>
-                <button type="button" onClick={(event) => openEditor(card, event.currentTarget)} className="px-3 text-xs font-semibold text-primary">
+                <button type="button" onClick={(event) => openEditor(card, event.currentTarget)} className="form-card-list-edit px-3 text-xs font-semibold text-primary">
                   Editar
                 </button>
               </li>

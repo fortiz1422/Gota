@@ -173,7 +173,7 @@ export function SubscriptionBottomSheet({
 
   return (
     <>
-      <TaskSurface variant="r"
+      <TaskSurface footerPlacement="after-content" busy={isSaving || isArchiving} variant="r"
         open
         onClose={onClose}
         appearance="compact"

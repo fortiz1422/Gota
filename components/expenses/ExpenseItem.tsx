@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { MercadoPagoExpenseOrigin } from '@/components/mercadopago/MercadoPagoExpenseOrigin'
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
@@ -302,7 +304,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
         </div>
       </div>
 
-      <Modal open={open} manageFocus returnFocus={() => rowRef.current} onClose={() => {
+      <Modal busy={isSaving} open={open} manageFocus returnFocus={() => rowRef.current} onClose={() => {
         setOpen(false)
         setEditingGroup(false)
         setGroupSummary(null)
@@ -338,7 +340,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               </label>
               <div className="form-legacy-amount">
                 <span className="form-legacy-symbol">{currency === 'ARS' ? '$' : 'US$'}</span>
-                <input
+                <FittedAmountInput
                   type="text"
                   inputMode="decimal"
                   aria-label="Monto"
@@ -475,6 +477,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               </label>
               <input
                 type="text"
+                aria-label="Descripción"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
@@ -489,7 +492,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Categoria
               </label>
-              <select
+              <select aria-label="Categoría"
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
@@ -506,6 +509,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
               </label>
               <input
                 type="date"
+                aria-label="Fecha"
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}

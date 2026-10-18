@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -171,7 +173,7 @@ export function TransferForm({ accounts, onClose, onSaved }: Props) {
   )
 
   return (
-    <TaskSurface variant="blue-hero" hero={(<section><div className="form-amount-line"><span className="type-amount">{currencyFrom === 'ARS' ? '$' : 'US$'}</span><input
+    <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero" hero={(<section><div className="form-amount-line"><span className="type-amount">{currencyFrom === 'ARS' ? '$' : 'US$'}</span><FittedAmountInput
             ref={amountFromRef}
             id="transfer-from-amount"
             type="text"

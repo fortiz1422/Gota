@@ -49,6 +49,7 @@ export function ConfirmationSurface({
     <FullScreenSheet
       open={open}
       onClose={busy ? () => undefined : onClose}
+      chromeVariant={variant}
       labelledBy={titleId}
       initialFocusRef={cancelRef}
       triggerElement={triggerElement}

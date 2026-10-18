@@ -7,6 +7,8 @@ import { BlueHeaderZone } from './BlueHeaderZone'
 import { FullScreenSheet } from './FullScreenSheet'
 
 interface TaskSurfaceProps {
+  busy?: boolean
+  footerPlacement?: 'sticky' | 'after-content'
   variant?: FormSurfaceVariant
   hero?: ReactNode
   summaryHero?: boolean
@@ -29,6 +31,8 @@ interface TaskSurfaceProps {
 }
 
 export function TaskSurface({
+  busy = false,
+  footerPlacement = 'sticky',
   variant,
   hero,
   summaryHero = false,
@@ -50,12 +54,15 @@ export function TaskSurface({
   triggerElement,
 }: TaskSurfaceProps) {
   const titleId = useId()
+  const requestClose = () => { if (!busy) onClose() }
+  const actionFooter = footer != null ? <div data-task-footer data-footer-placement={footerPlacement === 'after-content' ? footerPlacement : undefined} className={footerPlacement === 'after-content' ? 'form-content-footer' : `shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${appearance === 'compact' ? footerSafeArea === 'exact' ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}>{footer}</div> : null
   const compact = appearance === 'compact'
 
   return (
     <FullScreenSheet
       open={open}
-      onClose={onClose}
+      onClose={requestClose}
+      chromeVariant={variant}
       labelledBy={titleId}
       extendIntoTopSafeArea
       extendIntoBottomSafeArea={compact}
@@ -72,7 +79,7 @@ export function TaskSurface({
         data-task-appearance={appearance}
         className={`flex h-full min-h-0 flex-col ${compact ? canvasTone === 'standard' ? 'bg-bg-primary' : 'bg-bg-secondary' : 'bg-bg-primary'}`}
       >
-        {variant ? (<FormSurfaceHeader showNavigationTitle={!summaryHero && (compact || !showIntro)} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} navigationTitle={navigationTitle} showIntro={showIntro} hero={hero} />) : compact ? (
+        {variant ? (<FormSurfaceHeader showNavigationTitle={!summaryHero && (compact || !showIntro)} busy={busy} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={requestClose} navigationTitle={navigationTitle} showIntro={showIntro} hero={hero} />) : compact ? (
           <>
             <header
               data-task-header="compact"
@@ -81,7 +88,8 @@ export function TaskSurface({
             >
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
+                disabled={busy}
                 aria-label={`Cerrar ${navigationTitle ?? title}`}
                 className="flex h-11 w-11 items-center justify-center rounded-full text-text-secondary transition-colors hover:bg-primary-soft active:bg-primary/10"
               >
@@ -106,7 +114,8 @@ export function TaskSurface({
             <div className="flex items-start gap-2">
               <button
                 type="button"
-                onClick={onClose}
+                onClick={requestClose}
+                disabled={busy}
                 aria-label={`Cerrar ${title}`}
                 className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-white transition-colors hover:bg-white/10 active:bg-white/15"
               >
@@ -127,14 +136,10 @@ export function TaskSurface({
           className={`min-h-0 flex-1 overflow-y-auto overscroll-contain px-[22px] pb-8 ${compact ? 'pt-0' : 'relative -mt-4 pt-4'}`}
         >
           {children}
+          {footerPlacement === 'after-content' && actionFooter}
         </div>
 
-        {footer != null && <div
-          data-task-footer
-          className={`shrink-0 border-t border-border-subtle bg-bg-primary/95 px-[22px] pt-3 shadow-[0_-4px_14px_rgba(13,24,41,0.05)] backdrop-blur-xl ${compact ? footerSafeArea === 'exact' ? 'pb-[env(safe-area-inset-bottom)]' : 'pb-[max(12px,env(safe-area-inset-bottom))]' : 'pb-5'}`}
-        >
-          {footer}
-        </div>}
+        {footerPlacement === 'sticky' && actionFooter}
       </div>
     </FullScreenSheet>
   )

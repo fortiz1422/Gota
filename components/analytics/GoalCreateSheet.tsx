@@ -99,7 +99,7 @@ export function GoalCreateSheet({ open, onClose, onCreated }: Props) {
 
   const currencySymbol = currency === 'ARS' ? '$' : 'US$'
   return (
-    <TaskSurface variant="blue-hero"
+    <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero"
       open={open}
       onClose={handleClose}
       eyebrow="PLANIFICAR"

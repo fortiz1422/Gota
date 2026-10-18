@@ -17,6 +17,7 @@ export function FormSurfaceHeader({
   showIntro = true,
   showNavigationTitle = true,
   hero,
+  headerAction,
   onClose,
   closeRef,
   busy = false,
@@ -30,6 +31,7 @@ export function FormSurfaceHeader({
   description: string
   showIntro?: boolean
   showNavigationTitle?: boolean
+  headerAction?: ReactNode
   hero?: ReactNode
   onClose: () => void
   closeRef?: RefObject<HTMLButtonElement | null>
@@ -71,7 +73,7 @@ export function FormSurfaceHeader({
           }
         >
           <p className="form-eyebrow">{eyebrow}</p>
-          <h2 id={titleId}>{title}</h2>
+          {headerAction ? <div className="flex items-center justify-between gap-3"><h2 id={titleId}>{title}</h2>{headerAction}</div> : <h2 id={titleId}>{title}</h2>}
           <p className="form-description">{description}</p>
         </div>
       )}

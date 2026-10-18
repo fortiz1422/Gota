@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { TaskSurface } from '@/components/ui/TaskSurface'
@@ -140,7 +142,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
             Monto ({goal.currency})
           </label>
-          <input
+          <FittedAmountInput aria-label="Monto"
             ref={amountRef}
             type="text"
             inputMode="decimal"
@@ -189,7 +191,7 @@ export function GoalContributionSheet({ open, goal, onClose, onContributed }: Pr
             Fecha
           </label>
           <input
-            type="date"
+            type="date" aria-label="Fecha"
             value={contributedAt}
             onChange={(e) => setContributedAt(e.target.value)}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary focus:border-primary focus:outline-none"

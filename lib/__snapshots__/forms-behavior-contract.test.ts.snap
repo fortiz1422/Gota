@@ -3,6 +3,8 @@
 exports[`forms redesign preserves behavior from b8e25fe > leaves the expense list row untouched 1`] = `
 "'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { MercadoPagoExpenseOrigin } from '@/components/mercadopago/MercadoPagoExpenseOrigin'
 import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'

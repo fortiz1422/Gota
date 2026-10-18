@@ -8,7 +8,6 @@ const SETTINGS_LINE_INPUT_FILES = [
   '../components/settings/AccountSection.tsx',
   '../components/cards/CardSetupForm.tsx',
   '../components/settings/CounterpartyAliasesPanel.tsx',
-  '../components/settings/DeleteAccountControl.tsx',
   '../components/settings/SharedReceiptDevicesPanel.tsx',
   '../components/settings/SubscriptionBottomSheet.tsx',
 ]
@@ -34,6 +33,13 @@ describe('Settings line input focus and number format', () => {
       expect(control).toContain('focus-visible:!outline-none')
       expect(control).toContain('focus-visible:ring-0')
     }
+  })
+
+  it('gives account deletion a visible focus outline', () => {
+    const source = read('../components/settings/DeleteAccountControl.tsx')
+    expect(source).toContain('data-delete-confirmation')
+    expect(source).not.toContain('!outline-none')
+    expect(read('../app/globals.css')).toContain('input[data-delete-confirmation]:focus-visible')
   })
 
   it('keeps subscription amounts locale-formatted while the payload consumes canonical state', () => {

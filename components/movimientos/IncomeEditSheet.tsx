@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useRef, useState } from 'react'
 import { Bank, DeviceMobileSpeaker, Star, Wallet } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
@@ -115,13 +117,13 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
 
   return (
     <>
-      <TaskSurface variant="blue-hero" hero={(<section>
+      <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero" hero={(<section>
             <p className="type-micro text-primary">MONTO</p>
             <div className="form-amount-line border-border-strong focus-within:border-primary mt-2 flex items-baseline gap-2 border-b transition-colors">
               <span className="type-amount text-text-secondary">
                 {currency === 'ARS' ? '$' : 'US$'}
               </span>
-              <input
+              <FittedAmountInput
                 ref={amountRef}
                 id="income-edit-amount"
                 type="text"
@@ -210,7 +212,7 @@ export function IncomeEditSheet({ entry, accounts, onClose, onUpdate }: Props) {
           )}
           <fieldset>
             <legend className={labelClass}>Categoría</legend>
-            <select
+            <select aria-label="Categoría"
               id="income-edit-category"
               value={category}
               onChange={(e) => setCategory(e.target.value as IncomeCategory)}
