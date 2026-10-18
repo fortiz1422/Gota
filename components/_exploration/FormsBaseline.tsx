@@ -1,12 +1,16 @@
 'use client'
 
+import { HomePlusButton } from '@/components/dashboard/HomePlusButton'
+import { SettingsPreferences } from '@/components/settings/SettingsPreferences'
+import { CuotasEnCursoSheet } from '@/components/dashboard/CuotasEnCursoSheet'
+import { Modal } from '@/components/ui/Modal'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
 import { AccountSection } from '@/components/settings/AccountSection'
 import { DeleteAccountControl } from '@/components/settings/DeleteAccountControl'
 import { GoalContributionEditSheet } from '@/components/analytics/GoalContributionEditSheet'
 import { LinkTransferToGoalSheet } from '@/components/analytics/LinkTransferToGoalSheet'
 import { TaskSurface } from '@/components/ui/TaskSurface'
-import { useState, useSyncExternalStore } from 'react'
+import { useState, useEffect } from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { TransferForm } from '@/components/dashboard/TransferForm'
 import { IncomeModal } from '@/components/dashboard/IncomeModal'
@@ -41,21 +45,27 @@ const expense: Expense = { id: 'fixture-expense', user_id: 'fixture', subscripti
 const noop = () => {}
 const done = async () => {}
 
-const subscribe = () => () => {}
-const clientSnapshot = () => true
-const serverSnapshot = () => false
 
 export function FormsBaseline({ screen }: { screen: string }) {
-  const mounted = useSyncExternalStore(subscribe, clientSnapshot, serverSnapshot)
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    let active = true
+    queueMicrotask(() => { if (active) setMounted(true) })
+    return () => { active = false }
+  }, [])
   const [client] = useState(() => new QueryClient({ defaultOptions: { queries: { retry: false } } }))
   const [open, setOpen] = useState(true)
   const [savedBudget, setSavedBudget] = useState<Array<{ id?: string; category: string; amount: number }> | null>(null)
-  const close = () => setOpen(false)
+  const close = () => { const state = window as unknown as { __fixtureCloses?: number }; state.__fixtureCloses = (state.__fixtureCloses ?? 0) + 1; setOpen(false) }
   const usd = screen.endsWith('-usd')
   const currency = usd ? 'USD' : 'ARS'
   const kind = screen.replace(/-usd$/, '')
   let content
-  if (kind.startsWith('expense')) content = <ExpenseItem expense={{ ...expense, currency, ...(kind === 'expense-installment' ? { payment_method: 'CREDIT', card_id: card.id, installment_group_id: 'fixture-group', installment_number: 1, installment_total: 3 } : {}), ...(kind === 'expense-subscription' ? { subscription_id: subscription.id } : {}) }} cards={[card]} accounts={accounts} onUpdate={noop} />
+  if (kind === 'home-plus') content = <HomePlusButton accounts={accounts} cards={[card]} currency={currency} month="2026-10" />
+  else if (kind.startsWith('settings-')) content = <SettingsPreferences currentMonth="2026-10" currency={currency} accounts={kind === 'settings-accounts-empty' ? [] : accounts} cards={[card]} heroBalanceMode="combined_ars" signalsCenterEnabled={false} />
+  else if (kind === 'legacy-control') content = <Modal open={open} onClose={close}><h2>Control modal original</h2><input placeholder="Sin cambios" /><button type="button" onClick={close}>Cerrar control</button></Modal>
+  else if (kind === 'cuotas-en-curso') content = <CuotasEnCursoSheet currency={currency} cards={[card]} onClose={close} />
+  else if (kind.startsWith('expense')) content = <ExpenseItem expense={{ ...expense, currency, ...(kind === 'expense-installment' ? { payment_method: 'CREDIT', card_id: card.id, installment_group_id: 'fixture-group', installment_number: 1, installment_total: 3 } : {}), ...(kind === 'expense-subscription' ? { subscription_id: subscription.id } : {}) }} cards={[card]} accounts={accounts} onUpdate={noop} />
   else if (kind === 'password' || kind === 'passkeys') content = <AccountSection email="prueba@example.invalid" isAnonymous={false} authProviders={['email']} />
   else if (kind === 'delete-account') content = <DeleteAccountControl />
   else if (kind === 'goal-contribution-edit') content = <GoalContributionEditSheet open={open} goalId={goal.id} goalCurrency={currency} contribution={{ id: 'fixture-contribution', goalId: goal.id, amount: 25000, currency, contributedAt: stamp, sourceType: 'manual', sourceAccountId: null, availabilityEffect: 'none', destinationKind: null, note: 'Prueba', relatedTransferId: null, relatedIncomeEntryId: null, createdAt: stamp }} onClose={close} onSaved={done} />
@@ -65,7 +75,7 @@ export function FormsBaseline({ screen }: { screen: string }) {
   else if (kind === 'transfer-edit') content = <TransferEditSheet transfer={{ id: 'fixture-transfer', user_id: 'fixture', from_account_id: account.id, to_account_id: accounts[1].id, amount_from: 50000, amount_to: 50000, currency_from: currency, currency_to: currency, exchange_rate: null, date: stamp, note: 'Prueba', created_at: stamp }} accounts={accounts} onClose={close} onUpdate={noop} />
   else if (kind === 'income') content = <IncomeModal accounts={accounts} defaultCurrency={currency} onClose={close} />
   else if (kind === 'income-edit') content = <IncomeEditSheet entry={{ id: 'fixture-income', user_id: 'fixture', account_id: account.id, amount: 150000, currency, description: 'Prueba', category: 'salary', date: stamp, created_at: stamp, recurring_income_id: null }} accounts={accounts} onClose={close} onUpdate={noop} />
-  else if (kind === 'account-new' || kind === 'account-edit') content = <AccountBottomSheet account={kind === 'account-new' ? null : account} type="bank" month="2026-10" onSave={noop} onClose={close} />
+  else if (kind === 'account-new' || kind === 'account-edit' || kind === 'account-new-digital') content = <AccountBottomSheet account={kind === 'account-edit' ? account : null} type={kind === 'account-new-digital' ? 'digital' : 'bank'} month="2026-10" onSave={noop} onClose={close} />
   else if (kind === 'accounts' || kind === 'accounts-filled') content = <CuentasSubSheet open={open} onClose={close} />
   else if (kind === 'subscriptions' || kind === 'subscriptions-filled') content = <SubscriptionsSubSheet open={open} onClose={close} defaultCurrency={currency} />
   else if (kind === 'subscription-new' || kind === 'subscription-edit') content = <SubscriptionBottomSheet subscription={kind === 'subscription-new' ? null : { ...subscription, currency }} cards={[card]} accounts={accounts} defaultCurrency={currency} onClose={close} onSave={noop} onArchive={noop} />

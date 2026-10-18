@@ -199,46 +199,46 @@ export function SubscriptionBottomSheet({
         )}
       >
         {subscription ? (
-          <section className="mb-4">
+          <div className="mb-4">
             <button type="button" onClick={(event) => { setDecisionTrigger(event.currentTarget); setArchiveConfirmOpen(true) }} className="form-archive">Archivar suscripción</button>
-          </section>
+          </div>
         ) : null}
         <section data-subscription-edit-charge className="surface-module rounded-card border border-border-subtle bg-white px-4 pb-5 pt-4" aria-labelledby={`${descriptionId}-section`}>
           <p id={`${descriptionId}-section`} className="type-micro text-primary">COBRO</p>
           <label htmlFor={descriptionId} className="mb-2 mt-4 block type-meta font-semibold text-text-secondary">Descripción</label>
-          <div className="flex min-h-14 items-center gap-3 border-b border-border-strong focus-within:border-primary">
+          <div className="form-r-value flex items-center gap-2">
             <Receipt size={18} weight="duotone" className="shrink-0 text-primary" />
             <input ref={descriptionRef} id={descriptionId} type="text" placeholder="Ej. Netflix, Spotify, gimnasio" value={description} onChange={(event) => { setDescription(event.target.value); if (error) setError(null) }} maxLength={100} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </div>
 
           <label htmlFor={amountId} className="mb-2 mt-5 block type-meta font-semibold text-text-secondary">Monto mensual</label>
-          <div className="flex min-h-[62px] items-center border-b border-border-strong focus-within:border-primary">
-            <span className="mr-2 type-amount text-text-secondary">{currencySymbol}</span>
-            <input id={amountId} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
+          <div className="form-r-value flex items-center justify-end">
+            <span className="mr-1 text-sm text-text-secondary">{currencySymbol}</span>
+            <input id={amountId} style={{ width: `${Math.max(1, formatArDecimal(amount).length)}ch`, flex: '0 1 auto' }} type="text" inputMode="decimal" placeholder="0" value={formatArDecimal(amount)} onChange={(event) => { setAmount(parseArDecimalInput(event.target.value)); if (error) setError(null) }} className="min-w-0 flex-1 border-0 bg-transparent p-0 type-amount text-text-primary !outline-none placeholder:text-text-muted focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
           </div>
 
-          <fieldset className="mt-4">
+          <fieldset className="form-r-currency">
             <legend className="mb-2 type-meta font-semibold text-text-secondary">Moneda</legend>
-            <div className="grid grid-cols-2 gap-1 rounded-input bg-bg-tertiary p-1">
-              {(['ARS', 'USD'] as const).map((option) => <button key={option} type="button" aria-pressed={currency === option} onClick={() => setCurrency(option)} className={`min-h-11 rounded-button type-body ${currency === option ? 'bg-bg-primary text-primary shadow-sm' : 'text-text-secondary'}`}>{option}</button>)}
+            <div className="flex justify-end gap-2">
+              {(['ARS', 'USD'] as const).map((option) => <button key={option} type="button" aria-pressed={currency === option} onClick={() => setCurrency(option)} className={`form-r-pill ${currency === option ? 'form-r-pill-selected' : ''}`}>{option}</button>)}
             </div>
           </fieldset>
         </section>
 
         <section className="mt-6" aria-labelledby={`${dayId}-section`}>
           <p id={`${dayId}-section`} className="mb-3 type-micro text-text-secondary">PROGRAMACIÓN</p>
-          <div className="border-y border-border-subtle py-3">
+          <div className="form-r-setting-row">
             <label htmlFor={dayId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Día de cobro</label>
-            <div className="flex min-h-12 items-center gap-3 border-b border-border-strong focus-within:border-primary">
+            <div className="form-r-value flex items-center justify-end gap-2">
               <CalendarBlank size={18} weight="duotone" className="text-primary" />
               <input id={dayId} type="number" inputMode="numeric" min={1} max={31} value={dayOfMonth} onChange={(event) => { setDayOfMonth(event.target.value); if (error) setError(null) }} className="w-12 border-0 bg-transparent p-0 type-body-lg text-text-primary !outline-none focus:ring-0 focus-visible:!outline-none focus-visible:ring-0" />
               <span className="type-body text-text-tertiary">de cada mes</span>
             </div>
           </div>
 
-          <div className="border-b border-border-subtle py-3">
+          <div className="form-r-setting-row">
             <label htmlFor={categoryId} className="mb-1.5 block type-meta font-semibold text-text-secondary">Categoría</label>
-            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full border-0 border-b border-border-strong bg-transparent px-0 type-body text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
+            <select id={categoryId} value={category} onChange={(event) => setCategory(event.target.value)} className="min-h-12 w-full border-0 bg-transparent px-0 type-body text-text-primary !outline-none focus:border-primary focus:ring-0 focus-visible:!outline-none focus-visible:ring-0">
               {CATEGORIES.map((option) => <option key={option} value={option}>{option}</option>)}
             </select>
           </div>
@@ -246,20 +246,20 @@ export function SubscriptionBottomSheet({
 
         <section className="mt-6" aria-labelledby={`${dayId}-payment`}>
           <p id={`${dayId}-payment`} className="mb-3 type-micro text-text-secondary">MEDIO DE PAGO</p>
-          <div className="grid grid-cols-2 gap-2">
-            <button type="button" aria-pressed={paymentMethod === 'DEBIT'} onClick={() => setPaymentMethod('DEBIT')} className={choiceClass(paymentMethod === 'DEBIT')}><Wallet size={18} />Débito</button>
-            <button type="button" aria-pressed={paymentMethod === 'CREDIT'} onClick={() => setPaymentMethod('CREDIT')} className={choiceClass(paymentMethod === 'CREDIT')}><CreditCard size={18} />Crédito</button>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" aria-pressed={paymentMethod === 'DEBIT'} onClick={() => setPaymentMethod('DEBIT')} className={`${choiceClass(paymentMethod === 'DEBIT')} form-r-pill`}><Wallet size={18} />Débito</button>
+            <button type="button" aria-pressed={paymentMethod === 'CREDIT'} onClick={() => setPaymentMethod('CREDIT')} className={`${choiceClass(paymentMethod === 'CREDIT')} form-r-pill`}><CreditCard size={18} />Crédito</button>
           </div>
 
           {paymentMethod === 'DEBIT' ? (
-            <div className="mt-3 space-y-2" aria-label="Cuenta del débito">
-              {bankDigital.map((account) => <button key={account.id} type="button" aria-pressed={selectedAccountKey === account.id} onClick={() => setSelectedAccountKey(account.id)} className={choiceClass(selectedAccountKey === account.id)}><AccountIcon type={account.type} /><span className="min-w-0 flex-1 truncate">{account.name}</span>{account.is_primary ? <Star size={12} weight="fill" /> : null}</button>)}
-              {cashAccount ? <button type="button" aria-pressed={selectedAccountKey === 'cash'} onClick={() => setSelectedAccountKey('cash')} className={choiceClass(selectedAccountKey === 'cash')}><Wallet size={17} /><span className="min-w-0 flex-1 truncate">{cashAccount.name}</span></button> : null}
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Cuenta del débito">
+              {bankDigital.map((account) => <button key={account.id} type="button" aria-pressed={selectedAccountKey === account.id} onClick={() => setSelectedAccountKey(account.id)} className={`${choiceClass(selectedAccountKey === account.id)} form-r-pill`}><AccountIcon type={account.type} /><span className="min-w-0 flex-1 truncate">{account.name}</span>{account.is_primary ? <Star size={12} weight="fill" /> : null}</button>)}
+              {cashAccount ? <button type="button" aria-pressed={selectedAccountKey === 'cash'} onClick={() => setSelectedAccountKey('cash')} className={`${choiceClass(selectedAccountKey === 'cash')} form-r-pill`}><Wallet size={17} /><span className="min-w-0 flex-1 truncate">{cashAccount.name}</span></button> : null}
               {accounts.length === 0 ? <p className="type-body text-text-tertiary">No hay cuentas disponibles. El cobro quedará sin una cuenta asociada.</p> : null}
             </div>
           ) : (
-            <div className="mt-3 space-y-2" aria-label="Tarjeta del cobro">
-              {activeCards.map((card) => <button key={card.id} type="button" aria-pressed={cardId === card.id} onClick={() => { setCardId(card.id); if (error) setError(null) }} className={choiceClass(cardId === card.id)}><CreditCard size={17} /><span className="min-w-0 flex-1 truncate">{card.name}</span></button>)}
+            <div className="mt-3 flex flex-wrap gap-2" aria-label="Tarjeta del cobro">
+              {activeCards.map((card) => <button key={card.id} type="button" aria-pressed={cardId === card.id} onClick={() => { setCardId(card.id); if (error) setError(null) }} className={`${choiceClass(cardId === card.id)} form-r-pill`}><CreditCard size={17} /><span className="min-w-0 flex-1 truncate">{card.name}</span></button>)}
               {activeCards.length === 0 ? <p className="type-body text-danger">No hay tarjetas activas disponibles.</p> : null}
             </div>
           )}

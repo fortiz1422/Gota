@@ -157,7 +157,7 @@ export function TransferEditSheet({
 
   return (
     <>
-      <TaskSurface variant="blue-hero" hero={(<div><input
+      <TaskSurface variant="blue-hero" hero={(<section><div className="form-amount-line"><span className="type-amount">{currencyFrom === 'ARS' ? '$' : 'US$'}</span><input
               ref={amountFromRef}
               id="transfer-edit-from-amount"
               type="text"
@@ -165,8 +165,10 @@ export function TransferEditSheet({
               value={formatMonetaryInput(amountFrom)}
               onChange={(e) => updateFrom(e.target.value)}
               aria-label="Monto de origen"
+              size={Math.min(12, Math.max(1, formatMonetaryInput(amountFrom).length))}
+              style={{ width: `${Math.max(1, formatMonetaryInput(amountFrom).length)}ch` }}
               className={`${fieldClass} mt-2`}
-            />{currencyToggle(currencyFrom, (value) => changeCurrency('from', value))}</div>)}
+            /></div>{currencyToggle(currencyFrom, (value) => changeCurrency('from', value))}</section>)}
         open
         onClose={onClose}
         appearance="compact"

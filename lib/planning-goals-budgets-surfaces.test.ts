@@ -26,12 +26,12 @@ describe('planning goals and budgets task surfaces', () => {
     expect(budget).toContain('setDraftItems(getInitialDraftItems(initialItems, availableCategories))')
   })
 
-  it('uses a responsive budget row with compact layout only above mobile width', () => {
+  it('uses compact category-icon budget rows with mobile controls', () => {
     const source = read('../components/analytics/BudgetEditorSheet.tsx')
 
     expect(source).not.toContain('grid-cols-[1fr_132px_auto]')
-    expect(source).toContain('grid-cols-1')
-    expect(source).toContain('sm:grid-cols-[minmax(0,1fr)_132px_auto]')
+    expect(source).toContain('form-budget-row')
+    expect(source).toContain('data-budget-icon')
     expect(source).toContain('min-h-11')
     expect(source).toContain('min-w-0')
   })

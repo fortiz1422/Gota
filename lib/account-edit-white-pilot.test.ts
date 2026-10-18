@@ -40,11 +40,11 @@ describe('Account edit white pilot', () => {
     expect(taskSurface).toContain('fillAvailableHeight={compact}')
   })
 
-  it('pushes the standalone add-account action to the bottom of its management surface', () => {
+  it('places standalone account creation directly after its list', () => {
     const source = read('../components/settings/AccountsSection.tsx')
 
-    expect(source).toContain("standalone ? 'flex min-h-full flex-col' : undefined")
-    expect(source).toContain("<div className={standalone ? 'mt-auto pt-4' : 'mt-4'}>")
+    expect(source).toContain("standalone ? 'form-accounts-list' : undefined")
+    expect(source).toContain("<div className={standalone ? 'mt-3' : 'mt-4'}>")
   })
 
   it('renders account preferences with the canonical contained switch geometry', () => {

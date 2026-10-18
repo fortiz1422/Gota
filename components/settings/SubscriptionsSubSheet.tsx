@@ -115,7 +115,7 @@ export function SubscriptionsSubSheet({
             </button>
           </div>
         ) : subscriptions.length === 0 ? (
-          <div className="px-5 py-12 text-center">
+          <div className="form-r-empty">
             <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary-soft text-primary">
               <Repeat size={22} weight="duotone" />
             </div>
@@ -128,13 +128,13 @@ export function SubscriptionsSubSheet({
               <p className="type-micro text-text-secondary">ACTIVAS</p>
               <p className="type-meta text-text-tertiary">{subscriptions.length}</p>
             </div>
-            <div className="divide-y divide-border-subtle border-y border-border-subtle">
+            <div className="form-r-list">
               {subscriptions.map((subscription) => (
                 <button
                   key={subscription.id}
                   type="button"
                   onClick={(event) => openEditor(subscription, event.currentTarget)}
-                  className="flex min-h-[76px] w-full items-center gap-3 py-3 text-left transition-colors hover:bg-primary/5"
+                  className="flex min-h-[76px] w-full items-center gap-3 px-[14px] py-3 text-left transition-colors hover:bg-primary/5"
                 >
                   <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border-ocean bg-primary-soft text-primary">
                     <ArrowsClockwise weight="duotone" size={17} />

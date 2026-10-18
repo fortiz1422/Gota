@@ -67,20 +67,22 @@ describe('Settings calm editorial migration', () => {
     expect(cards).toContain('data-card-edit-information')
     expect(cards).toContain('data-card-edit-cycle')
     expect(subscriptions).toContain('data-subscription-edit-charge')
+    expect(subscriptions).toContain('form-r-pill')
     expect(aliases).toContain('data-counterparty-edit-information')
     expect(devices).toContain('surface-module block rounded-card')
     expect(access).toContain('data-password-edit')
 
-    for (const source of [cards, subscriptions, aliases, devices, access]) {
+    for (const source of [cards, aliases, devices, access]) {
       expect(source).toContain('border-b border-border-strong')
     }
   })
 
-  it('pushes standalone card creation to the same bottom grammar as accounts', () => {
+  it('preserves bottom-aligned cards and compact account creation', () => {
     const cards = read('../components/settings/CardsSection.tsx')
     const accounts = read('../components/settings/AccountsSection.tsx')
 
-    for (const source of [cards, accounts]) {
+    expect(accounts).toContain("standalone ? 'mt-3' : 'mt-4'")
+    for (const source of [cards]) {
       expect(source).toContain("standalone ? 'flex min-h-full flex-col' : undefined")
       expect(source).toContain("standalone ? 'mt-auto pt-4' : 'mt-4'")
     }

@@ -1,0 +1,8 @@
+Visual verification policy for fix #141:
+- Base product: 1de7e49. Source checks freeze financial logic, URLs and handlers.
+- Exact default controls: compare screenshots against the base, same Chromium 138, viewport and local fonts.
+- Changed layouts: review new screenshots against rendered supplied mockups; measure layout independently in fidelity.spec.ts.
+- Stability alone is not mockup conformity.
+- Allowed differences retained: native selects/date controls, existing copy and recurrence switch, destination currency controls, legacy modal container, full-screen R confirmations, 320 budget 2-line layout, global font decision DF6 excluded.
+- Docker unavailable; local Chromium is recorded rather than asserting the pinned Docker was used.
+- No production financial writes or Supabase changes.
