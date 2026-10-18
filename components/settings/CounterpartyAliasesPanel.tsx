@@ -251,7 +251,7 @@ export function CounterpartyAliasesPanel() {
           ) : error && profiles.length === 0 ? (
             <button type="button" onClick={() => void loadProfiles()} className="text-sm font-semibold text-primary">Reintentar</button>
           ) : filtered.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border-strong px-5 py-8 text-center">
+            <div className="form-r-empty">
               <p className="text-sm font-semibold text-text-primary">{query ? 'No hay coincidencias' : 'Todavía no guardaste comercios'}</p>
               <p className="mt-1 text-xs leading-5 text-text-tertiary">{query ? 'Probá con otro nombre o alias.' : 'Gota puede recordar el nombre y una categoría habitual.'}</p>
             </div>

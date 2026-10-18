@@ -37,6 +37,7 @@ export function FormSurfaceHeader({
 }) {
   return (
     <header
+      data-has-hero={hero != null || undefined}
       data-form-header
       className={variant === 'r' ? 'form-r-header' : 'blue-zone-form'}
     >
@@ -51,7 +52,8 @@ export function FormSurfaceHeader({
         >
           <X size={22} weight="duotone" />
         </button>
-        {showNavigationTitle ? (
+        {showNavigationTitle &&
+        ((hero != null && variant === 'blue-hero') || !showIntro) ? (
           <p id={!showIntro ? titleId : undefined}>
             {navigationTitle ?? title}
           </p>
@@ -61,7 +63,13 @@ export function FormSurfaceHeader({
         <span aria-hidden="true" />
       </div>
       {showIntro && (
-        <div className="form-intro">
+        <div
+          className={
+            hero != null && variant === 'blue-hero' && showNavigationTitle
+              ? 'sr-only'
+              : 'form-intro'
+          }
+        >
           <p className="form-eyebrow">{eyebrow}</p>
           <h2 id={titleId}>{title}</h2>
           <p className="form-description">{description}</p>

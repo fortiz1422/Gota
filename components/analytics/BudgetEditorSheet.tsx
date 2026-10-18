@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
+import { CategoryIcon } from '@/components/ui/CategoryIcon'
+import { Plus } from '@phosphor-icons/react'
 import { formatAmount } from '@/lib/format'
 import { InlineError } from '@/components/ui/InlineError'
 import { formatArDecimal, parseArDecimalInput } from '@/lib/ar-input'
@@ -130,7 +132,7 @@ export function BudgetEditorSheet({
   const initialFocusRef = mode === 'create' || !firstItem?.id ? categoryRef : amountRef
 
   return (
-    <TaskSurface variant="blue-hero" hero={<div><p className="form-eyebrow">TOTAL MENSUAL</p><p className="form-amount-lg">{formatAmount(draftItems.reduce((total, item) => { const value = Number(item.amount); return total + (Number.isFinite(value) && value > 0 ? value : 0) }, 0), currency)}</p></div>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
+    <TaskSurface summaryHero variant="blue-hero" hero={<div><p className="form-eyebrow">TOTAL MENSUAL</p><p className="form-amount-lg">{formatAmount(draftItems.reduce((total, item) => { const value = Number(item.amount); return total + (Number.isFinite(value) && value > 0 ? value : 0) }, 0), currency)}</p></div>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
@@ -143,9 +145,10 @@ export function BudgetEditorSheet({
       </h2>
 
 
-      <div className="form-blue-card mt-5 space-y-3">
+      <div className="form-blue-card form-budget-list">
         {draftItems.map((item, index) => (
-          <div key={`${item.id ?? item.category}-${index}`} className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(0,1fr)_132px_auto]">
+          <div key={`${item.id ?? item.category}-${index}`} className="form-budget-row">
+            <span data-budget-icon><CategoryIcon category={item.category} size={16} container /></span>
             {mode === 'create' || !item.id ? (
               <select
                 ref={index === 0 ? categoryRef : undefined}
@@ -157,7 +160,7 @@ export function BudgetEditorSheet({
                     ),
                   )
                 }
-                className="min-h-11 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="form-budget-category min-h-11 min-w-0 focus:border-primary focus:outline-none"
               >
                 {normalizedAvailable.map((category) => (
                   <option key={category} value={category}>
@@ -166,7 +169,7 @@ export function BudgetEditorSheet({
                 ))}
               </select>
             ) : (
-              <div className="flex min-h-11 items-center rounded-input bg-bg-tertiary px-4 py-3 text-sm font-medium text-text-primary">
+              <div className="form-budget-category flex min-h-11 min-w-0 items-center">
                 {item.category}
               </div>
             )}
@@ -184,13 +187,13 @@ export function BudgetEditorSheet({
                   ),
                 )
               }
-              className="min-h-11 min-w-0 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+              className="form-budget-amount min-h-11 min-w-0 focus:border-primary focus:outline-none"
             />
 
             <button
               type="button"
               onClick={() => handleRemoveRow(index)}
-              className="min-h-11 rounded-input border border-border-ocean px-3 text-sm font-semibold text-text-secondary"
+              className="form-budget-remove min-h-11"
             >
               Quitar
             </button>
@@ -199,8 +202,8 @@ export function BudgetEditorSheet({
       </div>
 
       {normalizedAvailable.length > draftItems.length ? (
-        <button type="button" onClick={handleAddRow} className="mt-4 text-sm font-semibold text-primary">
-          Agregar categoría
+        <button type="button" onClick={handleAddRow} className="mt-3 inline-flex min-h-11 items-center gap-1.5 text-[13px] font-semibold text-primary">
+          <Plus size={14} weight="bold" /> Agregar categoría
         </button>
       ) : null}
 

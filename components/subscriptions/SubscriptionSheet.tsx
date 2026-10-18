@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalHeading, ModalCloseButton }  from '@/components/ui/Modal'
+import { formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { Account, Card } from '@/types/database'
 
@@ -13,6 +14,7 @@ interface Props {
   currency: 'ARS' | 'USD'
   cards: Card[]
   accounts: Account[]
+  returnFocus?: () => HTMLElement | null
 }
 
 function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number }) {
@@ -21,7 +23,7 @@ function AccountIcon({ type, size = 13 }: { type: Account['type']; size?: number
   return <Bank weight="duotone" size={size} />
 }
 
-export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, accounts }: Props) {
+export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, accounts, returnFocus }: Props) {
   const router = useRouter()
   const queryClient = useQueryClient()
   const [description, setDescription] = useState('')
@@ -99,11 +101,12 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
     (paymentMethod !== 'CREDIT' || !!cardId)
 
   return (
-    <Modal open onClose={onClose}>
-      <div data-legacy-blue-form>
+    <Modal open onClose={onClose} manageFocus returnFocus={returnFocus} title="Nueva suscripción">
+      <div data-legacy-blue-form data-fidelity-legacy>
       <header className="form-legacy-header">
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-      <h2 className="text-lg font-semibold text-text-primary">Nueva suscripción</h2>
+      <ModalCloseButton disabled={isSaving} label="Cerrar Nueva suscripción" />
+      <ModalHeading className="text-lg font-semibold text-text-primary">Nueva suscripción</ModalHeading>
       <p className="mb-5 mt-1 text-xs text-text-tertiary">
         Se insertará automáticamente cada mes en la fecha indicada.
       </p>
@@ -111,17 +114,21 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
           <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
             Monto
           </label>
-          <div className="flex gap-2">
+          <div className="form-legacy-amount">
+            <span className="form-legacy-symbol">{currency === 'ARS' ? '$' : 'US$'}</span>
             <input
-              type="number"
+              type="text"
               inputMode="decimal"
+              aria-label="Monto"
               placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              value={formatMonetaryInput(amount)}
+              size={Math.min(12, Math.max(1, formatMonetaryInput(amount).length))}
+              style={{ width: `${Math.max(1, formatMonetaryInput(amount).length)}ch` }}
+              onChange={(e) => setAmount(normalizeMonetaryInput(e.target.value, amount))}
               onFocus={scrollOnFocus}
-              className="flex-1 rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+              className="form-legacy-amount-input"
             />
-            <div className="flex rounded-input bg-bg-tertiary p-1">
+            </div><div className="form-legacy-currency flex rounded-input bg-bg-tertiary p-1">
               {(['ARS', 'USD'] as const).map((c) => (
                 <button
                   key={c}
@@ -134,7 +141,6 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
                 </button>
               ))}
             </div>
-          </div>
         </div></div></header>
       <div className="form-legacy-body space-y-5">
         {/* Descripción */}
@@ -274,7 +280,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
         )}
       </div>
 
-      <div className="mt-6 flex flex-col gap-2">
+      <div data-legacy-footer className="mt-6 flex flex-col gap-2">
         <button
           onClick={handleSave}
           disabled={!canSave || isSaving}

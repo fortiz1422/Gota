@@ -196,7 +196,7 @@ export function SharedReceiptDevicesPanel({ compact = false }: { compact?: boole
               {[0, 1].map((item) => <div key={item} className="h-20 animate-pulse rounded-card bg-bg-tertiary" />)}
             </div>
           ) : devices.length === 0 ? (
-            <div className="rounded-card border border-dashed border-border-strong px-5 py-8 text-center">
+            <div className="form-r-empty">
               <DeviceMobile size={24} className="mx-auto text-text-tertiary" />
               <p className="mt-3 text-sm font-semibold text-text-primary">No hay dispositivos conectados</p>
               <p className="mt-1 text-xs leading-5 text-text-tertiary">Creá una credencial para empezar a compartir comprobantes.</p>

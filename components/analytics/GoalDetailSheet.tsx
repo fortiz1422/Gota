@@ -86,7 +86,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           <div className="flex min-w-0 items-center gap-2">
             {displayGoal.emoji ? <span className="text-[22px]">{displayGoal.emoji}</span> : null}
           </div>
-          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="ml-auto rounded-pill px-2.5 py-1 text-[12px] font-semibold text-white transition-colors hover:bg-primary-soft">Editar</button>
+          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="form-goal-edit ml-auto">Editar</button>
         </div>
 
         <GoalProgressBar tone="onBlue" pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
@@ -103,7 +103,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
             Faltan {formatAmount(displayGoal.remainingAmount, displayGoal.currency)}
           </p>
         ) : (
-          <p className="mt-1 text-[13px] text-white">
+          <p className="form-goal-surplus mt-1">
             Superaste tu meta por {formatAmount(displayGoal.currentAmount - displayGoal.targetAmount, displayGoal.currency)}
           </p>
         )}
@@ -198,7 +198,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
                 type="button"
                 disabled={isUpdating}
                 onClick={() => handleStatusChange('paused')}
-                className="flex-1 rounded-button border border-border-ocean px-4 py-2.5 text-[12px] font-semibold text-text-secondary disabled:opacity-50"
+                className="form-goal-action disabled:opacity-50"
               >
                 Pausar
               </button>
@@ -207,7 +207,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
                 type="button"
                 disabled={isUpdating}
                 onClick={() => handleStatusChange('active')}
-                className="flex-1 rounded-button border border-border-ocean px-4 py-2.5 text-[12px] font-semibold text-primary disabled:opacity-50"
+                className="form-goal-action disabled:opacity-50"
               >
                 Reactivar
               </button>
@@ -218,7 +218,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
                 type="button"
                 disabled={isUpdating}
                 onClick={() => handleStatusChange('completed')}
-                className="flex-1 rounded-button border border-border-ocean px-4 py-2.5 text-[12px] font-semibold text-text-secondary disabled:opacity-50"
+                className="form-goal-action disabled:opacity-50"
               >
                 Completar
               </button>
@@ -229,7 +229,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
                 type="button"
                 disabled={isUpdating}
                 onClick={() => handleStatusChange('archived')}
-                className="flex-1 rounded-button border border-border-ocean px-4 py-2.5 text-[12px] font-semibold text-text-secondary disabled:opacity-50"
+                className="form-goal-action disabled:opacity-50"
               >
                 Archivar
               </button>

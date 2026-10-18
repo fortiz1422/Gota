@@ -1,12 +1,13 @@
 'use client'
 
 import { MercadoPagoExpenseOrigin } from '@/components/mercadopago/MercadoPagoExpenseOrigin'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, CreditCard, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalHeading, ModalCloseButton } from '@/components/ui/Modal'
+import { formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatAmount, formatDate, dateInputToISO } from '@/lib/format'
 import type { Account, Card, Expense } from '@/types/database'
@@ -69,6 +70,7 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
 }
 
 export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabel }: Props) {
+  const rowRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -264,6 +266,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
   return (
     <>
       <div
+        ref={rowRef}
+        tabIndex={-1}
+        data-expense-trigger={expense.id}
         onClick={() => {
           setOpen(true)
           setError(null)
@@ -297,7 +302,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
         </div>
       </div>
 
-      <Modal open={open} onClose={() => {
+      <Modal open={open} manageFocus returnFocus={() => rowRef.current} onClose={() => {
         setOpen(false)
         setEditingGroup(false)
         setGroupSummary(null)
@@ -316,29 +321,35 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
         setConfirmDelete(false)
         setError(null)
       }}>
-        <div data-legacy-blue-form>
+        <div data-legacy-blue-form data-fidelity-legacy={!isSubscriptionExpense || undefined} data-expense-editor={!isSubscriptionExpense || undefined}>
         <header className="form-legacy-header">
         <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
-        <h2 className="text-lg font-semibold text-text-primary">
+        {!isSubscriptionExpense && <ModalCloseButton disabled={isSaving} label={`Cerrar ${isInstallmentGroup ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota') : 'Editar gasto'}`} />}
+        <ModalHeading className="text-lg font-semibold text-text-primary">
           {isSubscriptionExpense
             ? 'Detalle de suscripción'
             : isInstallmentGroup
               ? (editingGroup ? 'Editar compra en cuotas' : 'Detalle de cuota')
               : 'Editar gasto'}
-        </h2>
+        </ModalHeading>
 {!isSubscriptionExpense && (!isInstallmentGroup || editingGroup) && <div className="form-legacy-hero"><div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Monto
               </label>
-              <div className="flex gap-1">
+              <div className="form-legacy-amount">
+                <span className="form-legacy-symbol">{currency === 'ARS' ? '$' : 'US$'}</span>
                 <input
-                  type="number"
-                  value={amount}
-                  onChange={(e) => setAmount(e.target.value)}
+                  type="text"
+                  inputMode="decimal"
+                  aria-label="Monto"
+                  value={formatMonetaryInput(amount)}
+                  size={Math.min(12, Math.max(1, formatMonetaryInput(amount).length))}
+                  style={{ width: `${Math.max(1, formatMonetaryInput(amount).length)}ch` }}
+                  onChange={(e) => setAmount(normalizeMonetaryInput(e.target.value, amount))}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className="min-w-0 flex-1 rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                  className="form-legacy-amount-input"
                 />
-                <button
+              </div><div className="form-legacy-currency"><button
                   onClick={() => setCurrency((c) => (c === 'ARS' ? 'USD' : 'ARS'))}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
                   className="rounded-input bg-bg-tertiary px-2 py-2 text-[10px] font-semibold text-text-secondary"
@@ -457,7 +468,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
             </p>
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="form-expense-fields">
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Descripcion
@@ -467,13 +478,13 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="form-expense-value w-full"
               />
             </div>
 
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="form-expense-fields">
             <div>
               <label className="mb-2 block text-[10px] font-medium uppercase tracking-wider text-text-secondary">
                 Categoria
@@ -482,7 +493,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="form-expense-value w-full"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c} value={c}>{c}</option>
@@ -498,7 +509,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 value={date}
                 onChange={(e) => setDate(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="form-expense-value w-full"
               />
             </div>
           </div>
@@ -552,7 +563,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 value={cardId}
                 onChange={(e) => setCardId(e.target.value)}
                 disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                className="w-full rounded-input border border-transparent bg-bg-tertiary px-3 py-3 text-sm text-text-primary focus:border-primary focus:outline-none"
+                className="form-expense-value w-full"
               >
                 <option value="">- selecciona -</option>
                 {activeCards.map((c) => (
@@ -617,14 +628,14 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
                 <button
                   onClick={() => setIsRecurring(!isRecurring)}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`${chipBase} ${isRecurring ? chipActive : chipInactive}`}
+                  className={`form-type-pill ${isRecurring ? 'form-type-pill-selected' : ''}`}
                 >
                   Recurrente
                 </button>
                 <button
                   onClick={() => setIsExtraordinary(!isExtraordinary)}
                   disabled={isInstallmentGroup && !canEditInstallmentGroup}
-                  className={`${chipBase} ${isExtraordinary ? chipActive : chipInactive}`}
+                  className={`form-type-pill ${isExtraordinary ? 'form-type-pill-selected' : ''}`}
                 >
                   Extraordinario
                 </button>
@@ -633,7 +644,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
           )}
         </div>
 
-        <div className="mt-6 flex flex-col gap-2">
+        <div data-legacy-footer className="mt-6 flex flex-col gap-2">
           <button
             onClick={handleSave}
             disabled={isSaving || (isInstallmentGroup && !canEditInstallmentGroup)}

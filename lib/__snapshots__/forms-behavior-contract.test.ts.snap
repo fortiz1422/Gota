@@ -4,12 +4,13 @@ exports[`forms redesign preserves behavior from b8e25fe > leaves the expense lis
 "'use client'
 
 import { MercadoPagoExpenseOrigin } from '@/components/mercadopago/MercadoPagoExpenseOrigin'
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, CreditCard, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalHeading, ModalCloseButton } from '@/components/ui/Modal'
+import { formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatAmount, formatDate, dateInputToISO } from '@/lib/format'
 import type { Account, Card, Expense } from '@/types/database'
@@ -72,6 +73,7 @@ function AccountIcon({ type, size = 14 }: { type: Account['type']; size?: number
 }
 
 export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabel }: Props) {
+  const rowRef = useRef<HTMLDivElement>(null)
   const router = useRouter()
   const queryClient = useQueryClient()
   const [open, setOpen] = useState(false)
@@ -267,6 +269,9 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
   return (
     <>
       <div
+        ref={rowRef}
+        tabIndex={-1}
+        data-expense-trigger={expense.id}
         onClick={() => {
           setOpen(true)
           setError(null)

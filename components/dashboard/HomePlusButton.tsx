@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight, TrendUp, Receipt } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
 import { IncomeModal } from './IncomeModal'
@@ -28,6 +28,7 @@ interface Props {
 type Sheet = null | 'action' | 'expense' | 'income' | 'subscription' | 'cuotas' | 'transfer' | 'pago_tarjeta' | 'instrumento'
 
 export function HomePlusButton({ accounts, currency, cards, onBlue = false, label, onMovementCreated }: Props) {
+  const subscriptionReturnRef = useRef<HTMLButtonElement>(null)
   const [sheet, setSheet] = useState<Sheet>(null)
   const activeCards = cards.filter((card) => !card.archived)
   const handleSmartExpenseSaved = () => {
@@ -38,6 +39,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
   return (
     <>
       <button
+        ref={subscriptionReturnRef}
         onClick={() => setSheet('action')}
         aria-label="Agregar movimiento"
         data-tour="home-plus"
@@ -221,6 +223,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
 
       {sheet === 'subscription' && (
         <SubscriptionSheet
+          returnFocus={() => subscriptionReturnRef.current}
           onClose={() => setSheet(null)}
           currency={currency}
           cards={cards}
