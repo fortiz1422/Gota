@@ -108,7 +108,7 @@ export function SettingsPreferences({
         </div>
             <AccountsSection initialAccounts={accounts} month={month} standalone />
           </SettingsDetail>
-          <SettingsDetail title="Tarjetas" description="Administrá tus tarjetas y fechas de cierre" icon={<CreditCard size={20} weight="light" />}>
+          <SettingsDetail surfaceVariant="r" title="Tarjetas" description="Administrá tus tarjetas y fechas de cierre" icon={<CreditCard size={20} weight="light" />}>
         <div className={styles.period}>
           <div>
             <p className={styles.periodLabel}>Período de consulta</p>

@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -143,7 +145,7 @@ export function IncomeModal({
   }
 
   return (
-    <TaskSurface variant="blue-hero" hero={(<section aria-labelledby="income-amount">
+    <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero" hero={(<section aria-labelledby="income-amount">
           <p id="income-amount" className="type-micro text-primary">
             MONTO
           </p>
@@ -151,7 +153,7 @@ export function IncomeModal({
             <span className="type-amount text-text-secondary">
               {currency === 'ARS' ? '$' : 'US$'}
             </span>
-            <input
+            <FittedAmountInput
               ref={amountRef}
               id="income-amount-input"
               type="text"
@@ -244,7 +246,7 @@ export function IncomeModal({
         )}
         <fieldset>
           <legend className={labelClass}>Categoría</legend>
-          <select
+          <select aria-label="Categoría"
             id="income-category"
             value={category}
             onChange={(e) => setCategory(e.target.value as IncomeCategory)}

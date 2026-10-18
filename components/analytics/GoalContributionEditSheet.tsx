@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useEffect, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { InlineError } from '@/components/ui/InlineError'
@@ -91,7 +93,7 @@ export function GoalContributionEditSheet({
           <label className="mb-1.5 block text-[11px] font-semibold uppercase tracking-wide text-text-tertiary">
             Monto ({goalCurrency})
           </label>
-          <input
+          <FittedAmountInput aria-label="Monto"
             ref={amountRef}
             type="text"
             inputMode="decimal"
@@ -126,7 +128,7 @@ export function GoalContributionEditSheet({
             Fecha
           </label>
           <input
-            type="date"
+            type="date" aria-label="Fecha"
             value={contributedAt}
             onChange={(event) => setContributedAt(event.target.value)}
             className="w-full rounded-input border border-transparent bg-bg-tertiary px-4 py-3 text-[14px] text-text-primary focus:border-primary focus:outline-none"
@@ -138,7 +140,7 @@ export function GoalContributionEditSheet({
             Nota <span className="normal-case font-normal">(opcional)</span>
           </label>
           <input
-            type="text"
+            type="text" aria-label="Nota"
             value={note}
             onChange={(event) => setNote(event.target.value)}
             maxLength={300}

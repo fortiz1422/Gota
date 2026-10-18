@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { CategoryIcon } from '@/components/ui/CategoryIcon'
@@ -132,7 +134,7 @@ export function BudgetEditorSheet({
   const initialFocusRef = mode === 'create' || !firstItem?.id ? categoryRef : amountRef
 
   return (
-    <TaskSurface summaryHero variant="blue-hero" hero={<div><p className="form-eyebrow">TOTAL MENSUAL</p><p className="form-amount-lg">{formatAmount(draftItems.reduce((total, item) => { const value = Number(item.amount); return total + (Number.isFinite(value) && value > 0 ? value : 0) }, 0), currency)}</p></div>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
+    <TaskSurface busy={isSaving} summaryHero variant="blue-hero" hero={<div><p className="form-eyebrow">TOTAL MENSUAL</p><p className="form-amount-lg">{formatAmount(draftItems.reduce((total, item) => { const value = Number(item.amount); return total + (Number.isFinite(value) && value > 0 ? value : 0) }, 0), currency)}</p></div>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={mode === 'create' ? 'Crear presupuesto' : 'Editar presupuesto'} description={mode === 'create' ? `Definí montos mensuales en ${currency} por categoría.` : 'Ajustá montos, agregá categorías o sacá las que ya no quieras seguir.'} appearance="compact" canvasTone="standard" initialFocusRef={initialFocusRef} footer={(
       <>
         <InlineError message={error} className="mb-3" />
         <button type="button" onClick={() => { void handleSave() }} disabled={isSaving} className="min-h-12 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white disabled:opacity-60">
@@ -147,10 +149,10 @@ export function BudgetEditorSheet({
 
       <div className="form-blue-card form-budget-list">
         {draftItems.map((item, index) => (
-          <div key={`${item.id ?? item.category}-${index}`} className="form-budget-row">
+          <div key={`${item.id ?? item.category}-${index}`} data-wide-amount={formatArDecimal(item.amount).length > 8 || undefined} className="form-budget-row">
             <span data-budget-icon><CategoryIcon category={item.category} size={16} container /></span>
             {mode === 'create' || !item.id ? (
-              <select
+              <select aria-label={`Categoría ${index + 1}`}
                 ref={index === 0 ? categoryRef : undefined}
                 value={item.category}
                 onChange={(event) =>
@@ -174,7 +176,8 @@ export function BudgetEditorSheet({
               </div>
             )}
 
-            <input
+            <FittedAmountInput fit="field" maxFontSize={16}
+              aria-label={`Monto de ${item.category || 'categoría'}`}
               ref={index === 0 ? amountRef : undefined}
               type="text"
               inputMode="decimal"

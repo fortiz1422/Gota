@@ -82,21 +82,15 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
 
   return (
     <>
-      <ManagementSurface variant="blue-hero" hero={<>         <div className="mb-4 flex items-start gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            {displayGoal.emoji ? <span className="text-[22px]">{displayGoal.emoji}</span> : null}
-          </div>
-          <button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="form-goal-edit ml-auto">Editar</button>
-        </div>
-
-        <GoalProgressBar tone="onBlue" pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
-
+      <ManagementSurface variant="blue-hero" headerAction={<button ref={editTriggerRef} type="button" onClick={() => setEditOpen(true)} className="form-goal-edit shrink-0">Editar</button>} hero={<>
         <div className="mt-3 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <p className="form-amount-lg text-white">
             {formatAmount(displayGoal.currentAmount, displayGoal.currency)}
           </p>
           <p className="text-[13px] text-white/80">de {formatAmount(displayGoal.targetAmount, displayGoal.currency)}</p>
         </div>
+
+        <GoalProgressBar tone="onBlue" pct={displayGoal.progressPct} paceStatus={displayGoal.paceStatus} />
 
         {displayGoal.remainingAmount > 0 ? (
           <p className="mt-1 text-[13px] text-white/90">
@@ -108,7 +102,7 @@ export function GoalDetailSheet({ open, goal, onClose, onContribute, onStatusCha
           </p>
         )}
 
- </>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={displayGoal.name} description="Revisá el progreso, los aportes y el estado de tu meta.">
+ </>} open={open} onClose={onClose} eyebrow="PLANIFICAR" title={`${displayGoal.emoji ? `${displayGoal.emoji} ` : ''}${displayGoal.name}`} description="Revisá el progreso, los aportes y el estado de tu meta.">
         <div className="mt-4 space-y-2 rounded-card bg-bg-tertiary p-4">
           <div className="flex items-center justify-between text-[13px]">
             <span className="text-text-tertiary">Estado de avance</span>

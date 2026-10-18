@@ -8,6 +8,8 @@ import {
   type ReactNode,
   type RefObject,
 } from 'react'
+import { useSurfaceChrome } from './useSurfaceChrome'
+import type { FormSurfaceVariant } from './FormSurfaceHeader'
 import { createPortal } from 'react-dom'
 import {
   isTopExternalOverlay,
@@ -30,6 +32,7 @@ const getClientSnapshot = () => true
 const getServerSnapshot = () => false
 
 interface FullScreenSheetProps {
+  chromeVariant?: FormSurfaceVariant
   open: boolean
   onClose: () => void
   children: ReactNode
@@ -83,6 +86,7 @@ function getFocusableElements(panel: HTMLElement): HTMLElement[] {
 }
 
 export function FullScreenSheet({
+  chromeVariant,
   open,
   onClose,
   children,
@@ -205,6 +209,8 @@ export function FullScreenSheet({
     }
   }, [initialFocusRef, mounted, open, overlayId, triggerElement, triggerRef])
 
+  useSurfaceChrome(open && mounted, chromeVariant)
+
   if (!mounted || !open) return null
 
   const mobileHeightClass = fillAvailableHeight
@@ -237,6 +243,7 @@ export function FullScreenSheet({
           ? `slide-up relative z-[71] box-border ${mobileHeightClass} w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:max-w-[500px] sm:border-l sm:border-[color:var(--color-border-strong)]`
           : `slide-up relative z-[71] box-border ${mobileHeightClass} w-full overflow-y-auto overscroll-contain bg-[color:var(--color-bg-secondary)] shadow-lg sm:h-[92dvh] sm:max-h-[92dvh] sm:max-w-md sm:rounded-[22px] sm:border sm:border-[color:var(--color-border-ocean)]`}
         style={{
+          backgroundColor: chromeVariant === 'r' ? 'var(--color-r-canvas)' : chromeVariant ? 'var(--color-bg-secondary)' : undefined,
           paddingTop: extendIntoTopSafeArea ? 0 : 'env(safe-area-inset-top)',
           paddingBottom: extendIntoBottomSafeArea ? 0 : 'env(safe-area-inset-bottom)',
           WebkitOverflowScrolling: 'touch',

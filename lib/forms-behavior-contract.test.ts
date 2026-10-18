@@ -28,11 +28,17 @@ function contract(source: string) {
 describe('forms redesign preserves behavior from b8e25fe', () => {
   for (const [path, original] of Object.entries(baseline)) {
     it(path, () => {
-      // S5 adds exactly two pressed states to the approved contribution pills.
-      const additions = path.endsWith('/GoalContributionSheet.tsx') ? [
-        "aria-pressed={availabilityEffect==='none'}",
-        "aria-pressed={availabilityEffect==='committed_only'}",
-      ] : []
+      // Explicit accessibility additions only. The frozen logic and existing props remain unchanged.
+      const additionsByPath: Record<string, string[]> = {
+        'components/dashboard/IncomeModal.tsx': ['aria-label="Categoría"'],
+        'components/movimientos/IncomeEditSheet.tsx': ['aria-label="Categoría"'],
+        'components/analytics/GoalContributionSheet.tsx': ['aria-label="Monto"', 'aria-label="Fecha"', "aria-pressed={availabilityEffect==='none'}", "aria-pressed={availabilityEffect==='committed_only'}"],
+        'components/analytics/GoalContributionEditSheet.tsx': ['aria-label="Monto"', 'aria-label="Fecha"', 'aria-label="Nota"'],
+        'components/analytics/BudgetEditorSheet.tsx': ['aria-label={`Categoría${index+1}`}', "aria-label={`Montode${item.category||'categoría'}`}"],
+        'components/subscriptions/SubscriptionSheet.tsx': ['aria-label="Díadedébito"'],
+        'components/expenses/ExpenseItem.tsx': ['aria-label="Descripción"', 'aria-label="Categoría"', 'aria-label="Fecha"'],
+      }
+      const additions = additionsByPath[path] ?? []
       expect(contract(fs.readFileSync(path, 'utf8'))).toEqual({ ...original, props: [...original.props, ...additions].sort() })
     })
   }

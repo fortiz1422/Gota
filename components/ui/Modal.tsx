@@ -1,6 +1,7 @@
 'use client'
 
 import { createContext, useContext, useEffect, useId, useRef } from 'react'
+import { useSurfaceChrome } from './useSurfaceChrome'
 import { FullScreenSheet } from './FullScreenSheet'
 import { NestedSettingsModalContext } from './NestedSettingsModalContext'
 import { createPortal } from 'react-dom'
@@ -11,6 +12,7 @@ import {
 } from '@/lib/ui/overlay-events'
 
 interface ModalProps {
+  busy?: boolean
   open: boolean
   onClose: () => void
   children: React.ReactNode
@@ -66,19 +68,20 @@ export function Modal({
   closeLabel = 'Volver',
   ...props
 }: ModalProps) {
+  const requestClose = () => { if (!props.busy) props.onClose() }
   const nested = useContext(NestedSettingsModalContext)
   const id = useId()
   const initialFocusRef = useRef<HTMLInputElement | null>(null)
   if (!nested)
     return (
-      <ModalContext.Provider value={{ onClose: props.onClose, titleId: id }}>
-        <LegacyModal {...props} titleId={id} />
+      <ModalContext.Provider value={{ onClose: requestClose, titleId: id }}>
+        <LegacyModal {...props} onClose={requestClose} titleId={id} />
       </ModalContext.Provider>
     )
   return (
     <FullScreenSheet
       open={props.open}
-      onClose={props.onClose}
+      onClose={requestClose}
       labelledBy={id}
       initialFocusRef={initialFocusRef}
     >
@@ -97,7 +100,7 @@ export function Modal({
           </h2>
           <button
             type="button"
-            onClick={props.onClose}
+            onClick={requestClose}
             className="text-primary min-h-11 px-3 text-sm"
           >
             {closeLabel}
@@ -117,6 +120,7 @@ function LegacyModal({
   returnFocus,
   titleId,
 }: ModalProps & { titleId: string }) {
+  useSurfaceChrome(open && manageFocus, manageFocus ? 'blue-hero' : undefined)
   const overlayRef = useRef<HTMLDivElement>(null)
   const contentRef = useRef<HTMLDivElement>(null)
 

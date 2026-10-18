@@ -213,7 +213,7 @@ export function AccountBottomSheet({ account, type, month, onSave, onDelete, onC
   const inputClass = editInputClass
 
   return (
-    <TaskSurface variant="r"
+    <TaskSurface footerPlacement="after-content" busy={isSaving} variant="r"
       open
       onClose={onClose}
       eyebrow={TYPE_LABELS[type].toUpperCase()}

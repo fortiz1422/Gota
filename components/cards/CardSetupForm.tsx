@@ -30,6 +30,7 @@ type Props = {
   requireAnswer?: boolean
   submitLabel: string
   variant?: 'landing' | 'app'
+  onSavingChange?: (saving: boolean) => void
   onSubmit: (value: CardSetupSubmit) => Promise<void>
 }
 
@@ -56,6 +57,7 @@ export function CardSetupForm({
   submitLabel,
   variant = 'landing',
   onSubmit,
+  onSavingChange,
 }: Props) {
   const initialDatesUnknown = Boolean(initial && initial.closing_day == null && initial.due_day == null && initial.name)
   const [name, setName] = useState(initial?.name ?? '')
@@ -94,6 +96,7 @@ export function CardSetupForm({
       return
     }
     setSaving(true)
+    onSavingChange?.(true)
     setError(null)
     try {
       await onSubmit({
@@ -107,6 +110,7 @@ export function CardSetupForm({
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : 'No pudimos guardar la tarjeta.')
       setSaving(false)
+      onSavingChange?.(false)
     }
   }
 
@@ -230,7 +234,7 @@ export function CardSetupForm({
         {answerButtons}
       </div>
       {error ? <p role="alert" className={styles.error}>{error}</p> : null}
-      <div className={styles.footer}>
+      <div className={app ? 'mt-6 pb-2' : styles.footer}>
         <button type="button" className={app ? 'w-full rounded-button bg-primary py-3 text-sm font-semibold text-white disabled:opacity-50' : styles.cta} disabled={saving} onClick={() => void save()}>
           {saving ? 'Guardando…' : submitLabel} {!app && !saving ? <b>→</b> : null}
         </button>

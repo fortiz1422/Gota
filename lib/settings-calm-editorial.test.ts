@@ -72,7 +72,8 @@ describe('Settings calm editorial migration', () => {
     expect(devices).toContain('surface-module block rounded-card')
     expect(access).toContain('data-password-edit')
 
-    for (const source of [cards, aliases, devices, access]) {
+    expect(cards).toContain('className="surface-module rounded-card p-4"')
+    for (const source of [aliases, devices, access]) {
       expect(source).toContain('border-b border-border-strong')
     }
   })

@@ -8,6 +8,7 @@ import { FullScreenSheet } from './FullScreenSheet'
 
 interface ManagementSurfaceProps {
   variant?: FormSurfaceVariant
+  headerAction?: ReactNode
   hero?: ReactNode
   open: boolean
   onClose: () => void
@@ -23,6 +24,7 @@ interface ManagementSurfaceProps {
 export function ManagementSurface({
   variant,
   hero,
+  headerAction,
   open,
   onClose,
   eyebrow,
@@ -39,6 +41,7 @@ export function ManagementSurface({
     <FullScreenSheet
       open={open}
       onClose={onClose}
+      chromeVariant={variant}
       labelledBy={titleId}
       extendIntoTopSafeArea
       extendIntoBottomSafeArea
@@ -48,7 +51,7 @@ export function ManagementSurface({
     >
       <div data-management-surface
         data-surface-variant={variant} className="flex h-full min-h-0 flex-col bg-bg-primary">
-        {variant ? (<FormSurfaceHeader showNavigationTitle={false} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} hero={hero} />) : (        <BlueHeaderZone
+        {variant ? (<FormSurfaceHeader showNavigationTitle={false} variant={variant} titleId={titleId} title={title} eyebrow={eyebrow} description={description} onClose={onClose} hero={hero} headerAction={headerAction} />) : (        <BlueHeaderZone
           className="shrink-0 px-[14px] pb-7 text-white"
           style={{ paddingTop: 'max(12px, env(safe-area-inset-top))' }}
         >

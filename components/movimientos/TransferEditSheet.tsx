@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useRef, useState } from 'react'
 import { Bank } from '@phosphor-icons/react'
 import { TaskSurface } from '@/components/ui/TaskSurface'
@@ -157,7 +159,7 @@ export function TransferEditSheet({
 
   return (
     <>
-      <TaskSurface variant="blue-hero" hero={(<section><div className="form-amount-line"><span className="type-amount">{currencyFrom === 'ARS' ? '$' : 'US$'}</span><input
+      <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero" hero={(<section><div className="form-amount-line"><span className="type-amount">{currencyFrom === 'ARS' ? '$' : 'US$'}</span><FittedAmountInput
               ref={amountFromRef}
               id="transfer-edit-from-amount"
               type="text"

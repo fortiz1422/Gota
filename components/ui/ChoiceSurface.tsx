@@ -42,6 +42,7 @@ export function ChoiceSurface({
     <FullScreenSheet
       open={open}
       onClose={onClose}
+      chromeVariant={variant}
       labelledBy={titleId}
       extendIntoTopSafeArea
       extendIntoBottomSafeArea={compact}

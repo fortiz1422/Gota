@@ -97,7 +97,7 @@ export function GoalEditSheet({ open, goal, onClose, onSaved, triggerRef }: Prop
 
   const currencySymbol = goal.currency === 'ARS' ? '$' : 'US$'
   return (
-    <TaskSurface variant="blue-hero"
+    <TaskSurface footerPlacement="after-content" busy={isSaving} variant="blue-hero"
       open={open}
       onClose={handleClose}
       eyebrow="PLANIFICAR"

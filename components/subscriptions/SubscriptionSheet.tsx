@@ -1,5 +1,7 @@
 'use client'
 
+import { FittedAmountInput } from '@/components/ui/FittedAmountInput'
+
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
@@ -101,7 +103,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
     (paymentMethod !== 'CREDIT' || !!cardId)
 
   return (
-    <Modal open onClose={onClose} manageFocus returnFocus={returnFocus} title="Nueva suscripción">
+    <Modal busy={isSaving} open onClose={onClose} manageFocus returnFocus={returnFocus} title="Nueva suscripción">
       <div data-legacy-blue-form data-fidelity-legacy>
       <header className="form-legacy-header">
       <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
@@ -116,7 +118,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
           </label>
           <div className="form-legacy-amount">
             <span className="form-legacy-symbol">{currency === 'ARS' ? '$' : 'US$'}</span>
-            <input
+            <FittedAmountInput
               type="text"
               inputMode="decimal"
               aria-label="Monto"
@@ -191,6 +193,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
               inputMode="numeric"
               min={1}
               max={31}
+              aria-label="Día de débito"
               value={dayOfMonth}
               onChange={(e) => setDayOfMonth(e.target.value)}
               onFocus={scrollOnFocus}
