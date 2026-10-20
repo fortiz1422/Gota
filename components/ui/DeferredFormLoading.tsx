@@ -1,6 +1,6 @@
 'use client'
 
-import { Modal } from '@/components/ui/Modal'
+import { Modal, ModalHeading } from '@/components/ui/Modal'
 
 /** A cold form download stays visible and can be cancelled without losing the page. */
 export function DeferredFormLoading({
@@ -12,7 +12,7 @@ export function DeferredFormLoading({
 }) {
   const content = (
     <div className="space-y-4 py-4">
-      <p role="status" className="text-sm text-text-secondary">Cargando formulario…</p>
+      <ModalHeading className="text-sm text-text-secondary"><span role="status">Cargando formulario…</span></ModalHeading>
       <button type="button" onClick={onCancel} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold text-primary">
         Cancelar
       </button>

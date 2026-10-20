@@ -152,6 +152,7 @@ try {
     await cold.page.route(/\/_next\/static\/.*\.js(?:\?.*)?$/, async route => { await gate; await route.continue() })
     await cold.page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click()
     await cold.page.getByRole('button', { name: /^Cuotas en curso/ }).click()
+    await cold.page.getByRole('dialog', { name: 'Cargando formulario…', exact: true }).waitFor()
     await cold.page.getByRole('status').filter({ hasText: 'Cargando formulario' }).waitFor()
     await cold.page.getByRole('button', { name: 'Cancelar', exact: true }).click()
     release()
