@@ -1,9 +1,10 @@
 'use client'
 
 import Image from 'next/image'
-import { useEffect, useMemo, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react'
 import { ImageSquare, WarningCircle } from '@phosphor-icons/react'
-import { ParsePreview } from '@/components/dashboard/ParsePreview'
+import { DeferredFormLoading } from '@/components/ui/DeferredFormLoading'
+
 import { Modal } from '@/components/ui/Modal'
 import { InlineError } from '@/components/ui/InlineError'
 import { trackEvent } from '@/lib/product-analytics/client'
@@ -13,6 +14,8 @@ import {
   type PendingSharedReceipt,
 } from '@/lib/share-target'
 import type { Account, Card } from '@/types/database'
+
+const ParsePreview = lazy(() => import('@/components/dashboard/ParsePreview').then((module) => ({ default: module.ParsePreview })))
 
 interface ParsedData {
   is_valid: true
@@ -186,7 +189,8 @@ export function SharedReceiptPreviewModal({
 
   if (parsedData) {
     return (
-      <ParsePreview
+      <Suspense fallback={<DeferredFormLoading onCancel={() => setParsedData(null)} />}>
+        <ParsePreview
         data={parsedData}
         cards={cards}
         accounts={accounts}
@@ -197,7 +201,8 @@ export function SharedReceiptPreviewModal({
             onSaved()
           })
         }}
-      />
+        />
+      </Suspense>
     )
   }
 
@@ -293,3 +298,4 @@ export function SharedReceiptPreviewModal({
     </Modal>
   )
 }
+

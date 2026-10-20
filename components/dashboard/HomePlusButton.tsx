@@ -1,17 +1,19 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { lazy, Suspense, useState, useRef } from 'react'
 import { Plus, ArrowFatLineUp, ArrowsClockwise, X, CreditCard, ArrowsLeftRight, TrendUp, Receipt } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
-import { IncomeModal } from './IncomeModal'
-import { SubscriptionSheet } from '@/components/subscriptions/SubscriptionSheet'
-import { CuotasEnCursoSheet } from './CuotasEnCursoSheet'
-import { TransferForm } from './TransferForm'
-import { CardPaymentForm } from './CardPaymentForm'
-import { InstrumentForm } from '@/components/instruments/InstrumentForm'
+import { DeferredFormLoading } from '@/components/ui/DeferredFormLoading'
 import { SmartInput } from './SmartInput'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import type { Account, Card } from '@/types/database'
+
+const IncomeModal = lazy(() => import('./IncomeModal').then((module) => ({ default: module.IncomeModal })))
+const SubscriptionSheet = lazy(() => import('@/components/subscriptions/SubscriptionSheet').then((module) => ({ default: module.SubscriptionSheet })))
+const CuotasEnCursoSheet = lazy(() => import('./CuotasEnCursoSheet').then((module) => ({ default: module.CuotasEnCursoSheet })))
+const TransferForm = lazy(() => import('./TransferForm').then((module) => ({ default: module.TransferForm })))
+const CardPaymentForm = lazy(() => import('./CardPaymentForm').then((module) => ({ default: module.CardPaymentForm })))
+const InstrumentForm = lazy(() => import('@/components/instruments/InstrumentForm').then((module) => ({ default: module.InstrumentForm })))
 
 export const HOME_PLUS_EXPENSE_LABEL = 'Gasto común'
 
@@ -212,6 +214,7 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
         </Modal>
       )}
 
+      <Suspense fallback={<DeferredFormLoading onCancel={() => setSheet(null)} />}>
       {sheet === 'income' && (
         <IncomeModal
           accounts={accounts}
@@ -261,6 +264,8 @@ export function HomePlusButton({ accounts, currency, cards, onBlue = false, labe
           onClose={() => setSheet(null)}
         />
       )}
+      </Suspense>
     </>
   )
 }
+
