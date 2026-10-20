@@ -62,14 +62,17 @@ jobs:
             export NEXT_FONT_GOOGLE_MOCKED_RESPONSES="$PWD/e2e/forms/fonts/mocked-responses.cjs"
             npx next build --webpack > performance-results/build.log 2>&1 || { cat performance-results/build.log; exit 1; }
             npx tsc --noEmit
-            npx next start --hostname 127.0.0.1 --port 3100 > performance-results/server.log 2>&1 &
+            perf_port=3100
+            if [ "$version" = head ]; then perf_port=3200; fi
+            node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$perf_port" > performance-results/server.log 2>&1 &
             server_pid=$!
             trap 'kill "$server_pid" 2>/dev/null || true' EXIT
             for attempt in {1..60}; do
-              if curl --silent --fail http://127.0.0.1:3100/landing/performance-audit > /dev/null; then break; fi
+              kill -0 "$server_pid" || { cat performance-results/server.log; exit 1; }
+              if curl --silent --fail "http://127.0.0.1:$perf_port/landing/performance-audit" > /dev/null; then break; fi
               sleep 1
             done
-            PERF_OUTPUT="performance-results/$version.json" PERF_EXPECT_DEFERRED="$([ "$version" = head ] && echo true || echo false)" node e2e/performance/audit.mjs
+            PERF_BASE_URL="http://127.0.0.1:$perf_port" PERF_OUTPUT="performance-results/$version.json" PERF_EXPECT_DEFERRED="$([ "$version" = head ] && echo true || echo false)" node e2e/performance/audit.mjs
             kill "$server_pid"
             wait "$server_pid" || true
             trap - EXIT

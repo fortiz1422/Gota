@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 
 const fixture = JSON.parse(readFileSync(new URL('./fixture-data.json', import.meta.url), 'utf8'))
 const output = process.env.PERF_OUTPUT || 'performance-results/head.json'
-const origin = 'http://127.0.0.1:3100'
+const origin = process.env.PERF_BASE_URL || 'http://127.0.0.1:3100'
 const browser = await chromium.launch({ headless: true, args: ['--no-sandbox'] })
 const reports = []
 const payloads = []
