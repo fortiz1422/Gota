@@ -98,7 +98,7 @@ try {
     await run.page.getByRole('button', { name: 'Agregar movimiento', exact: true }).click()
     await run.page.getByRole('button', { name: new RegExp(`^${label}`) }).click()
     // A visible form with its inputs proves the deferred chunk resolved.
-    await run.page.locator('input:visible').first().waitFor()
+    await run.page.getByRole('button', { name: new RegExp(expected) }).waitFor()
     const buttons = await run.page.getByRole('button').allTextContents()
     assert(buttons.some(text => text.includes(expected)), `${label}: missing ${expected}; buttons=${buttons}`)
     assert.deepEqual(run.errors, [])
