@@ -44,7 +44,7 @@ export function SharedReceiptsInboxCard({ alwaysShow = false }: { alwaysShow?: b
         </div>
       </div>
       {!loading && failed && <button type="button" onClick={() => void load()} className="mt-3 text-sm font-semibold text-primary">Reintentar</button>}
-      {!loading && first && <Link href={`/shared-receipts/${encodeURIComponent(first.id)}`} className="mt-3 flex min-h-11 items-center justify-between rounded-button bg-primary px-4 py-2.5 text-sm font-semibold text-white">Revisar siguiente <CaretRight size={15} /></Link>}
+      {!loading && first && <Link href="/shared-receipts" className="mt-3 flex min-h-11 items-center justify-between rounded-button bg-primary px-4 py-2.5 text-sm font-semibold text-white">Revisar en una tanda <CaretRight size={15} /></Link>}
     </section>
   )
 }

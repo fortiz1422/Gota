@@ -35,6 +35,7 @@ export const ReceiptProposalSchema = z.object({
     (value) => typeof value === 'string' && !canonicalCategories.has(value) ? null : value,
     z.enum(CATEGORIES).nullable().default(null),
   ),
+  operation_status: z.enum(['completed', 'pending', 'rejected', 'unknown']).default('unknown'),
   confidence: z.number().min(0).max(1).default(0),
   warnings: z.array(z.string().trim().min(1).max(120)).max(20).default([]),
   evidence: z.array(z.string().trim().min(1).max(240)).max(20).default([]),

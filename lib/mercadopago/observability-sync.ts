@@ -60,11 +60,17 @@ async function getJson(url: string, token: string, fetchImpl: FetchLike): Promis
 
 export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId, role = 'default' }: { role?: PaymentSearchRole; userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
   let count = 0
+  const seenKeys = new Set<string>()
   for (let page = 0; page < MERCADOPAGO_MAX_PAGES; page += 1) {
     const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE, role), accessToken, fetchImpl)
     const rows = items(payload)
     for (const row of rows) {
-      await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey: observationNativeKey(row), payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
+      const nativeKey = observationNativeKey(row)
+      // Offset pagination can repeat a page. Repeated rows cannot prove coverage
+      // or count toward advancing the incremental watermark.
+      if (seenKeys.has(nativeKey)) throw new Error('provider_error')
+      seenKeys.add(nativeKey)
+      await store.upsertRawObservation({ userId, source: 'payments_search', nativeKey, payload: row, firstSeenAt: started, lastSeenAt: started, metadata: { batchId, syncStartedAt: started } })
     }
     count += rows.length
     const paging = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>).paging : null

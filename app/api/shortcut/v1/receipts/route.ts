@@ -1,5 +1,6 @@
 import { randomUUID } from 'node:crypto'
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
+import { preanalyzeReceivedReceipt } from '@/lib/shared-receipts/preanalyze'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createReceiptIngestHandler, type ReceiptUpload } from '@/lib/shortcut-receipts/ingest'
 import { authorizeDeviceToken, type DeviceTokenRecord } from '@/lib/device-auth/device-token'
@@ -9,6 +10,7 @@ import { withShortcutReceiptMessage } from '@/lib/shortcut-receipts/response'
 
 export const dynamic = 'force-dynamic'
 export const runtime = 'nodejs'
+export const maxDuration = 60
 
 const BUCKET = 'shared-receipts-private'
 const noStoreHeaders = { 'Cache-Control': 'no-store', Pragma: 'no-cache' }
@@ -111,6 +113,15 @@ export async function POST(request: Request) {
       file: parsedRequest.file as ReceiptUpload,
       sourceAppHint: parsedRequest.sourceAppHint,
     })
+    const body = result.body as { receipt_id?: unknown }
+    if (result.status === 201 && typeof body.receipt_id === 'string') {
+      const receiptId = body.receipt_id
+      const ownerId = authorization.device.userId
+      after(async () => {
+        try { await preanalyzeReceivedReceipt(ownerId, receiptId) }
+        catch { /* Ingest remains durable; the inbox exposes preparation failures. */ }
+      })
+    }
     return NextResponse.json(result.body, {
       status: result.status,
       headers: result.headers,

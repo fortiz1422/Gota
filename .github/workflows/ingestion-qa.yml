@@ -1,0 +1,46 @@
+name: Ingestion release verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/ingestion-qa.yml'
+      - 'lib/shared-receipts/**'
+      - 'components/shared-receipts/**'
+      - 'e2e/receipts/**'
+      - 'lib/mercadopago/**'
+      - 'proxy.ts'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ingestion-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      NEXT_TELEMETRY_DISABLED: '1'
+      GOTA_LOCAL_VERIFY: 'true'
+      NEXT_PUBLIC_SUPABASE_URL: https://fixture.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - run: node --version && npm ci
+      - name: Full unit suite and TypeScript
+        run: npm test && npx tsc --noEmit
+      - name: Install isolated QA fonts and browser
+        run: |
+          npm install --prefix "$RUNNER_TEMP/gota-fonts" --no-save --ignore-scripts @fontsource-variable/dm-sans@5.3.0 @fontsource/dm-mono@5.3.0
+          npx playwright install --with-deps chromium --only-shell
+          echo "GOTA_QA_FONTS_ROOT=$RUNNER_TEMP/gota-fonts/node_modules" >> "$GITHUB_ENV"
+          echo "NEXT_FONT_GOOGLE_MOCKED_RESPONSES=$GITHUB_WORKSPACE/e2e/forms/fonts/mocked-responses.cjs" >> "$GITHUB_ENV"
+      - name: Production build without credentials or Sentry uploads
+        run: npx next build --webpack
+      - name: Receipt review in four viewport sizes with synthetic APIs
+        run: npx playwright test -c e2e/receipts/playwright.config.ts

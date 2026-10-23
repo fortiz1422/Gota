@@ -34,7 +34,7 @@ export async function proxy(request: NextRequest) {
 
   // Backend polling uses CRON_SECRET in its handler, never a browser session.
   // Match exactly: other integration/admin routes still require user auth.
-  if (pathname === '/api/cron/mercadopago-sync') return response
+  if (pathname === '/api/cron/mercadopago-sync' || pathname === '/api/cron/mercadopago-reconcile') return response
 
   // Solo en desarrollo: la ruta de exploración visual no requiere sesión.
   // En producción sigue detrás de auth como cualquier otra página.

@@ -17,8 +17,9 @@ export function createUniversalReceiptPrompt(): string {
   return `Analiza la imagen como evidencia financiera, sin asumir que es un gasto.
 Clasifica transaction_type como exactamente uno de: purchase, income, own_transfer, third_party_transfer, card_payment, refund, yield, unknown.
 Devuelve SOLO JSON con estas claves:
-{"transaction_type":"unknown","amount":null,"currency":null,"occurred_at":null,"merchant_or_counterparty":null,"payment_rail":null,"account_hint":null,"card_last_four":null,"card_brand":null,"card_issuer":null,"installments":null,"reference":null,"category_suggestion":null,"confidence":0,"warnings":[],"evidence":[]}
+{"transaction_type":"unknown","amount":null,"currency":null,"occurred_at":null,"merchant_or_counterparty":null,"payment_rail":null,"account_hint":null,"card_last_four":null,"card_brand":null,"card_issuer":null,"installments":null,"reference":null,"category_suggestion":null,"operation_status":"unknown","confidence":0,"warnings":[],"evidence":[]}
 Reglas:
+- operation_status: completed solo cuando la imagen indica pago aprobado, realizado o completado; pending para pendiente/en proceso; rejected para rechazado/anulado; unknown si no hay evidencia explícita. Incluye el texto justificativo en evidence.
 - amount es positivo y currency usa ISO 4217 (ARS/USD cuando corresponda).
 - Respeta el formato monetario argentino: el punto separa miles y la coma separa decimales. Por ejemplo, $4.100 significa 4100 ARS y $30.240,78 significa 30240.78 ARS.
 - occurred_at es ISO 8601 con offset; no inventes fecha, monto, moneda ni contraparte.
