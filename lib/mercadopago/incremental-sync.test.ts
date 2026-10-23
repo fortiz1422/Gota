@@ -59,4 +59,13 @@ describe('incremental capture integrity', () => {
     await expect(syncMercadoPagoIncremental(options)).rejects.toThrow('audit down')
     expect(s.advanceWatermark).not.toHaveBeenCalled()
   })
+
+  it('does not advance when repeated provider pages falsely satisfy the reported total', async () => {
+    const s = store()
+    const rows = Array.from({ length: 50 }, (_, id) => ({ id }))
+    const fetchImpl = vi.fn(async () => reply({ results: rows, paging: { total: 100 } }))
+    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret', watermark, now, store: s, fetchImpl })
+    expect(result.run.status).toBe('error')
+    expect(s.advanceWatermark).not.toHaveBeenCalled()
+  })
 })

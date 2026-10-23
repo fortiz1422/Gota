@@ -8,6 +8,13 @@ export async function GET() {
   const { data: { user } } = await session.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401, headers: { 'Cache-Control': 'private, no-store' } })
   const admin = createAdminClient()
+  // A terminated background invocation must not leave a receipt parsing forever.
+  // Five minutes exceeds the ingest route's 60-second execution budget.
+  const { error: recoveryError } = await admin.from('shared_receipts')
+    .update({ status: 'parse_failed', parse_error_code: 'analysis_timeout', updated_at: new Date().toISOString() })
+    .eq('user_id', user.id).eq('status', 'parsing')
+    .lt('updated_at', new Date(Date.now() - 5 * 60_000).toISOString())
+  if (recoveryError) return NextResponse.json({ error: 'No pudimos recuperar la bandeja.' }, { status: 503, headers: { 'Cache-Control': 'private, no-store' } })
   const result = await listSharedReceipts(user.id, {
     listPending: async (userId, statuses) => {
       const { data, error } = await admin
