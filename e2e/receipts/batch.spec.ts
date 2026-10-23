@@ -274,7 +274,7 @@ test('existing merchant stays selected after category moves the row; alias failu
   ).toBeVisible()
   // Confirmed receipts disappear from a refreshed inbox, but a failed alias
   // must remain retryable without sending the financial confirmation again.
-  await page.route('**/api/shared-receipts', (route) =>
+  await page.route(/\/api\/shared-receipts\?status=needs_review$/, (route) =>
     route.fulfill({ json: { receipts: [] } })
   )
   page.once('dialog', (dialog) => dialog.accept())
