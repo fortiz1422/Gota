@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -14,10 +14,9 @@ import {
 import { formatAmount, formatDate, todayAR, toDateOnly } from '@/lib/format'
 import type { HomeEmptyState } from '@/lib/home-empty-state'
 import { Modal } from '@/components/ui/Modal'
+import { DeferredFormLoading } from '@/components/ui/DeferredFormLoading'
 import { FF_YIELD } from '@/lib/flags'
 import { ExpenseItem } from '@/components/expenses/ExpenseItem'
-import { IncomeEditSheet } from '@/components/movimientos/IncomeEditSheet'
-import { TransferEditSheet } from '@/components/movimientos/TransferEditSheet'
 import type {
   Account,
   Card,
@@ -27,6 +26,9 @@ import type {
   Transfer,
   YieldAccumulator,
 } from '@/types/database'
+
+const IncomeEditSheet = lazy(() => import('@/components/movimientos/IncomeEditSheet').then((module) => ({ default: module.IncomeEditSheet })))
+const TransferEditSheet = lazy(() => import('@/components/movimientos/TransferEditSheet').then((module) => ({ default: module.TransferEditSheet })))
 
 const INCOME_LABELS: Record<string, string> = {
   salary: 'Sueldo',
@@ -378,7 +380,8 @@ export function Ultimos5({
       )}
 
       {editingIncome && (
-        <IncomeEditSheet
+        <Suspense fallback={<DeferredFormLoading onCancel={() => setEditingIncome(null)} />}>
+          <IncomeEditSheet
           entry={editingIncome}
           accounts={accounts}
           onClose={() => setEditingIncome(null)}
@@ -386,11 +389,13 @@ export function Ultimos5({
             setEditingIncome(null)
             handleRefresh()
           }}
-        />
+          />
+        </Suspense>
       )}
 
       {editingTransfer && (
-        <TransferEditSheet
+        <Suspense fallback={<DeferredFormLoading onCancel={() => setEditingTransfer(null)} />}>
+          <TransferEditSheet
           transfer={editingTransfer}
           accounts={accounts}
           onClose={() => setEditingTransfer(null)}
@@ -398,7 +403,8 @@ export function Ultimos5({
             setEditingTransfer(null)
             handleRefresh()
           }}
-        />
+          />
+        </Suspense>
       )}
 
       {gestionarEntry && (
@@ -477,3 +483,4 @@ export function Ultimos5({
     </>
   )
 }
+

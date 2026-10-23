@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { ArrowRight, Microphone } from '@phosphor-icons/react'
 import { InlineError } from '@/components/ui/InlineError'
@@ -9,7 +9,10 @@ import { useVoiceInput } from '@/hooks/useVoiceInput'
 import { trackEvent } from '@/lib/product-analytics/client'
 import { applyExpensePreset, type ExpensePreset } from '@/lib/expense-preset'
 import type { Account, Card } from '@/types/database'
-import { ParsePreview, type ParsedExpensePreviewData } from './ParsePreview'
+import type { ParsedExpensePreviewData } from './ParsePreview'
+import { DeferredFormLoading } from '@/components/ui/DeferredFormLoading'
+
+const ParsePreview = lazy(() => import('./ParsePreview').then((module) => ({ default: module.ParsePreview })))
 
 type ParsedData = ParsedExpensePreviewData
 
@@ -339,15 +342,18 @@ export function SmartInput({
       <InlineError message={activeError} className={isBottomZone ? 'mt-2' : 'mt-3'} />
 
       {parsed && (
-        <ParsePreview
+        <Suspense fallback={<DeferredFormLoading onCancel={handleCancel} embedded={previewMode === 'embedded'} />}>
+          <ParsePreview
           data={parsed}
           cards={cards}
           accounts={accounts}
           onSave={handleSave}
           onCancel={handleCancel}
           embedded={previewMode === 'embedded'}
-        />
+          />
+        </Suspense>
       )}
     </>
   )
 }
+

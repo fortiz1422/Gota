@@ -1,10 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import { ArrowsClockwise } from '@phosphor-icons/react'
-import { IncomeModal } from '@/components/dashboard/IncomeModal'
+import { DeferredFormLoading } from '@/components/ui/DeferredFormLoading'
+
 import { formatAmount } from '@/lib/format'
 import type { Account, IncomeCategory, RecurringIncome } from '@/types/database'
+
+const IncomeModal = lazy(() => import('@/components/dashboard/IncomeModal').then((module) => ({ default: module.IncomeModal })))
 
 const INCOME_LABELS: Record<string, string> = {
   salary: 'tu Sueldo',
@@ -87,7 +90,8 @@ export function RecurringIncomeBanner({ pending, accounts }: Props) {
       </div>
 
       {registeringItem && (
-        <IncomeModal
+        <Suspense fallback={<DeferredFormLoading onCancel={() => setRegisteringId(null)} />}>
+          <IncomeModal
           accounts={accounts}
           defaultCurrency={registeringItem.currency as 'ARS' | 'USD'}
           prefill={{
@@ -99,8 +103,10 @@ export function RecurringIncomeBanner({ pending, accounts }: Props) {
           }}
           recurringIncomeId={registeringItem.id}
           onClose={() => setRegisteringId(null)}
-        />
+          />
+        </Suspense>
       )}
     </>
   )
 }
+
