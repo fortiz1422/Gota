@@ -43,7 +43,7 @@ export function parseMercadoPagoTokenPayload(payload: unknown, now = new Date())
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
 async function exchange(body: URLSearchParams, fetchImpl: FetchLike = fetch): Promise<TokenPayload> {
-  const response = await fetchImpl(MERCADOPAGO_OAUTH_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString() })
+  const response = await fetchImpl(MERCADOPAGO_OAUTH_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(), signal: AbortSignal.timeout(8000) })
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw new Error('Mercado Pago OAuth exchange failed')
   return parseMercadoPagoTokenPayload(payload)

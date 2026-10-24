@@ -1,6 +1,7 @@
 import { after, NextResponse } from 'next/server'
 import { runMercadoPagoBackgroundCapture } from '@/lib/mercadopago/background-capture'
 import { checkRateLimit } from '@/lib/rate-limit'
+import { getMercadoPagoOAuthReadiness } from '@/lib/mercadopago/oauth'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getMercadoPagoConnection } from '@/lib/mercadopago/server-repository'
@@ -47,6 +48,7 @@ export async function POST(request: Request) {
   if (!mercadoPagoBackgroundEnabled()) return json({ error: 'setup_disabled' }, 503)
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return json({ error: 'invalid_initial_import' }, 422)
+  if (!getMercadoPagoOAuthReadiness().ok) return json({ error: 'oauth_not_ready' }, 503)
   if (!checkRateLimit(`mp-capture-setup:${id}`, 2)) return json({ error: 'rate_limited' }, 429)
   try {
     const connection = await getMercadoPagoConnection(id)
