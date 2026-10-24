@@ -4,18 +4,23 @@ import { getMercadoPagoConnection, saveRawObservation, saveMercadoPagoSourceRun 
 import { getValidMercadoPagoAccessToken } from './access-token'
 import { syncMercadoPagoIncremental } from './incremental-sync'
 
-const MAX_WINDOWS = 32
-const BUDGET_MS = 40_000
+export const CAPTURE_MAX_WINDOWS = 32
+export const CAPTURE_BUDGET_MS = 40_000
 
 /** Capture only. Never imports posting/shadow services or writes the financial ledger.
  * Each completed day commits its own cursor; an interrupted catch-up resumes there.
+ * The dispatcher passes one shared deadline and one window per turn.
  */
-export async function runMercadoPagoBackgroundCapture(userId: string, connectionId: string) {
+export async function runMercadoPagoBackgroundCapture(userId: string, connectionId: string, options: { deadline?: number; maxWindows?: number } = {}) {
   if (!mercadoPagoBackgroundEnabled()) throw new Error('background_disabled')
   const readiness = getMercadoPagoOAuthReadiness()
   if (!readiness.ok) throw new Error('oauth_not_ready')
+  const deadline = options.deadline ?? Date.now() + CAPTURE_BUDGET_MS
+  const maxWindows = options.maxWindows ?? CAPTURE_MAX_WINDOWS
+  if (maxWindows <= 0 || Date.now() >= deadline) {
+    return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: null, upToDate: false, posted: 0 as const }
+  }
   const target = new Date()
-  const deadline = Date.now() + BUDGET_MS
   return withMercadoPagoSyncLease(userId, connectionId, async leaseId => {
     const admin = backgroundDatabase()
     const connection = await getMercadoPagoConnection(userId)
@@ -24,6 +29,9 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
       .select('incremental_watermark,background_sync_enabled,initial_import_started_at')
       .eq('id', connectionId).eq('user_id', userId).single()
     if (error || !state?.background_sync_enabled || !state.incremental_watermark) throw new Error('not_enabled')
+    if (Date.now() >= deadline) {
+      return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: false, posted: 0 as const }
+    }
     const { data: attempted, error: attemptError } = await admin.from('mercadopago_connections')
       .update({ last_incremental_attempt_at: target.toISOString() })
       .eq('id', connectionId).eq('user_id', userId).eq('sync_lease_id', leaseId)
@@ -35,7 +43,7 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
     let observed = 0
     let windows = 0
     let status: 'success' | 'error' | 'catching_up' = 'catching_up'
-    for (; windows < MAX_WINDOWS && Date.now() < deadline; windows++) {
+    for (; windows < maxWindows && Date.now() < deadline; windows++) {
       const expected = watermark
       const result = await syncMercadoPagoIncremental({
         userId, accessToken, watermark, now: new Date(),

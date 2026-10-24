@@ -13,7 +13,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| MP-16 | Despacho para múltiples conexiones de MP | El dispatcher procesa una conexión por invocación; hoy es piloto del propietario. | 1) Cada conexión activa se actualiza a diario. 2) Conexión ocupada no bloquea a las demás. Resolver antes de ampliar usuarios. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -23,7 +23,6 @@ No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la co
 | 1 | MP-18 | Observar primer disparo del cron de captura diaria de MP (acción de Facundo / logs; el conector de Vercel dio 403) | El runner se probó con 2 ejecuciones reales; falta ver el disparo programado de las 06:00 ART. | 1) Una ejecución disparada por el scheduler visible en logs. 2) Cursor avanzado y sin identidades RAW duplicadas ni gastos nuevos. | P0 |
 | 1 | MP-14 | Verificar cobertura real de MP: QR, compras ML, dinero en cuenta, tarjetas | La fuente `payments_search` no equivale a todos los movimientos personales. | 1) Matriz de operaciones identificables con evidencia del proveedor. 2) Brechas de fuente escritas. 3) No se infiere cobertura por cantidad de tests. | P0 |
 | 1 | MP-15 | Cambios tardíos, anulaciones y devoluciones en MP | La consulta por fecha de creación no recupera cambios de estado de pagos viejos. | 1) Estrategia de reconciliación definida. 2) Tests determinísticos de devolución y anulación. 3) Habilitar solo tras pasar ambos. | P0 |
-| 1 | MP-16 | Despacho para múltiples conexiones de MP | El dispatcher procesa una conexión por invocación; hoy es piloto del propietario. | 1) Cada conexión activa se actualiza a diario. 2) Conexión ocupada no bloquea a las demás. Resolver antes de ampliar usuarios. | P0 |
 | 2 | MODO-03 | Recorrido real Shortcut → recepción → extracción → revisión | Lo validado es con APIs sintéticas, no con comprobantes reales (acción de Facundo con datos reales). | 1) Recorrido completo con comprobantes reales. 2) Reintentos y errores parciales comprobados. 3) Confirmación solo con autorización. | P0 |
 | 2 | MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | El contexto del reintento de alias es solo de sesión. | Tras recargar la bandeja, el reintento de alias sigue disponible sin reenviar el gasto. | P1 |
 | 2 | MODO-05 | Medir revisión evitada, correcciones y errores críticos del lote | No hay tasa de éxito ni umbral validado. | 1) Métricas definidas y registradas. 2) Reporte con muestra y criterios fijados antes de mirar resultados. | P1 |

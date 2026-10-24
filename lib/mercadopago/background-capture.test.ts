@@ -106,6 +106,27 @@ describe('capture service with real incremental windows and pagination', () => {
     expect(m.raw).not.toHaveBeenCalled()
     expect(f.rpc).not.toHaveBeenCalled()
   })
+  it('does not take a lease once the shared capture deadline has passed', async () => {
+    fixture()
+    const result = await capture('owner', 'connection', { deadline: Date.parse(now) })
+    expect(result).toMatchObject({ status: 'catching_up', windows: 0, observed: 0, posted: 0, upToDate: false })
+    expect(m.lease).not.toHaveBeenCalled()
+  })
+  it('limits one invocation to the requested number of day windows', async () => {
+    const f = fixture('2026-08-01T09:00:00.000Z')
+    expect(await capture('owner', 'connection', { maxWindows: 1 })).toMatchObject({ status: 'catching_up', windows: 1, upToDate: false, posted: 0 })
+    expect(f.fetcher).toHaveBeenCalledTimes(1)
+    expect(f.rpc).toHaveBeenCalledTimes(1)
+  })
+  it('shares a caller deadline across windows without opening another day', async () => {
+    const f = fixture('2026-10-21T09:00:00.000Z')
+    const deadline = Date.parse(now) + 5_000
+    m.raw.mockImplementation(async () => { vi.setSystemTime(deadline) })
+    const result = await capture('owner', 'connection', { deadline, maxWindows: 32 })
+    expect(result).toMatchObject({ status: 'catching_up', windows: 1, posted: 0, upToDate: false })
+    expect(f.fetcher).toHaveBeenCalledTimes(1)
+    expect(f.rpc).toHaveBeenCalledTimes(1)
+  })
   it('bounds a long import to 32 windows and preserves its exact continuation', async () => {
     const f = fixture('2026-08-01T09:00:00.000Z')
     expect(await capture('owner', 'connection')).toMatchObject({ status: 'catching_up', windows: 32, capturedThrough: '2026-09-02T09:00:00.000Z', upToDate: false, posted: 0 })
