@@ -63,3 +63,7 @@ jobs:
         run: node scripts/test-mercadopago-wallet-confirmation-sql.mjs
       - name: Review tag parity wrappers
         run: node scripts/test-mercadopago-review-tags-sql.mjs
+      - name: Multi-connection dispatch selection
+        run: |
+          npm install --prefix "$RUNNER_TEMP/gota-pglite" --no-save @electric-sql/pglite@0.5.11
+          PGLITE_MODULE_PATH="$RUNNER_TEMP/gota-pglite/node_modules/@electric-sql/pglite/dist/index.js" node scripts/test-mercadopago-dispatch-sql.mjs

@@ -60,6 +60,15 @@ describe('incremental capture integrity', () => {
     expect(s.advanceWatermark).not.toHaveBeenCalled()
   })
 
+  it('does not record a provider failure when the capture budget is already exhausted', async () => {
+    const s = store()
+    s.upsertRawObservation.mockRejectedValue(new Error('capture_budget_exhausted'))
+    const fetchImpl = vi.fn(async () => reply({ results: [{ id: 1 }], paging: { total: 1 } }))
+    await expect(syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret', watermark, now, store: s, fetchImpl })).rejects.toThrow('capture_budget_exhausted')
+    expect(s.saveSourceRun).not.toHaveBeenCalled()
+    expect(s.advanceWatermark).not.toHaveBeenCalled()
+  })
+
   it('does not advance when repeated provider pages falsely satisfy the reported total', async () => {
     const s = store()
     const rows = Array.from({ length: 50 }, (_, id) => ({ id }))
