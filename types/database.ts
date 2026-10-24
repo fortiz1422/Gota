@@ -124,6 +124,7 @@ export type Database = {
           expires_at: string
           confirmed_at: string | null
           dismissed_at: string | null
+          pending_merchant_memory: Json | null
         }
         Insert: {
           id?: string
@@ -147,6 +148,7 @@ export type Database = {
           expires_at?: string
           confirmed_at?: string | null
           dismissed_at?: string | null
+          pending_merchant_memory?: Json | null
         }
         Update: {
           status?: 'received' | 'parsing' | 'needs_review' | 'parse_failed' | 'confirmed' | 'dismissed' | 'expired'
@@ -161,6 +163,7 @@ export type Database = {
           expires_at?: string
           confirmed_at?: string | null
           dismissed_at?: string | null
+          pending_merchant_memory?: Json | null
         }
         Relationships: []
       }

@@ -16,6 +16,7 @@ import {
   matchReceiptCard,
   normalizeDevicesResponse,
   normalizeReceiptResponse,
+  normalizePendingMerchantMemoryRetries,
   normalizeReceiptsResponse,
   parseConfirmResult,
   parsePurchaseProposal,
@@ -51,6 +52,20 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(normalizeDevicesResponse({ devices: [device] })).toEqual([device])
     expect(normalizeReceiptsResponse({ receipts: [receipt] })).toEqual([receipt])
     expect(normalizeReceiptsResponse({ nope: true })).toEqual([])
+    expect(
+      normalizePendingMerchantMemoryRetries({
+        pendingMerchantMemoryRetries: [
+          {
+            receiptId: 'r1',
+            memory: { enabled: true, mode: 'new', name: 'A', profileId: '' },
+            detectedAlias: 'A',
+            category: 'Alimentos',
+            description: 'A',
+          },
+          { receiptId: 'bad', memory: { enabled: false } },
+        ],
+      })
+    ).toHaveLength(1)
     expect(normalizeReceiptResponse(receipt)).toEqual(receipt)
     expect(normalizeReceiptResponse({ receipt })).toEqual(receipt)
     expect(normalizeReceiptResponse({ receipts: [receipt] })).toEqual(receipt)
