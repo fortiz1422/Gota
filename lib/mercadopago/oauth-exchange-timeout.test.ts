@@ -18,6 +18,13 @@ describe('bounded OAuth exchange', () => {
     expect(timeout).toHaveBeenCalledWith(8000)
     expect(fetcher).toHaveBeenCalledOnce()
   })
+  it('clips a refresh that is close to the capture deadline', async () => {
+    const timeout = vi.spyOn(AbortSignal, 'timeout').mockReturnValue(new AbortController().signal)
+    const fetcher = vi.fn(async () => new Response(JSON.stringify({ access_token: 'fixture-access', expires_in: 3600 })))
+    await exchangeMercadoPagoRefreshToken({ refreshToken: 'fixture', config, fetchImpl: fetcher, timeoutMs: 2_500 })
+    expect(timeout).toHaveBeenCalledWith(2_500)
+    expect(timeout.mock.calls[0]?.[0]).toBeLessThan(8_000)
+  })
   it('does not expose the provider error payload', async () => {
     const fetcher = vi.fn(async () => new Response(JSON.stringify({ message: 'fixture-private-provider-detail' }), { status: 400 }))
     await expect(exchangeMercadoPagoRefreshToken({ refreshToken: 'fixture', config, fetchImpl: fetcher })).rejects.toThrow('Mercado Pago OAuth exchange failed')

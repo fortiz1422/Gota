@@ -37,7 +37,8 @@ export async function syncMercadoPagoIncremental({ userId, accessToken, watermar
   let source: SourceRun
   try {
     source = await pullPayments({ userId, accessToken, window, fetchImpl, store, started: startedAt, batchId })
-  } catch {
+  } catch (error) {
+    if (error instanceof Error && error.message === 'capture_budget_exhausted') throw error
     source = { source: 'payments_search', status: 'error', count: 0, errorCode: 'provider_error' }
   }
   const run = { ...source, beginDate: window.beginDate, endDate: window.endDate }

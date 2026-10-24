@@ -97,6 +97,8 @@ create table if not exists public.shared_receipts (
 );
 
 alter table public.shared_receipts add column if not exists dismissed_at timestamptz;
+alter table public.shared_receipts
+  add column if not exists pending_merchant_memory jsonb;
 alter table public.shared_receipts alter column status set default 'received';
 -- Explicit compatibility migration for installations that applied the earlier draft.
 alter table public.shared_receipts drop constraint if exists shared_receipts_status_check;

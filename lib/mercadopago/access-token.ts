@@ -4,16 +4,19 @@ import { decryptMercadoPagoToken, encryptMercadoPagoToken } from './token-crypto
 import { updateMercadoPagoConnection, type MercadoPagoConnection } from './server-repository'
 
 /** Server only. Call under the connection sync lease when running in background. */
-export async function getValidMercadoPagoAccessToken(userId: string, connection: MercadoPagoConnection, config: OAuthConfig, leaseId?: string): Promise<string> {
+export async function getValidMercadoPagoAccessToken(userId: string, connection: MercadoPagoConnection, config: OAuthConfig, leaseId?: string, deadline?: number): Promise<string> {
   if (!connection.access_token_ciphertext || connection.status === 'revoked') throw new Error('not_connected')
   let token = decryptMercadoPagoToken({ ciphertext: connection.access_token_ciphertext, encryptionKey: config.tokenEncryptionKey })
   const expires = connection.token_expires_at ? new Date(connection.token_expires_at).getTime() : 0
   if (connection.token_expires_at && !Number.isFinite(expires)) throw new Error('invalid_token_expiry')
   if (expires && expires <= Date.now() + 30_000) {
     if (!connection.refresh_token_ciphertext) throw new Error('refresh_unavailable')
+    const remaining = deadline == null ? undefined : deadline - Date.now()
+    if (remaining != null && remaining <= 0) throw new Error('capture_budget_exhausted')
     const refreshed = await exchangeMercadoPagoRefreshToken({
       refreshToken: decryptMercadoPagoToken({ ciphertext: connection.refresh_token_ciphertext, encryptionKey: config.tokenEncryptionKey }),
       config: config,
+      ...(remaining == null ? {} : { timeoutMs: Math.min(8_000, remaining) }),
     })
     token = refreshed.accessToken
     const patch = {
