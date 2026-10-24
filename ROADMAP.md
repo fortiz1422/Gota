@@ -13,7 +13,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| G03-B | Completar recuperación con checkpoints (depende de G03-A) | Volver tras días sin reconstruir toda la cola. | 1) Retomar saldos sin reconstruir la cola. 2) Casos determinísticos prueban cero doble impacto. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -28,7 +28,6 @@ No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la co
 | 2 | MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | El contexto del reintento de alias es solo de sesión. | Tras recargar la bandeja, el reintento de alias sigue disponible sin reenviar el gasto. | P1 |
 | 2 | MODO-05 | Medir revisión evitada, correcciones y errores críticos del lote | No hay tasa de éxito ni umbral validado. | 1) Métricas definidas y registradas. 2) Reporte con muestra y criterios fijados antes de mirar resultados. | P1 |
 | 2 | MODO-06 | Deduplicación entre MODO, MP, carga manual y extractos | Hoy es parcial y conservadora. | 1) Importe y fecha similares generan candidato, nunca fusión automática. 2) Tests entre las cuatro fuentes. | P1 |
-| 3 | G03-B | Completar recuperación con checkpoints (depende de G03-A) | Volver tras días sin reconstruir toda la cola. | 1) Retomar saldos sin reconstruir la cola. 2) Casos determinísticos prueban cero doble impacto. | P1 |
 | 4 | G05-B | Asesor: preguntas sobre datos registrados (depende de G05-A) | Responder con evidencia sin inventar certeza. | 1) Respuestas iguales al motor, con período, moneda, evidencia y límites. 2) Aislamiento por usuario. 3) Falta de datos o error nunca se convierte en cero. | P1 |
 | 4 | G05-C | Prueba heredada: comparar 16–31 ago vs 16–30 sep 2026 | Caso de aceptación del asesor. | Recalculado desde fuentes actuales, por moneda, categorías y medios; sin sacar la compra del auto salvo subtotal explícito; sin confundir cuotas con compras nuevas. | P1 |
 | 5 | G09 | Onboarding de cuentas, saldos y tarjetas (primero auditar lo publicado) | Empezar con una posición útil sin cargar un gasto artificial. | 1) Recorrido mobile completo con cuentas, saldos, tarjetas y moneda; persistencia y recuperación probadas. 2) `/start` con sesión anónima y recuperación hacia login. 3) Un saldo inicial no se convierte en ingreso. | P1 |

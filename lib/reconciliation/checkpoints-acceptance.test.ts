@@ -1,0 +1,745 @@
+import { afterEach, describe, expect, it, vi } from 'vitest'
+import type { createClient } from '@/lib/supabase/server'
+import type { Account } from '@/types/database'
+import { buildLiveBalanceBreakdown } from '@/lib/live-balance'
+import { getCurrentBalanceBreakdown } from '@/lib/current-account-balance'
+import { applyCommand } from './commands'
+import {
+  acceptAdjustment,
+  addCheckpoint,
+  balanceCorrection,
+  checkpointDay,
+  emptyWorkspace,
+  moneyToMinor,
+  observedResidual,
+  remaining,
+  resolveAdjustment,
+  resolveObservation,
+  reverseAdjustment,
+  undoResolution,
+  unexplained,
+  type MovementEvidence,
+  type Workspace,
+} from './domain'
+import { reconciliationErrorMessage } from './errors'
+import { ledgerSnapshot, readCorrections } from './repository'
+import { nextReconciliationAccount } from './queue'
+import { balanceCheckTask } from './tasks'
+
+const admin = vi.hoisted(() => ({
+  from: vi.fn(),
+  rpc: vi.fn(),
+}))
+vi.mock('@/lib/supabase/admin', () => ({
+  createAdminClient: () => admin,
+}))
+vi.mock('@/lib/format', async () => {
+  const actual =
+    await vi.importActual<typeof import('@/lib/format')>('@/lib/format')
+  return { ...actual, todayAR: () => '2026-10-24' }
+})
+
+const ACCOUNT = '10000000-0000-4000-8000-0000000000a1'
+const CLOSED = '10000000-0000-4000-8000-0000000000b2'
+const FRESH = '10000000-0000-4000-8000-0000000000c3'
+const DOLLARS = '10000000-0000-4000-8000-0000000000d4'
+const EXPENSE_ID = '20000000-0000-4000-8000-000000000030'
+const LATER_ID = '20000000-0000-4000-8000-000000000010'
+const CP = '30000000-0000-4000-8000-0000000000c1'
+const ADJ = '30000000-0000-4000-8000-0000000000a2'
+const RES = '30000000-0000-4000-8000-0000000000e3'
+const FP = 'ab'.repeat(16)
+const OBSERVED = '2026-10-07T15:00:00.000Z'
+const PRIOR = '2026-10-06T15:00:00.000Z'
+const AFTER = '2026-10-08T15:00:00.000Z'
+const FRIDAY = '2026-10-09T18:00:00.000Z'
+const SATURDAY = '2026-10-10T13:00:00.000Z'
+const EXPECTED = 50_000_000
+const CONFIRMED = 42_000_000
+
+afterEach(() => {
+  vi.unstubAllEnvs()
+  admin.from.mockReset()
+  admin.rpc.mockReset()
+})
+
+function bank(id: string, name: string, ars: number, usd: number): Account {
+  return {
+    id,
+    name,
+    type: 'bank',
+    is_primary: id === ACCOUNT,
+    opening_balance_ars: ars,
+    opening_balance_usd: usd,
+  } as Account
+}
+
+function priorMovement(
+  overrides: Partial<MovementEvidence> = {}
+): MovementEvidence {
+  return {
+    id: EXPENSE_ID,
+    kind: 'expense',
+    accountId: ACCOUNT,
+    currency: 'ARS',
+    effect: -3_000_000,
+    occurredAt: PRIOR,
+    includedBeforeCheckpoint: false,
+    ...overrides,
+  }
+}
+
+function observe(included: string[] = []): Workspace {
+  return addCheckpoint(emptyWorkspace(ACCOUNT, 'ARS'), {
+    id: CP,
+    observedAt: OBSERVED,
+    expected: EXPECTED,
+    confirmed: CONFIRMED,
+    includedMovementIds: included,
+  })
+}
+
+function publish(state = observe()): Workspace {
+  return acceptAdjustment(state, {
+    id: ADJ,
+    checkpointId: CP,
+    currentExpected: EXPECTED,
+    now: OBSERVED,
+  })
+}
+
+function explain(state = publish()): Workspace {
+  return resolveAdjustment(state, {
+    id: RES,
+    adjustmentId: ADJ,
+    movement: priorMovement(),
+    now: OBSERVED,
+    confirmedIncludedInBalance: true,
+  })
+}
+
+function pesos(state: Workspace, expenses: number[] = []): number {
+  const correction = balanceCorrection(state) / 100
+  return buildLiveBalanceBreakdown({
+    accounts: [bank(ACCOUNT, 'BBVA', 500_000, 200)],
+    currency: 'ARS',
+    incomes: [],
+    debitExpenses: expenses.map((amount) => ({
+      account_id: ACCOUNT,
+      amount,
+    })),
+    cardPayments: [],
+    transfers: [],
+    reconciliationCorrections:
+      correction === 0 ? [] : [{ account_id: ACCOUNT, amount: correction }],
+  })[0].saldo
+}
+
+/** Selección de GET /api/reconciliation y de la campana: cuenta y moneda, sin `visited`. */
+function rebuiltQueue(
+  accounts: { id: string; name: string }[],
+  rows: { account_id: string; currency: 'ARS' | 'USD'; state: Workspace }[],
+  currency: 'ARS' | 'USD',
+  now: Date
+) {
+  return accounts.flatMap((account) => {
+    const row = rows.find(
+      (item) => item.account_id === account.id && item.currency === currency
+    )
+    const task = balanceCheckTask(account, currency, row?.state ?? null, now)
+    return task ? [task] : []
+  })
+}
+
+function thenable(result: {
+  data: unknown
+  error: { message: string } | null
+}) {
+  const query = {
+    select: () => query,
+    eq: () => query,
+    maybeSingle: () => query,
+    then: (resolve: (value: unknown) => unknown) =>
+      Promise.resolve(result).then(resolve),
+  }
+  return query
+}
+
+function supabase(options: {
+  rows: Record<string, Record<string, unknown>[]>
+  failingTable?: string
+}) {
+  return {
+    from(table: string) {
+      let data = options.rows[table] ?? []
+      const query = {
+        select: () => query,
+        order: () => query,
+        eq: (key: string, value: unknown) => {
+          data = data.filter((row) => row[key] === value)
+          return query
+        },
+        neq: (key: string, value: unknown) => {
+          data = data.filter((row) => row[key] !== value)
+          return query
+        },
+        in: (key: string, values: unknown[]) => {
+          data = data.filter((row) => values.includes(row[key]))
+          return query
+        },
+        lt: (key: string, value: string) => {
+          data = data.filter(
+            (row) => Date.parse(String(row[key])) < Date.parse(value)
+          )
+          return query
+        },
+        lte: (key: string, value: string) => {
+          data = data.filter((row) => String(row[key]) <= value)
+          return query
+        },
+        then: (resolve: (value: unknown) => unknown) =>
+          Promise.resolve(
+            options.failingTable === table
+              ? { data: null, error: { message: 'down' } }
+              : { data, error: null }
+          ).then(resolve),
+      }
+      return query
+    },
+  } as unknown as Awaited<ReturnType<typeof createClient>>
+}
+
+describe('checkpoints de saldo', () => {
+  it('caso a: 500.000 contra 420.000 dejan 80.000 sin publicar', () => {
+    const state = observe()
+    const checkpoint = state.checkpoints[0]
+    expect(state.step).toBe('discrepancy')
+    expect(state.accountId).toBe(ACCOUNT)
+    expect(state.currency).toBe('ARS')
+    expect(checkpoint.previousId).toBeNull()
+    expect(checkpointDay(checkpoint.observedAt)).toBe('2026-10-07')
+    expect(checkpoint.delta).toBe(-8_000_000)
+    expect(observedResidual(state, checkpoint)).toBe(-8_000_000)
+    expect(observedResidual(state, checkpoint) / 100).toBe(-80_000)
+    expect(balanceCorrection(state)).toBe(0)
+    expect(unexplained(state)).toBe(balanceCorrection(state))
+    expect(pesos(state)).toBe(500_000)
+  })
+
+  it('caso b: un gasto previo de 30.000 baja lo pendiente a 50.000 sin segundo descuento', () => {
+    const posted = publish()
+    expect(balanceCorrection(posted)).toBe(-8_000_000)
+    expect(pesos(posted)).toBe(420_000)
+
+    const state = explain()
+    expect(remaining(state, state.adjustments[0]) / 100).toBe(-50_000)
+    expect(balanceCorrection(state) / 100).toBe(-50_000)
+    expect(pesos(state, [30_000])).toBe(420_000)
+    expect(state.resolutions[0]).toMatchObject({
+      movementId: EXPENSE_ID,
+      movementKind: 'expense',
+      effect: -3_000_000,
+      occurredAt: PRIOR,
+      reversedAt: null,
+    })
+    expect(() =>
+      resolveAdjustment(state, {
+        id: '30000000-0000-4000-8000-0000000000e4',
+        adjustmentId: ADJ,
+        movement: priorMovement(),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('already_resolved')
+    expect(balanceCorrection(state)).toBe(-5_000_000)
+
+    const alreadyInside = publish(observe([`expense:${EXPENSE_ID}`]))
+    expect(() => explain(alreadyInside)).toThrow('already_in_checkpoint')
+    expect(balanceCorrection(alreadyInside)).toBe(-8_000_000)
+    expect(pesos(alreadyInside)).toBe(420_000)
+  })
+
+  it('caso c: resolver ahora deja 50.000 visibles y el saldo vivo en 470.000', () => {
+    const state = resolveObservation(observe(), {
+      id: RES,
+      movement: priorMovement(),
+      now: OBSERVED,
+      confirmedIncludedInBalance: true,
+    })
+    expect(state.adjustments).toEqual([])
+    expect(observedResidual(state, state.checkpoints[0]) / 100).toBe(-50_000)
+    expect(balanceCorrection(state)).toBe(0)
+    expect(pesos(state, [30_000])).toBe(470_000)
+    expect(
+      balanceCheckTask(
+        { id: ACCOUNT, name: 'BBVA' },
+        'ARS',
+        state,
+        new Date(OBSERVED)
+      )?.label
+    ).toBe('Seguir con BBVA')
+
+    const posted = acceptAdjustment(state, {
+      id: ADJ,
+      checkpointId: CP,
+      currentExpected: 47_000_000,
+      now: OBSERVED,
+    })
+    expect(balanceCorrection(posted) / 100).toBe(-50_000)
+    expect(pesos(posted, [30_000])).toBe(420_000)
+    expect(posted.resolutions).toHaveLength(1)
+  })
+
+  it('caso d: un gasto posterior baja el saldo y after_checkpoint lo rechaza', () => {
+    const state = explain()
+    expect(() =>
+      resolveAdjustment(state, {
+        id: '30000000-0000-4000-8000-0000000000e5',
+        adjustmentId: ADJ,
+        movement: priorMovement({
+          id: LATER_ID,
+          effect: -1_000_000,
+          occurredAt: AFTER,
+        }),
+        now: AFTER,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('after_checkpoint')
+    expect(reconciliationErrorMessage('after_checkpoint')).toBe(
+      'Ese movimiento ocurrió después de confirmar el saldo. Revisá la fecha.'
+    )
+    expect(balanceCorrection(state)).toBe(-5_000_000)
+    expect(remaining(state, state.adjustments[0])).toBe(-5_000_000)
+    expect(state.resolutions).toHaveLength(1)
+    expect(pesos(state, [30_000, 10_000])).toBe(410_000)
+  })
+
+  it('caso e: desvincular y revertir conservan el rastro y no acumulan', () => {
+    const linked = explain()
+    expect(() => reverseAdjustment(linked, ADJ, OBSERVED)).toThrow(
+      'undo_resolutions_first'
+    )
+    expect(balanceCorrection(linked)).toBe(-5_000_000)
+
+    const undone = undoResolution(linked, RES, FRIDAY)
+    expect(undone.resolutions).toHaveLength(1)
+    expect(undone.resolutions[0]).toMatchObject({
+      id: RES,
+      adjustmentId: ADJ,
+      movementId: EXPENSE_ID,
+      movementKind: 'expense',
+      effect: -3_000_000,
+      occurredAt: PRIOR,
+      compensatedAt: OBSERVED,
+      reversedAt: FRIDAY,
+    })
+    expect(undone.checkpoints).toEqual(linked.checkpoints)
+    expect(balanceCorrection(undone)).toBe(-8_000_000)
+    expect(pesos(undone, [30_000])).toBe(390_000)
+
+    const reversed = reverseAdjustment(undone, ADJ, FRIDAY)
+    expect(reversed.adjustments[0]).toMatchObject({
+      id: ADJ,
+      checkpointId: CP,
+      reversedAt: FRIDAY,
+    })
+    expect(remaining(reversed, reversed.adjustments[0])).toBe(0)
+    expect(balanceCorrection(reversed)).toBe(0)
+    expect(reversed.checkpoints[0].id).toBe(CP)
+    expect(pesos(reversed, [30_000])).toBe(470_000)
+    expect(() =>
+      acceptAdjustment(reversed, {
+        id: '30000000-0000-4000-8000-0000000000a8',
+        checkpointId: CP,
+        currentExpected: 47_000_000,
+        now: FRIDAY,
+      })
+    ).toThrow('balance_changed')
+    expect(reversed.adjustments).toHaveLength(1)
+
+    const again = acceptAdjustment(reversed, {
+      id: '30000000-0000-4000-8000-0000000000a8',
+      checkpointId: CP,
+      currentExpected: EXPECTED,
+      now: FRIDAY,
+    })
+    expect(again.adjustments).toHaveLength(2)
+    expect(again.adjustments[0].reversedAt).toBe(FRIDAY)
+    expect(balanceCorrection(again)).toBe(-8_000_000)
+    expect(pesos(again)).toBe(420_000)
+  })
+
+  it('caso f: ARS y USD no se mezclan y el período queda explícito', async () => {
+    const ars = explain()
+    expect(ars.accountId).toBe(ACCOUNT)
+    expect(ars.currency).toBe('ARS')
+    expect(checkpointDay(ars.checkpoints[0].observedAt)).toBe('2026-10-07')
+    expect(() =>
+      resolveAdjustment(ars, {
+        id: '30000000-0000-4000-8000-0000000000e6',
+        adjustmentId: ADJ,
+        movement: priorMovement({ currency: 'USD' }),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('wrong_account_or_currency')
+    expect(() =>
+      resolveAdjustment(ars, {
+        id: '30000000-0000-4000-8000-0000000000e7',
+        adjustmentId: ADJ,
+        movement: priorMovement({ id: LATER_ID, accountId: DOLLARS }),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('wrong_account_or_currency')
+    expect(balanceCorrection(ars)).toBe(-5_000_000)
+
+    const baseline = addCheckpoint(emptyWorkspace(ACCOUNT, 'ARS'), {
+      id: '30000000-0000-4000-8000-0000000000b0',
+      observedAt: '2026-10-01T15:00:00.000Z',
+      expected: EXPECTED,
+      confirmed: EXPECTED,
+      includedMovementIds: [],
+    })
+    const next = addCheckpoint(baseline, {
+      id: CP,
+      observedAt: OBSERVED,
+      expected: EXPECTED,
+      confirmed: CONFIRMED,
+      includedMovementIds: [],
+    })
+    const adjusted = acceptAdjustment(next, {
+      id: ADJ,
+      checkpointId: CP,
+      currentExpected: EXPECTED,
+      now: OBSERVED,
+    })
+    expect(() =>
+      resolveAdjustment(adjusted, {
+        id: RES,
+        adjustmentId: ADJ,
+        movement: priorMovement({ occurredAt: '2026-10-01T15:00:00.000Z' }),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('outside_interval')
+    expect(reconciliationErrorMessage('outside_interval')).toBe(
+      'La fecha pertenece a una confirmación anterior. Revisá el movimiento.'
+    )
+    expect(balanceCorrection(adjusted)).toBe(-8_000_000)
+    expect(checkpointDay('2026-10-01T15:00:00.000Z')).toBe('2026-10-01')
+
+    const usd = acceptAdjustment(
+      addCheckpoint(emptyWorkspace(ACCOUNT, 'USD'), {
+        id: '30000000-0000-4000-8000-0000000000d9',
+        observedAt: OBSERVED,
+        expected: 20_000,
+        confirmed: 12_000,
+        includedMovementIds: [],
+      }),
+      {
+        id: '30000000-0000-4000-8000-0000000000da',
+        checkpointId: '30000000-0000-4000-8000-0000000000d9',
+        currentExpected: 20_000,
+        now: OBSERVED,
+      }
+    )
+    expect(usd.currency).toBe('USD')
+    expect(balanceCorrection(usd) / 100).toBe(-80)
+    vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+    admin.from.mockReturnValue(
+      thenable({
+        data: [
+          { account_id: ACCOUNT, currency: 'ARS', state: ars },
+          { account_id: ACCOUNT, currency: 'USD', state: usd },
+        ],
+        error: null,
+      })
+    )
+    const client = supabase({
+      rows: {
+        accounts: [
+          {
+            id: ACCOUNT,
+            user_id: 'user',
+            name: 'BBVA',
+            type: 'bank',
+            is_primary: true,
+            archived: false,
+            opening_balance_ars: 500_000,
+            opening_balance_usd: 200,
+          },
+        ],
+        expenses: [
+          {
+            user_id: 'user',
+            account_id: ACCOUNT,
+            amount: 30_000,
+            currency: 'ARS',
+            category: 'Supermercado',
+            payment_method: 'DEBIT',
+            date: PRIOR,
+          },
+          {
+            user_id: 'user',
+            account_id: ACCOUNT,
+            amount: 40,
+            currency: 'USD',
+            category: 'Supermercado',
+            payment_method: 'DEBIT',
+            date: PRIOR,
+          },
+          {
+            user_id: 'user',
+            account_id: ACCOUNT,
+            amount: 99_999,
+            currency: 'ARS',
+            category: 'Supermercado',
+            payment_method: 'DEBIT',
+            date: '2026-10-25T03:00:00.000Z',
+          },
+        ],
+      },
+    })
+    const arsRows = await getCurrentBalanceBreakdown({
+      supabase: client,
+      userId: 'user',
+      currency: 'ARS',
+    })
+    const usdRows = await getCurrentBalanceBreakdown({
+      supabase: client,
+      userId: 'user',
+      currency: 'USD',
+    })
+    expect(arsRows.map((row) => [row.id, row.saldo])).toEqual([
+      [ACCOUNT, 420_000],
+    ])
+    expect(usdRows.map((row) => [row.id, row.saldo])).toEqual([[ACCOUNT, 80]])
+  })
+
+  it('caso g: dato ausente o error no se convierte en cero', async () => {
+    for (const value of ['', ' ', 'NaN', 'undefined', '1.001'])
+      expect(() => moneyToMinor(value)).toThrow('invalid_money')
+    const command = {
+      version: 0,
+      fingerprint: FP,
+    }
+    expect(() =>
+      applyCommand(
+        emptyWorkspace(ACCOUNT, 'ARS'),
+        { ...command, requestId: CP, action: 'confirm' },
+        { now: OBSERVED, expected: EXPECTED, movementIds: [] }
+      )
+    ).toThrow('invalid_money')
+    expect(() =>
+      applyCommand(
+        publish(),
+        {
+          ...command,
+          requestId: RES,
+          version: 1,
+          action: 'resolve',
+          targetId: ADJ,
+          included: true,
+        },
+        { now: OBSERVED, expected: EXPECTED, movementIds: [] }
+      )
+    ).toThrow('movement_required')
+    expect(() =>
+      resolveObservation(emptyWorkspace(ACCOUNT, 'ARS'), {
+        id: RES,
+        movement: priorMovement(),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('checkpoint_missing')
+    expect(() =>
+      resolveAdjustment(publish(), {
+        id: RES,
+        adjustmentId: ADJ,
+        movement: priorMovement({ effect: 0 }),
+        now: OBSERVED,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('no_account_effect')
+    expect(() =>
+      buildLiveBalanceBreakdown({
+        accounts: [bank(ACCOUNT, 'BBVA', 500_000, 200)],
+        currency: 'ARS',
+        incomes: [],
+        debitExpenses: [],
+        cardPayments: [],
+        transfers: [],
+        reconciliationCorrections: [{ account_id: 'missing', amount: -80_000 }],
+      })
+    ).toThrow('reconciliation_account_missing')
+
+    vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+    admin.from.mockReturnValue(
+      thenable({ data: null, error: { message: 'down' } })
+    )
+    await expect(readCorrections('user')).rejects.toThrow(
+      'reconciliation_unavailable'
+    )
+    admin.from.mockReturnValue(
+      thenable({
+        data: [
+          {
+            account_id: ACCOUNT,
+            currency: 'ARS',
+            state: { adjustments: null },
+          },
+        ],
+        error: null,
+      })
+    )
+    await expect(readCorrections('user')).rejects.toThrow()
+    admin.rpc.mockResolvedValue({ data: {}, error: null })
+    await expect(ledgerSnapshot('user')).rejects.toThrow('ledger_unavailable')
+    admin.rpc.mockResolvedValue({ data: null, error: { message: 'down' } })
+    await expect(ledgerSnapshot('user')).rejects.toThrow('ledger_unavailable')
+    await expect(
+      getCurrentBalanceBreakdown({
+        supabase: supabase({
+          rows: {
+            accounts: [
+              {
+                id: ACCOUNT,
+                user_id: 'user',
+                name: 'BBVA',
+                type: 'bank',
+                is_primary: true,
+                archived: false,
+                opening_balance_ars: 500_000,
+                opening_balance_usd: 200,
+              },
+            ],
+          },
+          failingTable: 'expenses',
+        }),
+        userId: 'user',
+        currency: 'ARS',
+      })
+    ).rejects.toThrow('balance_unavailable')
+  })
+
+  it('retoma días después el checkpoint pendiente sin republicar el ajuste', () => {
+    const pending: Workspace = {
+      ...explain(),
+      draft: {
+        amount: '30000',
+        description: 'Supermercado',
+        category: 'Supermercado',
+        date: '2026-10-06',
+      },
+    }
+    const restored = JSON.parse(JSON.stringify(pending)) as Workspace
+    expect(restored.checkpoints).toHaveLength(1)
+    expect(restored.checkpoints[0].id).toBe(CP)
+    expect(restored.draft).toEqual(pending.draft)
+    expect(balanceCorrection(restored)).toBe(-5_000_000)
+    expect(remaining(restored, restored.adjustments[0])).toBe(-5_000_000)
+    const replay = {
+      version: 2,
+      fingerprint: FP,
+    }
+    expect(() =>
+      applyCommand(
+        restored,
+        {
+          ...replay,
+          requestId: CP,
+          action: 'confirm',
+          amount: '420000.00',
+        },
+        { now: FRIDAY, expected: EXPECTED, movementIds: [] }
+      )
+    ).toThrow('duplicate_checkpoint')
+    expect(() =>
+      applyCommand(
+        restored,
+        {
+          ...replay,
+          requestId: '30000000-0000-4000-8000-000000000099',
+          action: 'adjust',
+          targetId: CP,
+        },
+        { now: FRIDAY, expected: 47_000_000, movementIds: [] }
+      )
+    ).toThrow('already_adjusted')
+    expect(restored.checkpoints).toHaveLength(1)
+    expect(restored.adjustments).toHaveLength(1)
+    expect(balanceCorrection(restored)).toBe(-5_000_000)
+
+    const accounts = [
+      { id: CLOSED, name: 'Nación' },
+      { id: ACCOUNT, name: 'BBVA' },
+      { id: FRESH, name: 'Efectivo' },
+      { id: DOLLARS, name: 'Dólares' },
+    ]
+    const rows = [
+      {
+        account_id: CLOSED,
+        currency: 'ARS' as const,
+        state: addCheckpoint(emptyWorkspace(CLOSED, 'ARS'), {
+          id: '30000000-0000-4000-8000-0000000000c9',
+          observedAt: OBSERVED,
+          expected: 10_000_000,
+          confirmed: 10_000_000,
+          includedMovementIds: [],
+        }),
+      },
+      { account_id: ACCOUNT, currency: 'ARS' as const, state: restored },
+      {
+        account_id: DOLLARS,
+        currency: 'USD' as const,
+        state: addCheckpoint(emptyWorkspace(DOLLARS, 'USD'), {
+          id: '30000000-0000-4000-8000-0000000000d8',
+          observedAt: OBSERVED,
+          expected: 20_000,
+          confirmed: 12_000,
+          includedMovementIds: [],
+        }),
+      },
+    ]
+    const friday = rebuiltQueue(accounts, rows, 'ARS', new Date(FRIDAY))
+    expect(
+      friday.map((task) => [task.accountId, task.label, task.currency])
+    ).toEqual([
+      [ACCOUNT, 'Seguir con BBVA', 'ARS'],
+      [FRESH, 'Confirmá tu saldo de Efectivo', 'ARS'],
+      [DOLLARS, 'Confirmá tu saldo de Dólares', 'ARS'],
+    ])
+    expect(friday[0].href).toBe(`/reconciliation/${ACCOUNT}?currency=ARS`)
+    expect(
+      nextReconciliationAccount(
+        friday.map((task) => ({
+          id: task.accountId,
+          name: task.accountName,
+        })),
+        ACCOUNT,
+        []
+      )?.id
+    ).toBe(FRESH)
+
+    const saturday = rebuiltQueue(accounts, rows, 'ARS', new Date(SATURDAY))
+    expect(saturday.map((task) => [task.accountId, task.label])).toEqual([
+      [CLOSED, 'Confirmá tu saldo de Nación'],
+      [ACCOUNT, 'Seguir con BBVA'],
+      [FRESH, 'Confirmá tu saldo de Efectivo'],
+      [DOLLARS, 'Confirmá tu saldo de Dólares'],
+    ])
+    expect(balanceCorrection(restored)).toBe(-5_000_000)
+    expect(restored.checkpoints).toHaveLength(1)
+
+    const dollars = rebuiltQueue(accounts, rows, 'USD', new Date(FRIDAY))
+    expect(dollars.find((task) => task.accountId === DOLLARS)).toMatchObject({
+      currency: 'USD',
+      label: 'Seguir con Dólares',
+      href: `/reconciliation/${DOLLARS}?currency=USD`,
+    })
+    expect(dollars.find((task) => task.accountId === ACCOUNT)?.label).toBe(
+      'Confirmá tu saldo de BBVA'
+    )
+  })
+})
