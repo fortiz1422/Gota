@@ -10,7 +10,6 @@ import {
   checkpointDay,
   balanceAfterReverse,
   balanceAfterUnlink,
-  homeBalance,
   type Workspace,
   type Draft,
 } from '@/lib/reconciliation/domain'
@@ -53,6 +52,7 @@ type Data = {
   state: Workspace
   version: number
   expected: number
+  home: number
   fingerprint: string
 }
 const blank: Draft = { amount: '', description: '', category: '', date: '' }
@@ -348,7 +348,7 @@ export function ReconciliationFlow({
                 : 'Diferencia resuelta.'}
             </h2>
             <p className="text-text-secondary text-sm">
-              Saldo actual: {money(data.expected, currency)}
+              Saldo actual: {money(data.home, currency)}
             </p>
           </div>
         ) : isCheck ? (
@@ -728,9 +728,9 @@ export function ReconciliationFlow({
                               ? 'La transferencia y el vínculo de la otra cuenta se conservan.'
                               : 'El movimiento se conserva.',
                           label: 'Desvincular',
-                          balanceBefore: homeBalance(data.expected, data.state),
+                          balanceBefore: data.home,
                           balanceAfter: balanceAfterUnlink(
-                            data.expected,
+                            data.home,
                             data.state,
                             r
                           ),
@@ -808,12 +808,9 @@ export function ReconciliationFlow({
                                 title: '¿Revertir este ajuste?',
                                 description: `Se revierte el ajuste de ${money(a.amount, currency)}.`,
                                 label: 'Revertir',
-                                balanceBefore: homeBalance(
-                                  data.expected,
-                                  data.state
-                                ),
+                                balanceBefore: data.home,
                                 balanceAfter: balanceAfterReverse(
-                                  data.expected,
+                                  data.home,
                                   data.state,
                                   a.id
                                 ),

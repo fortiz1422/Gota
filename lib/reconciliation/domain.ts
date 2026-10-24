@@ -102,16 +102,32 @@ export function remaining(state: Workspace, adjustment: Adjustment): number {
   )
 }
 /**
- * A later checkpoint that repeats the previous book replaces that checkpoint's
- * correction. Counting it again would discount the same gap twice.
+ * Expenses linked to a checkpoint stay in the movement book, whether the link
+ * is `checkpoint:` or the published adjustment id, and whether it was later removed.
+ */
+function movementEffect(state: Workspace, checkpointId: string): number {
+  return state.resolutions.reduce((sum, resolution) => {
+    const onCheckpoint =
+      resolution.adjustmentId === `checkpoint:${checkpointId}`
+    const onItsAdjustment = state.adjustments.some(
+      (adjustment) =>
+        adjustment.id === resolution.adjustmentId &&
+        adjustment.checkpointId === checkpointId
+    )
+    return onCheckpoint || onItsAdjustment
+      ? minor(sum + resolution.effect)
+      : sum
+  }, 0)
+}
+/**
+ * A later checkpoint that repeats the previous movement book replaces that
+ * checkpoint's correction. Counting it again would discount the same gap twice.
  */
 function supersededCheckpointIds(state: Workspace): Set<string> {
   const ids = new Set<string>()
   for (let index = 1; index < state.checkpoints.length; index++) {
     const previous = state.checkpoints[index - 1]
-    const book = minor(
-      previous.expected + resolutionEffect(state, previous.id, true)
-    )
+    const book = minor(previous.expected + movementEffect(state, previous.id))
     if (state.checkpoints[index].expected === book) ids.add(previous.id)
   }
   return ids
@@ -189,21 +205,31 @@ export function openGap(state: Workspace): number {
 export function liveCorrection(state: Workspace): number {
   return minor(balanceCorrection(state) + unpublishedGap(state, true))
 }
-/** `ledgerMinor` is the posted balance. This is the number Home shows. */
-export function homeBalance(ledgerMinor: number, state: Workspace): number {
+/**
+ * `postedMinor` is the anchor Home gets from posted corrections only.
+ * Adding the unpublished gap, without subtracting the correction twice, is Home.
+ */
+export function homeBalance(postedMinor: number, state: Workspace): number {
   return minor(
-    minor(ledgerMinor) + liveCorrection(state) - balanceCorrection(state)
+    minor(postedMinor) + liveCorrection(state) - balanceCorrection(state)
   )
 }
-function correctionDelta(before: Workspace, after: Workspace): number {
-  return minor(balanceCorrection(after) - balanceCorrection(before))
+/** Home after a workspace change. Movements stay; only the live correction moves. */
+export function projectHome(
+  homeMinor: number,
+  before: Workspace,
+  after: Workspace
+): number {
+  return minor(
+    minor(homeMinor) + liveCorrection(after) - liveCorrection(before)
+  )
 }
 /**
- * `ledgerMinor` is the posted balance (Home without the unpublished gap).
- * The result is the live Home balance after the unlink.
+ * `homeMinor` is the balance Home shows now.
+ * Unlinking keeps the expense in the book, so Home moves only with the live correction.
  */
 export function balanceAfterUnlink(
-  ledgerMinor: number,
+  homeMinor: number,
   state: Workspace,
   resolution: Pick<Resolution, 'adjustmentId' | 'effect'>
 ): number {
@@ -224,14 +250,11 @@ export function balanceAfterUnlink(
               : item
           ),
         }
-  return homeBalance(
-    minor(minor(ledgerMinor) + correctionDelta(state, next)),
-    next
-  )
+  return projectHome(homeMinor, state, next)
 }
 /** Reversing the posting returns the same confirmation to Home; it does not spend the gap twice. */
 export function balanceAfterReverse(
-  ledgerMinor: number,
+  homeMinor: number,
   state: Workspace,
   adjustmentId: string
 ): number {
@@ -245,10 +268,7 @@ export function balanceAfterReverse(
       a.id === adjustmentId ? { ...a, reversedAt: adjustment.effectiveAt } : a
     ),
   }
-  return homeBalance(
-    minor(minor(ledgerMinor) + correctionDelta(state, next)),
-    next
-  )
+  return projectHome(homeMinor, state, next)
 }
 export function addCheckpoint(
   state: Workspace,

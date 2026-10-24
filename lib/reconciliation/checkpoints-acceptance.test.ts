@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { createClient } from '@/lib/supabase/server'
 import type { Account } from '@/types/database'
 import { buildLiveBalanceBreakdown } from '@/lib/live-balance'
-import { getCurrentBalanceBreakdown } from '@/lib/current-account-balance'
+import {
+  getBalanceForAccount,
+  getCurrentBalanceBreakdown,
+} from '@/lib/current-account-balance'
 import { applyCommand } from './commands'
 import {
   acceptAdjustment,
@@ -215,6 +218,64 @@ function supabase(options: {
   } as unknown as Awaited<ReturnType<typeof createClient>>
 }
 
+/** Same breakdown Home and POST /api/reconciliation use, including posted corrections. */
+async function apiLedger(
+  state: Workspace,
+  expenses: { id: string; amount: number; date: string }[]
+) {
+  vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+  admin.from.mockReturnValue(
+    thenable({
+      data: [{ account_id: ACCOUNT, currency: 'ARS', state }],
+      error: null,
+    })
+  )
+  const client = supabase({
+    rows: {
+      accounts: [
+        {
+          id: ACCOUNT,
+          user_id: 'user',
+          name: 'BBVA',
+          type: 'bank',
+          is_primary: true,
+          archived: false,
+          opening_balance_ars: 500_000,
+          opening_balance_usd: 200,
+        },
+      ],
+      expenses: expenses.map((expense) => ({
+        id: expense.id,
+        user_id: 'user',
+        account_id: ACCOUNT,
+        amount: expense.amount,
+        currency: 'ARS',
+        category: 'Comida',
+        payment_method: 'DEBIT',
+        date: expense.date,
+      })),
+      income_entries: [],
+      transfers: [],
+      yield_daily_entries: [],
+      instruments: [],
+    },
+  })
+  const params = { supabase: client, userId: 'user', currency: 'ARS' as const }
+  const [homeRows, postedRows] = await Promise.all([
+    getCurrentBalanceBreakdown(params),
+    getCurrentBalanceBreakdown({ ...params, postedOnly: true }),
+  ])
+  const home = getBalanceForAccount(homeRows, ACCOUNT)
+  const posted = getBalanceForAccount(postedRows, ACCOUNT)
+  if (home === null || posted === null) throw new Error('balance_missing')
+  return {
+    home,
+    posted,
+    homeMinor: moneyToMinor(home.toFixed(2)),
+    postedMinor: moneyToMinor(posted.toFixed(2)),
+  }
+}
+
 describe('checkpoints de saldo', () => {
   it('caso a: 500.000 contra 420.000 dejan 80.000 sin publicar', () => {
     const state = observe()
@@ -382,9 +443,8 @@ describe('checkpoints de saldo', () => {
     })
     expect(linked.resolutions[0].adjustmentId).toBe(`checkpoint:${CP}`)
     expect(pesos(linked, [30_000])).toBe(420_000)
-    expect(balanceAfterUnlink(47_000_000, linked, linked.resolutions[0])).toBe(
-      42_000_000
-    )
+    const shown = moneyToMinor(pesos(linked, [30_000]).toFixed(2))
+    expect(balanceAfterUnlink(shown, linked, linked.resolutions[0])).toBe(shown)
 
     const undone = undoResolution(linked, RES, FRIDAY)
     expect(undone.resolutions[0].reversedAt).toBe(FRIDAY)
@@ -412,8 +472,9 @@ describe('checkpoints de saldo', () => {
     })
     expect(unpostedGap(replaced)).toBe(0)
     expect(pesos(replaced, [30_000, 50_000])).toBe(420_000)
-    expect(balanceAfterUnlink(47_000_000, undone, undone.resolutions[0])).toBe(
-      42_000_000
+    const undoneHome = moneyToMinor(pesos(undone, [30_000]).toFixed(2))
+    expect(balanceAfterUnlink(undoneHome, undone, undone.resolutions[0])).toBe(
+      undoneHome
     )
 
     const posted = acceptAdjustment(undone, {
@@ -429,51 +490,113 @@ describe('checkpoints de saldo', () => {
     expect(posted.resolutions).toHaveLength(1)
   })
 
-  it('cerrar y confirmar de nuevo contra el libro de 470k no descuenta dos veces', () => {
-    const explained = resolveObservation(observe(), {
+  it('el ledger de la API mantiene Home en 420.000 en los dos caminos', async () => {
+    const expense = { id: EXPENSE_ID, amount: 30_000, date: PRIOR }
+    const later = { id: LATER_ID, amount: 10_000, date: AFTER }
+    const explainedFirst = resolveObservation(observe(), {
       id: RES,
       movement: priorMovement(),
       now: OBSERVED,
       confirmedIncludedInBalance: true,
     })
-    const posted = closeExplanation(
-      acceptAdjustment(explained, {
-        id: ADJ,
-        checkpointId: CP,
-        currentExpected: 47_000_000,
-        now: OBSERVED,
-      }),
-      ADJ
-    )
-    expect(pesos(posted, [30_000])).toBe(420_000)
-    const again = applyCommand(
-      posted,
+    const adjustedFirst = explain()
+    const paths = [
       {
-        requestId: '30000000-0000-4000-8000-0000000000c2',
-        version: 1,
-        fingerprint: FP,
-        action: 'confirm',
-        amount: '420000.00',
+        name: 'explicar antes de ajustar',
+        open: explainedFirst,
+        closed: closeExplanation(
+          acceptAdjustment(explainedFirst, {
+            id: ADJ,
+            checkpointId: CP,
+            currentExpected: (await apiLedger(explainedFirst, [expense]))
+              .postedMinor,
+            now: OBSERVED,
+          }),
+          ADJ
+        ),
       },
-      { now: FRIDAY, expected: 47_000_000, movementIds: [] }
-    )
-    expect(again.checkpoints).toHaveLength(2)
-    expect(again.checkpoints[1].expected).toBe(47_000_000)
-    expect(again.checkpoints[1].confirmed).toBe(42_000_000)
-    expect(liveCorrection(again)).toBe(-5_000_000)
-    expect(pesos(again, [30_000])).toBe(420_000)
-    expect(homeBalance(47_000_000, again)).toBe(42_000_000)
-    expect(balanceAfterReverse(47_000_000, again, ADJ)).toBe(42_000_000)
-    const republished = acceptAdjustment(again, {
-      id: '30000000-0000-4000-8000-0000000000a3',
-      checkpointId: '30000000-0000-4000-8000-0000000000c2',
-      currentExpected: 47_000_000,
-      now: FRIDAY,
-    })
-    expect(republished.adjustments).toHaveLength(2)
-    expect(balanceCorrection(republished)).toBe(-5_000_000)
-    expect(liveCorrection(republished)).toBe(-5_000_000)
-    expect(pesos(republished, [30_000])).toBe(420_000)
+      {
+        name: 'ajustar y después explicar',
+        open: adjustedFirst,
+        closed: closeExplanation(adjustedFirst, ADJ),
+      },
+    ]
+    for (const [index, path] of paths.entries()) {
+      const openLedger = await apiLedger(path.open, [expense])
+      expect(openLedger.home, path.name).toBe(420_000)
+      expect(homeBalance(openLedger.postedMinor, path.open)).toBe(
+        openLedger.homeMinor
+      )
+      const unlinked = undoResolution(path.open, RES, FRIDAY)
+      const unlinkedLedger = await apiLedger(unlinked, [expense])
+      expect(
+        balanceAfterUnlink(
+          openLedger.homeMinor,
+          path.open,
+          path.open.resolutions[0]
+        )
+      ).toBe(unlinkedLedger.homeMinor)
+      const withLater = await apiLedger(path.open, [expense, later])
+      const laterUnlinked = await apiLedger(unlinked, [expense, later])
+      expect(withLater.home, path.name).toBe(410_000)
+      expect(
+        balanceAfterUnlink(
+          withLater.homeMinor,
+          path.open,
+          path.open.resolutions[0]
+        )
+      ).toBe(laterUnlinked.homeMinor)
+      const laterMove = priorMovement({
+        id: LATER_ID,
+        effect: -1_000_000,
+        occurredAt: AFTER,
+      })
+      if (path.open.adjustments.length) {
+        expect(() =>
+          resolveAdjustment(path.open, {
+            id: '30000000-0000-4000-8000-0000000000e5',
+            adjustmentId: path.open.adjustments[0].id,
+            movement: laterMove,
+            now: AFTER,
+            confirmedIncludedInBalance: true,
+          })
+        ).toThrow('after_checkpoint')
+      } else {
+        expect(() =>
+          resolveObservation(path.open, {
+            id: '30000000-0000-4000-8000-0000000000e5',
+            movement: laterMove,
+            now: AFTER,
+            confirmedIncludedInBalance: true,
+          })
+        ).toThrow('after_checkpoint')
+      }
+
+      const closedLedger = await apiLedger(path.closed, [expense])
+      expect(closedLedger.home, path.name).toBe(420_000)
+      const bookMinor = moneyToMinor(
+        (closedLedger.posted - balanceCorrection(path.closed) / 100).toFixed(2)
+      )
+      const anchors = [closedLedger.postedMinor, bookMinor]
+      for (const [anchorIndex, anchor] of anchors.entries()) {
+        const again = applyCommand(
+          path.closed,
+          {
+            requestId: `30000000-0000-4000-8000-000000000c${index}${anchorIndex}`,
+            version: 1,
+            fingerprint: FP,
+            action: 'confirm',
+            amount: '420000.00',
+          },
+          { now: FRIDAY, expected: anchor, movementIds: [] }
+        )
+        const againLedger = await apiLedger(again, [expense])
+        expect(againLedger.home, path.name).toBe(420_000)
+        expect(homeBalance(againLedger.postedMinor, again)).toBe(
+          againLedger.homeMinor
+        )
+      }
+    }
   })
 
   it('desvincular un checkpoint al 100% deja seguir resolviendo o cerrar', () => {
@@ -509,32 +632,6 @@ describe('checkpoints de saldo', () => {
     expect(hasPendingExplanation(closed)).toBe(false)
     expect(balanceCorrection(closed)).toBe(0)
     expect(pesos(closed, [80_000])).toBe(420_000)
-  })
-
-  it('el preview de un ajuste publicado coincide con el saldo de Home', () => {
-    const posted = resolveAdjustment(publish(), {
-      id: RES,
-      adjustmentId: ADJ,
-      movement: priorMovement(),
-      now: OBSERVED,
-      confirmedIncludedInBalance: true,
-    })
-    const open = addCheckpoint(posted, {
-      id: '30000000-0000-4000-8000-0000000000c5',
-      observedAt: FRIDAY,
-      expected: 42_000_000,
-      confirmed: 40_000_000,
-      includedMovementIds: [],
-    })
-    expect(balanceCorrection(open)).toBe(-5_000_000)
-    expect(unpostedGap(open)).toBe(-2_000_000)
-    expect(homeBalance(42_000_000, open)).toBe(40_000_000)
-    expect(balanceAfterUnlink(42_000_000, open, open.resolutions[0])).toBe(
-      37_000_000
-    )
-    const unlinked = undoResolution(open, RES, FRIDAY)
-    expect(homeBalance(39_000_000, unlinked)).toBe(37_000_000)
-    expect(balanceAfterReverse(39_000_000, unlinked, ADJ)).toBe(45_000_000)
   })
 
   it('caso e: desvincular y revertir conservan el rastro y no acumulan', () => {
