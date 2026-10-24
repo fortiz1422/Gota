@@ -40,6 +40,9 @@ type FakeWorld = {
   readinessOk: boolean
   crossUser: boolean
   rawWrites: number
+  hangLease: Set<string>
+  hangFetch: Set<string>
+  releaseFetch: Map<string, (response: Response) => void>
   onFetch?: (connectionId: string) => void
   afterSourceSuccess?: () => void
   paymentId: string
@@ -70,7 +73,6 @@ vi.mock('./access-token', () => ({
     return `token:${connection.id}`
   },
 }))
-import { CAPTURE_BUDGET_MS, CAPTURE_MAX_WINDOWS } from './background-capture'
 import { dispatchMercadoPagoDailyCaptures } from './capture-dispatch'
 
 const here = dirname(fileURLToPath(import.meta.url))
@@ -148,6 +150,7 @@ function fakeClient(current: FakeWorld) {
       return query(current, table)
     },
     rpc(name: string, args: Record<string, string>) {
+      if (name === 'mercadopago_acquire_sync_lease' && current.hangLease.has(args.p_connection_id)) return new Promise<never>(() => {})
       return Promise.resolve(callRpc(current, name, args))
     },
   }
@@ -229,7 +232,7 @@ function finishUpsert(current: FakeWorld, table: string, values: Record<string, 
 beforeEach(() => {
   holder.current = {
     connections: [], raw: new Map(), runs: new Map(), tables: [], tokenCalls: [], fetches: [], advances: [], leases: [], conflicts: [],
-    failFetch: new Set(), refuseAdvance: new Set(), failReads: false, readinessOk: true, crossUser: false, rawWrites: 0, paymentId: 'pay-shared',
+    failFetch: new Set(), refuseAdvance: new Set(), failReads: false, readinessOk: true, crossUser: false, rawWrites: 0, paymentId: 'pay-shared', hangLease: new Set(), hangFetch: new Set(), releaseFetch: new Map(),
   }
   vi.useFakeTimers()
   vi.setSystemTime(START)
@@ -242,6 +245,9 @@ beforeEach(() => {
     current.fetches.push({ connectionId, authorization, url: String(input) })
     if (!connectionId || authorization.includes('cipher-')) throw new Error('leaked_credential')
     current.onFetch?.(connectionId)
+    if (current.hangFetch.has(connectionId)) {
+      return new Promise<Response>(resolve => { current.releaseFetch.set(connectionId, resolve) })
+    }
     if (current.failFetch.has(connectionId)) return new Response('no', { status: 401 })
     return new Response(JSON.stringify({ results: [{ id: current.paymentId }], paging: { total: 1 } }), { status: 200 })
   })
@@ -250,13 +256,17 @@ afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals(); vi.unstubAllEnvs() 
 
 describe('daily capture dispatch', () => {
   it('processes every opted-in connection, including one in error status, without crossing users', async () => {
-    expect(CAPTURE_BUDGET_MS).toBe(40_000)
-    expect(CAPTURE_MAX_WINDOWS).toBe(32)
+    const users = {
+      late: '6f1c2a40-7b1e-4a1a-8c1a-111111111111',
+      none: '6f1c2a40-7b1e-4a1a-8c1a-222222222222',
+      err: '6f1c2a40-7b1e-4a1a-8c1a-333333333333',
+      old: '6f1c2a40-7b1e-4a1a-8c1a-444444444444',
+    }
     world().connections.push(
-      connect({ id: 'm-late', user_id: 'user-late', last_incremental_attempt_at: '2026-10-22T00:00:00.000Z' }),
-      connect({ id: 'm-null', user_id: 'user-null' }),
-      connect({ id: 'm-err', user_id: 'user-err', status: 'error', last_incremental_attempt_at: '2026-10-20T00:00:00.000Z' }),
-      connect({ id: 'm-old', user_id: 'user-old', last_incremental_attempt_at: '2026-10-01T00:00:00.000Z' }),
+      connect({ id: 'm-late', user_id: users.late, last_incremental_attempt_at: '2026-10-22T00:00:00.000Z' }),
+      connect({ id: 'm-null', user_id: users.none }),
+      connect({ id: 'm-err', user_id: users.err, status: 'error', last_incremental_attempt_at: '2026-10-20T00:00:00.000Z' }),
+      connect({ id: 'm-old', user_id: users.old, last_incremental_attempt_at: '2026-10-01T00:00:00.000Z' }),
     )
     const result = await dispatchMercadoPagoDailyCaptures()
     expect(result).toMatchObject({ processed: 4, failed: 0, skipped: 0, pending: 0, catchingUp: 0, posted: 0 })
@@ -266,8 +276,9 @@ describe('daily capture dispatch', () => {
     expect(world().raw.size).toBe(4)
     expect(new Set([...world().raw.values()].map(item => item.native_key))).toEqual(new Set(['pay-shared']))
     expectIsolated()
-    expect(JSON.stringify(result)).not.toContain('cipher-')
-    expect(JSON.stringify(result)).not.toContain('user-')
+    const body = JSON.stringify(result)
+    expect(body).not.toContain('cipher-')
+    for (const userId of Object.values(users)) expect(body).not.toContain(userId)
   })
 
   it('skips a leased connection without blocking the others or releasing that lease', async () => {
@@ -345,7 +356,7 @@ describe('daily capture dispatch', () => {
 
   it('lets a slow connection finish its own window and still reaches the next one', async () => {
     world().connections.push(connect({ id: 'conn-a', user_id: 'user-a' }), connect({ id: 'conn-b', user_id: 'user-b' }), connect({ id: 'conn-c', user_id: 'user-c' }))
-    world().onFetch = id => { if (id === 'conn-b') vi.setSystemTime(START.getTime() + 30_000) }
+    world().onFetch = id => { if (id === 'conn-b') vi.setSystemTime(START.getTime() + 15_000) }
     const result = await dispatchMercadoPagoDailyCaptures(40_000)
     expect(world().tokenCalls.map(call => call.connectionId).slice(0, 3)).toEqual(['conn-a', 'conn-b', 'conn-c'])
     expect(result.connections.find(item => item.connectionId === 'conn-c')?.status).not.toBe('pending')
@@ -363,8 +374,9 @@ describe('daily capture dispatch', () => {
     const writes = world().rawWrites
     const second = await dispatchMercadoPagoDailyCaptures()
     expect(second.posted).toBe(0)
+    expect(second.connections.every(item => item.status === 'success' && item.windows === 0 && item.posted === 0)).toBe(true)
     expect(world().raw.size).toBe(2)
-    expect(world().rawWrites).toBeGreaterThan(writes)
+    expect(world().rawWrites).toBe(writes)
     expect(world().conflicts).toContain('user_id,connection_id,source,native_key')
     expectIsolated()
   })
@@ -423,6 +435,98 @@ describe('daily capture dispatch', () => {
     await expect(dispatchMercadoPagoDailyCaptures()).rejects.toThrow('connection_read_failed')
     expect(world().connections.map(item => item.incremental_watermark)).toEqual(before)
     expect(world().tokenCalls).toEqual([])
+  })
+
+  it('abandons a hung connection inside the budget and still captures the others', async () => {
+    const users = ['6f1c2a40-7b1e-4a1a-8c1a-aaaaaaaaaaa1', '6f1c2a40-7b1e-4a1a-8c1a-aaaaaaaaaaa2', '6f1c2a40-7b1e-4a1a-8c1a-aaaaaaaaaaa3']
+    world().connections.push(
+      connect({ id: 'conn-a', user_id: users[0] }),
+      connect({ id: 'conn-b', user_id: users[1] }),
+      connect({ id: 'conn-c', user_id: users[2] }),
+    )
+    world().hangLease.add('conn-b')
+    const before = row('conn-b').incremental_watermark
+    const pending = dispatchMercadoPagoDailyCaptures(40_000)
+    await vi.advanceTimersByTimeAsync(20_000)
+    const result = await pending
+    expect(Date.now() - START.getTime()).toBeLessThanOrEqual(40_000)
+    expect(Date.now() - START.getTime()).toBeLessThan(60_000)
+    expect(result.connections.find(item => item.connectionId === 'conn-b')).toMatchObject({ status: 'error', cursorAdvanced: false, reason: 'capture_timeout', posted: 0 })
+    expect(row('conn-b').incremental_watermark).toBe(before)
+    expect(world().advances.filter(item => item.connectionId === 'conn-b' && item.ok)).toEqual([])
+    expect(result.connections.find(item => item.connectionId === 'conn-a')?.status).toBe('success')
+    expect(result.connections.find(item => item.connectionId === 'conn-c')?.status).toBe('success')
+    expect(result.failed).toBe(1)
+    const body = JSON.stringify(result)
+    for (const userId of users) expect(body).not.toContain(userId)
+  })
+
+  it('does not advance a cursor if a hung read resumes after its turn was abandoned', async () => {
+    world().connections.push(
+      connect({ id: 'conn-a', user_id: '6f1c2a40-7b1e-4a1a-8c1a-eeeeeeeeeee1' }),
+      connect({ id: 'conn-b', user_id: '6f1c2a40-7b1e-4a1a-8c1a-eeeeeeeeeee2' }),
+    )
+    world().hangFetch.add('conn-a')
+    const before = row('conn-a').incremental_watermark
+    const pending = dispatchMercadoPagoDailyCaptures(40_000)
+    await vi.advanceTimersByTimeAsync(20_000)
+    const result = await pending
+    expect(result.connections.find(item => item.connectionId === 'conn-a')).toMatchObject({ status: 'error', reason: 'capture_timeout', cursorAdvanced: false })
+    expect(result.connections.find(item => item.connectionId === 'conn-b')?.status).toBe('success')
+    const release = world().releaseFetch.get('conn-a')
+    expect(release).toBeTypeOf('function')
+    release?.(new Response(JSON.stringify({ results: [{ id: 'late-pay' }], paging: { total: 1 } }), { status: 200 }))
+    await vi.advanceTimersByTimeAsync(0)
+    expect(row('conn-a').incremental_watermark).toBe(before)
+    expect(world().advances.filter(item => item.connectionId === 'conn-a' && item.ok)).toEqual([])
+    expect(Date.now() - START.getTime()).toBeLessThanOrEqual(40_000)
+  })
+
+  it('keeps capturing the connections that still fit when one in the middle is already current', async () => {
+    world().connections.push(
+      connect({ id: 'conn-a', user_id: '6f1c2a40-7b1e-4a1a-8c1a-bbbbbbbbbbb1', incremental_watermark: shift(-1) }),
+      connect({ id: 'conn-b', user_id: '6f1c2a40-7b1e-4a1a-8c1a-bbbbbbbbbbb2', incremental_watermark: START.toISOString() }),
+      connect({ id: 'conn-c', user_id: '6f1c2a40-7b1e-4a1a-8c1a-bbbbbbbbbbb3', incremental_watermark: shift(-2) }),
+    )
+    const before = row('conn-b').incremental_watermark
+    const result = await dispatchMercadoPagoDailyCaptures()
+    expect(result.connections.find(item => item.connectionId === 'conn-b')).toMatchObject({ status: 'success', windows: 0, upToDate: true, cursorAdvanced: false, posted: 0 })
+    expect(row('conn-b').incremental_watermark).toBe(before)
+    expect(world().fetches.map(item => item.connectionId)).not.toContain('conn-b')
+    expect(result.connections.find(item => item.connectionId === 'conn-a')?.windows).toBeGreaterThan(0)
+    expect(result.connections.find(item => item.connectionId === 'conn-c')?.status).not.toBe('pending')
+    expect(row('conn-c').incremental_watermark).not.toBe(shift(-2))
+    expect(result.failed).toBe(0)
+  })
+
+  it('reports an exhausted capture budget as pending instead of a provider failure', async () => {
+    world().connections.push(
+      connect({ id: 'conn-a', user_id: '6f1c2a40-7b1e-4a1a-8c1a-ccccccccccc1', incremental_watermark: shift(-1) }),
+      connect({ id: 'conn-b', user_id: '6f1c2a40-7b1e-4a1a-8c1a-ccccccccccc2', incremental_watermark: shift(-1) }),
+    )
+    world().onFetch = id => { if (id === 'conn-a') vi.setSystemTime(START.getTime() + 40_001) }
+    const before = row('conn-a').incremental_watermark
+    const result = await dispatchMercadoPagoDailyCaptures(40_000)
+    const stalled = result.connections.find(item => item.connectionId === 'conn-a')
+    expect(stalled).toMatchObject({ status: 'pending', cursorAdvanced: false, reason: 'capture_budget_exhausted', posted: 0 })
+    expect(result.failed).toBe(0)
+    expect(row('conn-a').incremental_watermark).toBe(before)
+    expect(world().advances.filter(item => item.connectionId === 'conn-a')).toEqual([])
+    expect(JSON.stringify(stalled)).not.toContain('provider_error')
+  })
+
+  it('keeps a connection that already moved its cursor as catching up when the budget runs out', async () => {
+    world().connections.push(connect({ id: 'conn-a', user_id: '6f1c2a40-7b1e-4a1a-8c1a-ddddddddddd1', incremental_watermark: shift(-3) }))
+    let reads = 0
+    world().onFetch = () => {
+      reads += 1
+      if (reads === 2) vi.setSystemTime(START.getTime() + 40_001)
+    }
+    const result = await dispatchMercadoPagoDailyCaptures(40_000)
+    expect(result.failed).toBe(0)
+    expect(result.connections[0]).toMatchObject({ status: 'catching_up', cursorAdvanced: true, reason: 'capture_budget_exhausted', posted: 0 })
+    expect(row('conn-a').incremental_watermark).toBe(shift(-2))
+    expect(JSON.stringify(result.connections[0])).not.toContain('provider_error')
   })
 
   it('keeps posting and shadow out of the capture path and keeps the daily Hobby schedule', () => {

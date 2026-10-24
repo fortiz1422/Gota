@@ -4,6 +4,7 @@ export const MERCADOPAGO_OAUTH_AUTHORIZE_URL = 'https://auth.mercadopago.com/aut
 export const MERCADOPAGO_OAUTH_TOKEN_URL = 'https://api.mercadopago.com/oauth/token'
 export const MERCADOPAGO_STATE_COOKIE = 'mp_oauth_state'
 export const MERCADOPAGO_VERIFIER_COOKIE = 'mp_oauth_verifier'
+export const MERCADOPAGO_EXCHANGE_TIMEOUT_MS = 8_000
 export type OAuthConfig = { clientId: string; clientSecret: string; redirectUri: string; scope: string; tokenEncryptionKey: string }
 export type TokenPayload = { accessToken: string; refreshToken: string | null; userId: string | null; expiresAt: string | null }
 
@@ -42,8 +43,9 @@ export function parseMercadoPagoTokenPayload(payload: unknown, now = new Date())
 }
 
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
-async function exchange(body: URLSearchParams, fetchImpl: FetchLike = fetch): Promise<TokenPayload> {
-  const response = await fetchImpl(MERCADOPAGO_OAUTH_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(), signal: AbortSignal.timeout(8000) })
+async function exchange(body: URLSearchParams, fetchImpl: FetchLike = fetch, timeoutMs = MERCADOPAGO_EXCHANGE_TIMEOUT_MS): Promise<TokenPayload> {
+  const limit = Math.max(1, Math.min(MERCADOPAGO_EXCHANGE_TIMEOUT_MS, timeoutMs))
+  const response = await fetchImpl(MERCADOPAGO_OAUTH_TOKEN_URL, { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: body.toString(), signal: AbortSignal.timeout(limit) })
   const payload = await response.json().catch(() => null)
   if (!response.ok) throw new Error('Mercado Pago OAuth exchange failed')
   return parseMercadoPagoTokenPayload(payload)
@@ -51,6 +53,6 @@ async function exchange(body: URLSearchParams, fetchImpl: FetchLike = fetch): Pr
 export function exchangeMercadoPagoAuthorizationCode({ code, config, verifier, fetchImpl }: { code: string; config: OAuthConfig; verifier: string; fetchImpl?: FetchLike }) {
   return exchange(new URLSearchParams({ grant_type: 'authorization_code', client_id: config.clientId, client_secret: config.clientSecret, code, redirect_uri: config.redirectUri, code_verifier: verifier }), fetchImpl)
 }
-export function exchangeMercadoPagoRefreshToken({ refreshToken, config, fetchImpl }: { refreshToken: string; config: OAuthConfig; fetchImpl?: FetchLike }) {
-  return exchange(new URLSearchParams({ grant_type: 'refresh_token', client_id: config.clientId, client_secret: config.clientSecret, refresh_token: refreshToken }), fetchImpl)
+export function exchangeMercadoPagoRefreshToken({ refreshToken, config, fetchImpl, timeoutMs }: { refreshToken: string; config: OAuthConfig; fetchImpl?: FetchLike; timeoutMs?: number }) {
+  return exchange(new URLSearchParams({ grant_type: 'refresh_token', client_id: config.clientId, client_secret: config.clientSecret, refresh_token: refreshToken }), fetchImpl, timeoutMs)
 }

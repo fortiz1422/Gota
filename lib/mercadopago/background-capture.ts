@@ -11,7 +11,7 @@ export const CAPTURE_BUDGET_MS = 40_000
  * Each completed day commits its own cursor; an interrupted catch-up resumes there.
  * The dispatcher passes one shared deadline and one window per turn.
  */
-export async function runMercadoPagoBackgroundCapture(userId: string, connectionId: string, options: { deadline?: number; maxWindows?: number } = {}) {
+export async function runMercadoPagoBackgroundCapture(userId: string, connectionId: string, options: { deadline?: number; maxWindows?: number; allowCommit?: () => boolean } = {}) {
   if (!mercadoPagoBackgroundEnabled()) throw new Error('background_disabled')
   const readiness = getMercadoPagoOAuthReadiness()
   if (!readiness.ok) throw new Error('oauth_not_ready')
@@ -38,7 +38,10 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
       .gt('sync_lease_until', new Date().toISOString()).eq('background_sync_enabled', true)
       .select('id').maybeSingle()
     if (attemptError || !attempted) throw new Error('attempt_write_failed')
-    const accessToken = await getValidMercadoPagoAccessToken(userId, connection, readiness.config, leaseId)
+    if (Date.parse(state.incremental_watermark) >= target.getTime()) {
+      return { status: 'success' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: true, posted: 0 as const }
+    }
+    const accessToken = await getValidMercadoPagoAccessToken(userId, connection, readiness.config, leaseId, deadline)
     let watermark: string = state.incremental_watermark
     let observed = 0
     let windows = 0
@@ -51,11 +54,12 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
         fetchImpl: (input, init) => fetch(input, { ...init, signal: AbortSignal.timeout(Math.max(1, Math.min(8000, deadline - Date.now()))) }),
         store: {
           upsertRawObservation: async observation => {
-            if (Date.now() >= deadline) throw new Error('capture_budget_exhausted')
+            if (Date.now() >= deadline || options.allowCommit?.() === false) throw new Error('capture_budget_exhausted')
             await saveRawObservation({ ...observation, connectionId })
           },
           saveSourceRun: input => saveMercadoPagoSourceRun({ ...input, userId, connectionId }),
           advanceWatermark: async (previous, next) => {
+            if (Date.now() > deadline || options.allowCommit?.() === false) throw new Error('capture_budget_exhausted')
             const { data: advanced, error: advanceError } = await admin.rpc('mercadopago_advance_watermark', {
               p_user_id: userId, p_connection_id: connectionId, p_lease_id: leaseId, p_expected: previous, p_next: next,
             })

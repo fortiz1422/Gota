@@ -102,9 +102,16 @@ describe('capture service with real incremental windows and pagination', () => {
       vi.setSystemTime(Date.parse(now) + 40_001)
       return new Response(JSON.stringify({ results: [{ id: 'uncommitted' }], paging: { total: 1 } }))
     })
-    expect(await capture('owner', 'connection')).toMatchObject({ status: 'error', posted: 0 })
+    await expect(capture('owner', 'connection')).rejects.toThrow('capture_budget_exhausted')
     expect(m.raw).not.toHaveBeenCalled()
     expect(f.rpc).not.toHaveBeenCalled()
+    expect(f.state.incremental_watermark).toBe('2026-10-21T09:00:00.000Z')
+  })
+  it('passes the capture deadline through so token refresh stays inside it', async () => {
+    fixture()
+    const deadline = Date.parse(now) + 2_500
+    await capture('owner', 'connection', { deadline, maxWindows: 1 })
+    expect(m.token).toHaveBeenCalledWith('owner', expect.objectContaining({ id: 'connection' }), expect.anything(), 'lease', deadline)
   })
   it('does not take a lease once the shared capture deadline has passed', async () => {
     fixture()

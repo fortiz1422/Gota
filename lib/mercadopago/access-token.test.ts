@@ -47,6 +47,13 @@ describe('Mercado Pago access token lifecycle', () => {
     expect(JSON.stringify(patch)).not.toContain('new-refresh')
   })
 
+  it('asks for a refresh no longer than the time left before the capture deadline', async () => {
+    await getValidMercadoPagoAccessToken('user', connection(), config, undefined, now.getTime() + 2_500)
+    const timeoutMs = mocks.refresh.mock.calls[0][0].timeoutMs as number
+    expect(timeoutMs).toBeLessThanOrEqual(2_500)
+    expect(timeoutMs).toBeLessThan(8_000)
+  })
+
   it('preserves the existing refresh token when the provider does not rotate it', async () => {
     mocks.refresh.mockResolvedValue({ accessToken: 'new-access', refreshToken: null, expiresAt: null })
     const row = connection()

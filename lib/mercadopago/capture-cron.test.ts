@@ -14,6 +14,11 @@ describe('daily capture cron', () => {
     const missing = await GET(new Request('https://gota.test/api/cron/mercadopago-sync'))
     expect(missing.status).toBe(401)
     expect(m.dispatch).not.toHaveBeenCalled()
+    vi.stubEnv('CRON_SECRET', '')
+    const empty = await GET(request())
+    expect(empty.status).toBe(503)
+    expect(await empty.json()).toEqual({ error: 'cron_unavailable' })
+    expect(m.dispatch).not.toHaveBeenCalled()
   })
 
   it('does not dispatch while background capture is disabled', async () => {
