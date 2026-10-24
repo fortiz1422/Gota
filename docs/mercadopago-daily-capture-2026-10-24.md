@@ -10,9 +10,9 @@ El cron `/api/cron/mercadopago-sync` se programa `0 9 * * *`: desde las 06:00 de
 
 El setup existente conserva los períodos explícitos hoy/30/90 días y la cuenta vinculada. Después de aceptar el opt-in, intenta una captura inmediata con Next after; el estado durable queda disponible para el cron si esa invocación termina. No usa after como única garantía de entrega.
 
-Cada ejecución tiene 40 segundos de presupuesto de captura y como máximo 32 ventanas de un día. Cada ventana completa persiste su propio cursor mediante CAS y lease; un error no adelanta el cursor de esa ventana. El timeout de la función es 60 segundos. Las lecturas de MP tienen timeout de hasta 8 segundos, reducido por el presupuesto restante. RAW conserva el upsert por identidad nativa existente. Un catch-up incompleto se informa como tal y continúa en la próxima ejecución.
+Cada ejecución tiene 40 segundos de presupuesto de captura compartido entre las conexiones activas. Cada conexión completa como máximo 32 ventanas de un día por ejecución. Cada ventana completa persiste su propio cursor mediante CAS y lease; un error no adelanta el cursor de esa ventana. El timeout de la función es 60 segundos. Las lecturas de MP tienen timeout de hasta 8 segundos, reducido por el presupuesto restante. RAW conserva el upsert por identidad nativa existente. Un catch-up incompleto se informa como tal y continúa en la próxima ejecución.
 
-El cron conserva el piloto de una conexión por invocación, seleccionada por intento más antiguo. Antes de habilitar múltiples conexiones reales, ampliar el despacho o su frecuencia: con más de una conexión no se garantiza captura diaria para todas. La activación inicial es sólo para la conexión del propietario verificada.
+El cron despacha todas las conexiones con opt-in en la misma invocación, ordenadas por intento más antiguo. Cada una recibe una ventana de un día por turno antes de que otra reciba una segunda. Una conexión ocupada, fallida o lenta no detiene a las demás. Lo que no entra en el presupuesto queda pendiente y la siguiente ejecución empieza por el intento más antiguo. En el plan Hobby el cron sigue siendo diario y puede correr en cualquier momento de esa hora. La activación inicial sigue siendo la conexión del propietario hasta que haya más opt-ins.
 
 ## Evidencia de preactivación
 
