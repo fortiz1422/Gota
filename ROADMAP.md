@@ -11,11 +11,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| G03-A | Auditoría de checkpoints y conciliación de saldos (solo informe, sin cambiar el motor) | Existe trabajo previo; antes de construir hay que saber qué está integrado y qué falta. | 1) Informe en `docs/audits/g03-checkpoints.md` con qué hay en motor y UI, con rutas de archivo. 2) Casos de aceptación escritos y marcados cubiertos/no cubiertos por tests: saldo esperado $500.000 y confirmado $420.000 deja $80.000 a explicar; un gasto previo de $30.000 que explica el checkpoint baja la diferencia a $50.000 sin volver a descontarse del saldo; un gasto posterior sí afecta el saldo posterior. 3) Lista priorizada de brechas con propuesta de ítems nuevos (a Ideas). |
-| G05-A | Auditoría del asesor existente (solo informe, sin construir un segundo motor) | Hay entrada visible y código de inteligencia; no se sabe qué responde de verdad ni con qué datos. | 1) Informe en `docs/audits/g05-asesor.md` con herramientas, datos y capacidades reales, con rutas de archivo. 2) Matriz de preguntas del primer corte (gasto por período, por categoría, por medio, cambio entre períodos) con estado: responde igual al motor / no responde / no verificable. 3) Propuesta de ítems de implementación (a Ideas). |
-| MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | El contexto del reintento de alias es solo de sesión. | Tras recargar la bandeja, el reintento de alias sigue disponible sin reenviar el gasto. |
-| G03-B | Completar recuperación con checkpoints (depende de G03-A) | Volver tras días sin reconstruir toda la cola. | 1) Retomar saldos sin reconstruir la cola. 2) Casos determinísticos prueban cero doble impacto. |
-| MP-16 | Despacho para múltiples conexiones de MP | El dispatcher procesa una conexión por invocación; hoy es piloto del propietario. | 1) Cada conexión activa se actualiza a diario. 2) Conexión ocupada no bloquea a las demás. Resolver antes de ampliar usuarios. |
+| (vacío) | | | |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -56,6 +52,11 @@ Publicado en main. «Listo» acá significa código publicado y CI verde; la val
 | PR 143 | Baseline de formularios | https://github.com/fortiz1422/Gota/pull/143 | No es una auditoría nueva de todas las pantallas. |
 | PR 145 | Revisión de comprobantes en lote, reintento de alias y 2 correcciones de MP (páginas repetidas, acceso del cron de reconciliación) | https://github.com/fortiz1422/Gota/pull/145 (commit `995dd32`) | No es registro automático ni extracción real validada. |
 | PR 146 | Captura diaria de MP hacia revisión manual (cron 09:00 UTC) | https://github.com/fortiz1422/Gota/pull/146 (commit `ae7cfbd`; 2.031 unitarias, TypeScript, build, 24 Playwright, SQL) | Piloto de la conexión del propietario; auto-post apagado; primer disparo del scheduler sin observar (MP-18). |
+| G05-A | Auditoría del asesor existente (solo informe, sin construir un segundo motor) | https://github.com/fortiz1422/Gota/pull/148 (commit `ccd99bd`; auditoría) | Solo informe; implementación queda en Ideas (G05-B–G). |
+| G03-A | Auditoría de checkpoints y conciliación de saldos (solo informe, sin cambiar el motor) | https://github.com/fortiz1422/Gota/pull/149 (commit `f331169`; auditoría) | Solo informe; brechas priorizadas en Ideas (G03-C–G). |
+| MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | https://github.com/fortiz1422/Gota/pull/150 (commit `fdbe49d`) | Migración `supabase/migrations/20261024153000_shared_receipt_pending_merchant_memory.sql` pendiente de aplicar. |
+| G03-B | Completar recuperación con checkpoints (depende de G03-A) | https://github.com/fortiz1422/Gota/pull/151 (commit `2374ea1`) | Siguen abiertas las 5 decisiones de producto: G03-D (saldo vivo), campana multimoneda, recordatorio del sábado, `unexplained()`, flag apagado. |
+| MP-16 | Despacho para múltiples conexiones de MP | https://github.com/fortiz1422/Gota/pull/152 (commit `5c9d971`) | Resolver antes de ampliar usuarios. |
 
 ## Reglas transversales (no negociables)
 | Regla | Qué significa |
