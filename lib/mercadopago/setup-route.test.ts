@@ -1,5 +1,8 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getUser: vi.fn(), enabled: vi.fn(), database: vi.fn(), connection: vi.fn(), rpc: vi.fn() }))
+const mocks = vi.hoisted(() => ({ createClient: vi.fn(), getUser: vi.fn(), enabled: vi.fn(), database: vi.fn(), connection: vi.fn(), rpc: vi.fn(), after: vi.fn(), capture: vi.fn(), rate: vi.fn() }))
+vi.mock('next/server', async (original) => ({ ...await original<typeof import('next/server')>(), after: mocks.after }))
+vi.mock('@/lib/mercadopago/background-capture', () => ({ runMercadoPagoBackgroundCapture: mocks.capture }))
+vi.mock('@/lib/rate-limit', () => ({ checkRateLimit: mocks.rate }))
 vi.mock('@/lib/supabase/server', () => ({ createClient: mocks.createClient }))
 vi.mock('@/lib/mercadopago/server-repository', () => ({ getMercadoPagoConnection: mocks.connection }))
 vi.mock('@/lib/mercadopago/sync-lease', () => ({ mercadoPagoBackgroundEnabled: mocks.enabled, backgroundDatabase: mocks.database }))
@@ -10,6 +13,8 @@ beforeEach(() => {
   mocks.createClient.mockResolvedValue({ auth: { getUser: mocks.getUser } })
   mocks.getUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
   mocks.enabled.mockReturnValue(true)
+  mocks.rate.mockReturnValue(true)
+  mocks.capture.mockResolvedValue({ status: 'success', posted: 0 })
   mocks.connection.mockResolvedValue({ id: 'connection-1', status: 'connected', access_token_ciphertext: 'server-only' })
   mocks.database.mockReturnValue({ rpc: mocks.rpc })
   mocks.rpc.mockResolvedValue({ data: 'account-1', error: null })
@@ -37,6 +42,9 @@ describe('initial setup session API', () => {
     expect(r.status).toBe(202)
     expect(await r.json()).toEqual({ state: 'queued', mode: 'shadow' })
     expect(mocks.rpc).toHaveBeenCalledWith('mercadopago_start_initial_import', { p_user_id: 'user-1', p_connection_id: 'connection-1', p_preset: preset })
+    expect(mocks.after).toHaveBeenCalledOnce()
+    await mocks.after.mock.calls[0][0]()
+    expect(mocks.capture).toHaveBeenCalledWith('user-1', 'connection-1')
   })
   it('surfaces ambiguous accounts instead of picking one', async () => {
     mocks.rpc.mockResolvedValue({ data: null, error: { message: 'account_ambiguous', code: '55000' } })

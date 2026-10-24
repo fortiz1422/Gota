@@ -1,9 +1,13 @@
-import { NextResponse } from 'next/server'
+import { after, NextResponse } from 'next/server'
+import { runMercadoPagoBackgroundCapture } from '@/lib/mercadopago/background-capture'
+import { checkRateLimit } from '@/lib/rate-limit'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getMercadoPagoConnection } from '@/lib/mercadopago/server-repository'
 import { backgroundDatabase, mercadoPagoBackgroundEnabled } from '@/lib/mercadopago/sync-lease'
 import { INITIAL_IMPORT_PRESETS } from '@/lib/mercadopago/initial-import'
+
+export const maxDuration = 60
 
 const headers = { 'Cache-Control': 'private, no-store' }
 const json = (body: unknown, status = 200) => NextResponse.json(body, { status, headers })
@@ -43,6 +47,7 @@ export async function POST(request: Request) {
   if (!mercadoPagoBackgroundEnabled()) return json({ error: 'setup_disabled' }, 503)
   const parsed = schema.safeParse(await request.json().catch(() => null))
   if (!parsed.success) return json({ error: 'invalid_initial_import' }, 422)
+  if (!checkRateLimit(`mp-capture-setup:${id}`, 2)) return json({ error: 'rate_limited' }, 429)
   try {
     const connection = await getMercadoPagoConnection(id)
     if (!connection) return json({ error: 'not_connected' }, 409)
@@ -53,6 +58,11 @@ export async function POST(request: Request) {
       const reason = known.find(code => error?.message.includes(code))
       return json({ error: reason ?? 'setup_failed' }, reason ? 409 : 502)
     }
+    // Start promptly; the daily cron resumes any unfinished, persisted windows.
+    after(async () => {
+      try { await runMercadoPagoBackgroundCapture(id, connection.id) }
+      catch { /* Durable setup remains queued; cron retries without financial writes. */ }
+    })
     return json({ state: 'queued', mode: 'shadow' }, 202)
   } catch { return json({ error: 'setup_failed' }, 502) }
 }

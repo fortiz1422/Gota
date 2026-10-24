@@ -9,8 +9,13 @@ describe('authorized Mercado Pago manual rollout', () => {
       MERCADOPAGO_RECONCILIATION_ENABLED: 'false',
     })
   })
-  it('enables the same manual capabilities on production main', () => {
-    expect(mercadoPagoPreviewBuildFlags('production', 'main')).toEqual(mercadoPagoPreviewBuildFlags('preview', 'feat/mercadopago-integration-v2'))
+  it('enables production capture but never automatic financial posting', () => {
+    expect(mercadoPagoPreviewBuildFlags('production', 'main')).toEqual({
+      ...mercadoPagoPreviewBuildFlags('preview', 'feat/mercadopago-integration-v2'),
+      MERCADOPAGO_BACKGROUND_SYNC_ENABLED: 'true',
+    })
+    expect(mercadoPagoPreviewBuildFlags('production', 'main').MERCADOPAGO_AUTO_POST_ENABLED).toBe('false')
+    expect(mercadoPagoPreviewBuildFlags('production', 'main').MERCADOPAGO_RECONCILIATION_ENABLED).toBe('false')
   })
   it('does not enable production on unapproved branches', () => {
     expect(mercadoPagoPreviewBuildFlags('production', 'feat/mercadopago-integration-v2')).toEqual({})
