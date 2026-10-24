@@ -29,9 +29,10 @@ export async function GET() {
       return (data ?? []) as unknown as SharedReceiptRecord[]
     },
   })
-  const retries = await listPendingMerchantMemoryRetries(user.id, {
-    listRows: async (userId) => {
-      try {
+  let retries: Awaited<ReturnType<typeof listPendingMerchantMemoryRetries>> = []
+  try {
+    retries = await listPendingMerchantMemoryRetries(user.id, {
+      listRows: async (userId) => {
         const { data, error } = await admin
           .from('shared_receipts')
           .select('id,pending_merchant_memory')
@@ -42,19 +43,25 @@ export async function GET() {
           if (isMissingPendingMerchantMemoryColumn(error)) return []
           throw error
         }
-        return (data ?? []) as Array<{ id: string; pending_merchant_memory: unknown }>
-      } catch (error) {
-        if (
-          error &&
-          typeof error === 'object' &&
-          isMissingPendingMerchantMemoryColumn(error as { code?: string; message?: string })
-        ) {
-          return []
-        }
-        throw error
-      }
-    },
-  })
+        return (data ?? []) as Array<{
+          id: string
+          pending_merchant_memory: unknown
+        }>
+      },
+    })
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      isMissingPendingMerchantMemoryColumn(
+        error as { code?: string; message?: string }
+      )
+    ) {
+      retries = []
+    } else {
+      throw error
+    }
+  }
   return NextResponse.json(
     { ...(result.body as object), pendingMerchantMemoryRetries: retries },
     { status: result.status, headers: { 'Cache-Control': 'private, no-store' } }

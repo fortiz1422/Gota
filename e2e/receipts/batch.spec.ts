@@ -31,12 +31,14 @@ async function fixture(
   options: {
     partial?: boolean
     aliasFail?: boolean
+    aliasOkWhenPersisted?: boolean
     duplicateFail?: boolean
     received?: boolean
   } = {}
 ) {
   const writes: Array<{ path: string; body: Record<string, unknown> }> = []
   const pendingMerchantMemory = new Map<string, Record<string, unknown>>()
+  let persistedAliasRetry = false
   const receipts = names.map((name, n) => ({
     id: id(n),
     status: options.received && n === 0 ? 'received' : 'needs_review',
@@ -109,11 +111,19 @@ async function fixture(
       })
     if (path.endsWith('/pending-merchant-memory')) {
       const receiptId = path.split('/').at(-2)!
+      const receipt = receipts.find((row) => row.id === receiptId)
       if (request.method() === 'PUT') {
+        if (!receipt || receipt.status !== 'confirmed') {
+          return route.fulfill({ status: 404, json: { error: 'not found' } })
+        }
         pendingMerchantMemory.set(receiptId, body ?? {})
+        persistedAliasRetry = true
         return route.fulfill({ status: 204, body: '' })
       }
       if (request.method() === 'DELETE') {
+        if (!pendingMerchantMemory.has(receiptId)) {
+          return route.fulfill({ status: 404, json: { error: 'gone' } })
+        }
         pendingMerchantMemory.delete(receiptId)
         return route.fulfill({ status: 204, body: '' })
       }
@@ -130,20 +140,23 @@ async function fixture(
       const entries = body!.entries as Array<{ id: string }>
       return route.fulfill({
         json: {
-          results: entries.map((entry, n) =>
-            options.partial && n === 1
-              ? {
-                  id: entry.id,
-                  outcome: 'blocked',
-                  message:
-                    'Posible duplicado. Resolvelo en la revisión individual.',
-                }
-              : {
-                  id: entry.id,
-                  outcome: 'confirmed',
-                  expenseId: 'expense-' + n,
-                }
-          ),
+          results: entries.map((entry, n) => {
+            if (options.partial && n === 1) {
+              return {
+                id: entry.id,
+                outcome: 'blocked',
+                message:
+                  'Posible duplicado. Resolvelo en la revisión individual.',
+              }
+            }
+            const receipt = receipts.find((row) => row.id === entry.id)
+            if (receipt) receipt.status = 'confirmed'
+            return {
+              id: entry.id,
+              outcome: 'confirmed',
+              expenseId: 'expense-' + n,
+            }
+          }),
         },
       })
     }
@@ -164,10 +177,14 @@ async function fixture(
     if (
       path.includes('/counterparty-profiles/') ||
       path.includes('/counterparty-aliases/')
-    )
-      return options.aliasFail
+    ) {
+      const aliasShouldFail =
+        options.aliasFail &&
+        !(options.aliasOkWhenPersisted && persistedAliasRetry)
+      return aliasShouldFail
         ? route.fulfill({ status: 500, json: { error: 'failed' } })
         : route.fulfill({ json: {} })
+    }
     const receipt = receipts.find(
       (r) => path === `/api/shared-receipts/${r.id}`
     )
@@ -313,7 +330,10 @@ test('existing merchant stays selected after category moves the row; alias failu
 test('alias failure survives a full page reload without resending expenses', async ({
   page,
 }) => {
-  const writes = await fixture(page, { aliasFail: true })
+  const writes = await fixture(page, {
+    aliasFail: true,
+    aliasOkWhenPersisted: true,
+  })
   const first = page.locator(`[data-receipt-id="${id(0)}"]`)
   await first.getByLabel('Recordar comercio', { exact: true }).check()
   await first.getByLabel('Vincular a uno existente').check()
@@ -337,13 +357,31 @@ test('alias failure survives a full page reload without resending expenses', asy
   await expect(
     page.getByText(/El gasto de Juliana Farías se guardó/)
   ).toBeVisible()
-  await page.getByRole('button', { name: 'Reintentar solo el alias' }).click()
-  await expect
-    .poll(() =>
-      writes.filter((w) => w.path.includes('/counterparty-profiles/')).length
-    )
-    .toBeGreaterThan(0)
+  const profileWritesBeforeReload = writes.filter(
+    (w) =>
+      w.path.includes('/counterparty-profiles/') &&
+      !w.path.endsWith('/counterparty-profiles')
+  ).length
+  await Promise.all([
+    page.waitForResponse(
+      (response) =>
+        response.url().includes('/counterparty-profiles/') &&
+        response.request().method() !== 'GET' &&
+        response.ok()
+    ),
+    page.getByRole('button', { name: 'Reintentar solo el alias' }).click(),
+  ])
+  expect(
+    writes.filter(
+      (w) =>
+        w.path.includes('/counterparty-profiles/') &&
+        !w.path.endsWith('/counterparty-profiles')
+    ).length
+  ).toBe(profileWritesBeforeReload + 1)
   expect(writes.filter((w) => w.path.endsWith('bulk-confirm'))).toHaveLength(1)
+  await expect(
+    page.getByRole('button', { name: 'Reintentar solo el alias' })
+  ).toHaveCount(0)
 })
 
 test('server partial results keep blocked receipt visible and successes removed', async ({

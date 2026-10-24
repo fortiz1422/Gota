@@ -24,6 +24,7 @@ describe('pending merchant memory service', () => {
       listRows: async () => [
         { id: 'r-1', pending_merchant_memory: validPayload },
         { id: 'r-2', pending_merchant_memory: { broken: true } },
+        { id: 'r-3', pending_merchant_memory: { ...validPayload, amount: 1 } },
       ],
     })
     expect(retries).toHaveLength(1)
@@ -43,22 +44,80 @@ describe('pending merchant memory service', () => {
     expect(
       await savePendingMerchantMemory('user-1', 'r-1', validPayload, {
         findOwned: async () => ({ status: 'confirmed' }),
-        save: async () => true,
+        save: async () => 'saved',
       })
     ).toMatchObject({ status: 204 })
   })
 
-  it('isolates retries by owner lookup', async () => {
+  it('rejects extra keys when saving', async () => {
+    const save = vi.fn()
     expect(
-      await savePendingMerchantMemory('user-1', 'r-foreign', validPayload, {
-        findOwned: async () => null,
-        save: async () => true,
+      await savePendingMerchantMemory('user-1', 'r-1', {
+        ...validPayload,
+        amount: 1,
+      }, {
+        findOwned: async () => ({ status: 'confirmed' }),
+        save,
+      })
+    ).toMatchObject({ status: 400 })
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('isolates retries by owner lookup without writing', async () => {
+    const save = vi.fn()
+    const findOwned = vi.fn(
+      async (ownerId: string, receiptId: string) => {
+        expect(ownerId).toBe('user-a')
+        expect(receiptId).toBe('r-foreign')
+        return null
+      }
+    )
+    expect(
+      await savePendingMerchantMemory('user-a', 'r-foreign', validPayload, {
+        findOwned,
+        save,
+      })
+    ).toMatchObject({ status: 404 })
+    expect(findOwned).toHaveBeenCalledWith('user-a', 'r-foreign')
+    expect(save).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 when the confirmed row is not updated', async () => {
+    expect(
+      await savePendingMerchantMemory('user-1', 'r-1', validPayload, {
+        findOwned: async () => ({ status: 'confirmed' }),
+        save: async () => 'not_found',
       })
     ).toMatchObject({ status: 404 })
   })
 
-  it('clears pending state without requiring a row', async () => {
-    const clear = vi.fn(async () => true)
+  it('returns 503 when persistence is unavailable', async () => {
+    expect(
+      await savePendingMerchantMemory('user-1', 'r-1', validPayload, {
+        findOwned: async () => ({ status: 'confirmed' }),
+        save: async () => 'unavailable',
+      })
+    ).toMatchObject({ status: 503 })
+  })
+
+  it('returns 404 when clear does not reclaim a pending row', async () => {
+    expect(
+      await clearPendingMerchantMemory('user-1', 'r-1', {
+        clear: async () => 'not_found',
+      })
+    ).toMatchObject({ status: 404 })
+  })
+
+  it('returns 503 when clear fails', async () => {
+    expect(
+      await clearPendingMerchantMemory('user-1', 'r-1', {
+        clear: async () => 'unavailable',
+      })
+    ).toMatchObject({ status: 503 })
+  })
+
+  it('clears pending state when a row is reclaimed', async () => {
+    const clear = vi.fn(async () => 'saved' as const)
     expect(
       await clearPendingMerchantMemory('user-1', 'r-1', { clear })
     ).toMatchObject({ status: 204 })

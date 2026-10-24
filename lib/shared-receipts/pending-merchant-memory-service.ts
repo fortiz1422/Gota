@@ -7,6 +7,11 @@ import {
 
 type ServiceResponse = { status: number; body: unknown }
 
+export type PendingMerchantMemoryWriteOutcome =
+  | 'saved'
+  | 'not_found'
+  | 'unavailable'
+
 export async function listPendingMerchantMemoryRetries(
   userId: string | null,
   deps: {
@@ -39,7 +44,7 @@ export async function savePendingMerchantMemory(
       ownerId: string,
       id: string,
       payload: PendingMerchantMemory
-    ) => Promise<boolean>
+    ) => Promise<PendingMerchantMemoryWriteOutcome>
   }
 ): Promise<ServiceResponse> {
   if (!userId) return { status: 401, body: { error: 'Unauthorized' } }
@@ -61,11 +66,13 @@ export async function savePendingMerchantMemory(
       },
     }
   const saved = await deps.save(userId, receiptId, parsed.data)
-  if (!saved)
+  if (saved === 'unavailable')
     return {
       status: 503,
       body: { error: 'No pudimos guardar el reintento. Reintentá.' },
     }
+  if (saved === 'not_found')
+    return { status: 404, body: { error: 'Comprobante no encontrado.' } }
   return { status: 204, body: null }
 }
 
@@ -73,10 +80,20 @@ export async function clearPendingMerchantMemory(
   userId: string | null,
   receiptId: string,
   deps: {
-    clear: (ownerId: string, id: string) => Promise<boolean>
+    clear: (ownerId: string, id: string) => Promise<PendingMerchantMemoryWriteOutcome>
   }
 ): Promise<ServiceResponse> {
   if (!userId) return { status: 401, body: { error: 'Unauthorized' } }
-  await deps.clear(userId, receiptId)
+  const cleared = await deps.clear(userId, receiptId)
+  if (cleared === 'unavailable')
+    return {
+      status: 503,
+      body: { error: 'No pudimos limpiar el reintento. Reintentá.' },
+    }
+  if (cleared === 'not_found')
+    return {
+      status: 404,
+      body: { error: 'El reintento ya no está pendiente.' },
+    }
   return { status: 204, body: null }
 }

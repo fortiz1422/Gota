@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import type { Json } from '@/types/database'
 import { isMissingPendingMerchantMemoryColumn } from '@/lib/shared-receipts/pending-merchant-memory'
+import type { PendingMerchantMemoryWriteOutcome } from '@/lib/shared-receipts/pending-merchant-memory-service'
 import {
   clearPendingMerchantMemory,
   savePendingMerchantMemory,
@@ -17,6 +18,17 @@ async function authenticatedUserId() {
     data: { user },
   } = await session.auth.getUser()
   return user?.id ?? null
+}
+
+function writeOutcomeFromUpdate(
+  error: { code?: string; message?: string } | null,
+  data: { id: string } | null
+): PendingMerchantMemoryWriteOutcome {
+  if (error) {
+    if (isMissingPendingMerchantMemoryColumn(error)) return 'unavailable'
+    throw error
+  }
+  return data ? 'saved' : 'not_found'
 }
 
 export async function PUT(request: Request, { params }: Params) {
@@ -44,7 +56,7 @@ export async function PUT(request: Request, { params }: Params) {
       return data
     },
     save: async (ownerId, receiptId, payload) => {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('shared_receipts')
         .update({
           pending_merchant_memory: payload as Json,
@@ -53,11 +65,9 @@ export async function PUT(request: Request, { params }: Params) {
         .eq('id', receiptId)
         .eq('user_id', ownerId)
         .eq('status', 'confirmed')
-      if (error) {
-        if (isMissingPendingMerchantMemoryColumn(error)) return false
-        throw error
-      }
-      return true
+        .select('id')
+        .maybeSingle()
+      return writeOutcomeFromUpdate(error, data)
     },
   })
   if (result.status === 204)
@@ -79,7 +89,7 @@ export async function DELETE(_request: Request, { params }: Params) {
   const admin = createAdminClient()
   const result = await clearPendingMerchantMemory(userId, id, {
     clear: async (ownerId, receiptId) => {
-      const { error } = await admin
+      const { data, error } = await admin
         .from('shared_receipts')
         .update({
           pending_merchant_memory: null,
@@ -87,11 +97,10 @@ export async function DELETE(_request: Request, { params }: Params) {
         })
         .eq('id', receiptId)
         .eq('user_id', ownerId)
-      if (error) {
-        if (isMissingPendingMerchantMemoryColumn(error)) return false
-        throw error
-      }
-      return true
+        .not('pending_merchant_memory', 'is', null)
+        .select('id')
+        .maybeSingle()
+      return writeOutcomeFromUpdate(error, data)
     },
   })
   if (result.status === 204)

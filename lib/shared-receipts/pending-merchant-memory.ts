@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { CATEGORIES } from '@/lib/validation/schemas'
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import type { MerchantMemory } from '@/lib/counterparty-aliases/bulk-memory'
 import type { BulkReceiptDraft } from './bulk-review'
@@ -8,9 +9,9 @@ const AliasMatchSchema = z.object({
   match_type: z.enum(['exact', 'suggestion']),
   alias_id: z.string().min(1),
   profile_id: z.string().min(1),
-  alias_value: z.string(),
-  normalized_value: z.string(),
-  display_name: z.string(),
+  alias_value: z.string().max(160),
+  normalized_value: z.string().max(160),
+  display_name: z.string().max(100),
   default_category: z.string().nullable(),
 })
 
@@ -20,13 +21,13 @@ export const PendingMerchantMemorySchema = z
       .object({
         enabled: z.literal(true),
         mode: z.enum(['new', 'existing']),
-        name: z.string(),
+        name: z.string().trim().min(1).max(100),
         profileId: z.string(),
       })
       .strict(),
-    detectedAlias: z.string(),
-    category: z.string().min(1),
-    description: z.string(),
+    detectedAlias: z.string().trim().min(1).max(160),
+    category: z.enum(CATEGORIES),
+    description: z.string().trim().min(1).max(160),
     aliasMatch: AliasMatchSchema.nullable().optional(),
   })
   .strict()
@@ -42,8 +43,9 @@ export function parsePendingMerchantMemory(
 ): PendingMerchantMemory | null {
   let candidate = value
   if (candidate && typeof candidate === 'object' && 'receiptId' in candidate) {
-    const { receiptId: _ignored, ...rest } = candidate as Record<string, unknown>
-    candidate = rest
+    const envelope = { ...(candidate as Record<string, unknown>) }
+    delete envelope.receiptId
+    candidate = envelope
   }
   const parsed = PendingMerchantMemorySchema.safeParse(candidate)
   return parsed.success ? parsed.data : null
@@ -121,7 +123,9 @@ export function isMissingPendingMerchantMemoryColumn(error: {
   const message = (error.message ?? '').toLowerCase()
   return (
     error.code === '42703' ||
+    error.code === 'PGRST204' ||
     (message.includes('pending_merchant_memory') &&
-      message.includes('does not exist'))
+      (message.includes('does not exist') ||
+        message.includes('schema cache')))
   )
 }

@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   parsePendingMerchantMemory,
   pendingMerchantMemoryFromDraft,
+  PendingMerchantMemorySchema,
   retryDraftFromPending,
   isMissingPendingMerchantMemoryColumn,
 } from './pending-merchant-memory'
@@ -41,6 +42,14 @@ const draft = (): BulkReceiptDraft => ({
   selected: true,
 })
 
+const validMemory = () =>
+  pendingMerchantMemoryFromDraft(draft(), {
+    enabled: true,
+    mode: 'new',
+    name: 'Pollería',
+    profileId: '',
+  })!
+
 describe('pending merchant memory persistence', () => {
   it('serializes enabled memory from a confirmed draft', () => {
     const pending = pendingMerchantMemoryFromDraft(draft(), {
@@ -72,27 +81,30 @@ describe('pending merchant memory persistence', () => {
     expect(parsePendingMerchantMemory('not-json')).toBeNull()
   })
 
-  it('ignores receiptId envelopes from inbox responses', () => {
+  it('strips receiptId envelopes without keeping financial fields', () => {
+    const parsed = parsePendingMerchantMemory({
+      receiptId: 'r-1',
+      ...validMemory(),
+    })
+    expect(parsed).toEqual(validMemory())
+    expect(parsed).not.toHaveProperty('receiptId')
     expect(
-      parsePendingMerchantMemory({
-        receiptId: 'r-1',
-        ...pendingMerchantMemoryFromDraft(draft(), {
-          enabled: true,
-          mode: 'new',
-          name: 'Pollería',
-          profileId: '',
-        })!,
-      })
-    ).toBeTruthy()
+      parsePendingMerchantMemory({ ...validMemory(), amount: 999 })
+    ).toBeNull()
+  })
+
+  it('rejects jsonb with extra keys on read and save', () => {
+    expect(
+      parsePendingMerchantMemory({ ...validMemory(), amount: 1 })
+    ).toBeNull()
+    expect(
+      PendingMerchantMemorySchema.safeParse({ ...validMemory(), amount: 1 })
+        .success
+    ).toBe(false)
   })
 
   it('builds a retry draft that only drives alias memory', () => {
-    const pending = pendingMerchantMemoryFromDraft(draft(), {
-      enabled: true,
-      mode: 'new',
-      name: 'Pollería',
-      profileId: '',
-    })!
+    const pending = validMemory()
     const retry = retryDraftFromPending(pending, draft().receipt.id)
     expect(retry.confirmed).toBe(true)
     expect(retry.payload.amount).toBe(0)
@@ -104,6 +116,13 @@ describe('pending merchant memory persistence', () => {
       isMissingPendingMerchantMemoryColumn({
         code: '42703',
         message: 'column pending_merchant_memory does not exist',
+      })
+    ).toBe(true)
+    expect(
+      isMissingPendingMerchantMemoryColumn({
+        code: 'PGRST204',
+        message:
+          "Could not find the 'pending_merchant_memory' column of 'shared_receipts' in the schema cache",
       })
     ).toBe(true)
     expect(isMissingPendingMerchantMemoryColumn({ code: 'XX000' })).toBe(false)

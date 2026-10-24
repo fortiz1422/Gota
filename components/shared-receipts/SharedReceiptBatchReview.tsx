@@ -102,24 +102,30 @@ export function SharedReceiptBatchReview() {
   const persistPendingAliasRetry = async (
     receiptId: string,
     payload: PendingMerchantMemory
-  ) => {
+  ): Promise<boolean> => {
     try {
-      await fetch(SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId), {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
+      const response = await fetch(
+        SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
+      return response.ok
     } catch {
-      // Session state still exposes the retry when persistence is unavailable.
+      return false
     }
   }
-  const clearPendingAliasRetry = async (receiptId: string) => {
+  const claimPendingAliasRetry = async (receiptId: string): Promise<boolean> => {
     try {
-      await fetch(SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId), {
-        method: 'DELETE',
-      })
+      const response = await fetch(
+        SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId),
+        { method: 'DELETE' }
+      )
+      return response.ok
     } catch {
-      /* Clearing is best-effort once alias memory succeeded. */
+      return false
     }
   }
   useEffect(() => {
@@ -507,16 +513,22 @@ export function SharedReceiptBatchReview() {
         if (!draft || !choice?.enabled) continue
         try {
           const effective = await rememberMerchant(draft, choice)
-          await clearPendingAliasRetry(result.id)
           setMemory((current) => ({ ...current, [result.id]: effective }))
         } catch {
-          memoryFailureDrafts.current.set(result.id, draft)
-          setMemoryFailures((current) => [...new Set([...current, result.id])])
           const pending = pendingMerchantMemoryFromDraft(
             draft,
             memorySnapshot.current[result.id] ?? choice
           )
-          if (pending) void persistPendingAliasRetry(result.id, pending)
+          if (!pending) continue
+          const persisted = await persistPendingAliasRetry(result.id, pending)
+          if (!persisted) {
+            setError(
+              'El gasto quedó guardado, pero no pudimos conservar el reintento de alias. Reintentá desde la revisión individual.'
+            )
+            continue
+          }
+          memoryFailureDrafts.current.set(result.id, draft)
+          setMemoryFailures((current) => [...new Set([...current, result.id])])
         }
       }
     } catch (reason) {
@@ -1015,24 +1027,40 @@ export function SharedReceiptBatchReview() {
               type="button"
               className="text-primary mt-1 min-h-11 font-semibold"
               onClick={async () => {
+                if (submitLock.current || busy) return
                 const draft = memoryFailureDrafts.current.get(id)
                 if (!draft || !memory[id]) return
+                submitLock.current = true
                 setBusy(true)
+                setError(null)
                 try {
+                  if (!(await claimPendingAliasRetry(id))) {
+                    setError(
+                      'Otro reintento ya está en curso o el alias ya se guardó.'
+                    )
+                    return
+                  }
                   const effective = await rememberMerchant(draft, memory[id])
                   setMemory((current) => ({ ...current, [id]: effective }))
                   memoryFailureDrafts.current.delete(id)
                   setMemoryFailures((current) =>
                     current.filter((value) => value !== id)
                   )
-                  await clearPendingAliasRetry(id)
                 } catch {
                   const pending = pendingMerchantMemoryFromDraft(
                     draft,
                     memorySnapshot.current[id] ?? memory[id]
                   )
-                  if (pending) void persistPendingAliasRetry(id, pending)
+                  if (pending) {
+                    const restored = await persistPendingAliasRetry(id, pending)
+                    if (!restored) {
+                      setError(
+                        'No pudimos recordar el comercio ni conservar el reintento. Reintentá.'
+                      )
+                    }
+                  }
                 } finally {
+                  submitLock.current = false
                   setBusy(false)
                 }
               }}
