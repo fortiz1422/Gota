@@ -13,6 +13,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
+| MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | El contexto del reintento de alias es solo de sesión. | Tras recargar la bandeja, el reintento de alias sigue disponible sin reenviar el gasto. |
 | G03-B | Completar recuperación con checkpoints (depende de G03-A) | Volver tras días sin reconstruir toda la cola. | 1) Retomar saldos sin reconstruir la cola. 2) Casos determinísticos prueban cero doble impacto. |
 
 ## Ideas
@@ -25,7 +26,6 @@ No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la co
 | 1 | MP-15 | Cambios tardíos, anulaciones y devoluciones en MP | La consulta por fecha de creación no recupera cambios de estado de pagos viejos. | 1) Estrategia de reconciliación definida. 2) Tests determinísticos de devolución y anulación. 3) Habilitar solo tras pasar ambos. | P0 |
 | 1 | MP-16 | Despacho para múltiples conexiones de MP | El dispatcher procesa una conexión por invocación; hoy es piloto del propietario. | 1) Cada conexión activa se actualiza a diario. 2) Conexión ocupada no bloquea a las demás. Resolver antes de ampliar usuarios. | P0 |
 | 2 | MODO-03 | Recorrido real Shortcut → recepción → extracción → revisión | Lo validado es con APIs sintéticas, no con comprobantes reales (acción de Facundo con datos reales). | 1) Recorrido completo con comprobantes reales. 2) Reintentos y errores parciales comprobados. 3) Confirmación solo con autorización. | P0 |
-| 2 | MODO-04 | Persistir fallas de memoria de comercio tras cerrar o recargar | El contexto del reintento de alias es solo de sesión. | Tras recargar la bandeja, el reintento de alias sigue disponible sin reenviar el gasto. | P1 |
 | 2 | MODO-05 | Medir revisión evitada, correcciones y errores críticos del lote | No hay tasa de éxito ni umbral validado. | 1) Métricas definidas y registradas. 2) Reporte con muestra y criterios fijados antes de mirar resultados. | P1 |
 | 2 | MODO-06 | Deduplicación entre MODO, MP, carga manual y extractos | Hoy es parcial y conservadora. | 1) Importe y fecha similares generan candidato, nunca fusión automática. 2) Tests entre las cuatro fuentes. | P1 |
 | 4 | G05-B | Asesor: preguntas sobre datos registrados (depende de G05-A) | Responder con evidencia sin inventar certeza. | 1) Respuestas iguales al motor, con período, moneda, evidencia y límites. 2) Aislamiento por usuario. 3) Falta de datos o error nunca se convierte en cero. | P1 |

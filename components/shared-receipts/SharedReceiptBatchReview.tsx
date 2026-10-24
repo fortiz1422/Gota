@@ -19,11 +19,18 @@ import {
 } from '@/lib/shared-receipts/bulk-review'
 import {
   SHARED_RECEIPT_ROUTES,
+  normalizePendingMerchantMemoryRetries,
   normalizeReceiptResponse,
   normalizeReceiptsResponse,
   requireReferenceArray,
   invalidateAfterSharedReceiptConfirmation,
 } from '@/lib/shared-receipts-ui'
+import {
+  parsePendingMerchantMemory,
+  pendingMerchantMemoryFromDraft,
+  retryDraftFromPending,
+  type PendingMerchantMemory,
+} from '@/lib/shared-receipts/pending-merchant-memory'
 import { fetchPossibleExpenseDuplicates } from '@/lib/expense-duplicates'
 import {
   merchantMemoryError,
@@ -90,6 +97,67 @@ export function SharedReceiptBatchReview() {
   const [revision, setRevision] = useState(0)
   const duplicateChecks = useRef(new Map<string, string>())
   const submitLock = useRef(false)
+  const memorySnapshot = useRef<Record<string, MerchantMemory>>({})
+
+  const persistPendingAliasRetry = async (
+    receiptId: string,
+    payload: PendingMerchantMemory
+  ): Promise<boolean> => {
+    try {
+      const response = await fetch(
+        SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId),
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        }
+      )
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+  const claimPendingAliasRetry = async (receiptId: string): Promise<boolean> => {
+    try {
+      const response = await fetch(
+        SHARED_RECEIPT_ROUTES.pendingMerchantMemory(receiptId),
+        { method: 'DELETE' }
+      )
+      return response.ok
+    } catch {
+      return false
+    }
+  }
+  useEffect(() => {
+    memorySnapshot.current = memory
+  }, [memory])
+
+  const hydratePendingAliasRetries = (
+    retries: ReturnType<typeof normalizePendingMerchantMemoryRetries>
+  ) => {
+    if (!retries.length) return
+    const parsed = retries
+      .map((retry) => {
+        const pending = parsePendingMerchantMemory(retry)
+        return pending ? { receiptId: retry.receiptId, pending } : null
+      })
+      .filter((row): row is NonNullable<typeof row> => row !== null)
+    for (const retry of parsed) {
+      memoryFailureDrafts.current.set(
+        retry.receiptId,
+        retryDraftFromPending(retry.pending, retry.receiptId)
+      )
+      memorySnapshot.current[retry.receiptId] = retry.pending.memory
+    }
+    setMemory((current) => {
+      const next = { ...current }
+      for (const retry of parsed) next[retry.receiptId] = retry.pending.memory
+      return next
+    })
+    setMemoryFailures((current) => [
+      ...new Set([...current, ...parsed.map((retry) => retry.receiptId)]),
+    ])
+  }
 
   useEffect(() => {
     const controller = new AbortController()
@@ -141,6 +209,7 @@ export function SharedReceiptBatchReview() {
         ).filter((c) => !c.archived)
         setAccounts(accountList)
         setCards(cardList)
+        hydratePendingAliasRetries(normalizePendingMerchantMemoryRetries(inbox))
         const summaries = normalizeReceiptsResponse(inbox)
         const batch = summaries.slice(0, BULK_RECEIPT_LIMIT)
         setRemainingCount(Math.max(0, summaries.length - batch.length))
@@ -351,7 +420,8 @@ export function SharedReceiptBatchReview() {
   const rememberMerchant = async (
     draft: BulkReceiptDraft,
     choice: MerchantMemory
-  ) => {
+  ): Promise<MerchantMemory> => {
+    let effective = choice
     await saveBulkMerchantMemory({
       memory: choice,
       detectedAlias:
@@ -361,10 +431,15 @@ export function SharedReceiptBatchReview() {
       category: draft.payload.category,
       match: draft.receipt.alias_match,
       onProfileCreated: (profileId) => {
-        choice = { ...choice, mode: 'existing', profileId }
-        setMemory((current) => ({ ...current, [draft.receipt.id]: choice }))
+        effective = { ...effective, mode: 'existing', profileId }
+        memorySnapshot.current[draft.receipt.id] = effective
+        setMemory((current) => ({
+          ...current,
+          [draft.receipt.id]: effective,
+        }))
       },
     })
+    return effective
   }
   const confirm = async () => {
     if (submitLock.current || !selected.length) return
@@ -437,8 +512,21 @@ export function SharedReceiptBatchReview() {
         const choice = memory[result.id]
         if (!draft || !choice?.enabled) continue
         try {
-          await rememberMerchant(draft, choice)
+          const effective = await rememberMerchant(draft, choice)
+          setMemory((current) => ({ ...current, [result.id]: effective }))
         } catch {
+          const pending = pendingMerchantMemoryFromDraft(
+            draft,
+            memorySnapshot.current[result.id] ?? choice
+          )
+          if (!pending) continue
+          const persisted = await persistPendingAliasRetry(result.id, pending)
+          if (!persisted) {
+            setError(
+              'El gasto quedó guardado, pero no pudimos conservar el reintento de alias. Reintentá desde la revisión individual.'
+            )
+            continue
+          }
           memoryFailureDrafts.current.set(result.id, draft)
           setMemoryFailures((current) => [...new Set([...current, result.id])])
         }
@@ -939,18 +1027,40 @@ export function SharedReceiptBatchReview() {
               type="button"
               className="text-primary mt-1 min-h-11 font-semibold"
               onClick={async () => {
+                if (submitLock.current || busy) return
                 const draft = memoryFailureDrafts.current.get(id)
                 if (!draft || !memory[id]) return
+                submitLock.current = true
                 setBusy(true)
+                setError(null)
                 try {
-                  await rememberMerchant(draft, memory[id])
+                  if (!(await claimPendingAliasRetry(id))) {
+                    setError(
+                      'Otro reintento ya está en curso o el alias ya se guardó.'
+                    )
+                    return
+                  }
+                  const effective = await rememberMerchant(draft, memory[id])
+                  setMemory((current) => ({ ...current, [id]: effective }))
                   memoryFailureDrafts.current.delete(id)
                   setMemoryFailures((current) =>
                     current.filter((value) => value !== id)
                   )
                 } catch {
-                  /* Keep the explicit retry visible. */
+                  const pending = pendingMerchantMemoryFromDraft(
+                    draft,
+                    memorySnapshot.current[id] ?? memory[id]
+                  )
+                  if (pending) {
+                    const restored = await persistPendingAliasRetry(id, pending)
+                    if (!restored) {
+                      setError(
+                        'No pudimos recordar el comercio ni conservar el reintento. Reintentá.'
+                      )
+                    }
+                  }
                 } finally {
+                  submitLock.current = false
                   setBusy(false)
                 }
               }}
