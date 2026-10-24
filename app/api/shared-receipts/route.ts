@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 import { createClient } from '@/lib/supabase/server'
 import { listSharedReceipts, type SharedReceiptRecord } from '@/lib/shared-receipts/operations'
+import { isMissingPendingMerchantMemoryColumn } from '@/lib/shared-receipts/pending-merchant-memory'
+import { listPendingMerchantMemoryRetries } from '@/lib/shared-receipts/pending-merchant-memory-service'
 
 export async function GET() {
   const session = await createClient()
@@ -27,5 +29,41 @@ export async function GET() {
       return (data ?? []) as unknown as SharedReceiptRecord[]
     },
   })
-  return NextResponse.json(result.body, { status: result.status, headers: { 'Cache-Control': 'private, no-store' } })
+  let retries: Awaited<ReturnType<typeof listPendingMerchantMemoryRetries>> = []
+  try {
+    retries = await listPendingMerchantMemoryRetries(user.id, {
+      listRows: async (userId) => {
+        const { data, error } = await admin
+          .from('shared_receipts')
+          .select('id,pending_merchant_memory')
+          .eq('user_id', userId)
+          .eq('status', 'confirmed')
+          .not('pending_merchant_memory', 'is', null)
+        if (error) {
+          if (isMissingPendingMerchantMemoryColumn(error)) return []
+          throw error
+        }
+        return (data ?? []) as Array<{
+          id: string
+          pending_merchant_memory: unknown
+        }>
+      },
+    })
+  } catch (error) {
+    if (
+      error &&
+      typeof error === 'object' &&
+      isMissingPendingMerchantMemoryColumn(
+        error as { code?: string; message?: string }
+      )
+    ) {
+      retries = []
+    } else {
+      throw error
+    }
+  }
+  return NextResponse.json(
+    { ...(result.body as object), pendingMerchantMemoryRetries: retries },
+    { status: result.status, headers: { 'Cache-Control': 'private, no-store' } }
+  )
 }
