@@ -51,6 +51,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
   const [queue, setQueue] = useState<SharedReceiptSummary[]>([])
   const [previewReceipt, setPreviewReceipt] = useState<SharedReceiptSummary | null>(null)
+  const [previewImageError, setPreviewImageError] = useState(false)
+  const previewImageRequest = useRef(0)
   const pendingPreviewReviewId = useRef<string | null>(null)
   const pendingAutoPreviewId = useRef<string | null>(null)
   const loadRequestGuard = useRef(createReceiptRequestGuard(receiptId))
@@ -64,7 +66,30 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
   const batchSummary = summarizeReviewBatch(batchOutcomes)
 
+  const closeImage = () => {
+    previewImageRequest.current += 1
+    setPreviewReceipt(null)
+  }
+  const openImage = async (summary: SharedReceiptSummary) => {
+    const request = ++previewImageRequest.current
+    setPreviewImageError(false)
+    setPreviewReceipt(summary)
+    try {
+      // Signed image URLs last five minutes. Renew when opening, not only on page load.
+      const response = await fetch(SHARED_RECEIPT_ROUTES.apiDetail(summary.id), { cache: 'no-store' })
+      if (!response.ok) throw new Error('image_unavailable')
+      const fresh = normalizeReceiptResponse(await response.json())
+      if (request !== previewImageRequest.current) return
+      if (!fresh) throw new Error('image_unavailable')
+      setPreviewReceipt(fresh)
+      setPreviewImageError(!fresh.image_url)
+    } catch {
+      if (request === previewImageRequest.current) setPreviewImageError(true)
+    }
+  }
+
   const selectReceipt = useCallback((nextId: string) => {
+    previewImageRequest.current += 1
     if (nextId === activeReceiptId) return
     window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))
     loadRequestGuard.current.activate(nextId)
@@ -225,6 +250,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   analyzeRef.current = analyze
 
   const beginPreviewReview = (targetReceipt: SharedReceiptSummary) => {
+    previewImageRequest.current += 1
     pendingPreviewReviewId.current = targetReceipt.id
     if (targetReceipt.id !== activeReceiptId) {
       window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(targetReceipt.id))
@@ -315,7 +341,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
 
   return (
     <main className="mx-auto min-h-screen max-w-md bg-bg-primary px-5 pt-safe pb-tab-bar">
-      <header className="flex items-center justify-between py-4"><Link href="/" className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} />Bandeja</Link><Receipt size={22} className="text-primary" /></header>
+      <header className="flex items-center justify-between py-4"><Link href="/shared-receipts" className="inline-flex items-center gap-2 text-sm font-semibold text-primary"><ArrowLeft size={16} />Bandeja</Link><Receipt size={22} className="text-primary" /></header>
       {(queue.length > 1 || Boolean(queue.find((item) => item.id === activeReceiptId)?.image_url)) && <section aria-label="Comprobantes pendientes" className="mb-4">
         <div className="mb-2 flex items-center justify-between px-1">
           <p className="text-xs font-semibold text-text-primary">Comprobantes pendientes</p>
@@ -334,7 +360,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
                 ? <button
                     type="button"
                     aria-label={`Ampliar comprobante ${index + 1}`}
-                    onClick={() => setPreviewReceipt(receipt)}
+                    onClick={() => void openImage(receipt)}
                     className="block h-20 w-full bg-bg-tertiary bg-cover bg-center"
                     style={{ backgroundImage: `url(${receipt.image_url})` }}
                   />
@@ -373,9 +399,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         {receipt.image_url
           ? 'Abrí la imagen para comenzar o retomar la revisión.'
           : 'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'}
-        {!receipt.image_url && <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block w-full font-semibold text-primary disabled:opacity-50">
+        {receipt.image_unavailable && <p role="status" className="mt-2 text-warning">No pudimos abrir la imagen. Podés revisar los datos guardados. <button type="button" onClick={() => void load()} className="min-h-11 font-semibold underline">Reintentar imagen</button></p>}
+        <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block min-h-11 w-full font-semibold text-primary disabled:opacity-50">
           {analyzing ? 'Analizando…' : 'Revisar comprobante'}
-        </button>}
+        </button>
       </section>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
@@ -383,16 +410,17 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       {error && !previewReceipt && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
       <button type="button" onClick={() => void dismiss()} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
 
-      {previewReceipt?.image_url && <Modal open onClose={() => setPreviewReceipt(null)}>
+      {previewReceipt && <Modal open onClose={closeImage}>
         <section role="dialog" aria-modal="true" aria-labelledby="receipt-image-preview-title">
           <div className="flex items-center justify-between gap-3">
             <h2 id="receipt-image-preview-title" className="text-base font-bold text-text-primary">Vista completa del comprobante</h2>
-            <button type="button" aria-label="Cerrar vista" onClick={() => setPreviewReceipt(null)} className="flex size-10 items-center justify-center rounded-full text-text-secondary hover:bg-bg-tertiary"><X size={20} /></button>
+            <button type="button" aria-label="Cerrar vista" onClick={closeImage} className="flex size-10 items-center justify-center rounded-full text-text-secondary hover:bg-bg-tertiary"><X size={20} /></button>
           </div>
           <div className="mt-4 flex max-h-[62dvh] items-center justify-center overflow-hidden rounded-input bg-bg-tertiary">
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={previewReceipt.image_url} alt="Comprobante ampliado" className="max-h-[62dvh] w-full object-contain" />
+            {previewReceipt.image_url && !previewImageError && <img src={previewReceipt.image_url} onError={() => setPreviewImageError(true)} alt="Comprobante ampliado" className="max-h-[62dvh] w-full object-contain" />}
           </div>
+          {previewImageError && <p role="status" className="mt-3 text-sm text-warning">No pudimos abrir la imagen. <button type="button" onClick={() => void openImage(previewReceipt)} className="min-h-11 font-semibold underline">Reintentar imagen</button>. Podés continuar con la revisión.</p>}
           <button
             type="button"
             onClick={() => beginPreviewReview(previewReceipt)}

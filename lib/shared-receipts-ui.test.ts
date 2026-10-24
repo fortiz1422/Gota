@@ -103,7 +103,7 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).toContain('if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)')
     expect(review).not.toContain('shouldAutoPreview && loadedReceipt && !restoredAnalysis) void analyzeRef.current')
     expect(review).toContain("'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'")
-    expect(review).toContain('{!receipt.image_url && <button type="button" onClick={() => beginPreviewReview(receipt)}')
+    expect(review).toContain('<button type="button" onClick={() => beginPreviewReview(receipt)}')
     expect(review).toContain("? 'Abrí la imagen para comenzar o retomar la revisión.'")
     expect(review).toContain("window.history.replaceState(null, '', SHARED_RECEIPT_ROUTES.review(nextId))")
     expect(review).toContain('selectReceipt(nextId)')
@@ -131,7 +131,7 @@ describe('iOS Shortcut receipt UI contract', () => {
     expect(review).not.toContain('Revisión pendiente')
     expect(review).not.toContain('Analizar comprobante')
     expect(review.match(/Revisar este comprobante/g)).toHaveLength(1)
-    expect(review).toContain('setPreviewReceipt(receipt)')
+    expect(review).toContain('onClick={() => void openImage(receipt)}')
     expect(review).toContain('de {queuePosition.total}')
   })
 

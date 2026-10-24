@@ -581,8 +581,8 @@ export function DashboardShell({
     requestAssistantOpen({ question })
   }
 
-  const openSharedReceiptFromSignals = (receipt: SharedReceiptSummary) => {
-    router.push(`/shared-receipts/${encodeURIComponent(receipt.id)}`)
+  const openSharedReceiptFromSignals = () => {
+    router.push('/shared-receipts')
   }
 
   return (

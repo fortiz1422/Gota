@@ -995,6 +995,7 @@ export function SharedReceiptBatchReview() {
             Podés editar los ya leídos. No hace falta abrir cada imagen.
           </p>
         )}
+        {!loading && live.length > 0 && <p className="text-text-secondary mt-2 text-xs leading-5">Un alias exacto usa la categoría que guardaste. Una regla verificada aplica solo a comercios específicos. Las demás categorías son sugerencias y requieren tu revisión; la confianza del lector no garantiza la categoría.</p>}
         {error && (
           <p
             role="alert"

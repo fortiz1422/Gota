@@ -11,7 +11,8 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| MODO-07 | Acceso al lote y revisión sin depender de imagen (autorizado por Facundo en chat, 24/10/2026) | La campana abre el flujo anterior; firma de imagen no debe bloquear los datos. | Campana a bandeja de lotes; error de imagen aislado; origen de categoría explícito; pruebas de regresión. |
+| MP-19 | Completar movimientos MP en lote (autorizado por Facundo en chat, 24/10/2026) | Evitar repetir descripción, categoría y tarjeta en decenas de formularios. | Selección explícita hasta 20, edición común, tarjeta por evidencia, preview, endpoint canónico y recuperación parcial sin reenvío automático; QA con datos sintéticos. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).

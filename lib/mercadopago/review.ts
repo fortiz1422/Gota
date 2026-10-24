@@ -31,8 +31,8 @@ export function getMercadoPagoDisplayAmount(movement: MercadoPagoMovement) {
   return movement.balanceImpact.amount
 }
 export function getDisplayExpenseDescription(movement: MercadoPagoMovement) {
-  const description = movement.description ?? ''
-  if (/^Producto genérico/.test(description) && movement.statementDescriptor) return movement.statementDescriptor.replace(/^MERPAGO\*/i, '').trim() || description
+  const description = movement.description?.trim() ?? ''
+  if ((!description || /^Producto genérico/i.test(description)) && movement.statementDescriptor) return movement.statementDescriptor.replace(/^MERPAGO\*/i, '').trim() || description
   return description
 }
 export function getInitialExpenseDescription(movement: MercadoPagoMovement) { return getDisplayExpenseDescription(movement) }

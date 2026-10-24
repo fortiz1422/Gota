@@ -25,7 +25,7 @@ describe('shared receipts in Signals', () => {
     }))
 
     expect(html).toContain('1 comprobante pendiente')
-    expect(html).toContain('Revisar propuesta')
+    expect(html).toContain('Revisar comprobantes en lote')
     expect(html).not.toContain('Todo tranquilo')
   })
 
@@ -106,6 +106,6 @@ describe('shared receipts in Signals', () => {
 
     expect(dashboard).not.toContain('<SharedReceiptsInboxCard />')
     expect(dashboard).toContain('pendingReceipts={pendingReceipts}')
-    expect(dashboard).toContain("router.push(`/shared-receipts/${encodeURIComponent(receipt.id)}`)")
+    expect(dashboard).toContain("router.push('/shared-receipts')")
   })
 })

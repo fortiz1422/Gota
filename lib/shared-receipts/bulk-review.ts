@@ -256,6 +256,7 @@ export function categoryOriginLabel(draft: BulkReceiptDraft): string {
   if (draft.categoryOrigin === 'user') return 'Categoría elegida por vos'
   if (draft.categoryOrigin === 'alias')
     return `Alias identificado: ${draft.receipt.alias_match?.display_name ?? ''}`
+  if (draft.categoryOrigin === 'rule') return 'Categoría por regla verificada'
   return draft.receipt.alias_match?.match_type === 'suggestion'
     ? `Alias sugerido: ${draft.receipt.alias_match.display_name} · requiere revisión`
     : draft.payload.category

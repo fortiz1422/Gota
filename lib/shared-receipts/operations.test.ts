@@ -43,6 +43,20 @@ describe('shared receipt inbox operations', () => {
     expect(response.body).toMatchObject({ receipt: { id: receipt.id, image_url: 'https://private.example/signed' } })
   })
 
+  it('keeps owned receipt data reviewable when signing its image fails, without exposing storage', async () => {
+    const result = await getSharedReceipt('user-1', receipt.id, {
+      findOwned: async () => ({ ...receipt, status: 'needs_review', parsed_payload: { amount: 100 } }),
+      signObject: async () => { throw new Error('private storage error') },
+    })
+    expect(result.status).toBe(200)
+    expect(result.body).toMatchObject({ receipt: { image_url: null, image_unavailable: true, parsed_payload: { amount: 100 } } })
+    expect(JSON.stringify(result.body)).not.toContain('storage_path')
+    expect(JSON.stringify(result.body)).not.toContain('private storage error')
+    const signObject = vi.fn()
+    expect((await getSharedReceipt('user-2', receipt.id, { findOwned: async () => null, signObject })).status).toBe(404)
+    expect(signObject).not.toHaveBeenCalled()
+  })
+
   it('dismisses the owner row before best-effort private object removal', async () => {
     const calls: string[] = []
     const response = await dismissSharedReceipt('user-1', receipt.id, {

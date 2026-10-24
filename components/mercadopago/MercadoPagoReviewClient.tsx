@@ -1,6 +1,7 @@
 'use client'
 
 import { MercadoPagoDuplicateReview, type MercadoPagoDuplicateChoice } from './MercadoPagoDuplicateReview'
+import { MercadoPagoBatchReview } from './MercadoPagoBatchReview'
 import { CATEGORIES } from '@/lib/validation/schemas'
 
 import Link from 'next/link'
@@ -188,6 +189,7 @@ export function MercadoPagoReviewInbox({ buckets, selectionMode = false, onEnter
 }
 
 export function MercadoPagoReviewClient() {
+  const [batchMovements, setBatchMovements] = useState<MercadoPagoMovement[] | null>(null)
   const [state, setState] = useState<State | null>(null)
   const [error, setError] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -502,6 +504,9 @@ export function MercadoPagoReviewClient() {
           </button>
         </div>
       )}
+
+      {!loading && !error && pendingMovements.length > 0 && <button type="button" onClick={() => setBatchMovements(pendingMovements)} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white">Completar en lote</button>}
+      {batchMovements && <MercadoPagoBatchReview movements={batchMovements} onClose={() => setBatchMovements(null)} onChanged={() => void load()} />}
 
       {!loading && !error && state && (
         <MercadoPagoReviewInbox

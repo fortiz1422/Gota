@@ -9,6 +9,9 @@ on:
       - 'components/shared-receipts/**'
       - 'e2e/receipts/**'
       - 'lib/mercadopago/**'
+      - 'components/mercadopago/**'
+      - 'app/ui-exploration/mercadopago-batch/**'
+      - 'app/ui-exploration/receipt-individual/**'
       - 'proxy.ts'
 
 permissions:
@@ -23,6 +26,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     env:
+      TZ: America/Argentina/Buenos_Aires
       NEXT_TELEMETRY_DISABLED: '1'
       GOTA_LOCAL_VERIFY: 'true'
       NEXT_PUBLIC_SUPABASE_URL: https://fixture.supabase.co
