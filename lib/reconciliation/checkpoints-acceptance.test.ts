@@ -222,7 +222,7 @@ describe('checkpoints de saldo', () => {
     expect(observedResidual(state, checkpoint)).toBe(-8_000_000)
     expect(observedResidual(state, checkpoint) / 100).toBe(-80_000)
     expect(balanceCorrection(state)).toBe(0)
-    expect(unexplained(state)).toBe(balanceCorrection(state))
+    expect(unexplained(state)).toBe(0)
     expect(pesos(state)).toBe(500_000)
   })
 
@@ -367,6 +367,7 @@ describe('checkpoints de saldo', () => {
     expect(again.adjustments[0].reversedAt).toBe(FRIDAY)
     expect(balanceCorrection(again)).toBe(-8_000_000)
     expect(pesos(again)).toBe(420_000)
+    expect(pesos(again, [30_000])).toBe(390_000)
   })
 
   it('caso f: ARS y USD no se mezclan y el período queda explícito', async () => {
@@ -492,11 +493,20 @@ describe('checkpoints de saldo', () => {
           {
             user_id: 'user',
             account_id: ACCOUNT,
+            amount: 1_000,
+            currency: 'ARS',
+            category: 'Supermercado',
+            payment_method: 'DEBIT',
+            date: '2026-10-25T02:59:59.000Z',
+          },
+          {
+            user_id: 'user',
+            account_id: ACCOUNT,
             amount: 99_999,
             currency: 'ARS',
             category: 'Supermercado',
             payment_method: 'DEBIT',
-            date: '2026-10-25T03:00:00.000Z',
+            date: '2026-10-25T04:00:00.000Z',
           },
         ],
       },
@@ -512,7 +522,7 @@ describe('checkpoints de saldo', () => {
       currency: 'USD',
     })
     expect(arsRows.map((row) => [row.id, row.saldo])).toEqual([
-      [ACCOUNT, 420_000],
+      [ACCOUNT, 419_000],
     ])
     expect(usdRows.map((row) => [row.id, row.saldo])).toEqual([[ACCOUNT, 80]])
   })
@@ -593,7 +603,7 @@ describe('checkpoints de saldo', () => {
         error: null,
       })
     )
-    await expect(readCorrections('user')).rejects.toThrow()
+    await expect(readCorrections('user')).rejects.toThrow(TypeError)
     admin.rpc.mockResolvedValue({ data: {}, error: null })
     await expect(ledgerSnapshot('user')).rejects.toThrow('ledger_unavailable')
     admin.rpc.mockResolvedValue({ data: null, error: { message: 'down' } })
