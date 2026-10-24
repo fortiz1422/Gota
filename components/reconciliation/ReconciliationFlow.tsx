@@ -6,8 +6,10 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowClockwise } from '@phosphor-icons/react'
 import {
   remaining,
-  observedResidual,
+  unpostedGap,
   checkpointDay,
+  balanceAfterReverse,
+  balanceAfterUnlink,
   type Workspace,
   type Draft,
 } from '@/lib/reconciliation/domain'
@@ -94,6 +96,7 @@ export function ReconciliationFlow({
     title: string
     description: string
     label: string
+    balanceBefore: number
     balanceAfter: number
     command: Omit<Command, 'requestId' | 'version' | 'fingerprint'>
     trigger: HTMLElement
@@ -241,6 +244,9 @@ export function ReconciliationFlow({
   const targetCheckpoint = adjustment
     ? data.state.checkpoints.find((c) => c.id === adjustment.checkpointId)
     : checkpoint
+  const gap = adjustment
+    ? remaining(data.state, adjustment)
+    : unpostedGap(data.state)
   const candidates = data.candidates.filter(
     (c) =>
       targetCheckpoint &&
@@ -248,12 +254,7 @@ export function ReconciliationFlow({
         ? Math.sign(c.effect ?? 0)
         : c.kind === 'income'
           ? 1
-          : -1) ===
-        Math.sign(
-          adjustment
-            ? remaining(data.state, adjustment)
-            : observedResidual(data.state, targetCheckpoint)
-        ) &&
+          : -1) === Math.sign(gap) &&
       c.date.slice(0, 10) <= checkpointDay(targetCheckpoint.observedAt) &&
       !targetCheckpoint.includedMovementIds.includes(
         `${c.kind ?? 'expense'}:${c.id}`
@@ -282,11 +283,6 @@ export function ReconciliationFlow({
         visitedAccounts
       )
     : null
-  const gap = adjustment
-    ? remaining(data.state, adjustment)
-    : checkpoint
-      ? observedResidual(data.state, checkpoint)
-      : 0
   const income = gap > 0
 
   return (
@@ -321,7 +317,7 @@ export function ReconciliationFlow({
           <dl className="space-y-2">
             <div className="flex justify-between gap-3">
               <dt>Saldo actual</dt>
-              <dd>{money(data.expected, currency)}</dd>
+              <dd>{money(confirmation.balanceBefore, currency)}</dd>
             </div>
             <div className="flex justify-between gap-3">
               <dt>Saldo después</dt>
@@ -401,14 +397,7 @@ export function ReconciliationFlow({
                   : 'Diferencia de saldo'}
               </p>
               <p className="type-hero text-text-primary mt-1">
-                {money(
-                  adjustment && isResolve
-                    ? remaining(data.state, adjustment)
-                    : checkpoint
-                      ? observedResidual(data.state, checkpoint)
-                      : 0,
-                  currency
-                )}
+                {money(gap, currency)}
               </p>
             </div>
             {!isResolve && checkpoint && (
@@ -738,7 +727,16 @@ export function ReconciliationFlow({
                               ? 'La transferencia y el vínculo de la otra cuenta se conservan.'
                               : 'El movimiento se conserva.',
                           label: 'Desvincular',
-                          balanceAfter: data.expected + r.effect,
+                          balanceBefore: r.adjustmentId.startsWith(
+                            'checkpoint:'
+                          )
+                            ? balanceAfterUnlink(data.expected, data.state, r)
+                            : data.expected,
+                          balanceAfter: balanceAfterUnlink(
+                            data.expected,
+                            data.state,
+                            r
+                          ),
                           command: { action: 'undo', targetId: r.id },
                           trigger: event.currentTarget,
                         })
@@ -813,7 +811,12 @@ export function ReconciliationFlow({
                                 title: '¿Revertir este ajuste?',
                                 description: `Se revierte el ajuste de ${money(a.amount, currency)}.`,
                                 label: 'Revertir',
-                                balanceAfter: data.expected - a.amount,
+                                balanceBefore: data.expected,
+                                balanceAfter: balanceAfterReverse(
+                                  data.expected,
+                                  data.state,
+                                  a.id
+                                ),
                                 command: { action: 'reverse', targetId: a.id },
                                 trigger: event.currentTarget,
                               })

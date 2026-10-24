@@ -1,7 +1,7 @@
 import {
   balanceCheckDue,
   remaining,
-  observedResidual,
+  unpostedGap,
   type Workspace,
 } from './domain'
 export function hasPendingExplanation(state: Workspace): boolean {
@@ -11,7 +11,7 @@ export function hasPendingExplanation(state: Workspace): boolean {
     !state.adjustments.some(
       (a) => a.checkpointId === checkpoint.id && !a.reversedAt
     ) &&
-    observedResidual(state, checkpoint) !== 0
+    unpostedGap(state) !== 0
   return Boolean(
     unadjusted ||
     state.adjustments.some(

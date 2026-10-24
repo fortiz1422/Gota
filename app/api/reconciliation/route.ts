@@ -12,7 +12,7 @@ import {
   moneyToMinor,
   checkpointDay,
   remaining,
-  observedResidual,
+  unpostedGap,
   type MovementEvidence,
 } from '@/lib/reconciliation/domain'
 import { dateInputToISO } from '@/lib/format'
@@ -70,6 +70,7 @@ async function context(request: Request) {
       userId: user.id,
       accountId,
       currency,
+      postedOnly: true,
     }),
   ])
   const after = await ledgerSnapshot(user.id)
@@ -427,14 +428,14 @@ export async function GET(request: Request) {
           !row.state.adjustments.some(
             (a) => a.checkpointId === cp.id && !a.reversedAt
           ) &&
-          observedResidual(row.state, cp) !== 0
+          unpostedGap(row.state) !== 0
         )
           targets.push({
             accountId: row.account_id,
             currency: row.currency,
             targetId: '',
             checkpointDay: checkpointDay(cp.observedAt),
-            amount: observedResidual(row.state, cp),
+            amount: unpostedGap(row.state),
           })
         return targets
       }),
