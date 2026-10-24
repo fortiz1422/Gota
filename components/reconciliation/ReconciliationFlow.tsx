@@ -6,10 +6,11 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, ArrowClockwise } from '@phosphor-icons/react'
 import {
   remaining,
-  unpostedGap,
+  openGap,
   checkpointDay,
   balanceAfterReverse,
   balanceAfterUnlink,
+  homeBalance,
   type Workspace,
   type Draft,
 } from '@/lib/reconciliation/domain'
@@ -246,7 +247,7 @@ export function ReconciliationFlow({
     : checkpoint
   const gap = adjustment
     ? remaining(data.state, adjustment)
-    : unpostedGap(data.state)
+    : openGap(data.state)
   const candidates = data.candidates.filter(
     (c) =>
       targetCheckpoint &&
@@ -727,11 +728,7 @@ export function ReconciliationFlow({
                               ? 'La transferencia y el vínculo de la otra cuenta se conservan.'
                               : 'El movimiento se conserva.',
                           label: 'Desvincular',
-                          balanceBefore: r.adjustmentId.startsWith(
-                            'checkpoint:'
-                          )
-                            ? balanceAfterUnlink(data.expected, data.state, r)
-                            : data.expected,
+                          balanceBefore: homeBalance(data.expected, data.state),
                           balanceAfter: balanceAfterUnlink(
                             data.expected,
                             data.state,
@@ -811,7 +808,10 @@ export function ReconciliationFlow({
                                 title: '¿Revertir este ajuste?',
                                 description: `Se revierte el ajuste de ${money(a.amount, currency)}.`,
                                 label: 'Revertir',
-                                balanceBefore: data.expected,
+                                balanceBefore: homeBalance(
+                                  data.expected,
+                                  data.state
+                                ),
                                 balanceAfter: balanceAfterReverse(
                                   data.expected,
                                   data.state,

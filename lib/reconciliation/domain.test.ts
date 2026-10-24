@@ -5,6 +5,7 @@ import {
   acceptAdjustment,
   resolveAdjustment,
   balanceCorrection,
+  liveCorrection,
   remaining,
   undoResolution,
   reverseAdjustment,
@@ -72,6 +73,7 @@ describe('reconciliation financial invariants', () => {
       -20000, -30000, -30000,
     ])
     expect(balanceCorrection(state)).toBe(0)
+    expect(liveCorrection(state)).toBe(-30000)
   })
   it('separates late evidence from new spending and preserves the residual', () => {
     const state = resolve()
