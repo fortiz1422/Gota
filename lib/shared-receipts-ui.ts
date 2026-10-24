@@ -8,6 +8,8 @@ export const SHARED_RECEIPT_ROUTES = {
   review: (id: string) => `/shared-receipts/${encodeURIComponent(id)}`,
   analyze: (id: string, retry = false) => `/api/shared-receipts/${encodeURIComponent(id)}/analyze${retry ? '?retry=true' : ''}`,
   confirm: (id: string) => `/api/shared-receipts/${encodeURIComponent(id)}/confirm`,
+  pendingMerchantMemory: (id: string) =>
+    `/api/shared-receipts/${encodeURIComponent(id)}/pending-merchant-memory`,
   dismiss: (id: string) => ({
     url: `/api/shared-receipts/${encodeURIComponent(id)}`,
     method: 'DELETE' as const,
@@ -161,6 +163,35 @@ export function extractCreatedDevice(value: unknown): { device: SharedReceiptDev
 
 export function normalizeReceiptsResponse(value: unknown): SharedReceiptSummary[] {
   return unwrapArray<SharedReceiptSummary>(value, 'receipts')
+}
+
+export interface SharedReceiptPendingMerchantMemoryRetry {
+  receiptId: string
+  memory: {
+    enabled: true
+    mode: 'new' | 'existing'
+    name: string
+    profileId: string
+  }
+  detectedAlias: string
+  category: string
+  description: string
+  aliasMatch?: CounterpartyAliasMatch | null
+}
+
+export function normalizePendingMerchantMemoryRetries(
+  value: unknown
+): SharedReceiptPendingMerchantMemoryRetry[] {
+  const rows = unwrapArray<SharedReceiptPendingMerchantMemoryRetry>(
+    value,
+    'pendingMerchantMemoryRetries'
+  )
+  return rows.filter(
+    (row) =>
+      typeof row.receiptId === 'string' &&
+      row.memory?.enabled === true &&
+      typeof row.description === 'string'
+  )
 }
 
 export function getNextPendingReceiptId(

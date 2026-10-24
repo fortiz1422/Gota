@@ -36,6 +36,7 @@ async function fixture(
   } = {}
 ) {
   const writes: Array<{ path: string; body: Record<string, unknown> }> = []
+  const pendingMerchantMemory = new Map<string, Record<string, unknown>>()
   const receipts = names.map((name, n) => ({
     id: id(n),
     status: options.received && n === 0 ? 'received' : 'needs_review',
@@ -101,8 +102,22 @@ async function fixture(
             status,
             created_at,
           })),
+          pendingMerchantMemoryRetries: [...pendingMerchantMemory.entries()].map(
+            ([receiptId, payload]) => ({ receiptId, ...payload })
+          ),
         },
       })
+    if (path.endsWith('/pending-merchant-memory')) {
+      const receiptId = path.split('/').at(-2)!
+      if (request.method() === 'PUT') {
+        pendingMerchantMemory.set(receiptId, body ?? {})
+        return route.fulfill({ status: 204, body: '' })
+      }
+      if (request.method() === 'DELETE') {
+        pendingMerchantMemory.delete(receiptId)
+        return route.fulfill({ status: 204, body: '' })
+      }
+    }
     if (path.endsWith('/analyze')) {
       receipts[0].status = 'needs_review'
       return route.fulfill({ json: { proposal: receipts[0].parsed_payload } })
@@ -292,6 +307,42 @@ test('existing merchant stays selected after category moves the row; alias failu
       writes.filter((w) => w.path.includes('/counterparty-profiles/')).length
     )
     .toBe(aliasWrites + 1)
+  expect(writes.filter((w) => w.path.endsWith('bulk-confirm'))).toHaveLength(1)
+})
+
+test('alias failure survives a full page reload without resending expenses', async ({
+  page,
+}) => {
+  const writes = await fixture(page, { aliasFail: true })
+  const first = page.locator(`[data-receipt-id="${id(0)}"]`)
+  await first.getByLabel('Recordar comercio', { exact: true }).check()
+  await first.getByLabel('Vincular a uno existente').check()
+  await first.getByLabel('Comercio guardado').selectOption('saved-profile')
+  await first
+    .getByRole('combobox', { name: 'Categoría', exact: true })
+    .selectOption('Alimentos')
+  await page.getByRole('button', { name: 'Confirmar los 11 listos' }).click()
+  await expect(
+    page.getByRole('button', { name: 'Reintentar solo el alias' })
+  ).toBeVisible()
+  await expect
+    .poll(() =>
+      writes.some((w) => w.path.endsWith('/pending-merchant-memory'))
+    )
+    .toBe(true)
+  await page.reload()
+  await expect(
+    page.getByRole('button', { name: 'Reintentar solo el alias' })
+  ).toBeVisible()
+  await expect(
+    page.getByText(/El gasto de Juliana Farías se guardó/)
+  ).toBeVisible()
+  await page.getByRole('button', { name: 'Reintentar solo el alias' }).click()
+  await expect
+    .poll(() =>
+      writes.filter((w) => w.path.includes('/counterparty-profiles/')).length
+    )
+    .toBeGreaterThan(0)
   expect(writes.filter((w) => w.path.endsWith('bulk-confirm'))).toHaveLength(1)
 })
 
