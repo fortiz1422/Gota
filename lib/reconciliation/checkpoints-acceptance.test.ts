@@ -2,14 +2,22 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import type { createClient } from '@/lib/supabase/server'
 import type { Account } from '@/types/database'
 import { buildLiveBalanceBreakdown } from '@/lib/live-balance'
-import { getCurrentBalanceBreakdown } from '@/lib/current-account-balance'
+import {
+  getBalanceForAccount,
+  getCurrentBalanceBreakdown,
+} from '@/lib/current-account-balance'
 import { applyCommand } from './commands'
 import {
   acceptAdjustment,
   addCheckpoint,
+  balanceAfterReverse,
+  balanceAfterUnlink,
   balanceCorrection,
   checkpointDay,
+  closeExplanation,
   emptyWorkspace,
+  homeBalance,
+  liveCorrection,
   moneyToMinor,
   observedResidual,
   remaining,
@@ -18,13 +26,14 @@ import {
   reverseAdjustment,
   undoResolution,
   unexplained,
+  unpostedGap,
   type MovementEvidence,
   type Workspace,
 } from './domain'
 import { reconciliationErrorMessage } from './errors'
 import { ledgerSnapshot, readCorrections } from './repository'
 import { nextReconciliationAccount } from './queue'
-import { balanceCheckTask } from './tasks'
+import { balanceCheckTask, hasPendingExplanation } from './tasks'
 
 const admin = vi.hoisted(() => ({
   from: vi.fn(),
@@ -119,7 +128,7 @@ function explain(state = publish()): Workspace {
 }
 
 function pesos(state: Workspace, expenses: number[] = []): number {
-  const correction = balanceCorrection(state) / 100
+  const correction = liveCorrection(state) / 100
   return buildLiveBalanceBreakdown({
     accounts: [bank(ACCOUNT, 'BBVA', 500_000, 200)],
     currency: 'ARS',
@@ -209,6 +218,64 @@ function supabase(options: {
   } as unknown as Awaited<ReturnType<typeof createClient>>
 }
 
+/** Same breakdown Home and POST /api/reconciliation use, including posted corrections. */
+async function apiLedger(
+  state: Workspace,
+  expenses: { id: string; amount: number; date: string }[]
+) {
+  vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+  admin.from.mockReturnValue(
+    thenable({
+      data: [{ account_id: ACCOUNT, currency: 'ARS', state }],
+      error: null,
+    })
+  )
+  const client = supabase({
+    rows: {
+      accounts: [
+        {
+          id: ACCOUNT,
+          user_id: 'user',
+          name: 'BBVA',
+          type: 'bank',
+          is_primary: true,
+          archived: false,
+          opening_balance_ars: 500_000,
+          opening_balance_usd: 200,
+        },
+      ],
+      expenses: expenses.map((expense) => ({
+        id: expense.id,
+        user_id: 'user',
+        account_id: ACCOUNT,
+        amount: expense.amount,
+        currency: 'ARS',
+        category: 'Comida',
+        payment_method: 'DEBIT',
+        date: expense.date,
+      })),
+      income_entries: [],
+      transfers: [],
+      yield_daily_entries: [],
+      instruments: [],
+    },
+  })
+  const params = { supabase: client, userId: 'user', currency: 'ARS' as const }
+  const [homeRows, postedRows] = await Promise.all([
+    getCurrentBalanceBreakdown(params),
+    getCurrentBalanceBreakdown({ ...params, postedOnly: true }),
+  ])
+  const home = getBalanceForAccount(homeRows, ACCOUNT)
+  const posted = getBalanceForAccount(postedRows, ACCOUNT)
+  if (home === null || posted === null) throw new Error('balance_missing')
+  return {
+    home,
+    posted,
+    homeMinor: moneyToMinor(home.toFixed(2)),
+    postedMinor: moneyToMinor(posted.toFixed(2)),
+  }
+}
+
 describe('checkpoints de saldo', () => {
   it('caso a: 500.000 contra 420.000 dejan 80.000 sin publicar', () => {
     const state = observe()
@@ -221,9 +288,11 @@ describe('checkpoints de saldo', () => {
     expect(checkpoint.delta).toBe(-8_000_000)
     expect(observedResidual(state, checkpoint)).toBe(-8_000_000)
     expect(observedResidual(state, checkpoint) / 100).toBe(-80_000)
+    expect(state.adjustments).toHaveLength(0)
     expect(balanceCorrection(state)).toBe(0)
-    expect(unexplained(state)).toBe(0)
-    expect(pesos(state)).toBe(500_000)
+    expect(unexplained(state)).toBe(-8_000_000)
+    expect(liveCorrection(state)).toBe(-8_000_000)
+    expect(pesos(state)).toBe(420_000)
   })
 
   it('caso b: un gasto previo de 30.000 baja lo pendiente a 50.000 sin segundo descuento', () => {
@@ -259,7 +328,7 @@ describe('checkpoints de saldo', () => {
     expect(pesos(alreadyInside)).toBe(420_000)
   })
 
-  it('caso c: resolver ahora deja 50.000 visibles y el saldo vivo en 470.000', () => {
+  it('G03-D/E: saldo vivo 420.000 y pendiente 50.000 antes y después de publicar', () => {
     const state = resolveObservation(observe(), {
       id: RES,
       movement: priorMovement(),
@@ -268,8 +337,10 @@ describe('checkpoints de saldo', () => {
     })
     expect(state.adjustments).toEqual([])
     expect(observedResidual(state, state.checkpoints[0]) / 100).toBe(-50_000)
+    expect(unexplained(state)).toBe(-5_000_000)
     expect(balanceCorrection(state)).toBe(0)
-    expect(pesos(state, [30_000])).toBe(470_000)
+    expect(liveCorrection(state)).toBe(-5_000_000)
+    expect(pesos(state, [30_000])).toBe(420_000)
     expect(
       balanceCheckTask(
         { id: ACCOUNT, name: 'BBVA' },
@@ -285,12 +356,15 @@ describe('checkpoints de saldo', () => {
       currentExpected: 47_000_000,
       now: OBSERVED,
     })
+    expect(unexplained(posted)).toBe(0)
     expect(balanceCorrection(posted) / 100).toBe(-50_000)
+    expect(liveCorrection(posted) / 100).toBe(-50_000)
+    expect(remaining(posted, posted.adjustments[0]) / 100).toBe(-50_000)
     expect(pesos(posted, [30_000])).toBe(420_000)
     expect(posted.resolutions).toHaveLength(1)
   })
 
-  it('caso d: un gasto posterior baja el saldo y after_checkpoint lo rechaza', () => {
+  it('caso c: un gasto posterior baja el saldo y after_checkpoint lo rechaza', () => {
     const state = explain()
     expect(() =>
       resolveAdjustment(state, {
@@ -314,12 +388,261 @@ describe('checkpoints de saldo', () => {
     expect(pesos(state, [30_000, 10_000])).toBe(410_000)
   })
 
+  it('unexplained distingue lo que falta publicar de la corrección ya publicada', async () => {
+    const open = observe()
+    expect(unexplained(open)).toBe(-8_000_000)
+    expect(balanceCorrection(open)).toBe(0)
+    const explained = resolveObservation(open, {
+      id: RES,
+      movement: priorMovement(),
+      now: OBSERVED,
+      confirmedIncludedInBalance: true,
+    })
+    expect(unexplained(explained)).toBe(-5_000_000)
+    expect(balanceCorrection(explained)).toBe(0)
+    const posted = publish()
+    expect(unexplained(posted)).toBe(0)
+    expect(balanceCorrection(posted)).toBe(-8_000_000)
+    expect(liveCorrection(posted)).toBe(balanceCorrection(posted))
+
+    vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+    const usd = addCheckpoint(emptyWorkspace(ACCOUNT, 'USD'), {
+      id: '30000000-0000-4000-8000-0000000000d1',
+      observedAt: OBSERVED,
+      expected: 20_000,
+      confirmed: 12_000,
+      includedMovementIds: [],
+    })
+    admin.from.mockReturnValue(
+      thenable({
+        data: [
+          { account_id: ACCOUNT, currency: 'ARS', state: open },
+          { account_id: ACCOUNT, currency: 'USD', state: usd },
+        ],
+        error: null,
+      })
+    )
+    await expect(readCorrections('user')).resolves.toEqual([
+      { account_id: ACCOUNT, currency: 'ARS', amount: -80_000 },
+      { account_id: ACCOUNT, currency: 'USD', amount: -80 },
+    ])
+    await expect(
+      readCorrections('user', { postedOnly: true })
+    ).resolves.toEqual([])
+    expect(pesos(open)).toBe(420_000)
+    expect(liveCorrection(usd)).toBe(-8_000)
+    expect(liveCorrection(open)).not.toBe(liveCorrection(usd))
+  })
+
+  it('G03-F: desvincular una resolución de checkpoint no mueve el saldo y el preview coincide', () => {
+    const linked = resolveObservation(observe(), {
+      id: RES,
+      movement: priorMovement(),
+      now: OBSERVED,
+      confirmedIncludedInBalance: true,
+    })
+    expect(linked.resolutions[0].adjustmentId).toBe(`checkpoint:${CP}`)
+    expect(pesos(linked, [30_000])).toBe(420_000)
+    const shown = moneyToMinor(pesos(linked, [30_000]).toFixed(2))
+    expect(balanceAfterUnlink(shown, linked, linked.resolutions[0])).toBe(shown)
+
+    const undone = undoResolution(linked, RES, FRIDAY)
+    expect(undone.resolutions[0].reversedAt).toBe(FRIDAY)
+    expect(unexplained(undone)).toBe(-5_000_000)
+    expect(unpostedGap(undone)).toBe(-5_000_000)
+    expect(balanceCorrection(undone)).toBe(0)
+    expect(liveCorrection(undone)).toBe(-5_000_000)
+    expect(pesos(undone, [30_000])).toBe(420_000)
+    expect(() =>
+      resolveObservation(undone, {
+        id: '30000000-0000-4000-8000-0000000000e8',
+        movement: priorMovement({ id: LATER_ID, effect: -8_000_000 }),
+        now: FRIDAY,
+        confirmedIncludedInBalance: true,
+      })
+    ).toThrow('effect_exceeds_gap')
+    const replaced = resolveObservation(undone, {
+      id: '30000000-0000-4000-8000-0000000000e9',
+      movement: priorMovement({
+        id: '20000000-0000-4000-8000-000000000050',
+        effect: -5_000_000,
+      }),
+      now: FRIDAY,
+      confirmedIncludedInBalance: true,
+    })
+    expect(unpostedGap(replaced)).toBe(0)
+    expect(pesos(replaced, [30_000, 50_000])).toBe(420_000)
+    const undoneHome = moneyToMinor(pesos(undone, [30_000]).toFixed(2))
+    expect(balanceAfterUnlink(undoneHome, undone, undone.resolutions[0])).toBe(
+      undoneHome
+    )
+
+    const posted = acceptAdjustment(undone, {
+      id: ADJ,
+      checkpointId: CP,
+      currentExpected: 47_000_000,
+      now: FRIDAY,
+    })
+    expect(posted.adjustments).toHaveLength(1)
+    expect(balanceCorrection(posted)).toBe(-5_000_000)
+    expect(unexplained(posted)).toBe(0)
+    expect(pesos(posted, [30_000])).toBe(420_000)
+    expect(posted.resolutions).toHaveLength(1)
+  })
+
+  it('el ledger de la API mantiene Home en 420.000 en los dos caminos', async () => {
+    const expense = { id: EXPENSE_ID, amount: 30_000, date: PRIOR }
+    const later = { id: LATER_ID, amount: 10_000, date: AFTER }
+    const explainedFirst = resolveObservation(observe(), {
+      id: RES,
+      movement: priorMovement(),
+      now: OBSERVED,
+      confirmedIncludedInBalance: true,
+    })
+    const adjustedFirst = explain()
+    const paths = [
+      {
+        name: 'explicar antes de ajustar',
+        open: explainedFirst,
+        closed: closeExplanation(
+          acceptAdjustment(explainedFirst, {
+            id: ADJ,
+            checkpointId: CP,
+            currentExpected: (await apiLedger(explainedFirst, [expense]))
+              .postedMinor,
+            now: OBSERVED,
+          }),
+          ADJ
+        ),
+      },
+      {
+        name: 'ajustar y después explicar',
+        open: adjustedFirst,
+        closed: closeExplanation(adjustedFirst, ADJ),
+      },
+    ]
+    for (const [index, path] of paths.entries()) {
+      const openLedger = await apiLedger(path.open, [expense])
+      expect(openLedger.home, path.name).toBe(420_000)
+      expect(homeBalance(openLedger.postedMinor, path.open)).toBe(
+        openLedger.homeMinor
+      )
+      const unlinked = undoResolution(path.open, RES, FRIDAY)
+      const unlinkedLedger = await apiLedger(unlinked, [expense])
+      expect(
+        balanceAfterUnlink(
+          openLedger.homeMinor,
+          path.open,
+          path.open.resolutions[0]
+        )
+      ).toBe(unlinkedLedger.homeMinor)
+      const withLater = await apiLedger(path.open, [expense, later])
+      const laterUnlinked = await apiLedger(unlinked, [expense, later])
+      expect(withLater.home, path.name).toBe(410_000)
+      expect(
+        balanceAfterUnlink(
+          withLater.homeMinor,
+          path.open,
+          path.open.resolutions[0]
+        )
+      ).toBe(laterUnlinked.homeMinor)
+      const laterMove = priorMovement({
+        id: LATER_ID,
+        effect: -1_000_000,
+        occurredAt: AFTER,
+      })
+      if (path.open.adjustments.length) {
+        expect(() =>
+          resolveAdjustment(path.open, {
+            id: '30000000-0000-4000-8000-0000000000e5',
+            adjustmentId: path.open.adjustments[0].id,
+            movement: laterMove,
+            now: AFTER,
+            confirmedIncludedInBalance: true,
+          })
+        ).toThrow('after_checkpoint')
+      } else {
+        expect(() =>
+          resolveObservation(path.open, {
+            id: '30000000-0000-4000-8000-0000000000e5',
+            movement: laterMove,
+            now: AFTER,
+            confirmedIncludedInBalance: true,
+          })
+        ).toThrow('after_checkpoint')
+      }
+
+      const closedLedger = await apiLedger(path.closed, [expense])
+      expect(closedLedger.home, path.name).toBe(420_000)
+      const bookMinor = moneyToMinor(
+        (closedLedger.posted - balanceCorrection(path.closed) / 100).toFixed(2)
+      )
+      const anchors = [closedLedger.postedMinor, bookMinor]
+      for (const [anchorIndex, anchor] of anchors.entries()) {
+        const again = applyCommand(
+          path.closed,
+          {
+            requestId: `30000000-0000-4000-8000-000000000c${index}${anchorIndex}`,
+            version: 1,
+            fingerprint: FP,
+            action: 'confirm',
+            amount: '420000.00',
+          },
+          { now: FRIDAY, expected: anchor, movementIds: [] }
+        )
+        const againLedger = await apiLedger(again, [expense])
+        expect(againLedger.home, path.name).toBe(420_000)
+        expect(homeBalance(againLedger.postedMinor, again)).toBe(
+          againLedger.homeMinor
+        )
+      }
+    }
+  })
+
+  it('desvincular un checkpoint al 100% deja seguir resolviendo o cerrar', () => {
+    const linked = resolveObservation(observe(), {
+      id: RES,
+      movement: priorMovement({ effect: -8_000_000 }),
+      now: OBSERVED,
+      confirmedIncludedInBalance: true,
+    })
+    expect(unpostedGap(linked)).toBe(0)
+    expect(pesos(linked, [80_000])).toBe(420_000)
+    const undone = undoResolution(linked, RES, FRIDAY)
+    expect(unpostedGap(undone)).toBe(0)
+    expect(hasPendingExplanation(undone)).toBe(true)
+    expect(pesos(undone, [80_000])).toBe(420_000)
+    const replaced = resolveObservation(undone, {
+      id: '30000000-0000-4000-8000-0000000000e4',
+      movement: priorMovement({
+        id: '20000000-0000-4000-8000-000000000080',
+        effect: -8_000_000,
+      }),
+      now: FRIDAY,
+      confirmedIncludedInBalance: true,
+    })
+    expect(pesos(replaced, [80_000, 80_000])).toBe(420_000)
+    const closed = acceptAdjustment(undone, {
+      id: '30000000-0000-4000-8000-0000000000a4',
+      checkpointId: CP,
+      currentExpected: 42_000_000,
+      now: FRIDAY,
+    })
+    expect(closed.step).toBe('resolved')
+    expect(hasPendingExplanation(closed)).toBe(false)
+    expect(balanceCorrection(closed)).toBe(0)
+    expect(pesos(closed, [80_000])).toBe(420_000)
+  })
+
   it('caso e: desvincular y revertir conservan el rastro y no acumulan', () => {
     const linked = explain()
     expect(() => reverseAdjustment(linked, ADJ, OBSERVED)).toThrow(
       'undo_resolutions_first'
     )
     expect(balanceCorrection(linked)).toBe(-5_000_000)
+    expect(balanceAfterUnlink(42_000_000, linked, linked.resolutions[0])).toBe(
+      39_000_000
+    )
 
     const undone = undoResolution(linked, RES, FRIDAY)
     expect(undone.resolutions).toHaveLength(1)
@@ -345,8 +668,10 @@ describe('checkpoints de saldo', () => {
     })
     expect(remaining(reversed, reversed.adjustments[0])).toBe(0)
     expect(balanceCorrection(reversed)).toBe(0)
+    expect(unexplained(reversed)).toBe(-8_000_000)
     expect(reversed.checkpoints[0].id).toBe(CP)
-    expect(pesos(reversed, [30_000])).toBe(470_000)
+    expect(balanceAfterReverse(39_000_000, undone, ADJ)).toBe(39_000_000)
+    expect(pesos(reversed, [30_000])).toBe(390_000)
     expect(() =>
       acceptAdjustment(reversed, {
         id: '30000000-0000-4000-8000-0000000000a8',

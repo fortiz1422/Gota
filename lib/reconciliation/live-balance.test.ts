@@ -6,8 +6,8 @@ import {
   addCheckpoint,
   acceptAdjustment,
   resolveAdjustment,
-  balanceCorrection,
   checkpointDay,
+  liveCorrection,
 } from './domain'
 const accounts = [
   {
@@ -82,7 +82,7 @@ describe('reconciliation in the actual live-balance primitive', () => {
       })
       return {
         account_id: accountId,
-        amount: balanceCorrection(resolved) / 100,
+        amount: liveCorrection(resolved) / 100,
       }
     }
     const corrections = [
@@ -98,11 +98,26 @@ describe('reconciliation in the actual live-balance primitive', () => {
     expect(rows.reduce((sum, row) => sum + row.saldo, 0)).toBe(1000)
   })
   it('keeps card payments and instrument capital separate from the correction', () => {
+    const observed = addCheckpoint(emptyWorkspace('bank', 'ARS'), {
+      id: 'cp-card',
+      observedAt: now,
+      expected: 100_000,
+      confirmed: 95_000,
+      includedMovementIds: [],
+    })
+    const posted = acceptAdjustment(observed, {
+      id: 'a-card',
+      checkpointId: 'cp-card',
+      currentExpected: 100_000,
+      now,
+    })
+    const correction = liveCorrection(posted) / 100
+    expect(correction).toBe(-50)
     const rows = buildLiveBalanceBreakdown({
       ...input,
       cardPayments: [{ account_id: 'bank', amount: 100 }],
       activeInstruments: [{ account_id: 'bank', amount: 200, currency: 'ARS' }],
-      reconciliationCorrections: [{ account_id: 'bank', amount: -50 }],
+      reconciliationCorrections: [{ account_id: 'bank', amount: correction }],
     })
     expect(rows[0].saldo).toBe(650)
     expect(

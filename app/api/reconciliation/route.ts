@@ -12,7 +12,7 @@ import {
   moneyToMinor,
   checkpointDay,
   remaining,
-  observedResidual,
+  unpostedGap,
   type MovementEvidence,
 } from '@/lib/reconciliation/domain'
 import { dateInputToISO } from '@/lib/format'
@@ -63,8 +63,15 @@ async function context(request: Request) {
     .single()
   if (error || !account) throw new Error('account_unavailable')
   const before = await ledgerSnapshot(user.id)
-  const [rows, balance] = await Promise.all([
+  const [rows, posted, home] = await Promise.all([
     readWorkspaces(user.id),
+    getCurrentAccountBalance({
+      supabase,
+      userId: user.id,
+      accountId,
+      currency,
+      postedOnly: true,
+    }),
     getCurrentAccountBalance({
       supabase,
       userId: user.id,
@@ -73,7 +80,11 @@ async function context(request: Request) {
     }),
   ])
   const after = await ledgerSnapshot(user.id)
-  if (before.fingerprint !== after.fingerprint || balance === null)
+  if (
+    before.fingerprint !== after.fingerprint ||
+    posted === null ||
+    home === null
+  )
     throw new Error('state_changed')
   const row = rows.find(
     (r) => r.account_id === accountId && r.currency === currency
@@ -88,7 +99,8 @@ async function context(request: Request) {
     snapshot: after,
     row,
     state: row?.state ?? emptyWorkspace(accountId, currency),
-    expected: moneyToMinor(balance.toFixed(2)),
+    expected: moneyToMinor(posted.toFixed(2)),
+    home: moneyToMinor(home.toFixed(2)),
   }
 }
 async function evidence(
@@ -395,6 +407,7 @@ export async function GET(request: Request) {
       state: ctx.state,
       version: ctx.row?.version ?? 0,
       expected: ctx.expected,
+      home: ctx.home,
       fingerprint: ctx.snapshot.fingerprint,
       queue,
       accounts: accounts.data ?? [],
@@ -427,14 +440,14 @@ export async function GET(request: Request) {
           !row.state.adjustments.some(
             (a) => a.checkpointId === cp.id && !a.reversedAt
           ) &&
-          observedResidual(row.state, cp) !== 0
+          unpostedGap(row.state) !== 0
         )
           targets.push({
             accountId: row.account_id,
             currency: row.currency,
             targetId: '',
             checkpointDay: checkpointDay(cp.observedAt),
-            amount: observedResidual(row.state, cp),
+            amount: unpostedGap(row.state),
           })
         return targets
       }),

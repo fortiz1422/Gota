@@ -1,15 +1,25 @@
 import { todayAR } from '@/lib/format'
-import { buildLiveBalanceBreakdown, type LiveBreakdownRow } from '@/lib/live-balance'
+import {
+  buildLiveBalanceBreakdown,
+  type LiveBreakdownRow,
+} from '@/lib/live-balance'
 import type { createClient } from '@/lib/supabase/server'
 import type { Currency } from '@/types/database'
 import { readCorrections } from '@/lib/reconciliation/repository'
 import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
 
-export function getBalanceForAccount(breakdown: LiveBreakdownRow[], accountId: string): number | null {
+export function getBalanceForAccount(
+  breakdown: LiveBreakdownRow[],
+  accountId: string
+): number | null {
   return breakdown.find((account) => account.id === accountId)?.saldo ?? null
 }
 
-export function hasSufficientFunds(availableBalance: number, requestedAmount: number, epsilon = 0.01): boolean {
+export function hasSufficientFunds(
+  availableBalance: number,
+  requestedAmount: number,
+  epsilon = 0.01
+): boolean {
   return requestedAmount <= availableBalance + epsilon
 }
 
@@ -17,6 +27,8 @@ export async function getCurrentBalanceBreakdown(params: {
   supabase: Awaited<ReturnType<typeof createClient>>
   userId: string
   currency: Currency
+  /** Ledger anchor for a new checkpoint. Home omits this and keeps the unpublished gap. */
+  postedOnly?: boolean
 }): Promise<LiveBreakdownRow[]> {
   const todayDate = todayAR()
   const timestampEnd = liveLedgerExclusiveEnd(todayDate)
@@ -60,7 +72,9 @@ export async function getCurrentBalanceBreakdown(params: {
       .eq('category', 'Pago de Tarjetas'),
     supabase
       .from('transfers')
-      .select('from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to')
+      .select(
+        'from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to'
+      )
       .eq('user_id', userId)
       .lte('date', todayDate),
     supabase
@@ -73,11 +87,15 @@ export async function getCurrentBalanceBreakdown(params: {
       .select('account_id, amount, currency')
       .eq('user_id', userId)
       .eq('status', 'active'),
-  ]).then(results => {
-    if (results.some(result => result.error)) throw new Error('balance_unavailable')
+  ]).then((results) => {
+    if (results.some((result) => result.error))
+      throw new Error('balance_unavailable')
     return results
   })
-  const corrections = await readCorrections(userId)
+  const corrections = await readCorrections(
+    userId,
+    params.postedOnly ? { postedOnly: true } : undefined
+  )
 
   const yieldTotals = sumYieldEntriesByAccount(yieldEntriesData ?? [])
 
@@ -90,18 +108,25 @@ export async function getCurrentBalanceBreakdown(params: {
     transfers: transfersData ?? [],
     yields: yieldTotals,
     activeInstruments: instrumentsData ?? [],
-    reconciliationCorrections: corrections.filter(row => row.currency === currency),
+    reconciliationCorrections: corrections.filter(
+      (row) => row.currency === currency
+    ),
   })
 }
 
 function sumYieldEntriesByAccount(
-  entries: { account_id: string; expected_amount: number | null; actual_amount: number | null }[],
+  entries: {
+    account_id: string
+    expected_amount: number | null
+    actual_amount: number | null
+  }[]
 ): { account_id: string; accumulated: number }[] {
   const totals = new Map<string, number>()
   for (const entry of entries) {
     totals.set(
       entry.account_id,
-      (totals.get(entry.account_id) ?? 0) + Number(entry.actual_amount ?? entry.expected_amount ?? 0),
+      (totals.get(entry.account_id) ?? 0) +
+        Number(entry.actual_amount ?? entry.expected_amount ?? 0)
     )
   }
   return [...totals.entries()].map(([account_id, accumulated]) => ({
@@ -115,11 +140,13 @@ export async function getCurrentAccountBalance(params: {
   userId: string
   accountId: string
   currency: Currency
+  postedOnly?: boolean
 }): Promise<number | null> {
   const breakdown = await getCurrentBalanceBreakdown({
     supabase: params.supabase,
     userId: params.userId,
     currency: params.currency,
+    postedOnly: params.postedOnly,
   })
 
   return getBalanceForAccount(breakdown, params.accountId)

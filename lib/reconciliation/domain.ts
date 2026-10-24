@@ -101,15 +101,174 @@ export function remaining(state: Workspace, adjustment: Adjustment): number {
         .reduce((s, r) => minor(s + r.effect), 0)
   )
 }
+/**
+ * Expenses linked to a checkpoint stay in the movement book, whether the link
+ * is `checkpoint:` or the published adjustment id, and whether it was later removed.
+ */
+function movementEffect(state: Workspace, checkpointId: string): number {
+  return state.resolutions.reduce((sum, resolution) => {
+    const onCheckpoint =
+      resolution.adjustmentId === `checkpoint:${checkpointId}`
+    const onItsAdjustment = state.adjustments.some(
+      (adjustment) =>
+        adjustment.id === resolution.adjustmentId &&
+        adjustment.checkpointId === checkpointId
+    )
+    return onCheckpoint || onItsAdjustment
+      ? minor(sum + resolution.effect)
+      : sum
+  }, 0)
+}
+/**
+ * A later checkpoint that repeats the previous movement book replaces that
+ * checkpoint's correction. Counting it again would discount the same gap twice.
+ */
+function supersededCheckpointIds(state: Workspace): Set<string> {
+  const ids = new Set<string>()
+  for (let index = 1; index < state.checkpoints.length; index++) {
+    const previous = state.checkpoints[index - 1]
+    const book = minor(previous.expected + movementEffect(state, previous.id))
+    if (state.checkpoints[index].expected === book) ids.add(previous.id)
+  }
+  return ids
+}
 export function balanceCorrection(state: Workspace): number {
+  const superseded = supersededCheckpointIds(state)
   return state.adjustments.reduce(
-    (sum, adjustment) => minor(sum + remaining(state, adjustment)),
+    (sum, adjustment) =>
+      superseded.has(adjustment.checkpointId)
+        ? sum
+        : minor(sum + remaining(state, adjustment)),
     0
   )
 }
+function resolutionEffect(
+  state: Workspace,
+  checkpointId: string,
+  includeReversed: boolean
+): number {
+  return state.resolutions
+    .filter(
+      (r) =>
+        r.adjustmentId === `checkpoint:${checkpointId}` &&
+        (includeReversed || !r.reversedAt)
+    )
+    .reduce((sum, r) => minor(sum + r.effect), 0)
+}
+/** Latest checkpoint gap that is not an open adjustment. Reversed links stay in the book. */
+function unpublishedGap(state: Workspace, includeReversed: boolean): number {
+  const checkpoint = state.checkpoints.at(-1)
+  if (
+    !checkpoint ||
+    state.adjustments.some(
+      (a) => a.checkpointId === checkpoint.id && !a.reversedAt
+    )
+  )
+    return 0
+  return minor(
+    checkpoint.delta - resolutionEffect(state, checkpoint.id, includeReversed)
+  )
+}
+/** Residual that acceptAdjustment would post. Reversed links stay in that amount. */
 export function unexplained(state: Workspace): number {
-  // Preserve signed residuals individually in detail; the account summary is net.
-  return balanceCorrection(state)
+  return unpublishedGap(state, true)
+}
+/** Unpublished gap that still moves money. Reversed links stay neutralized. */
+export function unpostedGap(state: Workspace): number {
+  return unpublishedGap(state, true)
+}
+/**
+ * Difference still offered to the user. A checkpoint link removed at 100% reopens
+ * the original gap without moving Home.
+ */
+export function openGap(state: Workspace): number {
+  const posted = unpostedGap(state)
+  if (posted !== 0) return posted
+  const checkpoint = state.checkpoints.at(-1)
+  if (!checkpoint || checkpoint.delta === 0) return 0
+  if (
+    state.adjustments.some(
+      (a) => a.checkpointId === checkpoint.id && !a.reversedAt
+    )
+  )
+    return 0
+  const historical = resolutionEffect(state, checkpoint.id, true)
+  const active = resolutionEffect(state, checkpoint.id, false)
+  if (
+    historical !== active &&
+    minor(checkpoint.delta - (historical - active)) === 0
+  )
+    return checkpoint.delta
+  return 0
+}
+/** Posted correction plus the book-neutral unpublished gap. Home adds this once. */
+export function liveCorrection(state: Workspace): number {
+  return minor(balanceCorrection(state) + unpublishedGap(state, true))
+}
+/**
+ * `postedMinor` is the anchor Home gets from posted corrections only.
+ * Adding the unpublished gap, without subtracting the correction twice, is Home.
+ */
+export function homeBalance(postedMinor: number, state: Workspace): number {
+  return minor(
+    minor(postedMinor) + liveCorrection(state) - balanceCorrection(state)
+  )
+}
+/** Home after a workspace change. Movements stay; only the live correction moves. */
+export function projectHome(
+  homeMinor: number,
+  before: Workspace,
+  after: Workspace
+): number {
+  return minor(
+    minor(homeMinor) + liveCorrection(after) - liveCorrection(before)
+  )
+}
+/**
+ * `homeMinor` is the balance Home shows now.
+ * Unlinking keeps the expense in the book, so Home moves only with the live correction.
+ */
+export function balanceAfterUnlink(
+  homeMinor: number,
+  state: Workspace,
+  resolution: Pick<Resolution, 'adjustmentId' | 'effect'>
+): number {
+  const index = state.resolutions.findIndex(
+    (item) =>
+      item.adjustmentId === resolution.adjustmentId &&
+      item.effect === resolution.effect &&
+      !item.reversedAt
+  )
+  const next: Workspace =
+    index < 0
+      ? state
+      : {
+          ...state,
+          resolutions: state.resolutions.map((item, itemIndex) =>
+            itemIndex === index
+              ? { ...item, reversedAt: item.compensatedAt }
+              : item
+          ),
+        }
+  return projectHome(homeMinor, state, next)
+}
+/** Reversing the posting returns the same confirmation to Home; it does not spend the gap twice. */
+export function balanceAfterReverse(
+  homeMinor: number,
+  state: Workspace,
+  adjustmentId: string
+): number {
+  const adjustment = state.adjustments.find(
+    (a) => a.id === adjustmentId && !a.reversedAt
+  )
+  if (!adjustment) throw new Error('adjustment_missing')
+  const next: Workspace = {
+    ...state,
+    adjustments: state.adjustments.map((a) =>
+      a.id === adjustmentId ? { ...a, reversedAt: adjustment.effectiveAt } : a
+    ),
+  }
+  return projectHome(homeMinor, state, next)
 }
 export function addCheckpoint(
   state: Workspace,
@@ -160,16 +319,32 @@ export function acceptAdjustment(
   )
     throw new Error('already_adjusted')
   // A balance is an observation, not a frozen current balance. Reconfirm after later activity.
-  const explainedEffect = state.resolutions
-    .filter(
-      (r) => r.adjustmentId === `checkpoint:${checkpoint.id}` && !r.reversedAt
-    )
-    .reduce((sum, r) => sum + r.effect, 0)
-  if (minor(input.currentExpected) !== checkpoint.expected + explainedEffect)
+  // Reversed checkpoint links remain in the ledger, so they still explain part of the gap.
+  const explainedEffect = resolutionEffect(state, checkpoint.id, true)
+  if (
+    minor(input.currentExpected) !==
+    minor(checkpoint.expected + explainedEffect)
+  )
     throw new Error('balance_changed')
-  const residual = checkpoint.delta - explainedEffect
-  if (residual === 0) throw new Error('no_difference')
+  const residual = minor(checkpoint.delta - explainedEffect)
   instant(input.now)
+  if (residual === 0) {
+    return {
+      ...state,
+      step: 'resolved',
+      adjustments: [
+        ...state.adjustments,
+        {
+          id: input.id,
+          checkpointId: checkpoint.id,
+          amount: 0,
+          effectiveAt: input.now,
+          manuallyClosed: true,
+          reversedAt: null,
+        },
+      ],
+    }
+  }
   return {
     ...state,
     step: 'resolve',
@@ -287,13 +462,20 @@ export function undoResolution(
     )
   )
     throw new Error('reverse_adjustment_first')
-  return {
+  const next: Workspace = {
     ...state,
     step: 'resolve',
     resolutions: state.resolutions.map((r) =>
       r.id === id ? { ...r, reversedAt: now } : r
     ),
   }
+  const checkpoint = next.checkpoints.at(-1)
+  const fullyNeutralized =
+    checkpoint &&
+    resolution.adjustmentId === `checkpoint:${checkpoint.id}` &&
+    checkpoint.delta !== 0 &&
+    unpostedGap(next) === 0
+  return fullyNeutralized ? { ...next, step: 'discrepancy' } : next
 }
 export function reverseAdjustment(
   state: Workspace,
@@ -328,14 +510,7 @@ export function observedResidual(
   state: Workspace,
   checkpoint: Checkpoint
 ): number {
-  return (
-    checkpoint.delta -
-    state.resolutions
-      .filter(
-        (r) => r.adjustmentId === `checkpoint:${checkpoint.id}` && !r.reversedAt
-      )
-      .reduce((sum, r) => sum + r.effect, 0)
-  )
+  return minor(checkpoint.delta - resolutionEffect(state, checkpoint.id, false))
 }
 export function resolveObservation(
   state: Workspace,
@@ -355,10 +530,17 @@ export function resolveObservation(
   )
     throw new Error('already_adjusted')
   const id = `checkpoint:${checkpoint.id}`
+  const historical = resolutionEffect(state, checkpoint.id, true)
+  const active = resolutionEffect(state, checkpoint.id, false)
+  const reversed = minor(historical - active)
+  const economic = minor(checkpoint.delta - reversed)
   const temporary: Adjustment = {
     id,
     checkpointId: checkpoint.id,
-    amount: checkpoint.delta,
+    amount:
+      economic === 0 && active === 0 && checkpoint.delta !== 0
+        ? checkpoint.delta
+        : economic,
     effectiveAt: input.now,
     manuallyClosed: false,
     reversedAt: null,

@@ -1,6 +1,6 @@
 import { createAdminClient } from '@/lib/supabase/admin'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import { balanceCorrection, type Workspace } from './domain'
+import { balanceCorrection, liveCorrection, type Workspace } from './domain'
 export type WorkspaceRow = {
   id: string
   user_id: string
@@ -33,14 +33,20 @@ export async function readReceipt(userId: string, requestId: string) {
   if (error) throw new Error('reconciliation_unavailable')
   return data as { intent_hash: string } | null
 }
-export async function readCorrections(userId: string) {
+export async function readCorrections(
+  userId: string,
+  options?: { postedOnly?: boolean }
+) {
   // Write rollout can be disabled; recognized money must never disappear on rollback.
   if (process.env.BALANCE_RECONCILIATION_SCHEMA_READY !== 'true') return []
   return (await readWorkspaces(userId))
     .map((row) => ({
       account_id: row.account_id,
       currency: row.currency,
-      amount: balanceCorrection(row.state) / 100,
+      amount:
+        (options?.postedOnly
+          ? balanceCorrection(row.state)
+          : liveCorrection(row.state)) / 100,
     }))
     .filter((row) => row.amount !== 0)
 }
