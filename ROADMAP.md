@@ -11,8 +11,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| MODO-07 | Acceso al lote y revisión sin depender de imagen (autorizado por Facundo en chat, 24/10/2026) | La campana abre el flujo anterior; firma de imagen no debe bloquear los datos. | Campana a bandeja de lotes; error de imagen aislado; origen de categoría explícito; pruebas de regresión. |
-| MP-19 | Completar movimientos MP en lote (autorizado por Facundo en chat, 24/10/2026) | Evitar repetir descripción, categoría y tarjeta en decenas de formularios. | Selección explícita hasta 20, edición común, tarjeta por evidencia, preview, endpoint canónico y recuperación parcial sin reenvío automático; QA con datos sintéticos. |
+| (vacío) | | | |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -45,6 +44,8 @@ Publicado en main. «Listo» acá significa código publicado y CI verde; la val
 
 | ID | Título | Evidencia | Límite |
 |---|---|---|---|
+| MP-19 | Completar movimientos MP en lote | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`, 2.097 tests, 48 Playwright, TypeScript, build y SQL aprobados) | Selección humana hasta 20; sin reglas persistentes nuevas ni registro automático. |
+| MODO-07 | Acceso al lote y revisión sin depender de imagen | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`) | Campana a lotes; renovación de imagen y fallo de firma aislado; causa real en iPhone pendiente de verificar. |
 | PR 141 | Rediseño de formularios de ajustes y planificación | https://github.com/fortiz1422/Gota/pull/141 (mergeado 17/10/2026) | Home, análisis principal y movimientos quedaron fuera. |
 | PR 143 | Baseline de formularios | https://github.com/fortiz1422/Gota/pull/143 | No es una auditoría nueva de todas las pantallas. |
 | PR 145 | Revisión de comprobantes en lote, reintento de alias y 2 correcciones de MP (páginas repetidas, acceso del cron de reconciliación) | https://github.com/fortiz1422/Gota/pull/145 (commit `995dd32`) | No es registro automático ni extracción real validada. |
