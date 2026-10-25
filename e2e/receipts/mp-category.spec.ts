@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-async function fixture(page: Page, delayed = false) {
+async function fixture(page: Page, delayed = false, savedAlias = false) {
   const requests: string[][] = []
   const writes: string[] = []
   let release = () => {}
@@ -66,8 +66,18 @@ async function fixture(page: Page, delayed = false) {
           suggestions: body.descriptions.map((description: string) => ({
             description,
             category: 'Auto/Combustible',
-            origin: 'parser',
-            aliasMatch: null,
+            origin: savedAlias ? 'saved_alias' : 'parser',
+            aliasMatch: savedAlias
+              ? {
+                  alias_id: 'alias',
+                  profile_id: 'profile',
+                  alias_value: description,
+                  normalized_value: description.toLowerCase(),
+                  display_name: 'Estación guardada',
+                  default_category: 'Auto/Combustible',
+                  match_type: 'exact',
+                }
+              : null,
           })),
         },
       })
@@ -144,4 +154,28 @@ test('a late category suggestion cannot replace an explicit correction', async (
     page.getByText('Categoría elegida por vos').first()
   ).toBeVisible()
   expect(f.writes).toEqual([])
+})
+
+test('editing the wording clears the old alias reference while awaiting a new proposal', async ({
+  page,
+}) => {
+  await fixture(page, false, true)
+  await page
+    .getByRole('button', { name: 'Completar en lote', exact: true })
+    .click()
+  await page.getByRole('button', { name: 'Seleccionar primeros 20' }).click()
+  const row = page.locator('[data-task-surface] article').first()
+  await expect(
+    row.getByText('Según tu comercio guardado · Estación guardada')
+  ).toBeVisible()
+  await row.locator('details summary').click()
+  await row
+    .getByRole('textbox', { name: 'Descripción', exact: true })
+    .fill('Farmacia')
+  await expect(
+    row.getByText('Según tu comercio guardado · Estación guardada')
+  ).toHaveCount(0)
+  await expect(
+    row.getByText('Sin categoría identificada', { exact: true })
+  ).toBeVisible()
 })

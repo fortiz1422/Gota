@@ -552,7 +552,9 @@ export function MercadoPagoBatchReview({
                   {checked && (
                     <p className="text-text-secondary mt-2 text-xs">
                       {categoryPreviewLabel(d.categoryOrigin ?? 'none')}
-                      {d.categoryOrigin !== 'user' && d.categoryProfileName
+                      {(d.categoryOrigin === 'saved_alias' ||
+                        d.categoryOrigin === 'suggested_alias') &&
+                      d.categoryProfileName
                         ? ` · ${d.categoryProfileName}`
                         : ''}
                     </p>
