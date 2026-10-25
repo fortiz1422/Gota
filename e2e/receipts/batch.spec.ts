@@ -214,7 +214,7 @@ test('20 receipts show all 10 exceptions and distinguish alias versus parser, wi
     page.getByText('Alias identificado: Carrefour').first()
   ).toBeVisible()
   const mcd = page.locator(`[data-receipt-id="${id(14)}"]`)
-  await expect(mcd.getByText('Categoría sugerida')).toBeVisible()
+  await expect(mcd.getByText('Categoría por regla verificada')).toBeVisible()
   await expect(
     mcd.getByRole('combobox', { name: 'Categoría', exact: true })
   ).toHaveValue('Restaurantes')

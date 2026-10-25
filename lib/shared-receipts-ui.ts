@@ -53,6 +53,7 @@ export interface SharedReceiptSummary {
   duplicate?: boolean
   parsed_payload?: unknown
   image_url?: string | null
+  image_unavailable?: boolean
   detected_alias?: string | null
   alias_match?: CounterpartyAliasMatch | null
   preview_overrides?: { description?: string; category?: string | null } | null

@@ -43,10 +43,15 @@ export async function getSharedReceipt(
   if (!userId) return { status: 401, body: { error: 'Unauthorized' } }
   const receipt = await deps.findOwned(userId, receiptId)
   if (!receipt) return { status: 404, body: { error: 'Not found' } }
-  const imageUrl = receipt.storage_path ? await deps.signObject(receipt.storage_path, 300) : null
+  let imageUrl: string | null = null
+  let imageUnavailable = false
+  if (receipt.storage_path) {
+    try { imageUrl = await deps.signObject(receipt.storage_path, 300) }
+    catch { imageUnavailable = true }
+  }
   return {
     status: 200,
-    body: { receipt: { ...receipt, storage_path: undefined, image_url: imageUrl } },
+    body: { receipt: { ...receipt, storage_path: undefined, image_url: imageUrl, image_unavailable: imageUnavailable } },
     headers: { 'Cache-Control': 'private, no-store' },
   }
 }

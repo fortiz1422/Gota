@@ -100,7 +100,7 @@ export function SignalsNowView({
             <span className="block text-[15px] font-bold leading-snug text-text-primary">
               {pendingReceipts.length} {pendingReceipts.length === 1 ? 'comprobante pendiente' : 'comprobantes pendientes'}
             </span>
-            <span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">Revisar propuesta</span>
+            <span className="mt-1 block text-[13px] leading-relaxed text-text-secondary">Revisar comprobantes en lote</span>
           </span>
           <CaretRight size={16} className="mt-2 shrink-0 text-text-tertiary" aria-hidden="true" />
         </button>
