@@ -1,0 +1,125 @@
+{
+  "homeIntelligence": null,
+  "dashboardData": null,
+  "heroBalanceMode": "default_currency",
+  "heroBreakdown": {
+    "ARS": 250000,
+    "USD": 500
+  },
+  "availableBreakdown": {
+    "ARS": 250000,
+    "USD": 500
+  },
+  "goalCommitmentsBreakdown": {
+    "ARS": 0,
+    "USD": 0
+  },
+  "freeBreakdown": {
+    "ARS": 250000,
+    "USD": 500
+  },
+  "accounts": [
+    {
+      "id": "fixture-bank",
+      "user_id": "fixture",
+      "name": "Banco de prueba",
+      "type": "bank",
+      "is_primary": true,
+      "archived": false,
+      "opening_balance_ars": 250000,
+      "opening_balance_usd": 500,
+      "daily_yield_enabled": false,
+      "daily_yield_rate": null,
+      "daily_yield_provider": null,
+      "daily_yield_cap_amount": null,
+      "daily_yield_checkin_interval_days": 7,
+      "daily_yield_last_checkin_at": null,
+      "created_at": "2026-10-17T12:00:00.000Z",
+      "updated_at": "2026-10-17T12:00:00.000Z"
+    },
+    {
+      "id": "fixture-wallet",
+      "user_id": "fixture",
+      "name": "Billetera",
+      "type": "digital",
+      "is_primary": false,
+      "archived": false,
+      "opening_balance_ars": 250000,
+      "opening_balance_usd": 500,
+      "daily_yield_enabled": false,
+      "daily_yield_rate": null,
+      "daily_yield_provider": null,
+      "daily_yield_cap_amount": null,
+      "daily_yield_checkin_interval_days": 7,
+      "daily_yield_last_checkin_at": null,
+      "created_at": "2026-10-17T12:00:00.000Z",
+      "updated_at": "2026-10-17T12:00:00.000Z"
+    }
+  ],
+  "cards": [
+    {
+      "id": "fixture-card",
+      "user_id": "fixture",
+      "name": "Visa de prueba",
+      "account_id": "fixture-bank",
+      "closing_day": 25,
+      "due_day": 5,
+      "last_four": "4242",
+      "archived": false,
+      "created_at": "2026-10-17T12:00:00.000Z",
+      "updated_at": "2026-10-17T12:00:00.000Z"
+    }
+  ],
+  "currency": "ARS",
+  "viewCurrency": "ARS",
+  "hasIncomeAfterRollover": true,
+  "autoRolloverAmount": null,
+  "manualRolloverSummary": null,
+  "activeSubscriptions": [],
+  "allUltimos": [],
+  "incomeEntries": [
+    {
+      "id": "fixture-income",
+      "user_id": "fixture",
+      "account_id": "fixture-bank",
+      "amount": 150000,
+      "currency": "ARS",
+      "description": "Ingreso fixture",
+      "category": "salary",
+      "date": "2026-10-17T12:00:00.000Z",
+      "created_at": "2026-10-17T12:00:00.000Z",
+      "recurring_income_id": null
+    }
+  ],
+  "transfers": [
+    {
+      "id": "fixture-transfer",
+      "user_id": "fixture",
+      "from_account_id": "fixture-bank",
+      "to_account_id": "fixture-wallet",
+      "amount_from": 20000,
+      "amount_to": 20000,
+      "currency_from": "ARS",
+      "currency_to": "ARS",
+      "exchange_rate": null,
+      "date": "2026-10-17T12:00:00.000Z",
+      "note": "Transferencia fixture",
+      "created_at": "2026-10-17T12:00:00.000Z"
+    }
+  ],
+  "transferCurrencyAdjustment": 0,
+  "earliestDataMonth": "2026-10",
+  "hasUsdExpenses": false,
+  "selectedMonth": "2026-10",
+  "isCurrentMonth": true,
+  "isProjected": false,
+  "yieldAccumulators": [],
+  "activeInstruments": [],
+  "capitalInstrumentosMes": 0,
+  "recurringPending": [],
+  "activeRecurring": [],
+  "compromisos": null,
+  "accountBalances": [],
+  "cardPaymentPrompts": [],
+  "goals": []
+}

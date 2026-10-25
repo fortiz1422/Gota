@@ -1,0 +1,89 @@
+name: Home performance comparison
+
+on:
+  push:
+    branches: [codex/performance-home-20261020]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: home-performance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      NEXT_PUBLIC_SUPABASE_URL: https://fixture.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture
+      GOTA_LOCAL_VERIFY: 'true'
+      NEXT_TELEMETRY_DISABLED: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: head
+          persist-credentials: false
+      - uses: actions/checkout@v4
+        with:
+          ref: a9f0fdb839aed5093f3c20ebcfe2ef9a6a1b6b3e
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: head/package-lock.json
+      - name: Install locked dependencies and isolated QA fonts
+        run: |
+          npm ci --prefix head
+          npm ci --prefix baseline
+          npm install --prefix /tmp/gota-fonts --no-package-lock @fontsource-variable/dm-sans @fontsource/dm-mono
+          cd head
+          npx playwright install --with-deps chromium
+      - name: Unit tests and targeted lint
+        working-directory: head
+        run: |
+          npm test
+          npx eslint components/dashboard/HomePlusButton.tsx components/dashboard/SmartInput.tsx components/dashboard/Ultimos5.tsx components/dashboard/RecurringIncomeBanner.tsx components/share-target/SharedReceiptPreviewModal.tsx components/ui/DeferredFormLoading.tsx
+      - name: Build and measure baseline and candidate with identical fixtures
+        shell: bash
+        run: |
+          set -euo pipefail
+          for version in baseline head; do
+            if [ "$version" = baseline ]; then
+              mkdir -p baseline/e2e/performance
+              cp head/e2e/performance/* baseline/e2e/performance/
+            fi
+            cd "$GITHUB_WORKSPACE/$version"
+            mkdir -p app/landing/performance-audit performance-results
+            cp e2e/performance/fixture-page.tsx app/landing/performance-audit/page.tsx
+            export NEXT_FONT_GOOGLE_MOCKED_RESPONSES="$PWD/e2e/forms/fonts/mocked-responses.cjs"
+            npx next build --webpack > performance-results/build.log 2>&1 || { cat performance-results/build.log; exit 1; }
+            npx tsc --noEmit
+            perf_port=3100
+            if [ "$version" = head ]; then perf_port=3200; fi
+            node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$perf_port" > performance-results/server.log 2>&1 &
+            server_pid=$!
+            trap 'kill "$server_pid" 2>/dev/null || true' EXIT
+            for attempt in {1..60}; do
+              kill -0 "$server_pid" || { cat performance-results/server.log; exit 1; }
+              if curl --silent --fail "http://127.0.0.1:$perf_port/landing/performance-audit" > /dev/null; then break; fi
+              sleep 1
+            done
+            PERF_BASE_URL="http://127.0.0.1:$perf_port" PERF_OUTPUT="performance-results/$version.json" PERF_EXPECT_DEFERRED="$([ "$version" = head ] && echo true || echo false)" node e2e/performance/audit.mjs
+            kill "$server_pid"
+            wait "$server_pid" || true
+            trap - EXIT
+          done
+      - name: Assert smaller initial JavaScript and publish measurements
+        run: node head/e2e/performance/compare.mjs baseline/performance-results/baseline.json head/performance-results/head.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: home-performance-${{ github.sha }}
+          path: |
+            baseline/performance-results
+            head/performance-results
+          retention-days: 14
