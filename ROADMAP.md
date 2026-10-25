@@ -11,7 +11,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| MP-20 | Precarga de categoría con la política del parser regular (autorizado por Facundo, 25/10/2026) | MP individual solo resuelve alias y el lote deja categoría vacía. | Misma guía de categorías, preferencias guardadas y reglas locales; propuestas acotadas por textos únicos; no reemplazar correcciones ni evidencia MP; tests de paridad y navegador. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).

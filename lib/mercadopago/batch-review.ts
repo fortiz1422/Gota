@@ -1,3 +1,4 @@
+import type { CategoryPreview } from '@/lib/expenses/category-preview'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { matchMercadoPagoCard } from './card-matcher'
 import {
@@ -16,6 +17,8 @@ export type BatchDraft = {
   movement: MercadoPagoMovement
   description: string
   category: string
+  categoryOrigin?: CategoryPreview['origin'] | 'user'
+  categoryProfileName?: string | null
   cardId: string
   isWant: boolean
   isRecurring: boolean
@@ -71,6 +74,25 @@ export function createBatchDraft(
     isRecurring: false,
     isExtraordinary: false,
   }
+}
+export function applyBatchCategoryPreviews(
+  drafts: BatchDraft[],
+  suggestions: CategoryPreview[]
+): BatchDraft[] {
+  return drafts.map((draft) => {
+    if (draft.categoryOrigin === 'user' || draft.category) return draft
+    const suggestion = suggestions.find(
+      (s) => s.description === draft.description.trim()
+    )
+    return suggestion
+      ? {
+          ...draft,
+          category: suggestion.category,
+          categoryOrigin: suggestion.origin,
+          categoryProfileName: suggestion.aliasMatch?.display_name ?? null,
+        }
+      : draft
+  })
 }
 export function batchBlocker(
   draft: BatchDraft,

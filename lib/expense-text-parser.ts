@@ -8,7 +8,7 @@ const normalize = (text: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
 
-const CATEGORIES: Array<[string, RegExp]> = [
+const CATEGORY_RULES: Array<[string, RegExp]> = [
   [
     'Supermercado',
     /\b(super|supermercado|carrefour|coto|dia|jumbo|la anonima)\b/,
@@ -23,7 +23,7 @@ const CATEGORIES: Array<[string, RegExp]> = [
   ['Alimentos', /\b(panaderia|verduleria|carniceria|almacen|pan|verduras)\b/],
   ['Restaurantes', /\b(cafe|bar|resto|restaurante?|almuerzo|cena)\b/],
   ['Delivery', /\b(delivery|rappi|pedidosya)\b/],
-  ['Transporte', /\b(uber|cabify|taxi|sube|bondi|tren|transporte)\b/],
+  ['Transporte', /\b(uber|cabify|taxi|sube|bondi|tren|transporte|peaje|telepase|autopista|autopistas)\b/],
   ['Auto/Combustible', /\b(nafta|combustible|ypf|shell|axion)\b/],
   ['Auto/Mantenimiento', /\b(cubiertas|mecanico|frenos|service)\b/],
   ['Farmacia', /\b(farmacia|farmacity|medicamento)\b/],
@@ -36,6 +36,11 @@ const CATEGORIES: Array<[string, RegExp]> = [
   ['Educación', /\b(jardin|colegio|escuela|curso)\b/],
   ['Ropa e Indumentaria', /\b(ropa|zapatillas|remera|pantalon)\b/],
 ]
+
+/** Same deterministic category rules for regular parsing and provider previews. */
+export function suggestLocalExpenseCategory(description: string): string | null {
+  return CATEGORY_RULES.find(([, pattern]) => pattern.test(normalize(description)))?.[0] ?? null
+}
 
 /** Returns a proposal, never a ledger write. Ambiguities require clarification. */
 export function parseTextExpenseFallback(
@@ -291,8 +296,7 @@ export function parseTextExpenseFallback(
     amount: Math.round(amount * 100) / 100,
     currency,
     category:
-      CATEGORIES.find(([, pattern]) => pattern.test(description))?.[0] ??
-      'Otros',
+      suggestLocalExpenseCategory(description) ?? 'Otros',
     description,
     is_want: null,
     payment_method,

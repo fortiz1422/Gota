@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
+import { loadCategoryPreviews } from '@/lib/expenses/category-preview-client'
+import { categoryPreviewLabel } from '@/lib/expenses/category-preview'
 import { TaskSurface } from '@/components/ui/TaskSurface'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import {
@@ -19,6 +21,7 @@ import {
   buildBatchBody,
   cardEvidenceKey,
   createBatchDraft,
+  applyBatchCategoryPreviews,
   submitBatch,
   type BatchDraft,
   type BatchAccountLink,
@@ -50,10 +53,14 @@ export function MercadoPagoBatchReview({
   const [link, setLink] = useState<BatchAccountLink | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
+  const [categoryLoading, setCategoryLoading] = useState(false)
+  const [categoryError, setCategoryError] = useState(false)
+  const commonDescriptionRef = useRef('')
   const [selected, setSelected] = useState(new Set<string>())
   const [search, setSearch] = useState('')
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
+  commonDescriptionRef.current = description
   const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
   const [finished, setFinished] = useState(false)
@@ -70,6 +77,7 @@ export function MercadoPagoBatchReview({
 
   useEffect(() => {
     let active = true
+    const controller = new AbortController()
     async function prepare() {
       try {
         const [cardResponse, linkResponse] = await Promise.all([
@@ -87,15 +95,32 @@ export function MercadoPagoBatchReview({
         const activeCards = loadedCards.filter((card) => !card.archived)
         setCards(activeCards)
         setLink(loadedLink)
-        setDrafts(
-          movements
-            .filter(
-              (m) =>
-                getMercadoPagoReviewCapability(m).mode === 'confirmable' &&
-                m.attention !== 'possible_duplicate'
-            )
-            .map((m) => createBatchDraft(m, activeCards))
+        const initial = movements
+          .filter(
+            (m) =>
+              getMercadoPagoReviewCapability(m).mode === 'confirmable' &&
+              m.attention !== 'possible_duplicate'
+          )
+          .map((m) => createBatchDraft(m, activeCards))
+        setDrafts(initial)
+        setCategoryLoading(true)
+        // Loading metadata never prevents editing. Merge only into unchanged, empty categories.
+        void loadCategoryPreviews(
+          initial.map((d) => d.description),
+          controller.signal
         )
+          .then((suggestions) => {
+            if (active)
+              setDrafts((current) =>
+                applyBatchCategoryPreviews(current, suggestions)
+              )
+          })
+          .catch(() => {
+            if (active) setCategoryError(true)
+          })
+          .finally(() => {
+            if (active) setCategoryLoading(false)
+          })
       } catch {
         if (active) setLoadError(true)
       } finally {
@@ -105,6 +130,7 @@ export function MercadoPagoBatchReview({
     void prepare()
     return () => {
       active = false
+      controller.abort()
     }
   }, [movements])
 
@@ -127,7 +153,18 @@ export function MercadoPagoBatchReview({
   const patch = (id: string, values: Partial<BatchDraft>) =>
     setDrafts((current) =>
       current.map((d) =>
-        d.movement.candidateId === id ? { ...d, ...values } : d
+        d.movement.candidateId === id
+          ? {
+              ...d,
+              ...values,
+              ...('category' in values
+                ? { categoryOrigin: 'user' as const }
+                : {}),
+              ...('description' in values && d.categoryOrigin !== 'user'
+                ? { category: '', categoryOrigin: 'none' as const }
+                : {}),
+            }
+          : d
       )
     )
   const cardGroups = [
@@ -264,6 +301,17 @@ export function MercadoPagoBatchReview({
           {notice}
         </p>
       )}
+      {categoryLoading && (
+        <p role="status" className="text-text-secondary my-3 text-sm">
+          Buscando categorías para los textos distintos… Podés seguir editando.
+        </p>
+      )}
+      {categoryError && (
+        <p role="status" className="text-warning my-3 text-sm">
+          No pudimos completar las sugerencias. Tus cambios siguen disponibles;
+          podés elegir las categorías.
+        </p>
+      )}
       {!loading && !loadError && !finished && (
         <>
           {!preview && (
@@ -323,6 +371,18 @@ export function MercadoPagoBatchReview({
                       maxLength={100}
                       value={description}
                       onChange={(e) => setDescription(e.target.value)}
+                      onBlur={() => {
+                        const text = description.trim()
+                        if (!text || category) return
+                        void loadCategoryPreviews([text])
+                          .then((rows) => {
+                            if (commonDescriptionRef.current.trim() === text)
+                              setCategory(
+                                (current) => current || rows[0]?.category || ''
+                              )
+                          })
+                          .catch(() => setCategoryError(true))
+                      }}
                       placeholder="Ej. Peaje"
                     />
                   </label>
@@ -358,7 +418,19 @@ export function MercadoPagoBatchReview({
                                 ...(description.trim()
                                   ? { description: description.trim() }
                                   : {}),
-                                ...(category ? { category } : {}),
+                                ...(category
+                                  ? {
+                                      category,
+                                      categoryOrigin: 'user' as const,
+                                    }
+                                  : description.trim() &&
+                                      d.description !== description.trim() &&
+                                      d.categoryOrigin !== 'user'
+                                    ? {
+                                        category: '',
+                                        categoryOrigin: 'none' as const,
+                                      }
+                                    : {}),
                               }
                             : d
                         )
@@ -477,10 +549,23 @@ export function MercadoPagoBatchReview({
                       </span>
                     </span>
                   </label>
+                  {checked && (
+                    <p className="text-text-secondary mt-2 text-xs">
+                      {categoryPreviewLabel(d.categoryOrigin ?? 'none')}
+                      {(d.categoryOrigin === 'saved_alias' ||
+                        d.categoryOrigin === 'suggested_alias') &&
+                      d.categoryProfileName
+                        ? ` · ${d.categoryProfileName}`
+                        : ''}
+                    </p>
+                  )}
                   {checked &&
                     (preview ? (
                       <div className="mt-2 space-y-1 text-sm">
-                        <p className="font-semibold">{d.description}</p>
+                        {d.description !==
+                          getDisplayExpenseDescription(d.movement) && (
+                          <p className="font-semibold">{d.description}</p>
+                        )}
                         <p>
                           {d.category} ·{' '}
                           {isReviewableMercadoPagoCardPurchase(d.movement)
@@ -508,6 +593,20 @@ export function MercadoPagoBatchReview({
                             onChange={(e) =>
                               patch(id, { description: e.target.value })
                             }
+                            onBlur={() => {
+                              if (
+                                !d.description.trim() ||
+                                d.categoryOrigin === 'user'
+                              )
+                                return
+                              void loadCategoryPreviews([d.description])
+                                .then((rows) =>
+                                  setDrafts((current) =>
+                                    applyBatchCategoryPreviews(current, rows)
+                                  )
+                                )
+                                .catch(() => setCategoryError(true))
+                            }}
                           />
                         </label>
                         <label className="block text-sm">
