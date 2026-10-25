@@ -1,5 +1,7 @@
 'use client'
 
+import { loadCategoryPreviews } from '@/lib/expenses/category-preview-client'
+import { categoryPreviewLabel, type CategoryPreview } from '@/lib/expenses/category-preview'
 import { MercadoPagoDuplicateReview, type MercadoPagoDuplicateChoice } from './MercadoPagoDuplicateReview'
 import { MercadoPagoBatchReview } from './MercadoPagoBatchReview'
 import { CATEGORIES } from '@/lib/validation/schemas'
@@ -213,6 +215,8 @@ export function MercadoPagoReviewClient() {
   const [dismissing, setDismissing] = useState(false)
   const [selectionMode, setSelectionMode] = useState(false)
   const [dismissError, setDismissError] = useState(false)
+  const [categorySuggestion, setCategorySuggestion] = useState<CategoryPreview | null>(null)
+  const [categoryError, setCategoryError] = useState(false)
   const [aliasLoading, setAliasLoading] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
   const cardMatch = selected && isReviewableMercadoPagoCardPurchase(selected)
@@ -258,6 +262,8 @@ export function MercadoPagoReviewClient() {
     setAccountLinkError(false)
     setAccountLinkLoading(false)
     setAliasMatch(null)
+    setCategorySuggestion(null)
+    setCategoryError(false)
     setAliasLoading(false)
   }, [])
 
@@ -322,21 +328,19 @@ export function MercadoPagoReviewClient() {
     setSelected(movement)
     setConfirmationNotice(null)
     setAliasMatch(null)
+    setCategorySuggestion(null)
+    setCategoryError(false)
     setAliasLoading(false)
     if (movement.attention === 'possible_duplicate') void loadAccounts()
     if (isReviewableMercadoPagoExpense(movement) || isReviewableMercadoPagoWalletPayment(movement) || isReviewableMercadoPagoCardPurchase(movement)) {
       void loadAccounts()
       if (isReviewableMercadoPagoCardPurchase(movement)) void loadCards()
       setAliasLoading(true)
-      void fetch('/api/counterparty-aliases/resolve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ alias_value: getInitialExpenseDescription(movement) }),
-      }).then(async (response) => {
-        if (!response.ok) return null
-        const body = await response.json() as { match?: CounterpartyAliasMatch | null }
-        return body.match ?? null
-      }).then((match) => { if (request === selectionRequest.current) setAliasMatch(match) }).catch(() => undefined).finally(() => { if (request === selectionRequest.current) setAliasLoading(false) })
+      void loadCategoryPreviews([getInitialExpenseDescription(movement)]).then(rows => {
+        if (request !== selectionRequest.current) return
+        setCategorySuggestion(rows[0] ?? null)
+        setAliasMatch(rows[0]?.aliasMatch ?? null)
+      }).catch(() => { if (request === selectionRequest.current) setCategoryError(true) }).finally(() => { if (request === selectionRequest.current) setAliasLoading(false) })
     }
   }
 
@@ -622,16 +626,18 @@ export function MercadoPagoReviewClient() {
         canvasTone="standard"
         footer={null}
       >
-        {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando tus preferencias para este comercio…</p>}
+        {aliasLoading && <p role="status" className="text-sm text-text-secondary">Buscando la categoría y tus preferencias…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkLoading && <p role="status" className="text-sm text-text-secondary">Cargando vínculo de cuenta…</p>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && accountLinkError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos validar el vínculo de cuenta. Reintentá antes de confirmar.</p><button type="button" onClick={() => void loadAccounts()} className="inline-flex min-h-11 items-center rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && !isReviewableMercadoPagoCardPurchase(selected) && !accountLinkLoading && !accountLinkError && !accountLink?.linkedAccountId && <div className="space-y-3"><p className="rounded-input bg-warning/10 p-3 text-sm text-text-secondary">Para confirmar un débito de saldo, primero elegí la cuenta que representa tu saldo de Mercado Pago.</p><Link href="/settings" className="inline-flex min-h-11 items-center rounded-button bg-primary px-4 text-sm font-semibold text-white">Configurar vínculo</Link></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsLoading && <p role="status" className="text-sm text-text-secondary">Cargando tus tarjetas…</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && cardsError && <div role="alert" className="space-y-3"><p className="rounded-input bg-danger-soft p-3 text-sm text-danger">No pudimos cargar tus tarjetas. No se puede confirmar todavía.</p><button type="button" onClick={() => void loadCards()} className="min-h-11 rounded-button border border-border-subtle px-4 text-sm font-semibold">Reintentar</button></div>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length === 0 && <div className="space-y-2 rounded-input bg-bg-secondary p-3 text-sm text-text-secondary"><p>No tenés tarjetas activas cargadas en Gota.</p><Link href="/settings" className="inline-flex min-h-11 items-center font-semibold text-primary">Agregar una tarjeta</Link></div>}
+        {selected && !aliasLoading && categorySuggestion && <p role="status" className="mb-3 text-xs text-text-secondary">{categoryPreviewLabel(categorySuggestion.origin)}</p>}
+        {selected && categoryError && <p role="status" className="mb-3 text-xs text-warning">No pudimos completar la sugerencia. Elegí la categoría para continuar.</p>}
         {selected && isReviewableMercadoPagoCardPurchase(selected) && !cardsLoading && !cardsError && cards.length > 0 && !aliasLoading && <ParsePreview
           key={`${selected.candidateId}:${accounts.length}:${cards.length}:${aliasMatch?.profile_id ?? 'none'}:${cardMatch.status === 'exact' ? cardMatch.cardId : 'manual'}:credit`}
-          data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: aliasMatch?.default_category === 'Pago de Tarjetas' ? '' : aliasMatch?.default_category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
+          data={{ amount: selected.cardPurchaseAmount ?? selected.amount.value!, currency: selected.amount.currency as 'ARS' | 'USD', category: categorySuggestion?.category ?? '', description: getInitialExpenseDescription(selected), is_want: false, payment_method: 'CREDIT', card_id: cardMatch.status === 'exact' ? cardMatch.cardId : null, installments: selected.installments ?? 1, date: selected.occurredAt ?? '', detected_alias: getInitialExpenseDescription(selected), alias_match: aliasMatch }}
           cards={cards} accounts={accounts} onConfirm={confirm} onSave={completeConfirmation} onCancel={resetReview}
           aliasSource="mercadopago" immutableProviderEvidence embedded
           secondaryAction={{ label: 'Desestimar', onAction: () => requestDismissal(selected), disabled: dismissing || dismissed !== null }}
@@ -646,7 +652,7 @@ export function MercadoPagoReviewClient() {
           data={{
             amount: isReviewableMercadoPagoWalletPayment(selected) ? selected.amount.value! : Math.abs(selected.balanceImpact.amount.value ?? 0),
             currency: (isReviewableMercadoPagoWalletPayment(selected) ? selected.amount.currency : selected.balanceImpact.amount.currency) === 'USD' ? 'USD' : 'ARS',
-            category: aliasMatch?.default_category ?? '',
+            category: categorySuggestion?.category ?? '',
             description: getInitialExpenseDescription(selected),
             is_want: false,
             payment_method: 'DEBIT',
