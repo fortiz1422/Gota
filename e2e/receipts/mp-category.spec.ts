@@ -96,7 +96,7 @@ test('MP batch preloads the regular category policy once for repeated wording an
   await page.getByRole('button', { name: 'Revisar 20 seleccionados' }).click()
   await expect(
     page.getByText('Auto/Combustible · Mastercard Banco').first()
-  ).toBeVisible()
+  ).toBeInViewport()
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= innerWidth

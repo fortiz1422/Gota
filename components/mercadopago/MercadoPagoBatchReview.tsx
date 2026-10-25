@@ -560,7 +560,10 @@ export function MercadoPagoBatchReview({
                   {checked &&
                     (preview ? (
                       <div className="mt-2 space-y-1 text-sm">
-                        <p className="font-semibold">{d.description}</p>
+                        {d.description !==
+                          getDisplayExpenseDescription(d.movement) && (
+                          <p className="font-semibold">{d.description}</p>
+                        )}
                         <p>
                           {d.category} ·{' '}
                           {isReviewableMercadoPagoCardPurchase(d.movement)
