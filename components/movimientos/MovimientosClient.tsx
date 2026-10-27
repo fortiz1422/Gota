@@ -10,6 +10,8 @@ import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
 import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
+import { MovimientosFetchErrorBanner } from './MovimientosFetchErrorBanner'
+import { resolveMovimientosMainPanel } from './movimientosListBody'
 import type { ActiveFilters, OrigenFilter } from './FiltroSheet'
 import type { YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import type {
@@ -166,6 +168,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
   )
   const [isLoading, setIsLoading] = useState(!initialData || presetTarjetas.length > 0)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const [fetchError, setFetchError] = useState(false)
   const skipFirstFetch = useRef(!!initialData && presetTarjetas.length === 0)
 
   useEffect(() => {
@@ -197,6 +200,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         if (!res.ok) throw new Error('fetch failed')
         const data: ApiResponse = await res.json()
 
+        setFetchError(false)
         setLoadedMovements((prev) => (append ? [...prev, ...data.movements] : data.movements))
         setStats(data.stats)
         setTotal(data.total)
@@ -209,7 +213,10 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           setCards(data.cards ?? [])
         }
       } catch {
-        // keep previous state on fetch failure
+        if (!append) {
+          setLoadedMovements([])
+          setFetchError(true)
+        }
       } finally {
         setIsLoading(false)
         setIsLoadingMore(false)
@@ -238,6 +245,11 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     fetchMovements(selectedMonth, activeFilters, 1, false)
     router.refresh()
   }, [fetchMovements, selectedMonth, activeFilters, router])
+
+  const handleRetryFetch = useCallback(() => {
+    setPage(1)
+    fetchMovements(selectedMonth, activeFilters, 1, false)
+  }, [fetchMovements, selectedMonth, activeFilters])
 
   const handlePrevMonth = () => {
     setSelectedMonth((m) => addMonths(m, -1))
@@ -334,26 +346,32 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         : 'border border-primary/20 bg-white text-text-primary',
     ].join(' ')
 
+  const monthPeriodLabel = formatMonthLabel(selectedMonth)
+  const mainPanel = resolveMovimientosMainPanel(isLoading, fetchError)
+
   return (
     <div className="min-h-screen bg-bg-primary">
       <BlueHeaderZone style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="mx-auto flex max-w-md items-center justify-between px-[22px] pt-4 pb-8">
-          <div className="flex items-center gap-1">
+        <div className="mx-auto flex max-w-md items-center justify-between gap-2 px-[22px] pt-4 pb-8">
+          <div className="flex min-w-0 flex-1 items-center justify-center">
             <button
               onClick={handlePrevMonth}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50"
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50"
               style={{ color: 'rgba(255,255,255,0.85)' }}
               aria-label="Mes anterior"
             >
               <CaretLeft size={16} weight="bold" />
             </button>
-            <span className="min-w-[100px] text-center text-[15px] font-semibold text-white">
-              {formatMonthLabel(selectedMonth).split(' ')[0]}
+            <span
+              className="min-w-0 flex-1 truncate px-1 text-center text-[14px] font-semibold leading-tight text-white sm:text-[15px]"
+              title={monthPeriodLabel}
+            >
+              {monthPeriodLabel}
             </span>
             <button
               onClick={handleNextMonth}
               disabled={selectedMonth >= addMonths(currentMonth, 2)}
-              className="flex h-8 w-8 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50 disabled:opacity-30"
+              className="flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full transition-opacity hover:opacity-70 active:opacity-50 disabled:opacity-30"
               style={{ color: 'rgba(255,255,255,0.85)' }}
               aria-label="Mes siguiente"
             >
@@ -422,7 +440,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           <button
             type="button"
             onClick={() => setFilterOpen(true)}
-            className="relative shrink-0 flex h-8 w-8 items-center justify-center rounded-full bg-white border border-primary/20 text-primary transition-opacity active:opacity-60"
+            className="relative flex min-h-11 min-w-11 shrink-0 items-center justify-center rounded-full border border-primary/20 bg-white text-primary transition-opacity active:opacity-60"
             aria-label="Abrir filtros avanzados"
           >
             <Funnel weight="regular" size={16} />
@@ -435,7 +453,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
         </div>
 
         {activeCount > 0 && (
-          <div className="flex items-center justify-between py-0.5">
+          <div className="flex items-center justify-between gap-2 py-0.5">
             <button
               onClick={() => setActiveFilters(EMPTY_FILTERS)}
               className="glass-1 flex min-w-0 max-w-[70%] items-center gap-1.5 rounded-pill py-1.5 pl-3 pr-2.5 transition-opacity active:opacity-60"
@@ -446,17 +464,22 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
               <X size={11} weight="bold" className="shrink-0 text-primary/60" />
             </button>
             {isLoading ? (
-              <div className="skeleton h-3.5 w-20 shrink-0 rounded" />
+              <div className="skeleton h-8 w-24 shrink-0 rounded" />
             ) : (
-              <span className="shrink-0 text-[13px] font-medium tabular-nums text-text-secondary">
-                {filteredSum < 0 ? '- ' : ''}
-                {formatAmount(Math.abs(filteredSum), filteredSumCurrency)}
-              </span>
+              <div className="shrink-0 text-right">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-text-dim">
+                  Total filtrado · {filteredSumCurrency}
+                </p>
+                <p className="text-[13px] font-medium tabular-nums text-text-secondary">
+                  {filteredSum < 0 ? '- ' : ''}
+                  {formatAmount(Math.abs(filteredSum), filteredSumCurrency)}
+                </p>
+              </div>
             )}
           </div>
         )}
 
-        {isLoading ? (
+        {mainPanel === 'skeleton' ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 py-3">
@@ -469,6 +492,8 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
               </div>
             ))}
           </div>
+        ) : mainPanel === 'error' ? (
+          <MovimientosFetchErrorBanner onRetry={handleRetryFetch} />
         ) : (
           <MovimientosGroupedList
             movements={loadedMovements}
