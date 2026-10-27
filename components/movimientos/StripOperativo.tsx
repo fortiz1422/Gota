@@ -69,7 +69,7 @@ export function StripOperativo({
       key: 'tarjeta',
       label: 'Tarjeta',
       value: tarjeta > 0 ? formatCompact(tarjeta, currency) : '—',
-      description: 'Aun sin pagar',
+      description: 'Aún sin pagar',
       icon: CreditCard,
       valueClassName: 'type-amount-sm text-primary',
       iconClassName: 'text-primary',

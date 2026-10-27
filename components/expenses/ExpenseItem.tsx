@@ -217,7 +217,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
       setError(
         saveError instanceof Error && saveError.message !== 'save_error'
           ? saveError.message
-          : 'Error al guardar. Intenta de nuevo.'
+          : 'Error al guardar. Intentá de nuevo.'
       )
       setIsSaving(false)
     }
@@ -430,7 +430,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
 
             <div className="rounded-[14px] border border-border-subtle bg-bg-secondary px-4 py-3">
               <p className="text-xs text-text-secondary">
-                Este es el detalle de una sola cuota. Para corregir descripcion, monto o cantidad de cuotas, edita el gasto completo.
+                Este es el detalle de una sola cuota. Para corregir descripción, monto o cantidad de cuotas, edita el gasto completo.
               </p>
               <button
                 onClick={() => void handleEditGroup()}
@@ -465,8 +465,8 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
           {isInstallmentGroup && editingGroup && (
             <p className="text-xs text-text-secondary">
               {canEditInstallmentGroup
-                ? 'Editando la compra completa. El monto es el total de la operacion y las cuotas se regeneran completas.'
-                : 'Las cuotas en curso que arrancan en una cuota avanzada no se pueden editar. Podes eliminarlas y volver a cargarlas correctamente.'}
+                ? 'Editando la compra completa. El monto es el total de la operación y las cuotas se regeneran completas.'
+                : 'Las cuotas en curso que arrancan en una cuota avanzada no se pueden editar. Podés eliminarlas y volver a cargarlas correctamente.'}
             </p>
           )}
 

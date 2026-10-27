@@ -220,7 +220,7 @@ export function ExpenseItem({ expense, cards, accounts, onUpdate, annotationLabe
       setError(
         saveError instanceof Error && saveError.message !== 'save_error'
           ? saveError.message
-          : 'Error al guardar. Intenta de nuevo.'
+          : 'Error al guardar. Intentá de nuevo.'
       )
       setIsSaving(false)
     }

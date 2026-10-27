@@ -350,7 +350,7 @@ export function ParsePreview({
       })
       onSave({ aliasSaved, financialResult })
     } catch {
-      setSaveError('No se pudo guardar el gasto. Intenta de nuevo.')
+      setSaveError('No se pudo guardar el gasto. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }

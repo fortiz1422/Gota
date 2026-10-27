@@ -126,14 +126,14 @@ export function SmartInput({
         input_method: inputMethod,
         variant,
       })
-      setParseError(data.reason ?? data.error ?? 'No pudimos entenderlo. Proba con algo como "cafe 2500".')
+      setParseError(data.reason ?? data.error ?? 'No pudimos entenderlo. Probá con algo como "café 2500".')
     } catch {
       trackEvent('smartinput_parse_failed', {
         failure_type: 'network_or_server',
         input_method: inputMethod,
         variant,
       })
-      setParseError('No pudimos entenderlo. Proba con algo como "cafe 2500".')
+      setParseError('No pudimos entenderlo. Probá con algo como "café 2500".')
     } finally {
       setIsParsing(false)
       setStatusMessage(null)
