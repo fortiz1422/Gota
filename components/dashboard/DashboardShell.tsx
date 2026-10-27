@@ -21,6 +21,7 @@ import { SubscriptionReviewBanner } from '@/components/subscriptions/Subscriptio
 import { InstrumentosCard } from '@/components/instruments/InstrumentosCard'
 import { RecurringIncomeBanner } from '@/components/dashboard/RecurringIncomeBanner'
 import { PendingSharedReceiptBanner } from '@/components/share-target/PendingSharedReceiptBanner'
+import { SharedReceiptsInboxCard } from '@/components/shared-receipts/SharedReceiptsInboxCard'
 import { SharedReceiptPreviewModal } from '@/components/share-target/SharedReceiptPreviewModal'
 import { useAnonymousBannerTone } from '@/components/anonymous-banner/AnonymousBannerToneProvider'
 import { SaveAccessNotice } from '@/components/dashboard/SaveAccessNotice'
@@ -686,6 +687,7 @@ export function DashboardShell({
               onOpenComposer={promptFirstExpense}
               onOpenPreview={openSharedReceiptPreview}
             />
+            {!FF_SIGNALS_CENTER_V1 && <SharedReceiptsInboxCard />}
             {/* Disponible real card */}
             <div className="card-s5 p-4">
               <div className="flex items-start gap-3">

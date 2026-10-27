@@ -43,7 +43,7 @@ export function SmartInput({
   expensePreset = null,
 }: SmartInputProps) {
   const router = useRouter()
-  const paidAIAllowed = usePaidAICapability()
+  const { allowed: paidAIAllowed } = usePaidAICapability()
   const [input, setInput] = useState('')
   const [isParsing, setIsParsing] = useState(false)
   const [parseError, setParseError] = useState<string | null>(null)

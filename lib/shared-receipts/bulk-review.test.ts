@@ -10,6 +10,7 @@ import {
   trustedMerchantCategory,
 } from './bulk-review'
 
+import { PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
 import { alias, draft, evidence, account, card } from './bulk-review.fixtures'
 
 describe('bulk review readiness contract', () => {
@@ -174,6 +175,18 @@ describe('bulk review readiness contract', () => {
     other.receipt.detected_alias = 'Juliana Farías sucursal 2'
     expect(sameDetectedMerchant(row, other)).toBe(false)
   })
+  it('explains when paid AI is unavailable for received receipts', () => {
+    const row = draft()
+    row.receipt = { ...row.receipt, status: 'received' }
+    row.evidence = null
+    expect(draftBlockers(row, { paidAiAvailable: false })).toContain(
+      PAID_AI_UNAVAILABLE,
+    )
+    expect(draftBlockers(row, { paidAiAvailable: true })).toContain(
+      'Comprobante no preparado',
+    )
+  })
+
   it('requires explicit review when editing away from the saved category', () => {
     const row = draft()
     row.payload.category = 'Otros'

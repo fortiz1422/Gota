@@ -8,6 +8,12 @@ import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import { normalizeCounterpartyAlias } from '@/lib/counterparty-aliases/normalize'
 import type { ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import type { Account, Card } from '@/types/database'
+import { PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
+
+export type DraftBlockersOptions = {
+  /** When false, received receipts show manual-load guidance instead of a generic blocker. */
+  paidAiAvailable?: boolean
+}
 
 export const BULK_RECEIPT_LIMIT = 20
 export const RECEIPT_ANALYSIS_INTERVAL_MS = 13_000
@@ -228,7 +234,10 @@ export function bulkReviewBlockers(
   return reasons
 }
 
-export function draftBlockers(draft: BulkReceiptDraft): string[] {
+export function draftBlockers(
+  draft: BulkReceiptDraft,
+  options?: DraftBlockersOptions,
+): string[] {
   const reasons = bulkReviewBlockers(
     draft.evidence,
     draft.payload,
@@ -239,7 +248,10 @@ export function draftBlockers(draft: BulkReceiptDraft): string[] {
     reasons.unshift(
       draft.receipt.status === 'parsing'
         ? 'Analizando comprobante'
-        : 'Comprobante no preparado'
+        : draft.receipt.status === 'received' &&
+            options?.paidAiAvailable === false
+          ? PAID_AI_UNAVAILABLE
+          : 'Comprobante no preparado'
     )
   if (draft.duplicates !== 'clear')
     reasons.push(

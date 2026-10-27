@@ -27,6 +27,8 @@ import {
   type SharedReceiptSummary,
 } from '@/lib/shared-receipts-ui'
 import type { Account, Card } from '@/types/database'
+import { usePaidAICapability } from '@/hooks/usePaidAICapability'
+import { PAID_AI_UNAVAILABLE } from '@/lib/paid-ai-policy'
 
 async function responseError(response: Response, fallback: string): Promise<string> {
   const body = await response.json().catch(() => null) as { error?: unknown } | null
@@ -35,6 +37,8 @@ async function responseError(response: Response, fallback: string): Promise<stri
 
 export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const queryClient = useQueryClient()
+  const { allowed: paidAIAllowed, resolved: paidAIResolved } =
+    usePaidAICapability()
   const [activeReceiptId, setActiveReceiptId] = useState(receiptId)
   const [completedReceiptIds, setCompletedReceiptIds] = useState<Set<string>>(new Set())
   const [batchOutcomes, setBatchOutcomes] = useState<Record<string, ReviewBatchOutcome>>({})
@@ -68,6 +72,11 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const previewError = previewReceipt?.id === activeReceiptId ? error : null
 
   const batchSummary = summarizeReviewBatch(batchOutcomes)
+  const manualReceiptEntryRequired =
+    paidAIResolved &&
+    !paidAIAllowed &&
+    receipt?.status === 'received' &&
+    !analysis
 
   const closeImage = () => {
     previewImageRequest.current += 1
@@ -137,7 +146,12 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
         setAnalysis(restoredAnalysis)
         if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)
         if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
-        if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
+        if (shouldStartReview && loadedReceipt && !restoredAnalysis) {
+          if (paidAIResolved && !paidAIAllowed) setError(PAID_AI_UNAVAILABLE)
+          else if (paidAIResolved && paidAIAllowed) {
+            void analyzeRef.current?.(activeReceiptId, loadedReceipt)
+          }
+        }
       } catch (reason) {
         if (isCurrentLoad()) setError(reason instanceof Error ? reason.message : 'No pudimos cargar el comprobante.')
       } finally {
@@ -148,12 +162,16 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     setLoading(true)
     setError(null)
     try {
-      const [receiptResponse, accountsResponse, cardsResponse, inboxResponse] = await Promise.all([
+      const [receiptResponse, accountsResponse, cardsResponse, inboxResponse, capabilitiesResponse] = await Promise.all([
         fetch(SHARED_RECEIPT_ROUTES.apiDetail(activeReceiptId), { cache: 'no-store' }),
         fetch('/api/accounts', { cache: 'no-store' }),
         fetch('/api/cards', { cache: 'no-store' }),
         fetch(SHARED_RECEIPT_ROUTES.inbox, { cache: 'no-store' }),
+        fetch('/api/capabilities', { cache: 'no-store' }),
       ])
+      const paidAiAvailable =
+        capabilitiesResponse.ok &&
+        (await capabilitiesResponse.json().catch(() => null))?.paidAI === true
       if (!receiptResponse.ok) throw new Error(await responseError(receiptResponse, 'No pudimos cargar el comprobante.'))
       if (!accountsResponse.ok) throw new Error(await responseError(accountsResponse, 'No pudimos cargar las cuentas. Reintentá.'))
       if (!cardsResponse.ok) throw new Error(await responseError(cardsResponse, 'No pudimos cargar las tarjetas. Reintentá.'))
@@ -177,7 +195,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       setAnalysis(restoredAnalysis)
       if (shouldAutoPreview && loadedReceipt) setPreviewReceipt(loadedReceipt)
       if (shouldStartReview && restoredAnalysis) setPreviewReceipt(null)
-      if (shouldStartReview && loadedReceipt && !restoredAnalysis) void analyzeRef.current?.(activeReceiptId, loadedReceipt)
+      if (shouldStartReview && loadedReceipt && !restoredAnalysis) {
+        if (!paidAiAvailable) setError(PAID_AI_UNAVAILABLE)
+        else void analyzeRef.current?.(activeReceiptId, loadedReceipt)
+      }
       if (inboxResponse.ok) {
         const summaries = normalizeReceiptsResponse(await inboxResponse.json())
         if (!isCurrentLoad()) return
@@ -206,7 +227,7 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     } finally {
       if (isCurrentLoad()) setLoading(false)
     }
-  }, [activeReceiptId])
+  }, [activeReceiptId, paidAIAllowed, paidAIResolved])
 
   useEffect(() => { void load() }, [load])
 
@@ -273,6 +294,10 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
     pendingPreviewReviewId.current = null
     if (analysis) {
       setPreviewReceipt(null)
+      return
+    }
+    if (manualReceiptEntryRequired || (!paidAIAllowed && targetReceipt.status === 'received')) {
+      setError(PAID_AI_UNAVAILABLE)
       return
     }
     if (!analyzing) void analyze(targetReceipt.id, receipt)
@@ -398,13 +423,17 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       </section>}
 
       {!analysis && <section className="rounded-input bg-bg-secondary px-3 py-2 text-center text-xs text-text-tertiary">
-        {receipt.image_url
-          ? 'Abrí la imagen para comenzar o retomar la revisión.'
-          : 'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'}
+        {manualReceiptEntryRequired
+          ? <p role="status" className="text-sm leading-6 text-warning">{PAID_AI_UNAVAILABLE}</p>
+          : receipt.image_url
+            ? 'Abrí la imagen para comenzar o retomar la revisión.'
+            : 'Este comprobante no tiene una imagen disponible, pero podés iniciar su revisión.'}
         {receipt.image_unavailable && <p role="status" className="mt-2 text-warning">No pudimos abrir la imagen. Podés revisar los datos guardados. <button type="button" onClick={() => void load()} className="min-h-11 font-semibold underline">Reintentar imagen</button></p>}
-        <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block min-h-11 w-full font-semibold text-primary disabled:opacity-50">
-          {analyzing ? 'Analizando…' : 'Revisar comprobante'}
-        </button>
+        {!manualReceiptEntryRequired && (
+          <button type="button" onClick={() => beginPreviewReview(receipt)} disabled={analyzing} className="mt-2 block min-h-11 w-full font-semibold text-primary disabled:opacity-50">
+            {analyzing ? 'Analizando…' : 'Revisar comprobante'}
+          </button>
+        )}
       </section>}
 
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}

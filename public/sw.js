@@ -23,7 +23,22 @@ async function handleShareTarget(request) {
 
     if (!(sharedFile instanceof File)) {
       console.warn('[share-target] No file found in shared payload')
-      return Response.redirect(`${self.location.origin}/share-target`, 303)
+      return Response.redirect(
+        `${self.location.origin}/share-target?error=sin_archivo`,
+        303
+      )
+    }
+
+    const mimeType = sharedFile.type || ''
+    if (!mimeType.startsWith('image/')) {
+      console.warn('[share-target] Rejected non-image share', {
+        name: sharedFile.name,
+        type: mimeType,
+      })
+      return Response.redirect(
+        `${self.location.origin}/share-target?error=tipo_invalido`,
+        303
+      )
     }
 
     const shareTargetId =

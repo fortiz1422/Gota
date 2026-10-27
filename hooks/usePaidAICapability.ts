@@ -1,8 +1,17 @@
 'use client'
 import { useEffect, useState } from 'react'
+
+export type PaidAICapabilityState = {
+  allowed: boolean
+  resolved: boolean
+}
+
 /** Presentation only: every paid handler independently enforces the server policy. */
-export function usePaidAICapability() {
-  const [allowed, setAllowed] = useState(false)
+export function usePaidAICapability(): PaidAICapabilityState {
+  const [state, setState] = useState<PaidAICapabilityState>({
+    allowed: false,
+    resolved: false,
+  })
   useEffect(() => {
     let active = true
     void fetch('/api/capabilities', { cache: 'no-store' })
@@ -10,14 +19,14 @@ export function usePaidAICapability() {
         response.ok ? (await response.json()).paidAI === true : false
       )
       .then((value) => {
-        if (active) setAllowed(value)
+        if (active) setState({ allowed: value, resolved: true })
       })
       .catch(() => {
-        if (active) setAllowed(false)
+        if (active) setState({ allowed: false, resolved: true })
       })
     return () => {
       active = false
     }
   }, [])
-  return allowed
+  return state
 }
