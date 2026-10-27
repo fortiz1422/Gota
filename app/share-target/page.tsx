@@ -3,9 +3,14 @@ import { ShareTargetBridge } from '@/components/share-target/ShareTargetBridge'
 export default async function ShareTargetPage({
   searchParams,
 }: {
-  searchParams: Promise<{ shareTargetId?: string }>
+  searchParams: Promise<{ shareTargetId?: string; error?: string }>
 }) {
-  const { shareTargetId } = await searchParams
+  const { shareTargetId, error } = await searchParams
 
-  return <ShareTargetBridge shareTargetId={shareTargetId ?? null} />
+  return (
+    <ShareTargetBridge
+      shareTargetId={shareTargetId ?? null}
+      shareError={error ?? null}
+    />
+  )
 }

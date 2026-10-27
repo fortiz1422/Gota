@@ -42,6 +42,8 @@ import {
 import { CATEGORIES } from '@/lib/validation/schemas'
 import { formatAmount, formatDate } from '@/lib/format'
 import type { BulkConfirmationResult } from '@/lib/shared-receipts/bulk-confirmation'
+import { sharedReceiptExpiryPresentation } from '@/lib/shared-receipts/expiry'
+import { usePaidAICapability } from '@/hooks/usePaidAICapability'
 import type { Account, Card } from '@/types/database'
 
 const field =
@@ -74,6 +76,8 @@ function waitForAnalysisSlot(ms: number, signal: AbortSignal): Promise<void> {
 
 export function SharedReceiptBatchReview() {
   const queryClient = useQueryClient()
+  const { allowed: paidAIAllowed, resolved: paidAIResolved } =
+    usePaidAICapability()
   const [drafts, setDrafts] = useState<BulkReceiptDraft[]>([])
   const [accounts, setAccounts] = useState<Account[]>([])
   const [cards, setCards] = useState<Card[]>([])
@@ -193,11 +197,22 @@ export function SharedReceiptBatchReview() {
       setError(null)
       duplicateChecks.current.clear()
       try {
-        const [inbox, loadedAccounts, loadedCards] = await Promise.all([
-          get(SHARED_RECEIPT_ROUTES.inbox),
-          get('/api/accounts'),
-          get('/api/cards'),
-        ])
+        const [inbox, loadedAccounts, loadedCards, capabilities] =
+          await Promise.all([
+            get(SHARED_RECEIPT_ROUTES.inbox),
+            get('/api/accounts'),
+            get('/api/cards'),
+            fetch('/api/capabilities', { cache: 'no-store', signal })
+              .then(async (response) =>
+                response.ok ? await response.json() : null
+              )
+              .catch(() => null),
+          ])
+        const paidAiAvailable =
+          capabilities &&
+          typeof capabilities === 'object' &&
+          'paidAI' in capabilities &&
+          capabilities.paidAI === true
         if (signal.aborted) return
         const accountList = requireReferenceArray<Account>(
           loadedAccounts,
@@ -240,42 +255,44 @@ export function SharedReceiptBatchReview() {
         }
         if (signal.aborted) return
         setLoading(false)
-        setPreparing(true)
-        // Read before opening a receipt. Persisted analyses are reused; failures need an explicit retry.
-        let lastStarted = 0
-        for (const receiptId of received) {
-          if (signal.aborted) return
-          await waitForAnalysisSlot(
-            Math.max(
-              0,
-              RECEIPT_ANALYSIS_INTERVAL_MS - (Date.now() - lastStarted)
-            ),
-            signal
-          )
-          lastStarted = Date.now()
-          const response = await fetch(
-            SHARED_RECEIPT_ROUTES.analyze(receiptId),
-            { method: 'POST', signal }
-          )
-          if (
-            response.status === 429 ||
-            response.status === 403 ||
-            response.status === 401
-          ) {
-            const body = (await response.json().catch(() => null)) as {
-              error?: string
-            } | null
-            setError(
-              body?.error ??
-                'La preparación quedó pausada. Podés revisar los ya leídos.'
+        setPreparing(paidAiAvailable && received.length > 0)
+        if (paidAiAvailable) {
+          // Read before opening a receipt. Persisted analyses are reused; failures need an explicit retry.
+          let lastStarted = 0
+          for (const receiptId of received) {
+            if (signal.aborted) return
+            await waitForAnalysisSlot(
+              Math.max(
+                0,
+                RECEIPT_ANALYSIS_INTERVAL_MS - (Date.now() - lastStarted)
+              ),
+              signal
             )
-            break
+            lastStarted = Date.now()
+            const response = await fetch(
+              SHARED_RECEIPT_ROUTES.analyze(receiptId),
+              { method: 'POST', signal }
+            )
+            if (
+              response.status === 429 ||
+              response.status === 403 ||
+              response.status === 401
+            ) {
+              const body = (await response.json().catch(() => null)) as {
+                error?: string
+              } | null
+              setError(
+                body?.error ??
+                  'La preparación quedó pausada. Podés revisar los ya leídos.'
+              )
+              break
+            }
+            // Always reload canonical state, including when another session claimed the analysis.
+            const receipt = normalizeReceiptResponse(
+              await get(SHARED_RECEIPT_ROUTES.apiDetail(receiptId))
+            )
+            if (receipt) publish(createBulkDraft(receipt, accountList, cardList))
           }
-          // Always reload canonical state, including when another session claimed the analysis.
-          const receipt = normalizeReceiptResponse(
-            await get(SHARED_RECEIPT_ROUTES.apiDetail(receiptId))
-          )
-          if (receipt) publish(createBulkDraft(receipt, accountList, cardList))
         }
       } catch (reason) {
         if (!signal.aborted)
@@ -545,7 +562,13 @@ export function SharedReceiptBatchReview() {
 
   const renderRow = (draft: BulkReceiptDraft, isReady: boolean) => {
     const id = draft.receipt.id
-    const reasons = draftBlockers(draft)
+    const reasons = draftBlockers(draft, {
+      paidAiAvailable: paidAIResolved ? paidAIAllowed : undefined,
+    })
+    const expiry =
+      draft.receipt.expires_at
+        ? sharedReceiptExpiryPresentation(draft.receipt.expires_at)
+        : null
     const choice = memory[id] ?? {
       enabled: false,
       mode: 'new' as const,
@@ -604,6 +627,13 @@ export function SharedReceiptBatchReview() {
                   : (accounts.find((a) => a.id === draft.payload.account_id)
                       ?.name ?? 'Elegí medio de pago')}
               </p>
+              {expiry?.label && (
+                <p
+                  className={`mt-1 text-xs ${expiry.urgent ? 'text-warning font-medium' : 'text-text-tertiary'}`}
+                >
+                  {expiry.label}
+                </p>
+              )}
             </div>
           </div>
           <span className="text-text-primary shrink-0 text-sm font-bold tabular-nums">

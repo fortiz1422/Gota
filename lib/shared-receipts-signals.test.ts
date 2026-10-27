@@ -98,13 +98,14 @@ describe('shared receipts in Signals', () => {
     expect(toneWithOperationalReviews('none', false, pendingMercadoPagoReviewBucketCount(buckets) > 0)).toBe('watch')
   })
 
-  it('removes the receipt CTA from Home and routes pending receipts through Signals', () => {
+  it('shows inbox CTA on Home without Signals and routes pending receipts through Signals when enabled', () => {
     const dashboard = readFileSync(
       new URL('../components/dashboard/DashboardShell.tsx', import.meta.url),
       'utf8',
     )
 
-    expect(dashboard).not.toContain('<SharedReceiptsInboxCard />')
+    expect(dashboard).toContain('!FF_SIGNALS_CENTER_V1 && <SharedReceiptsInboxCard />')
+    expect(dashboard.match(/<SharedReceiptsInboxCard/g)?.length).toBe(1)
     expect(dashboard).toContain('pendingReceipts={pendingReceipts}')
     expect(dashboard).toContain("router.push('/shared-receipts')")
   })

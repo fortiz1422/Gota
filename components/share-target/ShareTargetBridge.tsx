@@ -8,16 +8,21 @@ import {
   requestShareTargetFocus,
   type PendingSharedReceipt,
 } from '@/lib/share-target'
+import { shareTargetBridgeErrorMessage } from '@/lib/share-target/mime-filter'
 
 interface ShareTargetBridgeProps {
   shareTargetId: string | null
+  shareError?: string | null
 }
 
 function bucketSharedFileType(type: string): 'image' | 'other' {
   return type.startsWith('image/') ? 'image' : 'other'
 }
 
-export function ShareTargetBridge({ shareTargetId }: ShareTargetBridgeProps) {
+export function ShareTargetBridge({
+  shareTargetId,
+  shareError = null,
+}: ShareTargetBridgeProps) {
   const supabase = useMemo(() => createClient(), [])
   const [error, setError] = useState<string | null>(null)
 
@@ -46,6 +51,15 @@ export function ShareTargetBridge({ shareTargetId }: ShareTargetBridgeProps) {
     }
 
     const run = async () => {
+      const bridgeError = shareTargetBridgeErrorMessage(shareError)
+      if (bridgeError) {
+        trackEvent('share_target_failed', {
+          reason: shareError ?? 'bridge_error',
+        })
+        setError(bridgeError)
+        return
+      }
+
       if (!shareTargetId) {
         console.warn('[share-target] missing shareTargetId')
         trackEvent('share_target_failed', { reason: 'missing_id' })
@@ -69,12 +83,12 @@ export function ShareTargetBridge({ shareTargetId }: ShareTargetBridgeProps) {
     return () => {
       cancelled = true
     }
-  }, [shareTargetId, supabase])
+  }, [shareTargetId, shareError, supabase])
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-bg-primary px-6 text-center">
       <div className="max-w-sm rounded-card border border-border-subtle bg-bg-secondary/70 px-5 py-6 shadow-sm">
-        <p className="type-label text-text-secondary">Share target</p>
+        <p className="type-label text-text-secondary">Captura compartida</p>
         <h1 className="mt-3 text-[24px] font-bold tracking-[-0.03em] text-text-primary">
           {error ? 'No pudimos abrir la captura' : 'Preparando tu captura'}
         </h1>

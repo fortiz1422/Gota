@@ -48,6 +48,7 @@ export interface SharedReceiptSummary {
   id: string
   status: string
   created_at: string
+  expires_at?: string | null
   filename?: string | null
   content_type?: string | null
   duplicate?: boolean
