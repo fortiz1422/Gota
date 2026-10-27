@@ -14,4 +14,10 @@ describe('Mercado Pago validation presentation', () => {
   it('keeps a pending settlement report human and non-successful', () => {
     expect(getMercadoPagoValidationMessage({ payments: { status: 'success', count: 3 }, reports: { status: 'pending', count: 0 } })).toBe('Movimientos actualizados. El detalle de saldo todavía se está preparando.')
   })
+
+  it('describes a payments page cap without calling it a provider failure', () => {
+    expect(getMercadoPagoValidationMessage({ payments: { status: 'pending', count: 500 }, reports: { status: 'success', count: 1 } })).toBe('Leímos una parte de los pagos. Hay más páginas; no es un error de Mercado Pago.')
+    expect(getMercadoPagoValidationMessage({ payments: { status: 'pending', count: 500 }, reports: { status: 'pending', count: 0 } })).toBe('Leímos una parte de los pagos. El detalle de saldo todavía se está preparando.')
+    expect(getMercadoPagoValidationMessage({ payments: { status: 'pending', count: 500 }, reports: { status: 'error', count: 0 } })).toBe('Actualización parcial. Podés revisar lo que encontramos; una fuente no respondió.')
+  })
 })

@@ -69,6 +69,29 @@ describe('Mercado Pago sync route', () => {
     expect(mocks.updateConnection).toHaveBeenLastCalledWith('user-1', 'connection-1', { last_sync_at: '2026-09-15T00:00:00.000Z', status: 'connected', last_error_code: null })
   })
 
+  it('keeps a partial payments capture pending, incomplete, and not an error', async () => {
+    mocks.getRuns.mockResolvedValue([
+      { source: 'payments_search', status: 'pending', count: 500, error_code: null, started_at: '2026-09-16T00:00:00.000Z', end_date: '2026-09-16', batch_id: 'mp-1' },
+      { source: 'payments_search', status: 'success', count: 10, error_code: null, started_at: '2026-09-15T00:00:00.000Z', end_date: '2026-09-15', batch_id: 'mp-0' },
+      { source: 'account_settlement_report', status: 'success', count: 1, error_code: null, started_at: '2026-09-16T00:00:00.000Z', end_date: '2026-09-16', batch_id: 'mp-r' },
+    ])
+    const response = await GET()
+    expect(response.status).toBe(200)
+    const body = await response.json()
+    expect(body.state).toBe('connected')
+    expect(body.sources.payments).toMatchObject({ status: 'pending', count: 500, coverageComplete: false, lastCompleteDate: '2026-09-15' })
+    expect(body.sources.reports).toMatchObject({ status: 'success', coverageComplete: true })
+    expect(JSON.stringify(body)).not.toContain('provider_error')
+  })
+
+  it('does not mark a pending payments sync as complete or as a connection error', async () => {
+    mocks.sync.mockResolvedValue({ batchId: 'batch-3', startedAt: '2026-09-16T00:00:00.000Z', sources: [{ source: 'payments_search', status: 'pending', count: 500, errorCode: null }, { source: 'account_settlement_report', status: 'success', count: 1, errorCode: null }] })
+    const response = await POST(new Request('https://gota.test/api/integrations/mercadopago/sync', { method: 'POST' }))
+    expect(response.status).toBe(200)
+    expect(await response.json()).toMatchObject({ sources: { payments: { status: 'pending', coverageComplete: false }, reports: { status: 'success', coverageComplete: true } } })
+    expect(mocks.updateConnection).toHaveBeenLastCalledWith('user-1', 'connection-1', { last_sync_at: '2026-09-16T00:00:00.000Z', status: 'connected', last_error_code: null })
+  })
+
   it('passes a persisted pending report timestamp to prevent duplicate creation while list is empty', async () => {
     mocks.getRuns.mockResolvedValue([{ source: 'account_settlement_report', status: 'pending', count: 0, error_code: null, started_at: '2026-09-15T00:00:00.000Z' }])
 

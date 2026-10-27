@@ -39,6 +39,8 @@ export type CaptureDispatchConnection = {
   upToDate: boolean
   cursorAdvanced: boolean
   posted: 0
+  /** A payments cluster larger than 1500 did not move the watermark. Not a provider error. */
+  held?: true
   reason?: string
 }
 
@@ -111,10 +113,11 @@ export async function dispatchMercadoPagoDailyCaptures(budgetMs = CAPTURE_BUDGET
         next.reason = 'provider_error'
         continue
       }
-      next.cursorAdvanced = true
+      if (result.cursorMoved) next.cursorAdvanced = true
+      if (result.held) next.held = true
       next.upToDate = result.upToDate
       next.status = result.upToDate ? 'success' : 'catching_up'
-      next.finished = next.status === 'success' || next.windows >= CAPTURE_MAX_WINDOWS
+      next.finished = next.status === 'success' || next.windows >= CAPTURE_MAX_WINDOWS || result.held
     } catch (error) {
       if (error instanceof Error && (error.message === 'oauth_not_ready' || error.message === 'background_disabled' || error.message === 'capture_posted')) throw error
       next.upToDate = false
@@ -140,6 +143,7 @@ export async function dispatchMercadoPagoDailyCaptures(budgetMs = CAPTURE_BUDGET
   const connections = slots.map(slot => ({
     connectionId: slot.connectionId, status: slot.status, windows: slot.windows, observed: slot.observed,
     upToDate: slot.upToDate, cursorAdvanced: slot.cursorAdvanced, posted: 0 as const,
+    ...(slot.held ? { held: true as const } : {}),
     ...(slot.reason ? { reason: slot.reason } : {}),
   }))
   return {

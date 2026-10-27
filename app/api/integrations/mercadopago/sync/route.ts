@@ -9,10 +9,10 @@ import { parseSyncRequestBody, parseSyncWindow } from '@/lib/mercadopago/sync-wi
 
 const headers = { 'Cache-Control': 'no-store, max-age=0', Pragma: 'no-cache' }
 const response = (body: unknown, status = 200) => NextResponse.json(body, { status, headers })
-type SourceSummary = { status: SourceRun['status'] | 'not_run'; count: number; observedInRun: number; lastCompleteDate: string | null }
+type SourceSummary = { status: SourceRun['status'] | 'not_run'; count: number; observedInRun: number; lastCompleteDate: string | null; coverageComplete: boolean }
 const emptySources = (): { payments: SourceSummary; reports: SourceSummary } => ({
-  payments: { status: 'not_run', count: 0, observedInRun: 0, lastCompleteDate: null },
-  reports: { status: 'not_run', count: 0, observedInRun: 0, lastCompleteDate: null },
+  payments: { status: 'not_run', count: 0, observedInRun: 0, lastCompleteDate: null, coverageComplete: false },
+  reports: { status: 'not_run', count: 0, observedInRun: 0, lastCompleteDate: null, coverageComplete: false },
 })
 
 export async function GET() {
@@ -30,7 +30,7 @@ export async function GET() {
     if (run.status === 'success' && run.end_date && !latestCompleteBySource.has(run.source)) latestCompleteBySource.set(run.source, run)
   }
   for (const run of latestBySource.values()) {
-    const summary = { status: run.status, count: run.count, observedInRun: run.count, lastCompleteDate: latestCompleteBySource.get(run.source)?.end_date ?? null }
+    const summary = { status: run.status, count: run.count, observedInRun: run.count, lastCompleteDate: latestCompleteBySource.get(run.source)?.end_date ?? null, coverageComplete: run.status === 'success' }
     if (run.source === 'payments_search') sources.payments = summary
     else sources.reports = summary
   }

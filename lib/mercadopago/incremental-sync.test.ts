@@ -39,8 +39,9 @@ describe('incremental capture integrity', () => {
     expect(first.batchId).not.toBe(second.batchId)
   })
 
-  it('does not advance on capped pagination, malformed payloads or contradictory totals', async () => {
-    for (const payload of [{ results: Array.from({ length: 50 }, (_, i) => ({ id: i })), paging: { total: 501 } }, { message: 'bad' }, { results: [], paging: { total: 1 } }]) {
+  it('does not advance on invalid dates, malformed payloads or contradictory totals', async () => {
+    const unordered = Array.from({ length: 50 }, (_, index) => ({ id: `date-${index}`, date_created: new Date(Date.parse('2026-09-30T21:00:00.000Z') - index * 1000).toISOString() }))
+    for (const payload of [{ results: Array.from({ length: 50 }, (_, index) => ({ id: `nodate-${index}` })), paging: { total: 501 } }, { results: unordered, paging: { total: 501 } }, { message: 'bad' }, { results: [], paging: { total: 1 } }]) {
       const s = store()
       const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret', watermark, now, store: s, fetchImpl: vi.fn(async () => reply(payload)) })
       expect(result.run.status).toBe('error')
@@ -69,9 +70,29 @@ describe('incremental capture integrity', () => {
     expect(s.advanceWatermark).not.toHaveBeenCalled()
   })
 
+  it('advances a page cap with valid dates only to coveredUntil', async () => {
+    const begin = Date.parse('2026-09-30T20:52:00.000Z')
+    const rows = Array.from({ length: 501 }, (_, index) => ({
+      id: `cap-${index}`,
+      date_created: new Date(begin + Math.floor(((index + 1) * (now.getTime() - begin)) / 502)).toISOString(),
+    }))
+    const s = store()
+    const fetchImpl = vi.fn(async (input: string | URL | Request) => {
+      const url = new URL(String(input))
+      const offset = Number(url.searchParams.get('offset'))
+      const limit = Number(url.searchParams.get('limit'))
+      return reply({ results: rows.slice(offset, offset + limit), paging: { total: rows.length } })
+    })
+    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret', watermark, now, store: s, fetchImpl })
+    expect(result.run).toMatchObject({ status: 'pending', errorCode: null, count: 500, coveredUntil: rows[499]?.date_created })
+    expect(s.advanceWatermark).toHaveBeenCalledTimes(1)
+    expect(s.advanceWatermark).toHaveBeenCalledWith(watermark, rows[499]?.date_created)
+    expect(rows[499]?.date_created).not.toBe(now.toISOString())
+  })
+
   it('does not advance when repeated provider pages falsely satisfy the reported total', async () => {
     const s = store()
-    const rows = Array.from({ length: 50 }, (_, id) => ({ id }))
+    const rows = Array.from({ length: 50 }, (_, id) => ({ id, date_created: new Date(Date.parse('2026-09-30T20:52:00.000Z') + id * 1000).toISOString() }))
     const fetchImpl = vi.fn(async () => reply({ results: rows, paging: { total: 100 } }))
     const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret', watermark, now, store: s, fetchImpl })
     expect(result.run.status).toBe('error')

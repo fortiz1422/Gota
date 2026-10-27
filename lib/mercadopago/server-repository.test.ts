@@ -88,6 +88,20 @@ describe('Mercado Pago server repository', () => {
     expect(fake.calls.filter((call) => call.method === 'upsert').map((call) => (call.args[0] as { user_id: string }).user_id)).toEqual(['user-1', 'user-1', 'user-1'])
   })
 
+  it('stores a page cap as pending and a provider failure as provider_error', async () => {
+    const fake = fakeDatabase({ data: { id: 'row-1' }, error: null })
+    const repository = createMercadoPagoRepository(fake.database as unknown as MercadoPagoDatabase)
+    const base = { userId: 'user-1', connectionId: 'connection-1', batchId: 'batch-1', startedAt: '2026-09-15T00:00:00.000Z' }
+    await repository.saveMercadoPagoSourceRun({ ...base, run: { source: 'payments_search', status: 'pending', count: 500, errorCode: null, coveredUntil: '2026-09-15T12:00:00.000Z' } })
+    await repository.saveMercadoPagoSourceRun({ ...base, batchId: 'batch-2', run: { source: 'payments_search', status: 'error', count: 0, errorCode: 'provider_error' } })
+    const payloads = fake.calls.filter((call) => call.method === 'upsert').map((call) => call.args[0] as { status: string; error_code: string | null; count: number })
+    expect(payloads).toEqual([
+      expect.objectContaining({ status: 'pending', error_code: null, count: 500 }),
+      expect.objectContaining({ status: 'error', error_code: 'provider_error', count: 0 }),
+    ])
+    expect(payloads[0]).not.toHaveProperty('covered_until')
+  })
+
   it('bounds source-run history to a user and connection', async () => {
     const fake = fakeDatabase({ data: [], error: null })
     const repository = createMercadoPagoRepository(fake.database as unknown as MercadoPagoDatabase)

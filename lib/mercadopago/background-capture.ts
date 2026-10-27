@@ -18,7 +18,7 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
   const deadline = options.deadline ?? Date.now() + CAPTURE_BUDGET_MS
   const maxWindows = options.maxWindows ?? CAPTURE_MAX_WINDOWS
   if (maxWindows <= 0 || Date.now() >= deadline) {
-    return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: null, upToDate: false, posted: 0 as const }
+    return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: null, upToDate: false, posted: 0 as const, cursorMoved: false, held: false }
   }
   const target = new Date()
   return withMercadoPagoSyncLease(userId, connectionId, async leaseId => {
@@ -30,7 +30,7 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
       .eq('id', connectionId).eq('user_id', userId).single()
     if (error || !state?.background_sync_enabled || !state.incremental_watermark) throw new Error('not_enabled')
     if (Date.now() >= deadline) {
-      return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: false, posted: 0 as const }
+      return { status: 'catching_up' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: false, posted: 0 as const, cursorMoved: false, held: false }
     }
     const { data: attempted, error: attemptError } = await admin.from('mercadopago_connections')
       .update({ last_incremental_attempt_at: target.toISOString() })
@@ -39,13 +39,15 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
       .select('id').maybeSingle()
     if (attemptError || !attempted) throw new Error('attempt_write_failed')
     if (Date.parse(state.incremental_watermark) >= target.getTime()) {
-      return { status: 'success' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: true, posted: 0 as const }
+      return { status: 'success' as const, observed: 0, windows: 0, capturedThrough: state.incremental_watermark as string, upToDate: true, posted: 0 as const, cursorMoved: false, held: false }
     }
     const accessToken = await getValidMercadoPagoAccessToken(userId, connection, readiness.config, leaseId, deadline)
+    const initialWatermark: string = state.incremental_watermark
     let watermark: string = state.incremental_watermark
     let observed = 0
     let windows = 0
     let status: 'success' | 'error' | 'catching_up' = 'catching_up'
+    let held = false
     for (; windows < maxWindows && Date.now() < deadline; windows++) {
       const expected = watermark
       const result = await syncMercadoPagoIncremental({
@@ -69,10 +71,17 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
         },
       })
       observed += result.run.count
-      if (result.run.status !== 'success') { status = 'error'; windows++; break }
+      if (result.run.status === 'error') { status = 'error'; windows++; break }
+      const moved = Date.parse(watermark) > Date.parse(expected)
+      // More than 1500 payments share a stamp the cursor cannot pass. Stay pending.
+      // The watermark does not move and this is not a provider failure.
+      if (!moved) {
+        if (result.run.status === 'pending') { status = 'catching_up'; held = true; windows++; break }
+        throw new Error('watermark_not_advanced')
+      }
       if (Date.parse(watermark) >= target.getTime()) { status = 'success'; windows++; break }
-      if (Date.parse(watermark) <= Date.parse(expected)) throw new Error('watermark_not_advanced')
+      status = 'catching_up'
     }
-    return { status, observed, windows, capturedThrough: watermark, upToDate: status === 'success', posted: 0 as const }
+    return { status, observed, windows, capturedThrough: watermark, upToDate: status === 'success', posted: 0 as const, cursorMoved: Date.parse(watermark) > Date.parse(initialWatermark), held }
   })
 }
