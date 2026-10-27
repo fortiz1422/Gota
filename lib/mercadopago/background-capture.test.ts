@@ -1,8 +1,8 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-const m = vi.hoisted(() => ({ enabled: vi.fn(), db: vi.fn(), lease: vi.fn(), oauth: vi.fn(), connection: vi.fn(), token: vi.fn(), raw: vi.fn(), source: vi.fn(), runs: vi.fn() }))
+const m = vi.hoisted(() => ({ enabled: vi.fn(), db: vi.fn(), lease: vi.fn(), oauth: vi.fn(), connection: vi.fn(), token: vi.fn(), raw: vi.fn(), source: vi.fn() }))
 vi.mock('./sync-lease', () => ({ mercadoPagoBackgroundEnabled: m.enabled, backgroundDatabase: m.db, withMercadoPagoSyncLease: m.lease }))
 vi.mock('./oauth', () => ({ getMercadoPagoOAuthReadiness: m.oauth }))
-vi.mock('./server-repository', () => ({ getMercadoPagoConnection: m.connection, saveRawObservation: m.raw, saveMercadoPagoSourceRun: m.source, getLatestMercadoPagoSourceRuns: m.runs }))
+vi.mock('./server-repository', () => ({ getMercadoPagoConnection: m.connection, saveRawObservation: m.raw, saveMercadoPagoSourceRun: m.source }))
 vi.mock('./access-token', () => ({ getValidMercadoPagoAccessToken: m.token }))
 import { runMercadoPagoBackgroundCapture as capture } from './background-capture'
 
@@ -40,7 +40,6 @@ beforeEach(() => {
   m.token.mockResolvedValue('fixture-only-token')
   m.raw.mockResolvedValue(undefined)
   m.source.mockResolvedValue(undefined)
-  m.runs.mockResolvedValue([])
 })
 afterEach(() => { vi.useRealTimers(); vi.unstubAllGlobals() })
 

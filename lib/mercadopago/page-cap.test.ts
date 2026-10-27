@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
 import { MERCADOPAGO_PAGE_SIZE, MERCADOPAGO_TIE_MAX_PAGES, pullPayments } from './observability-sync'
-import { incrementalWindow, parseTieResume, syncMercadoPagoIncremental, watermarkAfterRun, type IncrementalStore } from './incremental-sync'
+import { incrementalWindow, syncMercadoPagoIncremental, watermarkAfterRun, type IncrementalStore } from './incremental-sync'
 import type { SyncWindow } from './sync-window'
 
 const now = new Date('2026-09-30T21:10:00.000Z')
@@ -42,7 +42,6 @@ function memory(initial = watermark) {
   const raw = new Map<string, Stored>()
   const runs: RunRecord[] = []
   const cursors: string[] = []
-  const lastBatch = { id: null as string | null }
   const store: IncrementalStore = {
     upsertRawObservation: async (row) => {
       const payload = row.payload as Payment
@@ -51,7 +50,7 @@ function memory(initial = watermark) {
       raw.set(row.nativeKey, { currency: payload.currency_id, amount: payload.transaction_amount, date: payload.date_created })
     },
     saveSourceRun: async ({ batchId, run }) => {
-      lastBatch.id = batchId
+      expect(batchId).toMatch(/^mp-[0-9a-f-]+$/)
       runs.push({ status: run.status, errorCode: run.errorCode, count: run.count, coveredUntil: run.coveredUntil ?? null })
     },
     advanceWatermark: async (expected, next) => {
@@ -61,7 +60,7 @@ function memory(initial = watermark) {
       cursors.push(next)
     },
   }
-  return { store, raw, runs, cursors, lastBatch, read: () => current }
+  return { store, raw, runs, cursors, read: () => current }
 }
 
 function assertNoGap(rows: Payment[], raw: Map<string, Stored>, cursor: string) {
@@ -78,7 +77,7 @@ async function drain(rows: Payment[]) {
   const results = []
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const before = state.raw.size
-    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark: state.read(), now, store: state.store, fetchImpl, resume: parseTieResume(state.lastBatch.id) })
+    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark: state.read(), now, store: state.store, fetchImpl })
     results.push(result)
     assertNoGap(rows, state.raw, state.read())
     expect(state.raw.size).toBeGreaterThanOrEqual(before)
@@ -193,18 +192,21 @@ describe('payments page cap and watermark', () => {
     expect(watermarkAfterRun(stamp, window.endTimestamp, { source: 'payments_search', status: 'pending', count: 500, errorCode: null, coveredUntil: stamp })).toBeNull()
   })
 
-  it('resumes a tie larger than the safety cap on the next run', async () => {
+  it('holds a cluster larger than the safety cap without moving the watermark or duplicating', async () => {
     const window = incrementalWindow(watermark, now)
     const stamp = new Date(Date.parse(window.beginTimestamp) + 60 * 60 * 1000).toISOString()
     const count = MERCADOPAGO_TIE_MAX_PAGES * MERCADOPAGO_PAGE_SIZE + 1
     const rows = paymentsIn(window, count, stamp)
     const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
     const { state, seen, results } = await drain(rows)
-    expect(seen.size).toBe(count)
-    expect(state.read()).toBe(window.endTimestamp)
-    expect(results.at(-1)?.run.status).toBe('success')
-    expect(results.every((result) => result.run.errorCode === null)).toBe(true)
-    expect(state.lastBatch.id?.includes('#tie|')).toBe(false)
+    expect(state.read()).toBe(stamp)
+    expect(state.read()).not.toBe(window.endTimestamp)
+    expect(seen.size).toBe(MERCADOPAGO_TIE_MAX_PAGES * MERCADOPAGO_PAGE_SIZE)
+    expect(seen.has(`pay-${count - 1}`)).toBe(false)
+    expect(new Set(seen.keys()).size).toBe(seen.size)
+    expect(results.every((result) => result.run.status !== 'success' && result.run.errorCode === null)).toBe(true)
+    expect(results.some((result) => result.run.status === 'pending')).toBe(true)
+    expect(results.every((result) => result.batchId.startsWith('mp-') && !result.batchId.includes('#'))).toBe(true)
     const held = info.mock.calls.map((args) => args.map((part) => String(part)).join(' ')).filter((line) => line.includes('mercadopago_payments_page_cap'))
     expect(held.some((line) => line.includes('"held":true'))).toBe(true)
     expect(held.join('\n')).not.toContain('secret-token')
