@@ -47,8 +47,9 @@ Agregar estas acciones, en este orden:
 9. Resolver la respuesta con acciones **Si**:
    - Si `status` es `accepted`: **Mostrar notificación** `Comprobante recibido. Abrí Gota para revisarlo.`
    - Si `status` es `duplicate`: **Mostrar notificación** `Ese comprobante ya había sido recibido. Abrí Gota para revisarlo.`
-   - Si `status` es `unauthorized` o el código HTTP es `401`: **Mostrar alerta** `Token inválido o vencido. Creá uno nuevo en Gota > Integraciones.`
-   - Si `status` es `too_large` o el código HTTP es `413`: **Mostrar alerta** `La imagen supera el límite permitido. Recortala o reducí su tamaño e intentá de nuevo.`
+   - Si `status` es `unauthorized`, el valor de `error` es `unauthorized` o el código HTTP es `401`: **Mostrar alerta** `Token inválido o vencido. Creá uno nuevo en Ajustes → Conexiones → Dispositivos.`
+   - Si `status` es `too_large`, el valor de `error` es `file_too_large` o el código HTTP es `413`: **Mostrar alerta** `La imagen supera el límite permitido. Recortala o reducí su tamaño e intentá de nuevo.`
+   - Si el valor de `error` es `rate_limited` o el código HTTP es `429`: **Mostrar alerta** `Demasiados envíos, esperá unos minutos…`
    - En cualquier otro resultado: **Mostrar alerta** `No pudimos enviar el comprobante. Intentá de nuevo.`
 
 No agregar `Continuar en app`, creación de movimientos ni confirmación automática al Shortcut.
@@ -63,8 +64,9 @@ La receta contempla estos resultados sin guardar datos financieros:
 | --- | ---: | --- |
 | Recibido | 200/201/202 | `status = accepted` |
 | Ya recibido | 200/409 | `status = duplicate` |
-| Token inválido, vencido o revocado | 401 | `status = unauthorized` o código 401 |
-| Imagen demasiado grande | 413 | `status = too_large` o código 413 |
+| Token inválido, vencido o revocado | 401 | `status = unauthorized`, `error = unauthorized` o código 401 |
+| Imagen demasiado grande | 413 | `status = too_large`, `error = file_too_large` o código 413 |
+| Demasiados envíos en poco tiempo | 429 | `error = rate_limited` o código 429 |
 
 El backend que implemente el upload debe devolver JSON aun en errores controlados para que el Shortcut pueda mostrar el mensaje correspondiente. Este corte no implementa esa ruta.
 
@@ -78,8 +80,9 @@ El backend que implemente el upload debe devolver JSON aun en errores controlado
 - [ ] Reemplazar `<dominio-de-gota>` por el dominio HTTPS de producción, sin cambiar `/api/shortcut/v1/receipts`.
 - [ ] Probar imagen válida y comprobar `accepted`.
 - [ ] Reenviar la misma imagen y comprobar `duplicate`.
-- [ ] Probar token revocado y comprobar el mensaje de `401`.
+- [ ] Probar token revocado y comprobar el mensaje de `401` (copy hacia Ajustes → Conexiones → Dispositivos).
 - [ ] Probar un archivo por encima del límite y comprobar el mensaje de `413`.
+- [ ] Superar el límite de envíos (20 en 10 min) y comprobar alerta de `429` / `rate_limited`.
 - [ ] Confirmar que ninguna prueba crea un movimiento sin revisión y confirmación en Gota.
 - [ ] Compartir el Shortcut desde un dispositivo Apple y publicar el enlace de iCloud.
 - [ ] Instalar desde el enlace en un segundo dispositivo y verificar que aparece la Pregunta de importación.

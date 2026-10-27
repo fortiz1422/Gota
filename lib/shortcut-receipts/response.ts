@@ -1,7 +1,8 @@
 const errorMessages: Record<string, string> = {
   not_found: 'La carga de comprobantes no está disponible.',
-  unauthorized: 'No pudimos autenticar este Atajo. Revisá su acceso en Gota.',
-  rate_limited: 'Enviaste demasiados comprobantes. Esperá unos minutos y volvé a intentar.',
+  unauthorized:
+    'No pudimos autenticar este Atajo. Creá un token nuevo en Ajustes → Conexiones → Dispositivos.',
+  rate_limited: 'Demasiados envíos. Esperá unos minutos y volvé a intentar.',
   one_file_required: 'No encontramos una imagen para cargar.',
   invalid_file: 'No encontramos una imagen válida para cargar.',
   file_too_large: 'La imagen supera el límite de 10 MB.',
