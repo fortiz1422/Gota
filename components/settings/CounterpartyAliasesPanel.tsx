@@ -321,7 +321,15 @@ export function CounterpartyAliasesPanel() {
                 {selected.aliases.length === 0 ? <p className="text-xs text-text-tertiary">Todavía no tiene alias.</p> : selected.aliases.map((alias) => (
                   <span key={alias.id} className="inline-flex items-center gap-1 rounded-full bg-primary/8 px-2.5 py-1 text-xs text-text-primary">
                     {alias.alias_value}
-                    <button type="button" onClick={(event) => setConfirmation({ kind: 'alias', alias, trigger: event.currentTarget })} disabled={saving} aria-label={`Eliminar alias ${alias.alias_value}`} className="text-danger"><X size={12} /></button>
+                    <button
+                      type="button"
+                      onClick={(event) => setConfirmation({ kind: 'alias', alias, trigger: event.currentTarget })}
+                      disabled={saving}
+                      aria-label={`Eliminar alias ${alias.alias_value}`}
+                      className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-danger"
+                    >
+                      <X size={12} />
+                    </button>
                   </span>
                 ))}
               </div>

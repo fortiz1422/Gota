@@ -17,7 +17,12 @@ export function TarjetasClient({ cards: initialCards, accounts }: { cards: Card[
   return (
     <div className="min-h-app bg-bg-primary">
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border-subtle bg-white/95 px-4 py-4 backdrop-blur">
-        <button type="button" onClick={() => router.back()} aria-label="Volver" className="text-text-primary">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          aria-label="Volver"
+          className="inline-flex min-h-11 min-w-11 shrink-0 items-center justify-center text-text-primary"
+        >
           <CaretLeft size={18} />
         </button>
         <b className="text-base">Tarjetas</b>

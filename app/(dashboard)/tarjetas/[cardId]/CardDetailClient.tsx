@@ -485,7 +485,7 @@ export function CardDetailClient({
             {revertingKey === actionKey ? (
               <div className="mx-3 mb-2.5 space-y-2 rounded-input bg-danger/10 px-3 py-2.5">
                 <p className="type-meta font-medium text-danger">
-                  Queres revertir el pago {currency}? Se eliminara el movimiento registrado.
+                  ¿Querés revertir el pago {currency}? Se eliminará el movimiento registrado.
                 </p>
                 {revertError && <p className="type-meta text-danger">{revertError}</p>}
                 <div className="flex gap-2">
@@ -495,14 +495,14 @@ export function CardDetailClient({
                       setRevertError(null)
                     }}
                     disabled={isReverting}
-                    className="flex-1 rounded-full py-1.5 type-meta text-text-secondary transition-colors hover:bg-bg-primary disabled:opacity-50"
+                    className="flex min-h-11 flex-1 items-center justify-center rounded-full type-meta text-text-secondary transition-colors hover:bg-bg-primary disabled:opacity-50"
                   >
                     Cancelar
                   </button>
                   <button
                     onClick={() => void revertPayment(cycle.id, currency)}
                     disabled={isReverting}
-                    className="flex-1 rounded-full bg-danger py-1.5 type-meta font-semibold text-white disabled:opacity-50"
+                    className="flex min-h-11 flex-1 items-center justify-center rounded-full bg-danger type-meta font-semibold text-white disabled:opacity-50"
                   >
                     {isReverting ? 'Revirtiendo...' : 'Confirmar'}
                   </button>
