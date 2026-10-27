@@ -309,8 +309,8 @@ test('existing merchant stays selected after category moves the row; alias failu
   await page.route(/\/api\/shared-receipts\?status=needs_review$/, (route) =>
     route.fulfill({ json: { receipts: [] } })
   )
-  page.once('dialog', (dialog) => dialog.accept())
   await page.getByRole('button', { name: 'Actualizar estados' }).click()
+  await page.getByRole('button', { name: 'Continuar' }).click()
   await expect(page.getByText('Bandeja al día', { exact: true })).toBeVisible()
   await expect(
     page.getByText(/El gasto de Juliana Farías se guardó/)

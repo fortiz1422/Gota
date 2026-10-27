@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ArrowLeft, CheckCircle, Receipt } from '@phosphor-icons/react'
 import { BlueHeaderZone } from '@/components/ui/BlueHeaderZone'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import { MerchantMemoryFields } from './MerchantMemoryFields'
 import {
   BULK_RECEIPT_LIMIT,
@@ -95,6 +96,7 @@ export function SharedReceiptBatchReview() {
     null
   )
   const [revision, setRevision] = useState(0)
+  const [reloadConfirmOpen, setReloadConfirmOpen] = useState(false)
   const duplicateChecks = useRef(new Map<string, string>())
   const submitLock = useRef(false)
   const memorySnapshot = useRef<Record<string, MerchantMemory>>({})
@@ -1129,13 +1131,8 @@ export function SharedReceiptBatchReview() {
             type="button"
             className="text-primary my-4 min-h-11 text-sm font-semibold"
             onClick={() => {
-              if (
-                !live.length ||
-                window.confirm(
-                  'Se volverá a cargar la tanda. Las ediciones sin confirmar se perderán. ¿Continuar?'
-                )
-              )
-                setRevision((value) => value + 1)
+              if (live.length) setReloadConfirmOpen(true)
+              else setRevision((value) => value + 1)
             }}
           >
             {live.length ? 'Actualizar estados' : 'Preparar otra tanda'}
@@ -1188,6 +1185,18 @@ export function SharedReceiptBatchReview() {
           </div>
         </Modal>
       )}
+      <ConfirmationSurface
+        open={reloadConfirmOpen}
+        onClose={() => setReloadConfirmOpen(false)}
+        onConfirm={() => {
+          setReloadConfirmOpen(false)
+          setRevision((value) => value + 1)
+        }}
+        title="Actualizar estados"
+        description="Se volverá a cargar la tanda. Las ediciones sin confirmar se perderán."
+        confirmLabel="Continuar"
+        appearance="compact"
+      />
       <span className="sr-only">
         Las operaciones no se guardan automáticamente.
       </span>

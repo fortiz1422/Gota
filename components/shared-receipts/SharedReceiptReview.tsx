@@ -6,6 +6,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ArrowLeft, CheckCircle, Receipt, Trash, WarningCircle, X } from '@phosphor-icons/react'
 import { ParsePreview, type ParsePreviewConfirmPayload } from '@/components/dashboard/ParsePreview'
 import { Modal } from '@/components/ui/Modal'
+import { ConfirmationSurface } from '@/components/ui/ConfirmationSurface'
 import {
   SHARED_RECEIPT_ROUTES,
   getNextReviewReceiptId,
@@ -46,6 +47,8 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   const [loading, setLoading] = useState(true)
   const [analyzing, setAnalyzing] = useState(false)
   const [dismissing, setDismissing] = useState(false)
+  const [confirmDismissOpen, setConfirmDismissOpen] = useState(false)
+  const dismissTriggerRef = useRef<HTMLButtonElement>(null)
   const [analysis, setAnalysis] = useState<ParsedPurchaseProposal | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [aliasSaveFailed, setAliasSaveFailed] = useState(false)
@@ -296,7 +299,6 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
   }
 
   const dismiss = async () => {
-    if (!window.confirm('¿Descartar este comprobante? No se creará ningún movimiento.')) return
     setDismissing(true)
     setError(null)
     const contract = SHARED_RECEIPT_ROUTES.dismiss(activeReceiptId)
@@ -408,7 +410,25 @@ export function SharedReceiptReview({ receiptId }: { receiptId: string }) {
       {analysis && !analysis.supported && <section className="mt-4 rounded-card border border-warning/30 bg-warning/5 p-5"><WarningCircle size={24} className="text-warning" /><h2 className="mt-2 text-base font-bold text-text-primary">Todavía no podemos confirmar este tipo</h2><p className="mt-2 text-sm leading-6 text-text-secondary">{analysis.reason} Podés descartarlo sin crear movimientos.</p></section>}
 
       {error && !previewReceipt && <p role="alert" className="mt-4 rounded-input bg-danger/10 px-3 py-2 text-sm text-danger">{error}</p>}
-      <button type="button" onClick={() => void dismiss()} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
+      <button ref={dismissTriggerRef} type="button" onClick={() => setConfirmDismissOpen(true)} disabled={dismissing} className="mt-4 flex min-h-11 w-full items-center justify-center gap-2 rounded-button border border-border-ocean text-sm font-semibold text-text-secondary disabled:opacity-50"><Trash size={16} />{dismissing ? 'Descartando…' : 'Descartar sin guardar'}</button>
+
+      <ConfirmationSurface
+        open={confirmDismissOpen}
+        onClose={() => {
+          if (!dismissing) setConfirmDismissOpen(false)
+        }}
+        onConfirm={() => {
+          setConfirmDismissOpen(false)
+          void dismiss()
+        }}
+        triggerElement={dismissTriggerRef.current}
+        title="Descartar comprobante"
+        description="No se creará ningún movimiento."
+        confirmLabel="Descartar"
+        destructive
+        busy={dismissing}
+        appearance="compact"
+      />
 
       {previewReceipt && <Modal open onClose={closeImage}>
         <section role="dialog" aria-modal="true" aria-labelledby="receipt-image-preview-title">

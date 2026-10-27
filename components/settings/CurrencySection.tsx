@@ -2,16 +2,19 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { InlineError } from '@/components/ui/InlineError'
 
 export function CurrencySection({ currency }: { currency: 'ARS' | 'USD' }) {
   const router = useRouter()
   const [selected, setSelected] = useState(currency)
   const [isSaving, setIsSaving] = useState(false)
   const [confirmChange, setConfirmChange] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const handleSave = async (newCurrency: 'ARS' | 'USD') => {
     if (newCurrency === currency) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/user-config', {
         method: 'PUT',
@@ -21,7 +24,7 @@ export function CurrencySection({ currency }: { currency: 'ARS' | 'USD' }) {
       if (!res.ok) throw new Error()
       router.refresh()
     } catch {
-      alert('Error al cambiar moneda. Intentá de nuevo.')
+      setSaveError('Error al cambiar moneda. Intentá de nuevo.')
       setSelected(currency)
     } finally {
       setIsSaving(false)
@@ -63,6 +66,7 @@ export function CurrencySection({ currency }: { currency: 'ARS' | 'USD' }) {
           </button>
         ))}
       </div>
+      <InlineError message={saveError} className="mt-2" />
       {confirmChange && (
         <div className="mt-2 space-y-2 rounded-card bg-bg-tertiary p-3">
           <p className="text-xs text-text-secondary">
