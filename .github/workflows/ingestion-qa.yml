@@ -8,6 +8,8 @@ on:
       - 'lib/shared-receipts/**'
       - 'components/shared-receipts/**'
       - 'e2e/receipts/**'
+      - 'e2e/mercadopago/**'
+      - 'app/ui-exploration/mercadopago-review/**'
       - 'lib/mercadopago/**'
       - 'components/mercadopago/**'
       - 'app/ui-exploration/mercadopago-batch/**'
@@ -48,3 +50,5 @@ jobs:
         run: npx next build --webpack
       - name: Receipt review in four viewport sizes with synthetic APIs
         run: npx playwright test -c e2e/receipts/playwright.config.ts
+      - name: Mercado Pago review mobile flow with synthetic APIs
+        run: npx playwright test -c e2e/mercadopago/playwright.config.ts

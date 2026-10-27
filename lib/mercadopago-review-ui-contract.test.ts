@@ -59,6 +59,13 @@ describe('Mercado Pago review UI contract', () => {
     expect(reviewClientSource).toContain('Esta operación todavía no se puede confirmar')
   })
 
+  it('surfaces capture status on the dedicated review inbox', () => {
+    expect(reviewClientSource).toContain('MercadoPagoCaptureStatus')
+    expect(reviewClientSource).toContain('getMercadoPagoReviewCapturePresentation')
+    expect(reviewClientSource).toContain('/api/integrations/mercadopago/setup')
+    expect(reviewClientSource).not.toContain('runMercadoPagoBackgroundCapture')
+  })
+
   it('finishes financial confirmation before reporting merchant-memory outcome', () => {
     expect(reviewClientSource).toContain('onSave={completeConfirmation}')
     expect(reviewClientSource).toContain('outcome?.aliasSaved === false')

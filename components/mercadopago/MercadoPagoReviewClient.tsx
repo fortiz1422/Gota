@@ -36,6 +36,9 @@ import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
 import type { Account, Card } from '@/types/database'
 import { getMercadoPagoReviewPresentation, formatMercadoPagoObservedDate as formatObservedDate } from '@/lib/mercadopago/review-presentation'
 import { matchMercadoPagoCard } from '@/lib/mercadopago/card-matcher'
+import { MercadoPagoCaptureStatus } from '@/components/mercadopago/MercadoPagoCaptureStatus'
+import { getMercadoPagoReviewCapturePresentation } from '@/lib/mercadopago/review-capture-status'
+import type { MercadoPagoSetupState } from '@/components/settings/MercadoPagoSetupCard'
 
 type State = {
   movements: MercadoPagoMovement[]
@@ -215,6 +218,7 @@ export function MercadoPagoReviewClient() {
   const [dismissError, setDismissError] = useState(false)
   const [aliasLoading, setAliasLoading] = useState(false)
   const [aliasMatch, setAliasMatch] = useState<CounterpartyAliasMatch | null>(null)
+  const [captureSetup, setCaptureSetup] = useState<MercadoPagoSetupState | null>(null)
   const cardMatch = selected && isReviewableMercadoPagoCardPurchase(selected)
     ? matchMercadoPagoCard(selected.fundingSource, cards)
     : { status: 'insufficient' as const, cardIds: [] as const }
@@ -224,6 +228,23 @@ export function MercadoPagoReviewClient() {
   const accountsRequest = useRef(0)
   const cardsRequest = useRef(0)
   const selectionRequest = useRef(0)
+
+  const loadCaptureStatus = useCallback(async () => {
+    try {
+      const response = await fetch('/api/integrations/mercadopago/setup', {
+        cache: 'no-store',
+      })
+      if (!response.ok) return
+      const next = (await response.json()) as MercadoPagoSetupState
+      if (!next.available) {
+        setCaptureSetup(null)
+        return
+      }
+      setCaptureSetup(next)
+    } catch {
+      setCaptureSetup(null)
+    }
+  }, [])
 
   const load = useCallback(async () => {
     const request = ++movementsRequest.current
@@ -308,13 +329,18 @@ export function MercadoPagoReviewClient() {
 
   useEffect(() => {
     void load()
+    void loadCaptureStatus()
+    const timer = setInterval(() => {
+      void loadCaptureStatus()
+    }, 30_000)
     return () => {
+      clearInterval(timer)
       movementsRequest.current += 1
       accountsRequest.current += 1
       cardsRequest.current += 1
       selectionRequest.current += 1
     }
-  }, [load])
+  }, [load, loadCaptureStatus])
 
   const open = (movement: MercadoPagoMovement) => {
     const request = ++selectionRequest.current
@@ -465,6 +491,16 @@ export function MercadoPagoReviewClient() {
     setCutoff('')
   }
 
+  const capturePresentation =
+    captureSetup?.state === 'connected'
+      ? getMercadoPagoReviewCapturePresentation({
+          initialImportStatus: captureSetup.initialImport?.status ?? null,
+          lastUpdateAt: captureSetup.lastUpdateAt ?? null,
+          lastAttemptAt: captureSetup.lastAttemptAt ?? null,
+          backgroundSyncEnabled: captureSetup.enabled ?? null,
+        })
+      : null
+
   return (
     <main className="mx-auto min-h-app max-w-md bg-bg-secondary px-5 pb-28 pt-[max(20px,env(safe-area-inset-top))]">
       <header className="rounded-card border border-border-subtle bg-bg-primary px-3 py-4 shadow-[var(--shadow-sm)]">
@@ -482,6 +518,8 @@ export function MercadoPagoReviewClient() {
           </div>
         </div>
       </header>
+
+      {capturePresentation && <MercadoPagoCaptureStatus presentation={capturePresentation} />}
 
       {confirmationNotice && <p role="status" className="mt-4 rounded-input bg-primary-soft p-3 text-sm text-text-primary">{confirmationNotice} <Link href="/movimientos" className="font-semibold text-primary underline">Ver movimientos</Link></p>}
 
