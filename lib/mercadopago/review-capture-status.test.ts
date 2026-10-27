@@ -50,12 +50,39 @@ describe('Mercado Pago review capture presentation', () => {
     })
   })
 
-  it('warns when the latest attempt did not advance success', () => {
+  it('does not warn while a capture run is in progress (attempt just after last success)', () => {
+    expect(
+      getMercadoPagoReviewCapturePresentation(
+        {
+          initialImportStatus: 'completed',
+          lastUpdateAt: '2026-10-27T14:59:00.000Z',
+          lastAttemptAt: '2026-10-27T15:00:00.000Z',
+          backgroundSyncEnabled: true,
+        },
+        now,
+      ),
+    ).toMatchObject({ tone: 'neutral', line: 'Última captura: hace 1 min' })
+  })
+
+  it('warns when the latest attempt stayed ahead of success beyond the stale margin', () => {
     expect(
       getMercadoPagoReviewCapturePresentation(
         {
           initialImportStatus: 'completed',
           lastUpdateAt: '2026-10-27T10:00:00.000Z',
+          lastAttemptAt: '2026-10-27T10:45:00.000Z',
+        },
+        now,
+      ),
+    ).toMatchObject({ tone: 'warning', line: 'La última actualización no se completó' })
+  })
+
+  it('warns when there is no successful capture and the last attempt is stale', () => {
+    expect(
+      getMercadoPagoReviewCapturePresentation(
+        {
+          initialImportStatus: 'completed',
+          lastUpdateAt: null,
           lastAttemptAt: '2026-10-27T14:00:00.000Z',
         },
         now,

@@ -5,6 +5,9 @@ export type MercadoPagoReviewCaptureInput = {
   backgroundSyncEnabled?: boolean | null
 }
 
+/** Attempt is stamped at capture start; success only when the watermark advances. */
+export const MERCADOPAGO_CAPTURE_ATTEMPT_STALE_MS = 30 * 60_000
+
 export type MercadoPagoReviewCaptureTone = 'neutral' | 'status' | 'warning'
 
 export type MercadoPagoReviewCapturePresentation = {
@@ -37,12 +40,19 @@ export function formatMercadoPagoCaptureRelativeAge(
   return `hace ${days} días`
 }
 
-function lastAttemptFailed(input: MercadoPagoReviewCaptureInput) {
+function lastAttemptFailed(
+  input: MercadoPagoReviewCaptureInput,
+  now: Date,
+  staleMarginMs = MERCADOPAGO_CAPTURE_ATTEMPT_STALE_MS,
+) {
   const attempt = parseInstant(input.lastAttemptAt)
   const success = parseInstant(input.lastUpdateAt)
   if (attempt === null) return false
-  if (success === null) return true
-  return attempt > success
+  if (success === null) {
+    return now.getTime() - attempt > staleMarginMs
+  }
+  if (attempt <= success) return false
+  return attempt - success > staleMarginMs
 }
 
 export function getMercadoPagoReviewCapturePresentation(
@@ -59,7 +69,7 @@ export function getMercadoPagoReviewCapturePresentation(
     }
   }
 
-  if (input.initialImportStatus === 'error' || lastAttemptFailed(input)) {
+  if (input.initialImportStatus === 'error' || lastAttemptFailed(input, now)) {
     return {
       tone: 'warning',
       line: 'La última actualización no se completó',
