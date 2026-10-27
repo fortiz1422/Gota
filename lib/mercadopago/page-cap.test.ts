@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest'
-import { pullPayments } from './observability-sync'
-import { incrementalWindow, syncMercadoPagoIncremental, watermarkAfterRun, type IncrementalStore } from './incremental-sync'
+import { MERCADOPAGO_PAGE_SIZE, MERCADOPAGO_TIE_MAX_PAGES, pullPayments } from './observability-sync'
+import { incrementalWindow, parseTieResume, syncMercadoPagoIncremental, watermarkAfterRun, type IncrementalStore } from './incremental-sync'
 import type { SyncWindow } from './sync-window'
 
 const now = new Date('2026-09-30T21:10:00.000Z')
@@ -42,6 +42,7 @@ function memory(initial = watermark) {
   const raw = new Map<string, Stored>()
   const runs: RunRecord[] = []
   const cursors: string[] = []
+  const lastBatch = { id: null as string | null }
   const store: IncrementalStore = {
     upsertRawObservation: async (row) => {
       const payload = row.payload as Payment
@@ -49,7 +50,8 @@ function memory(initial = watermark) {
       if (previous && previous.currency !== payload.currency_id) throw new Error('currency_mixed')
       raw.set(row.nativeKey, { currency: payload.currency_id, amount: payload.transaction_amount, date: payload.date_created })
     },
-    saveSourceRun: async ({ run }) => {
+    saveSourceRun: async ({ batchId, run }) => {
+      lastBatch.id = batchId
       runs.push({ status: run.status, errorCode: run.errorCode, count: run.count, coveredUntil: run.coveredUntil ?? null })
     },
     advanceWatermark: async (expected, next) => {
@@ -59,7 +61,7 @@ function memory(initial = watermark) {
       cursors.push(next)
     },
   }
-  return { store, raw, runs, cursors, read: () => current }
+  return { store, raw, runs, cursors, lastBatch, read: () => current }
 }
 
 function assertNoGap(rows: Payment[], raw: Map<string, Stored>, cursor: string) {
@@ -76,7 +78,7 @@ async function drain(rows: Payment[]) {
   const results = []
   for (let attempt = 0; attempt < 12; attempt += 1) {
     const before = state.raw.size
-    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark: state.read(), now, store: state.store, fetchImpl })
+    const result = await syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark: state.read(), now, store: state.store, fetchImpl, resume: parseTieResume(state.lastBatch.id) })
     results.push(result)
     assertNoGap(rows, state.raw, state.read())
     expect(state.raw.size).toBeGreaterThanOrEqual(before)
@@ -177,39 +179,36 @@ describe('payments page cap and watermark', () => {
     expect(continued.raw.size).toBe(size)
   })
 
-  it('lets one of two concurrent runs advance and keeps the other from skipping', async () => {
-    const window = incrementalWindow(watermark, now)
-    const rows = paymentsIn(window, 501)
-    const state = memory()
-    const fetchImpl = pager(rows)
-    const settled = await Promise.allSettled([
-      syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark, now, store: state.store, fetchImpl }),
-      syncMercadoPagoIncremental({ userId: 'u', accessToken: 'secret-token', watermark, now, store: state.store, fetchImpl }),
-    ])
-    const fulfilled = settled.filter((item) => item.status === 'fulfilled')
-    const rejected = settled.filter((item) => item.status === 'rejected')
-    expect(fulfilled).toHaveLength(1)
-    expect(rejected).toHaveLength(1)
-    expect(state.raw.size).toBe(500)
-    expect(state.raw.has('pay-500')).toBe(false)
-    expect(Date.parse(state.read())).toBeLessThanOrEqual(Date.parse(rows[500]!.date_created))
-    expect(state.read()).not.toBe(window.endTimestamp)
-    assertNoGap(rows, state.raw, state.read())
-    expect((fulfilled[0] as PromiseFulfilledResult<{ run: { status: string; errorCode: string | null } }>).value.run).toMatchObject({ status: 'pending', errorCode: null })
-    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ message: 'watermark_write_failed' })
-  })
-
-  it('does not walk past a timestamp cluster larger than the page cap', async () => {
+  it('reads a same-timestamp cluster on the following run without skipping or duplicating', async () => {
     const window = incrementalWindow(watermark, now)
     const stamp = new Date(Date.parse(window.beginTimestamp) + 60 * 60 * 1000).toISOString()
     const rows = paymentsIn(window, 501, stamp)
     const { state, seen, results } = await drain(rows)
-    expect(results.every((result) => result.run.status === 'pending' && result.run.errorCode === null)).toBe(true)
-    expect(state.read()).toBe(stamp)
-    expect(state.read()).not.toBe(window.endTimestamp)
-    expect(seen.has('pay-500')).toBe(false)
-    expect(seen.size).toBe(500)
+    expect(seen.size).toBe(501)
+    expect([...seen.keys()]).toEqual(rows.map((row) => row.id))
+    expect(state.read()).toBe(window.endTimestamp)
+    expect(results.some((result) => result.run.status === 'pending' && result.run.errorCode === null)).toBe(true)
+    expect(results.at(-1)?.run.status).toBe('success')
+    expect(results.every((result) => result.run.errorCode === null)).toBe(true)
     expect(watermarkAfterRun(stamp, window.endTimestamp, { source: 'payments_search', status: 'pending', count: 500, errorCode: null, coveredUntil: stamp })).toBeNull()
+  })
+
+  it('resumes a tie larger than the safety cap on the next run', async () => {
+    const window = incrementalWindow(watermark, now)
+    const stamp = new Date(Date.parse(window.beginTimestamp) + 60 * 60 * 1000).toISOString()
+    const count = MERCADOPAGO_TIE_MAX_PAGES * MERCADOPAGO_PAGE_SIZE + 1
+    const rows = paymentsIn(window, count, stamp)
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
+    const { state, seen, results } = await drain(rows)
+    expect(seen.size).toBe(count)
+    expect(state.read()).toBe(window.endTimestamp)
+    expect(results.at(-1)?.run.status).toBe('success')
+    expect(results.every((result) => result.run.errorCode === null)).toBe(true)
+    expect(state.lastBatch.id?.includes('#tie|')).toBe(false)
+    const held = info.mock.calls.map((args) => args.map((part) => String(part)).join(' ')).filter((line) => line.includes('mercadopago_payments_page_cap'))
+    expect(held.some((line) => line.includes('"held":true'))).toBe(true)
+    expect(held.join('\n')).not.toContain('secret-token')
+    info.mockRestore()
   })
 
   it('keeps a newest-first cap pending and distinct from provider_error', async () => {

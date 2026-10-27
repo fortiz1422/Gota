@@ -16,7 +16,7 @@ export type MercadoPagoConnection = {
   token_expires_at: string | null
   last_sync_at: string | null
 }
-type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; count: number; error_code: SourceRun['errorCode']; started_at: string; begin_date: string | null; end_date: string | null }
+type SourceRunRow = { source: SourceRun['source']; status: SourceRun['status']; count: number; error_code: SourceRun['errorCode']; started_at: string; begin_date: string | null; end_date: string | null; batch_id: string }
 export type MercadoPagoMovementObservation = { id: string; source: RawObservation['source']; native_key: string; payload: unknown; last_seen_at: string }
 export type MercadoPagoMovementReview = { candidate_id: string; status: 'confirmed'; expense_id: string }
 export type MercadoPagoMovementDismissal = { candidate_id: string; status: 'dismissed' }
@@ -90,7 +90,7 @@ export function createMercadoPagoRepository(database: MercadoPagoDatabase) {
     },
 
     async getLatestMercadoPagoSourceRuns(userId: string, connectionId: string): Promise<SourceRunRow[]> {
-      const result = await database.from<SourceRunRow>('mercadopago_sync_source_runs').select('source,status,count,error_code,started_at,begin_date,end_date').eq('user_id', userId).eq('connection_id', connectionId).order('started_at', { ascending: false }).limit(20)
+      const result = await database.from<SourceRunRow>('mercadopago_sync_source_runs').select('source,status,count,error_code,started_at,begin_date,end_date,batch_id').eq('user_id', userId).eq('connection_id', connectionId).order('started_at', { ascending: false }).limit(20)
       if (result.error || !result.data) throw new Error('source_runs_read_failed')
       return result.data
     },

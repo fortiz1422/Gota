@@ -9,8 +9,14 @@ export type { RawObservation }
 const API = 'https://api.mercadopago.com'
 
 export const MERCADOPAGO_PAGE_SIZE = 50
-/** Pages read in one pull. 10 × 50 = 500 payments; a denser window continues on the next run. */
+/** Pages read before a slice may stop, once the time cursor can move. 10 × 50 = 500. */
 export const MERCADOPAGO_MAX_PAGES = 10
+/**
+ * Extra pages in the same window when the oldest prefix cannot move the watermark
+ * (a tie, or a cluster inside the overlap). 30 × 50 = 1500. A larger tie resumes
+ * on the next run from a verified offset; it is never skipped.
+ */
+export const MERCADOPAGO_TIE_MAX_PAGES = 30
 
 type Source = MercadoPagoSource
 type FetchLike = (input: string | URL | Request, init?: RequestInit) => Promise<Response>
@@ -29,6 +35,19 @@ export type SourceRun = {
   beginDate?: string
   endDate?: string
   coveredUntil?: string
+  /**
+   * Present only when an oldest-first pull hit the safety cap without a cursor
+   * that can move. Not a database column. The next run may continue at `offset`
+   * after the previous page still ends at `boundaryKey`.
+   */
+  resume?: TieResume
+}
+
+export type TieResume = {
+  offset: number
+  coveredUntil: string
+  boundaryKey: string
+  begin: string
 }
 
 export type PaymentSearchRole = 'default' | 'payer' | 'collector'
@@ -82,15 +101,38 @@ async function getJson(url: string, token: string, fetchImpl: FetchLike): Promis
   return response.json().catch(() => { throw new Error('provider_error') })
 }
 
-export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId, role = 'default', sortOrder = 'desc' }: { role?: PaymentSearchRole; sortOrder?: PaymentSortOrder; userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string }): Promise<SourceRun> {
+/** The page before `offset` must still end at the saved key. Otherwise start over and do not skip. */
+async function prefixStillEndsAt(window: SyncWindow, offset: number, boundaryKey: string, coveredUntil: string, role: PaymentSearchRole, token: string, fetchImpl: FetchLike): Promise<boolean> {
+  if (offset < MERCADOPAGO_PAGE_SIZE || offset % MERCADOPAGO_PAGE_SIZE !== 0) return false
+  try {
+    const payload = await getJson(paymentSearchUrl(window, offset - MERCADOPAGO_PAGE_SIZE, role, 'asc'), token, fetchImpl)
+    const rows = items(payload)
+    const last = rows[rows.length - 1]
+    const ms = createdMs(last)
+    return rows.length === MERCADOPAGO_PAGE_SIZE && last !== undefined && observationNativeKey(last) === boundaryKey && ms !== null && new Date(ms).toISOString() === coveredUntil
+  } catch {
+    return false
+  }
+}
+
+export async function pullPayments({ userId, accessToken, window, fetchImpl, store, started, batchId, role = 'default', sortOrder = 'desc', watermarkMs, resume }: { role?: PaymentSearchRole; sortOrder?: PaymentSortOrder; userId: string; accessToken: string; window: SyncWindow; fetchImpl: FetchLike; store: Store; started: string; batchId: string; watermarkMs?: number; resume?: TieResume | null }): Promise<SourceRun> {
   let count = 0
   const seenKeys = new Set<string>()
   const created: number[] = []
   let datesOk = sortOrder === 'asc'
+  let lastKey = ''
   const beginMs = Date.parse(window.beginTimestamp)
   const endMs = Date.parse(window.endTimestamp)
-  for (let page = 0; page < MERCADOPAGO_MAX_PAGES; page += 1) {
-    const payload = await getJson(paymentSearchUrl(window, page * MERCADOPAGO_PAGE_SIZE, role, sortOrder), accessToken, fetchImpl)
+  const tieAware = sortOrder === 'asc' && watermarkMs !== undefined && Number.isFinite(watermarkMs)
+  const hardCap = tieAware ? MERCADOPAGO_TIE_MAX_PAGES : MERCADOPAGO_MAX_PAGES
+  let offsetBase = 0
+  let previousFloor = Number.NEGATIVE_INFINITY
+  if (tieAware && resume && resume.begin === window.beginTimestamp && await prefixStillEndsAt(window, resume.offset, resume.boundaryKey, resume.coveredUntil, role, accessToken, fetchImpl)) {
+    offsetBase = resume.offset
+    previousFloor = Date.parse(resume.coveredUntil)
+  }
+  for (let page = 0; page < hardCap; page += 1) {
+    const payload = await getJson(paymentSearchUrl(window, offsetBase + page * MERCADOPAGO_PAGE_SIZE, role, sortOrder), accessToken, fetchImpl)
     const rows = items(payload)
     for (const row of rows) {
       const nativeKey = observationNativeKey(row)
@@ -98,9 +140,10 @@ export async function pullPayments({ userId, accessToken, window, fetchImpl, sto
       // or count toward advancing the incremental watermark.
       if (seenKeys.has(nativeKey)) throw new Error('provider_error')
       seenKeys.add(nativeKey)
+      lastKey = nativeKey
       if (sortOrder === 'asc') {
         const ms = createdMs(row)
-        const previous = created.length > 0 ? created[created.length - 1] : Number.NEGATIVE_INFINITY
+        const previous = created.length > 0 ? created[created.length - 1] : previousFloor
         if (ms === null || ms < beginMs || ms > endMs || ms < previous) datesOk = false
         else created.push(ms)
       }
@@ -110,19 +153,27 @@ export async function pullPayments({ userId, accessToken, window, fetchImpl, sto
     const paging = typeof payload === 'object' && payload !== null ? (payload as Record<string, unknown>).paging : null
     const rawTotal = typeof paging === 'object' && paging !== null ? (paging as Record<string, unknown>).total : null
     const total: number | null = typeof rawTotal === 'number' ? rawTotal : null
-    const complete = (total !== null && count >= total) || (total === null && rows.length < MERCADOPAGO_PAGE_SIZE)
+    const readThrough = offsetBase + count
+    const complete = (total !== null && readThrough >= total) || (total === null && rows.length < MERCADOPAGO_PAGE_SIZE)
+    // A finished window may omit dates (the provider reported nothing left). An unfinished
+    // oldest-first page, or a resumed page, cannot move the cursor without monotonic dates.
+    if (sortOrder === 'asc' && !datesOk && (!complete || offsetBase > 0)) throw new Error('provider_error')
     if (complete) return { source: 'payments_search', status: 'success', count, errorCode: null }
     // A short page that does not reach `total` contradicts the provider. Do not treat it as a cap.
     if (rows.length < MERCADOPAGO_PAGE_SIZE) throw new Error('provider_error')
-    // Oldest-first coverage needs a monotonic date_created. Without it the cursor cannot move safely.
-    if (sortOrder === 'asc' && !datesOk) throw new Error('provider_error')
-    if (page === MERCADOPAGO_MAX_PAGES - 1) {
-      const coveredUntil = created[created.length - 1]
-      if (sortOrder === 'asc') {
-        if (created.length !== count || coveredUntil === undefined) throw new Error('provider_error')
-        return { source: 'payments_search', status: 'pending', count, errorCode: null, coveredUntil: new Date(coveredUntil).toISOString() }
-      }
+    if (!tieAware && page === MERCADOPAGO_MAX_PAGES - 1) {
       return { source: 'payments_search', status: 'pending', count, errorCode: null }
+    }
+    if (tieAware && page + 1 >= MERCADOPAGO_MAX_PAGES) {
+      const coveredMs = created[created.length - 1]
+      if (created.length !== count || coveredMs === undefined || !lastKey) throw new Error('provider_error')
+      const coveredUntil = new Date(coveredMs).toISOString()
+      const canAdvance = coveredMs > watermarkMs
+      if (canAdvance || page + 1 >= hardCap) {
+        const pending: SourceRun = { source: 'payments_search', status: 'pending', count, errorCode: null, coveredUntil }
+        if (!canAdvance) pending.resume = { offset: readThrough, coveredUntil, boundaryKey: lastKey, begin: window.beginTimestamp }
+        return pending
+      }
     }
   }
   return { source: 'payments_search', status: 'pending', count, errorCode: null }

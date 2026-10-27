@@ -15,6 +15,8 @@ const reviewClientSource = readFileSync(new URL('../components/mercadopago/Merca
 
 describe('Mercado Pago review UI contract', () => {
   it('keeps Settings focused on connection and routes review to the dedicated inbox', () => {
+    expect(source).toContain('Hay más movimientos por traer; se siguen importando')
+    expect(source).toContain('Preparando movimientos…')
     expect(source).toContain("href=\"/mercadopago/review\"")
     expect(source).not.toContain("/api/integrations/mercadopago/movements")
     expect(source).not.toContain('confirm-expense')

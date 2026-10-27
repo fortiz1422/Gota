@@ -74,9 +74,38 @@ vi.mock('./access-token', () => ({
   },
 }))
 import { dispatchMercadoPagoDailyCaptures } from './capture-dispatch'
+import { runMercadoPagoBackgroundCapture } from './background-capture'
 
 const here = dirname(fileURLToPath(import.meta.url))
 const shift = (days: number) => new Date(START.getTime() + days * DAY).toISOString()
+function cluster(startMs: number, count: number, stepMs: number) {
+  return Array.from({ length: count }, (_, index) => ({
+    id: `pay-${index}`,
+    date_created: new Date(startMs + index * stepMs).toISOString(),
+    currency_id: index % 2 === 0 ? 'ARS' : 'USD',
+    transaction_amount: index + 1,
+  }))
+}
+function nativeKeys(connectionId: string) {
+  return [...world().raw.values()].filter(item => item.connection_id === connectionId).map(item => String(item.native_key))
+}
+function installPager(rows: ReturnType<typeof cluster>) {
+  vi.stubGlobal('fetch', async (input: RequestInfo | URL, init?: RequestInit) => {
+    const authorization = new Headers(init?.headers).get('authorization') ?? ''
+    const token = authorization.replace(/^Bearer /, '')
+    const connectionId = token.startsWith('token:') ? token.slice('token:'.length) : ''
+    const current = world()
+    current.fetches.push({ connectionId, authorization, url: String(input) })
+    if (!connectionId || authorization.includes('cipher-')) throw new Error('leaked_credential')
+    const url = new URL(String(input))
+    const offset = Number(url.searchParams.get('offset'))
+    const limit = Number(url.searchParams.get('limit'))
+    const from = url.searchParams.get('begin_date') ?? ''
+    const to = url.searchParams.get('end_date') ?? ''
+    const page = rows.filter(row => row.date_created >= from && row.date_created <= to)
+    return new Response(JSON.stringify({ results: page.slice(offset, offset + limit), paging: { total: page.length } }), { status: 200 })
+  })
+}
 function world() {
   const current = holder.current
   if (!current) throw new Error('world_unset')
@@ -181,10 +210,19 @@ function callRpc(current: FakeWorld, name: string, args: Record<string, string>)
   return { data: null, error: { message: 'unknown_rpc' } }
 }
 function query(current: FakeWorld, table: string) {
-  const state = { filters: [] as Filter[], orders: [] as Order[], operation: 'select' as 'select' | 'update' | 'upsert', patch: null as Record<string, unknown> | null, conflict: '' }
+  const state = { filters: [] as Filter[], orders: [] as Order[], operation: 'select' as 'select' | 'update' | 'upsert', patch: null as Record<string, unknown> | null, conflict: '', limit: null as number | null }
   const finish = (mode: 'many' | 'maybe' | 'one') => {
     if (state.operation === 'upsert') return finishUpsert(current, table, state.patch ?? {}, state.conflict)
     if (current.failReads && table === 'mercadopago_connections' && state.operation === 'select') return { data: null, error: { message: 'read_failed' } }
+    if (state.operation === 'select' && table === 'mercadopago_sync_source_runs') {
+      const rows = [...current.runs.values()].filter(row => matches(row as unknown as Conn, state.filters))
+      const ordered = sortRows(rows as unknown as Conn[], state.orders)
+      const limited = state.limit == null ? ordered : ordered.slice(0, state.limit)
+      if (mode === 'many') return { data: limited, error: null }
+      if (limited.length > 1) return { data: null, error: { message: 'multiple' } }
+      if (mode === 'one' && limited.length !== 1) return { data: null, error: { message: 'single' } }
+      return { data: limited[0] ?? null, error: null }
+    }
     if (table !== 'mercadopago_connections') return { data: null, error: { message: 'unexpected_query' } }
     const found = state.operation === 'select' ? sortRows(current.connections.filter(item => matches(item, state.filters)), state.orders) : current.connections.filter(item => matches(item, state.filters))
     if (state.operation === 'update' && state.patch) for (const item of found) Object.assign(item, state.patch)
@@ -206,6 +244,7 @@ function query(current: FakeWorld, table: string) {
       state.orders.push({ column, ascending, nullsFirst: options?.nullsFirst ?? !ascending })
       return api
     },
+    limit: (count: number) => { state.limit = count; return api },
     maybeSingle: () => Promise.resolve(finish('maybe')),
     single: () => Promise.resolve(finish('one')),
     then: (resolve: (value: unknown) => unknown, reject?: (reason: unknown) => unknown) => Promise.resolve().then(() => finish('many')).then(resolve, reject),
@@ -527,6 +566,84 @@ describe('daily capture dispatch', () => {
     expect(result.connections[0]).toMatchObject({ status: 'catching_up', cursorAdvanced: true, reason: 'capture_budget_exhausted', posted: 0 })
     expect(row('conn-a').incremental_watermark).toBe(shift(-2))
     expect(JSON.stringify(result.connections[0])).not.toContain('provider_error')
+  })
+
+  it('finishes a same-timestamp cluster on the next dispatch turn without losing or duplicating payments', async () => {
+    const watermark = shift(-1)
+    world().connections.push(connect({ id: 'conn-a', user_id: 'user-a', incremental_watermark: watermark, initial_import_started_at: shift(-30) }))
+    const stamp = new Date(Date.parse(watermark) + 60 * 60 * 1000).toISOString()
+    const rows = cluster(Date.parse(stamp), 501, 0)
+    installPager(rows)
+    const first = await runMercadoPagoBackgroundCapture('user-a', 'conn-a', { maxWindows: 1 })
+    expect(first.status).toBe('catching_up')
+    expect(first.cursorMoved).toBe(true)
+    expect(row('conn-a').incremental_watermark).toBe(stamp)
+    expect(nativeKeys('conn-a')).toEqual(rows.slice(0, 500).map(item => item.id))
+    const second = await dispatchMercadoPagoDailyCaptures()
+    expect(second.failed).toBe(0)
+    expect(second.connections[0]).toMatchObject({ status: 'success', posted: 0 })
+    expect(second.connections[0]?.status).not.toBe('error')
+    expect(nativeKeys('conn-a').sort()).toEqual(rows.map(item => item.id).sort())
+    expect(new Set(nativeKeys('conn-a')).size).toBe(501)
+    expect(row('conn-a').incremental_watermark).toBe(START.toISOString())
+    const replay = await dispatchMercadoPagoDailyCaptures()
+    expect(replay.failed).toBe(0)
+    expect(replay.connections[0]?.status).not.toBe('error')
+    expect(nativeKeys('conn-a')).toHaveLength(501)
+    expect([...world().runs.values()].every(item => item.status !== 'error')).toBe(true)
+    expectIsolated()
+  })
+
+  it('finishes 501 payments inside the overlap on the next dispatch turn', async () => {
+    const watermark = shift(-1)
+    world().connections.push(connect({ id: 'conn-a', user_id: 'user-a', incremental_watermark: watermark, initial_import_started_at: shift(-30) }))
+    const rows = cluster(Date.parse(watermark) + 60_000, 501, 400)
+    installPager(rows)
+    const first = await runMercadoPagoBackgroundCapture('user-a', 'conn-a', { maxWindows: 1 })
+    expect(first.status).toBe('catching_up')
+    expect(nativeKeys('conn-a')).toHaveLength(500)
+    expect(nativeKeys('conn-a')).not.toContain('pay-500')
+    const covered = row('conn-a').incremental_watermark
+    expect(Date.parse(rows[500]!.date_created) - Date.parse(covered!) < 5 * 60 * 1000).toBe(true)
+    const second = await dispatchMercadoPagoDailyCaptures()
+    expect(second.failed).toBe(0)
+    expect(second.connections[0]?.status).not.toBe('error')
+    expect(new Set(nativeKeys('conn-a'))).toEqual(new Set(rows.map(item => item.id)))
+    expect(nativeKeys('conn-a')).toHaveLength(501)
+    expect(row('conn-a').incremental_watermark).toBe(START.toISOString())
+    const again = await dispatchMercadoPagoDailyCaptures()
+    expect(again.failed).toBe(0)
+    expect(nativeKeys('conn-a')).toHaveLength(501)
+    expect([...world().runs.values()].every(item => item.status !== 'error')).toBe(true)
+    expectIsolated()
+  })
+
+  it('serializes two captures with the real lease so the loser cannot skip payments', async () => {
+    const watermark = shift(-1)
+    world().connections.push(connect({ id: 'conn-a', user_id: 'user-a', incremental_watermark: watermark, initial_import_started_at: shift(-30) }))
+    const rows = cluster(Date.parse(watermark) + 60_000, 501, 1000)
+    installPager(rows)
+    const settled = await Promise.allSettled([
+      runMercadoPagoBackgroundCapture('user-a', 'conn-a', { maxWindows: 1 }),
+      runMercadoPagoBackgroundCapture('user-a', 'conn-a', { maxWindows: 1 }),
+    ])
+    const fulfilled = settled.filter(item => item.status === 'fulfilled')
+    const rejected = settled.filter(item => item.status === 'rejected')
+    expect(fulfilled).toHaveLength(1)
+    expect(rejected).toHaveLength(1)
+    expect((rejected[0] as PromiseRejectedResult).reason).toMatchObject({ message: 'sync_busy' })
+    expect(world().leases.filter(item => item.ok)).toHaveLength(1)
+    expect(world().leases.filter(item => !item.ok)).toHaveLength(1)
+    const cursor = row('conn-a').incremental_watermark!
+    const stored = new Set(nativeKeys('conn-a'))
+    expect(stored.size).toBe(nativeKeys('conn-a').length)
+    for (const payment of rows) {
+      if (payment.date_created < cursor) expect(stored.has(payment.id)).toBe(true)
+    }
+    expect(cursor).not.toBe(START.toISOString())
+    expect(stored.has('pay-500')).toBe(false)
+    expect((fulfilled[0] as PromiseFulfilledResult<{ status: string }>).value.status).toBe('catching_up')
+    expectIsolated()
   })
 
   it('keeps posting and shadow out of the capture path and keeps the daily Hobby schedule', () => {

@@ -12,9 +12,10 @@ type State = { state: 'not_connected' | 'connected' | 'error'; lastSyncAt: strin
 
 type AccountLink = { linkedAccountId: string | null; linkedAccountVersion: number; accounts: Array<{ id: string; name: string }> }
 
-function sourceLabel(source: Source) {
+function sourceLabel(source: Source, kind: 'payments' | 'reports') {
   if (source.status === 'not_run') return 'Sin consultar'
   if (source.status === 'error') return 'No disponible'
+  if (source.status === 'pending' && kind === 'payments') return 'Hay más movimientos por traer; se siguen importando'
   if (source.status === 'pending') return 'Preparando movimientos…'
   return `Disponible · ${source.count}`
 }
@@ -209,7 +210,7 @@ export function MercadoPagoManagementView({ state, busy, message, error, preset,
     {message && <p role="status" className="rounded-input bg-bg-secondary p-3 text-xs text-text-secondary">{message}</p>}
     <details className="border-t border-border-subtle pt-3">
       <summary className="flex min-h-11 cursor-pointer items-center justify-between text-xs text-text-tertiary">Diagnóstico de conexión <CaretRight size={14} aria-hidden="true" /></summary>
-      <dl className="mt-2 space-y-2 rounded-input bg-bg-secondary p-3 text-xs text-text-secondary"><div className="flex justify-between gap-3"><dt>Movimientos</dt><dd>{state ? sourceLabel(state.sources.payments) : '—'}</dd></div><div className="flex justify-between gap-3"><dt>Reporte de saldo</dt><dd>{state ? sourceLabel(state.sources.reports) : '—'}</dd></div></dl>
+      <dl className="mt-2 space-y-2 rounded-input bg-bg-secondary p-3 text-xs text-text-secondary"><div className="flex justify-between gap-3"><dt>Movimientos</dt><dd>{state ? sourceLabel(state.sources.payments, 'payments') : '—'}</dd></div><div className="flex justify-between gap-3"><dt>Reporte de saldo</dt><dd>{state ? sourceLabel(state.sources.reports, 'reports') : '—'}</dd></div></dl>
     </details>
     {current === 'not_connected' && <Link href="/api/integrations/mercadopago/connect" className="inline-flex min-h-11 items-center gap-2 rounded-button bg-primary px-4 font-semibold text-white"><ArrowSquareOut size={14} />Conectar Mercado Pago</Link>}
   </section>

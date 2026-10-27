@@ -111,7 +111,7 @@ export async function dispatchMercadoPagoDailyCaptures(budgetMs = CAPTURE_BUDGET
         next.reason = 'provider_error'
         continue
       }
-      next.cursorAdvanced = true
+      if (result.cursorMoved) next.cursorAdvanced = true
       next.upToDate = result.upToDate
       next.status = result.upToDate ? 'success' : 'catching_up'
       next.finished = next.status === 'success' || next.windows >= CAPTURE_MAX_WINDOWS

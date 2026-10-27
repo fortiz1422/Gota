@@ -108,7 +108,7 @@ describe('Mercado Pago server repository', () => {
 
     await repository.getLatestMercadoPagoSourceRuns('user-1', 'connection-1')
 
-    expect(fake.calls).toContainEqual({ method: 'select', args: ['source,status,count,error_code,started_at,begin_date,end_date'] })
+    expect(fake.calls).toContainEqual({ method: 'select', args: ['source,status,count,error_code,started_at,begin_date,end_date,batch_id'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['user_id', 'user-1'] })
     expect(fake.calls).toContainEqual({ method: 'eq', args: ['connection_id', 'connection-1'] })
     expect(fake.calls).toContainEqual({ method: 'order', args: ['started_at', { ascending: false }] })

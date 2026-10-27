@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { pullPayments, type SourceRun } from './observability-sync'
+import { MERCADOPAGO_PAGE_SIZE, pullPayments, type SourceRun, type TieResume } from './observability-sync'
 import type { RawObservation } from './raw-observation'
 import type { SyncWindow } from './sync-window'
 
@@ -38,33 +38,63 @@ export function watermarkAfterRun(current: string, windowEnd: string, run: Sourc
   return new Date(next).toISOString()
 }
 
+const TIE_MARK = '#tie|'
+
+/** Resume hint stored in the existing source-run batch id. No extra column. */
+export function tieResumeBatchId(batchId: string, resume: TieResume): string {
+  return `${batchId}${TIE_MARK}${resume.offset}|${resume.coveredUntil}|${encodeURIComponent(resume.boundaryKey)}|${resume.begin}`
+}
+
+export function parseTieResume(batchId: string | null | undefined): TieResume | null {
+  if (!batchId) return null
+  const at = batchId.indexOf(TIE_MARK)
+  if (at < 0) return null
+  const parts = batchId.slice(at + TIE_MARK.length).split('|')
+  if (parts.length !== 4) return null
+  const offset = Number(parts[0])
+  const coveredUntil = parts[1]
+  const encodedKey = parts[2]
+  const begin = parts[3]
+  if (!Number.isInteger(offset) || offset < MERCADOPAGO_PAGE_SIZE || offset % MERCADOPAGO_PAGE_SIZE !== 0) return null
+  if (!coveredUntil || !encodedKey || !begin) return null
+  if (!Number.isFinite(Date.parse(coveredUntil)) || !Number.isFinite(Date.parse(begin))) return null
+  try {
+    return { offset, coveredUntil, boundaryKey: decodeURIComponent(encodedKey), begin }
+  } catch {
+    return null
+  }
+}
+
 /**
  * Capture only: no ledger dependency and no settlement configuration requests.
- * Reads oldest `date_created` first, at most one page cap per call.
- * A full window advances the watermark to its end. A page cap (`pending`, errorCode null)
- * advances only to `coveredUntil`: every payment strictly before that instant was stored.
- * Payments at that instant are included again next run via the overlap; nothing newer is skipped.
+ * Reads oldest `date_created` first. A full window advances the watermark to its end.
+ * A page cap (`pending`, errorCode null) advances only to `coveredUntil`: every payment
+ * strictly before that instant was stored. Payments at that instant stay in the overlap.
+ * When that prefix cannot move the cursor, the same window keeps paging up to the tie cap.
+ * A tie that still cannot move persists a verified `(offset, id)` hint and does not throw.
  * Provider failures do not move the watermark. Amounts are never summed, so ARS and USD stay separate rows.
- * One `date_created` with more unread payments than the page cap is not passed over.
+ * The cursor never moves past a payment this run did not read.
  */
-export async function syncMercadoPagoIncremental({ userId, accessToken, watermark, store, earliestTimestamp, now = new Date(), fetchImpl = fetch }: {
-  userId: string; accessToken: string; watermark: string; earliestTimestamp?: string; store: IncrementalStore; now?: Date; fetchImpl?: typeof fetch
+export async function syncMercadoPagoIncremental({ userId, accessToken, watermark, store, earliestTimestamp, now = new Date(), fetchImpl = fetch, resume = null }: {
+  userId: string; accessToken: string; watermark: string; earliestTimestamp?: string; store: IncrementalStore; now?: Date; fetchImpl?: typeof fetch; resume?: TieResume | null
 }) {
   const window = incrementalWindow(watermark, now, earliestTimestamp)
+  const usable = resume && resume.begin === window.beginTimestamp && Date.parse(resume.coveredUntil) >= Date.parse(watermark) ? resume : null
   const batchId = `mp-${randomUUID()}`
   const startedAt = now.toISOString()
   let source: SourceRun
   try {
-    source = await pullPayments({ userId, accessToken, window, fetchImpl, store, started: startedAt, batchId, sortOrder: 'asc' })
+    source = await pullPayments({ userId, accessToken, window, fetchImpl, store, started: startedAt, batchId, sortOrder: 'asc', watermarkMs: Date.parse(watermark), resume: usable })
   } catch (error) {
     if (error instanceof Error && error.message === 'capture_budget_exhausted') throw error
     source = { source: 'payments_search', status: 'error', count: 0, errorCode: 'provider_error' }
   }
   const run = { ...source, beginDate: window.beginDate, endDate: window.endDate }
-  await store.saveSourceRun({ batchId, startedAt, run })
+  const cursor = watermarkAfterRun(watermark, window.endTimestamp, run)
+  const auditBatchId = !cursor && run.resume ? tieResumeBatchId(batchId, run.resume) : batchId
+  await store.saveSourceRun({ batchId: auditBatchId, startedAt, run })
   let advancedTo: string | null = null
   try {
-    const cursor = watermarkAfterRun(watermark, window.endTimestamp, run)
     if (cursor) {
       await store.advanceWatermark(watermark, cursor)
       advancedTo = cursor
@@ -74,7 +104,7 @@ export async function syncMercadoPagoIncremental({ userId, accessToken, watermar
     if (run.status === 'pending') {
       console.info('mercadopago_payments_page_cap', JSON.stringify({
         batchId, count: run.count, coveredUntil: run.coveredUntil ?? null, cursor: advancedTo,
-        begin: window.beginTimestamp, end: window.endTimestamp,
+        begin: window.beginTimestamp, end: window.endTimestamp, held: advancedTo === null,
       }))
     }
   }
