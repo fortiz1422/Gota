@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { CreditCard } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { todayAR } from '@/lib/format'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { Card } from '@/types/database'
@@ -27,6 +28,7 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
   const [currentCuota, setCurrentCuota] = useState('')
   const [totalCuotas, setTotalCuotas] = useState('')
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const amount = Number(amountPerCuota)
   const current = parseInt(currentCuota)
@@ -43,6 +45,7 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
   const handleSave = async () => {
     if (!canSave) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const today = todayAR()
       const res = await fetch('/api/expenses', {
@@ -67,7 +70,7 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
       onSaved?.()
       onClose()
     } catch {
-      alert('Error al guardar. Intentá de nuevo.')
+      setSaveError('Error al guardar. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -231,6 +234,7 @@ export function CuotasEnCursoSheet({ onClose, onSaved, currency: defaultCurrency
       </div>
 
       <div className="mt-6 flex flex-col gap-2">
+        <InlineError message={saveError} />
         <button
           onClick={handleSave}
           disabled={!canSave || isSaving || activeCards.length === 0}

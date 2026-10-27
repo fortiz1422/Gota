@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { useQueryClient } from '@tanstack/react-query'
 import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { Modal, ModalHeading, ModalCloseButton }  from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { formatMonetaryInput, normalizeMonetaryInput } from '@/lib/mobile-income-transfer-surfaces'
 import { CATEGORIES } from '@/lib/validation/schemas'
 import type { Account, Card } from '@/types/database'
@@ -36,6 +37,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
   const [paymentMethod, setPaymentMethod] = useState<'DEBIT' | 'CREDIT'>('DEBIT')
   const [cardId, setCardId] = useState<string | null>(cards[0]?.id ?? null)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const activeCards = cards.filter((c) => !c.archived)
   const bankDigital = accounts.filter((a) => a.type !== 'cash')
@@ -56,6 +58,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
     if (paymentMethod === 'CREDIT' && !cardId) return
 
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/subscriptions', {
         method: 'POST',
@@ -80,7 +83,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
       router.refresh()
       onClose()
     } catch {
-      alert('Error al guardar la suscripción. Intentá de nuevo.')
+      setSaveError('Error al guardar la suscripción. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -284,6 +287,7 @@ export function SubscriptionSheet({ onClose, currency: defaultCurrency, cards, a
       </div>
 
       <div data-legacy-footer className="mt-6 flex flex-col gap-2">
+        <InlineError message={saveError} />
         <button
           onClick={handleSave}
           disabled={!canSave || isSaving}

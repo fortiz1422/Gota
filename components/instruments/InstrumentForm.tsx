@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Bank, Wallet, DeviceMobileSpeaker, Star } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { todayAR } from '@/lib/format'
 import type { Account } from '@/types/database'
 
@@ -29,6 +30,7 @@ export function InstrumentForm({ accounts, defaultCurrency, onClose }: Props) {
   const [label, setLabel] = useState('')
   const openedAt = todayAR()
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   const activeAccounts = accounts.filter((a) => !a.archived)
   const bankDigital = activeAccounts.filter((a) => a.type !== 'cash')
@@ -46,6 +48,7 @@ export function InstrumentForm({ accounts, defaultCurrency, onClose }: Props) {
     const num = parseFloat(amount)
     if (!num || num <= 0) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch('/api/instruments', {
         method: 'POST',
@@ -65,7 +68,7 @@ export function InstrumentForm({ accounts, defaultCurrency, onClose }: Props) {
       router.refresh()
       onClose()
     } catch {
-      alert('Error al crear el instrumento. Intentá de nuevo.')
+      setSaveError('Error al crear el instrumento. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -232,6 +235,7 @@ export function InstrumentForm({ accounts, defaultCurrency, onClose }: Props) {
       </div>
 
       <div className="mt-6 flex flex-col gap-2">
+        <InlineError message={saveError} />
         <button
           onClick={handleSave}
           disabled={!amount || Number(amount) <= 0 || isSaving}

@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { TrendUp, PencilSimple, CaretLeft, Clock } from '@phosphor-icons/react'
 import { Modal } from '@/components/ui/Modal'
+import { InlineError } from '@/components/ui/InlineError'
 import { formatAmount, formatCompact, formatDate } from '@/lib/format'
 import type { Account, Instrument } from '@/types/database'
 
@@ -92,6 +93,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
   const router  = useRouter()
   const [sheet, setSheet] = useState<Sheet>(null)
   const [isSaving, setIsSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
   // ── computed ─────────────────────────────────────────────────────────────
   const accumulated = accumulatedSinceOpen(instrument, today)
@@ -126,7 +128,14 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
       setEditRate(String(instrument.rate ?? ''))
       setEditDueDate(instrument.due_date ?? '')
     }
+    setSaveError(null)
     setSheet(s)
+  }
+
+  const closeSheet = () => {
+    if (isSaving) return
+    setSaveError(null)
+    setSheet(null)
   }
 
   // ── action handlers ──────────────────────────────────────────────────────
@@ -134,6 +143,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
     const amount = parseFloat(closeAmount)
     if (!amount || amount <= 0) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const description =
         mode === 'vencimiento'
@@ -147,7 +157,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
       if (!res.ok) throw new Error()
       router.push('/instrumentos')
     } catch {
-      alert('Error al registrar. Intentá de nuevo.')
+      setSaveError('Error al registrar. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -157,6 +167,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
     const newAmount = parseFloat(renovarAmount)
     if (!newAmount || newAmount <= 0) return
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch(`/api/instruments/${instrument.id}`, {
         method: 'PATCH',
@@ -174,7 +185,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
       const result = await res.json()
       router.push(`/instrumentos/${result.new_instrument.id}`)
     } catch {
-      alert('Error al renovar. Intentá de nuevo.')
+      setSaveError('Error al renovar. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -182,6 +193,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
 
   const handleEdit = async () => {
     setIsSaving(true)
+    setSaveError(null)
     try {
       const res = await fetch(`/api/instruments/${instrument.id}`, {
         method: 'PATCH',
@@ -195,9 +207,10 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
       })
       if (!res.ok) throw new Error()
       router.refresh()
+      setSaveError(null)
       setSheet(null)
     } catch {
-      alert('Error al guardar cambios. Intentá de nuevo.')
+      setSaveError('Error al guardar cambios. Intentá de nuevo.')
     } finally {
       setIsSaving(false)
     }
@@ -358,7 +371,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
 
       {/* ── Vencimiento / Rescate sheet ─────────────────────────────────────── */}
       {(sheet === 'vencimiento' || sheet === 'rescate') && (
-        <Modal open onClose={() => setSheet(null)}>
+        <Modal open onClose={closeSheet}>
           <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
           <h2 className="text-lg font-semibold text-text-primary">
             {sheet === 'vencimiento' ? 'Registrar vencimiento' : 'Rescate anticipado'}
@@ -387,6 +400,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
           </div>
 
           <div className="mt-6 flex flex-col gap-2">
+            <InlineError message={saveError} />
             <button
               onClick={() => handleClose(sheet)}
               disabled={!closeAmount || Number(closeAmount) <= 0 || isSaving}
@@ -395,7 +409,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
               {isSaving ? 'Guardando...' : 'Confirmar ingreso ✓'}
             </button>
             <button
-              onClick={() => setSheet(null)}
+              onClick={closeSheet}
               disabled={isSaving}
               className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
             >
@@ -407,7 +421,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
 
       {/* ── Renovar sheet ────────────────────────────────────────────────────── */}
       {sheet === 'renovar' && (
-        <Modal open onClose={() => setSheet(null)}>
+        <Modal open onClose={closeSheet}>
           <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
           <h2 className="text-lg font-semibold text-text-primary">Renovar plazo fijo</h2>
           <p className="mt-1 mb-5 text-xs text-text-tertiary">
@@ -459,6 +473,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
           </div>
 
           <div className="mt-6 flex flex-col gap-2">
+            <InlineError message={saveError} />
             <button
               onClick={handleRenovar}
               disabled={!renovarAmount || Number(renovarAmount) <= 0 || isSaving}
@@ -467,7 +482,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
               {isSaving ? 'Renovando...' : 'Renovar instrumento ✓'}
             </button>
             <button
-              onClick={() => setSheet(null)}
+              onClick={closeSheet}
               disabled={isSaving}
               className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
             >
@@ -479,7 +494,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
 
       {/* ── Editar sheet ─────────────────────────────────────────────────────── */}
       {sheet === 'editar' && (
-        <Modal open onClose={() => setSheet(null)}>
+        <Modal open onClose={closeSheet}>
           <div className="mx-auto mb-5 h-1 w-10 rounded-full bg-text-disabled sm:hidden" />
           <h2 className="text-lg font-semibold text-text-primary">Editar instrumento</h2>
           <p className="mt-1 mb-5 text-xs text-text-tertiary">
@@ -534,6 +549,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
           </div>
 
           <div className="mt-6 flex flex-col gap-2">
+            <InlineError message={saveError} />
             <button
               onClick={handleEdit}
               disabled={isSaving}
@@ -542,7 +558,7 @@ export function InstrumentoDetailClient({ instrument, accounts, today }: Props) 
               {isSaving ? 'Guardando...' : 'Guardar cambios ✓'}
             </button>
             <button
-              onClick={() => setSheet(null)}
+              onClick={closeSheet}
               disabled={isSaving}
               className="w-full rounded-button py-3 text-sm text-text-secondary transition-colors hover:text-text-primary"
             >
