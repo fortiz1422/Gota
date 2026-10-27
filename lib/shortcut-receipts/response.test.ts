@@ -9,6 +9,21 @@ describe('shortcut receipt response messages', () => {
     })
   })
 
+  it('points unauthorized errors to Ajustes → Conexiones → Dispositivos', () => {
+    expect(withShortcutReceiptMessage({ error: 'unauthorized' })).toEqual({
+      error: 'unauthorized',
+      message:
+        'No pudimos autenticar este Atajo. Creá un token nuevo en Ajustes → Conexiones → Dispositivos.',
+    })
+  })
+
+  it('explains rate_limited without removing the technical code', () => {
+    expect(withShortcutReceiptMessage({ error: 'rate_limited' })).toEqual({
+      error: 'rate_limited',
+      message: 'Demasiados envíos. Esperá unos minutos y volvé a intentar.',
+    })
+  })
+
   it('preserves an existing contextual message', () => {
     expect(withShortcutReceiptMessage({
       status: 'duplicate',

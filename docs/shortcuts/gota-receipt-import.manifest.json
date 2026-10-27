@@ -80,8 +80,9 @@
       "branches": {
         "accepted": "Show Notification: Comprobante recibido. Abrí Gota para revisarlo.",
         "duplicate": "Show Notification: Ese comprobante ya había sido recibido. Abrí Gota para revisarlo.",
-        "unauthorized_or_401": "Show Alert: Token inválido o vencido. Creá uno nuevo en Gota > Integraciones.",
+        "unauthorized_or_401": "Show Alert: Token inválido o vencido. Creá uno nuevo en Ajustes → Conexiones → Dispositivos.",
         "too_large_or_413": "Show Alert: La imagen supera el límite permitido. Recortala o reducí su tamaño e intentá de nuevo.",
+        "rate_limited_or_429": "Show Alert: Demasiados envíos, esperá unos minutos…",
         "otherwise": "Show Alert: No pudimos enviar el comprobante. Intentá de nuevo."
       }
     }
