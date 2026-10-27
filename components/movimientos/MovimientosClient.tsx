@@ -11,6 +11,7 @@ import { StripOperativo } from './StripOperativo'
 import { MovimientosGroupedList } from './MovimientosGroupedList'
 import { FiltroSheet, EMPTY_FILTERS, countFilters } from './FiltroSheet'
 import { MovimientosFetchErrorBanner } from './MovimientosFetchErrorBanner'
+import { resolveMovimientosMainPanel } from './movimientosListBody'
 import type { ActiveFilters, OrigenFilter } from './FiltroSheet'
 import type { YieldMonthlyMovementData } from '@/lib/movimientos-yield'
 import type {
@@ -346,6 +347,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
     ].join(' ')
 
   const monthPeriodLabel = formatMonthLabel(selectedMonth)
+  const mainPanel = resolveMovimientosMainPanel(isLoading, fetchError)
 
   return (
     <div className="min-h-screen bg-bg-primary">
@@ -477,7 +479,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
           </div>
         )}
 
-        {isLoading ? (
+        {mainPanel === 'skeleton' ? (
           <div className="space-y-3">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 py-3">
@@ -490,7 +492,7 @@ export function MovimientosClient({ initialMonth, initialData, initialCategoria,
               </div>
             ))}
           </div>
-        ) : fetchError ? (
+        ) : mainPanel === 'error' ? (
           <MovimientosFetchErrorBanner onRetry={handleRetryFetch} />
         ) : (
           <MovimientosGroupedList

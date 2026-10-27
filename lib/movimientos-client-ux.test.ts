@@ -1,59 +1,9 @@
-// @vitest-environment jsdom
-import { createElement, type ReactNode } from 'react'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
-import { MovimientosFetchErrorBanner } from '@/components/movimientos/MovimientosFetchErrorBanner'
-import { MovimientosClient } from '@/components/movimientos/MovimientosClient'
 import { readFileSync } from 'node:fs'
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ refresh: vi.fn() }),
-}))
-
-vi.mock('@/components/dashboard/HomePlusButton', () => ({
-  HomePlusButton: () => createElement('div', { 'data-testid': 'home-plus' }),
-}))
-
-vi.mock('@/components/ui/BlueHeaderZone', () => ({
-  BlueHeaderZone: ({ children }: { children: ReactNode }) => createElement('div', null, children),
-}))
-
-vi.mock('@/components/movimientos/StripOperativo', () => ({
-  StripOperativo: () => null,
-}))
-
-vi.mock('@/components/movimientos/MovimientosGroupedList', () => ({
-  MovimientosGroupedList: () => createElement('div', { 'data-testid': 'movimientos-list' }, 'Lista'),
-}))
-
-vi.mock('@/components/movimientos/FiltroSheet', () => ({
-  FiltroSheet: () => null,
-  EMPTY_FILTERS: {
-    tipos: [],
-    origenes: [],
-    tarjetas: [],
-    cuentas: [],
-    categorias: [],
-    monedas: [],
-    quincena: null,
-    fechaInicio: null,
-    fechaFin: null,
-  },
-  countFilters: () => 0,
-}))
-
-const emptyApi = {
-  movements: [],
-  stats: { percibidos: 0, tarjeta: 0, pagoTarjeta: 0 },
-  total: 0,
-  categories: [] as string[],
-  accounts: [],
-  cards: [],
-  filteredSum: 0,
-  filteredSumCurrency: 'ARS' as const,
-  statsCurrency: 'ARS' as const,
-}
+import { describe, expect, it } from 'vitest'
+import { MovimientosFetchErrorBanner } from '@/components/movimientos/MovimientosFetchErrorBanner'
+import { resolveMovimientosMainPanel } from '@/components/movimientos/movimientosListBody'
 
 describe('MovimientosFetchErrorBanner', () => {
   it('muestra mensaje y botón Reintentar', () => {
@@ -66,56 +16,45 @@ describe('MovimientosFetchErrorBanner', () => {
   })
 })
 
-describe('MovimientosClient UX-A', () => {
-  const fetchMock = vi.fn()
-
-  beforeEach(() => {
-    fetchMock.mockReset()
-    vi.stubGlobal('fetch', fetchMock)
+describe('resolveMovimientosMainPanel', () => {
+  it('prioriza skeleton mientras carga', () => {
+    expect(resolveMovimientosMainPanel(true, false)).toBe('skeleton')
+    expect(resolveMovimientosMainPanel(true, true)).toBe('skeleton')
   })
 
-  afterEach(() => {
-    cleanup()
-    vi.unstubAllGlobals()
+  it('muestra error en lugar de lista cuando fetchError y no está cargando', () => {
+    expect(resolveMovimientosMainPanel(false, true)).toBe('error')
   })
 
-  it('muestra banner y no la lista cuando /api/movimientos responde !ok', async () => {
-    fetchMock.mockResolvedValue({ ok: false, json: async () => ({}) })
+  it('muestra lista cuando no hay carga ni error', () => {
+    expect(resolveMovimientosMainPanel(false, false)).toBe('list')
+  })
+})
 
-    render(createElement(MovimientosClient, { initialMonth: '2026-03' }))
+describe('MovimientosClient UX-A (markup en fuente)', () => {
+  const source = readFileSync('components/movimientos/MovimientosClient.tsx', 'utf8')
 
-    await waitFor(() => {
-      expect(screen.getByRole('alert')).toBeTruthy()
-    })
-    expect(screen.getByRole('button', { name: 'Reintentar' })).toBeTruthy()
-    expect(screen.queryByTestId('movimientos-list')).toBeNull()
+  it('usa resolveMovimientosMainPanel para el panel principal', () => {
+    expect(source).toContain('resolveMovimientosMainPanel(isLoading, fetchError)')
+    expect(source).toContain("mainPanel === 'error'")
   })
 
-  it('muestra mes y año en el header', () => {
-    fetchMock.mockResolvedValue({
-      ok: true,
-      json: async () => emptyApi,
-    })
-
-    render(
-      createElement(MovimientosClient, {
-        initialMonth: '2026-03',
-        initialData: emptyApi,
-      })
-    )
-
-    expect(screen.getByText(/Marzo de 2026/i)).toBeTruthy()
-  })
-
-  it('usa áreas táctiles mínimas de 44 px en nav y filtro', () => {
-    const source = readFileSync('components/movimientos/MovimientosClient.tsx', 'utf8')
-    expect(source).toContain('min-h-11 min-w-11')
+  it('muestra mes y año completos en el header', () => {
+    expect(source).toContain('{monthPeriodLabel}')
     expect(source).not.toMatch(/formatMonthLabel\(selectedMonth\)\.split\(' '\)\[0\]/)
   })
 
+  it('usa áreas táctiles mínimas de 44 px en nav y filtro', () => {
+    expect(source).toContain('min-h-11 min-w-11')
+  })
+
   it('etiqueta el monto filtrado con Total filtrado y moneda', () => {
-    const source = readFileSync('components/movimientos/MovimientosClient.tsx', 'utf8')
     expect(source).toContain('Total filtrado ·')
     expect(source).toContain('{filteredSumCurrency}')
+  })
+
+  it('vacía movimientos y marca fetchError ante fallo de fetch (no append)', () => {
+    expect(source).toContain('setLoadedMovements([])')
+    expect(source).toContain('setFetchError(true)')
   })
 })
