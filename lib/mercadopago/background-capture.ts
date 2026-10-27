@@ -69,9 +69,11 @@ export async function runMercadoPagoBackgroundCapture(userId: string, connection
         },
       })
       observed += result.run.count
-      if (result.run.status !== 'success') { status = 'error'; windows++; break }
-      if (Date.parse(watermark) >= target.getTime()) { status = 'success'; windows++; break }
+      // `pending` is a page cap: the cursor already moved only through the prefix that was read.
+      if (result.run.status === 'error') { status = 'error'; windows++; break }
       if (Date.parse(watermark) <= Date.parse(expected)) throw new Error('watermark_not_advanced')
+      if (Date.parse(watermark) >= target.getTime()) { status = 'success'; windows++; break }
+      status = 'catching_up'
     }
     return { status, observed, windows, capturedThrough: watermark, upToDate: status === 'success', posted: 0 as const }
   })

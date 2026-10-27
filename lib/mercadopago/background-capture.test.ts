@@ -139,4 +139,36 @@ describe('capture service with real incremental windows and pagination', () => {
     expect(await capture('owner', 'connection')).toMatchObject({ status: 'catching_up', windows: 32, capturedThrough: '2026-09-02T09:00:00.000Z', upToDate: false, posted: 0 })
     expect(f.fetcher).toHaveBeenCalledTimes(32)
   })
+
+  it('finishes a day with more than 500 payments without a provider error', async () => {
+    const start = '2026-10-24T08:00:00.000Z'
+    const f = fixture(start)
+    const begin = Date.parse(start)
+    const end = Date.parse(now)
+    const rows = Array.from({ length: 501 }, (_, index) => ({
+      id: `p${index}`,
+      date_created: new Date(begin + Math.floor(((index + 1) * (end - begin)) / 502)).toISOString(),
+      currency_id: index % 2 === 0 ? 'ARS' : 'USD',
+      transaction_amount: index + 1,
+    }))
+    f.fetcher.mockImplementation(async (...args: unknown[]) => {
+      const url = new URL(String(args[0]))
+      const offset = Number(url.searchParams.get('offset'))
+      const limit = Number(url.searchParams.get('limit'))
+      const from = url.searchParams.get('begin_date') ?? ''
+      const to = url.searchParams.get('end_date') ?? ''
+      const visible = rows.filter((row) => row.date_created >= from && row.date_created <= to)
+      return new Response(JSON.stringify({ results: visible.slice(offset, offset + limit), paging: { total: visible.length } }))
+    })
+    const stored = new Map<string, { currency_id?: string }>()
+    m.raw.mockImplementation(async (row: { nativeKey: string; payload: { currency_id?: string } }) => { stored.set(row.nativeKey, row.payload) })
+    const result = await capture('owner', 'connection', { maxWindows: 4 })
+    expect(result).toMatchObject({ status: 'success', posted: 0, upToDate: true, capturedThrough: now })
+    expect(stored.size).toBe(501)
+    expect(new Set([...stored.values()].map((payload) => payload.currency_id))).toEqual(new Set(['ARS', 'USD']))
+    const runs = m.source.mock.calls.map(([input]) => input.run as { status: string; errorCode: string | null })
+    expect(runs.some((run) => run.status === 'pending' && run.errorCode === null)).toBe(true)
+    expect(runs.some((run) => run.errorCode === 'provider_error')).toBe(false)
+    expect(f.state.incremental_watermark).toBe(now)
+  })
 })
