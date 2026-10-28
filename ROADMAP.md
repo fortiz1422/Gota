@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| MP-21 | Preparar y guardar lotes MP con un solo envío (reporte de Facundo 28/10/2026) | Cada gasto repetía el historial y un pedido desde el móvil; la espera parecía congelada. | Preparación sin escrituras durante revisión; un POST para 60 gastos; evidencia y referencias compartidas por pedido; RPCs canónicas, corte ante conflicto y actualización ante incertidumbre; pruebas API y móviles. Sin cambios de alias ni migraciones. |
+| (vacío) | | | |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -51,6 +51,7 @@ Publicado en main. «Listo» acá significa código publicado y CI verde; la val
 
 | ID | Título | Evidencia | Límite |
 |---|---|---|---|
+| MP-21 | Preparar y guardar lotes MP con un solo envío | https://github.com/fortiz1422/Gota/pull/173; 2.167 tests, TypeScript, build, SQL y 78 recorridos de navegador aprobados | Preparación sin escrituras; 60 gastos con un POST; referencias por pedido, validación fresca, corte por conflicto y espera acotada. Sin cambios de alias ni migraciones. |
 | MP-20 | Revisión MP por alias existente y categoría | https://github.com/fortiz1422/Gota/pull/172; build y CI aprobados; confirmación de 30 movimientos, excepciones y errores parciales probados | No modifica alias, perfiles ni reglas. Sin registro automático. Prueba con la cuenta real pendiente. |
 | MP-19 | Completar movimientos MP en lote | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`, 2.097 tests, 48 Playwright, TypeScript, build y SQL aprobados) | Selección humana hasta 20; sin reglas persistentes nuevas ni registro automático. |
 | MODO-07 | Acceso al lote y revisión sin depender de imagen | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`) | Campana a lotes; renovación de imagen y fallo de firma aislado; causa real en iPhone pendiente de verificar. |

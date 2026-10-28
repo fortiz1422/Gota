@@ -24,4 +24,12 @@ El tamaño de pedido admite de 1 a 200 identidades únicas. El servidor tiene du
 - Playwright usa exclusivamente datos y APIs simuladas, incluyendo respuesta lenta, respuesta perdida, preparación fallida/reintento, excepciones y continuación entre grupos. Viewports: 320, 390, 768 y 1440 px.
 - No se confirmaron gastos reales ni se modificó la base de datos durante las pruebas. Los logs de producción no estuvieron accesibles: no se determinó el resultado del lote original de la captura.
 
-Estado de publicación y resultados finales se registran al completar CI y despliegue.
+## Publicación verificada
+
+- PR [#173](https://github.com/fortiz1422/Gota/pull/173), integrado en `e76c1f01bf491942b9765621d7cb830015c27dd9`.
+- [CI de release](https://github.com/fortiz1422/Gota/actions/runs/40681370608): éxito; 2.167 tests en 216 archivos, TypeScript, build, 76 recorridos de revisión y 2 pruebas móviles MP.
+- [CI transaccional SQL](https://github.com/fortiz1422/Gota/actions/runs/40681370788): éxito en tests unitarios y Postgres nativo.
+- Producción: `dpl_FVzrGNgoamHymuwMRsctUbGCTowe`, commit `e76c1f0`, estado READY, dominio `gota.money`.
+- Verificación pública sin sesión: inicio responde 200; revisión redirige al login; los endpoints bulk responden 401 sin autenticación. No se ejecutaron confirmaciones en la cuenta real.
+- El workflow ajeno `claude-code-review.yml` conserva un fallo de configuración previo (`on:` vacío, sin jobs iniciados); no se modificó. Los dos workflows de validación de esta entrega terminaron correctamente.
+- Rollback de código anterior: deployment `dpl_8FcSdaRuVn19vHMDzzbtDYptVsSM`, commit `340a88e`. Un rollback de código no revierte gastos ya confirmados.
