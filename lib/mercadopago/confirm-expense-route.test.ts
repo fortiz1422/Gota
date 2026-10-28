@@ -295,3 +295,114 @@ describe('Mercado Pago confirm expense route', () => {
     expect(await (await post()).json()).toEqual({ status: 'confirmed', expenseId: 'expense-1' })
   })
 })
+
+
+describe('Mercado Pago bulk save', () => {
+  const request = (entries: unknown) =>
+    new Request('http://gota.test', {
+      method: 'POST',
+      body: JSON.stringify({ entries }),
+    })
+  const entries = () =>
+    Array.from({ length: 60 }, (_, n) => ({
+      candidateId: `candidate-${n}`,
+      body: { ...body, expectedCandidateFingerprint: 'f'.repeat(64) },
+    }))
+  it('prepares sixty entries with one evidence read and no writes, then commits with one shared context', async () => {
+    const { handleBulkConfirmation } = await import('./bulk-confirmation')
+    mocks.reconstruct.mockReturnValue(
+      entries().map((entry) => ({
+        ...candidate,
+        candidateId: entry.candidateId,
+      }))
+    )
+    const prepared = await handleBulkConfirmation(request(entries()), true)
+    expect(await prepared.json()).toEqual({ status: 'ready', count: 60 })
+    expect(mocks.rpc).not.toHaveBeenCalled()
+    expect(mocks.getConnection).toHaveBeenCalledTimes(1)
+    expect(mocks.getObservations).toHaveBeenCalledTimes(1)
+    mocks.getConnection.mockClear()
+    mocks.getObservations.mockClear()
+    mocks.reconstruct.mockClear()
+    const response = await handleBulkConfirmation(request(entries()), false)
+    expect(await response.json()).toMatchObject({
+      status: 'completed',
+      remaining: 0,
+      results: expect.arrayContaining([
+        { candidateId: 'candidate-59', expenseId: 'expense-1' },
+      ]),
+    })
+    expect(mocks.rpc).toHaveBeenCalledTimes(60)
+    expect(mocks.getConnection).toHaveBeenCalledTimes(1)
+    expect(mocks.getObservations).toHaveBeenCalledTimes(1)
+    expect(mocks.reconstruct).toHaveBeenCalledTimes(1)
+  })
+  it('stops after a conflict and returns the confirmed prefix', async () => {
+    const { handleBulkConfirmation } = await import('./bulk-confirmation')
+    mocks.reconstruct.mockReturnValue(
+      entries().map((entry) => ({
+        ...candidate,
+        candidateId: entry.candidateId,
+      }))
+    )
+    mocks.rpc
+      .mockResolvedValueOnce({ data: 'expense-1', error: null })
+      .mockResolvedValueOnce({ data: null, error: { code: '55000' } })
+    const response = await handleBulkConfirmation(request(entries()), false)
+    expect(await response.json()).toMatchObject({
+      status: 'stopped',
+      remaining: 59,
+      results: [{ candidateId: 'candidate-0', expenseId: 'expense-1' }],
+      blocked: { status: 409, candidateId: 'candidate-1' },
+    })
+    expect(mocks.rpc).toHaveBeenCalledTimes(2)
+  })
+  it('rejects repeated identities, untrusted amounts and unauthenticated requests before loading evidence', async () => {
+    const { handleBulkConfirmation } = await import('./bulk-confirmation')
+    const first = entries()[0]
+    for (const input of [
+      [first, first],
+      [{ ...first, body: { ...first.body, amount: 1 } }],
+      [],
+    ])
+      expect((await handleBulkConfirmation(request(input), false)).status).toBe(
+        422
+      )
+    mocks.createClient.mockResolvedValue({
+      auth: { getUser: vi.fn().mockResolvedValue({ data: { user: null } }) },
+    })
+    expect(
+      (await handleBulkConfirmation(request(entries()), false)).status
+    ).toBe(401)
+    expect(mocks.getObservations).not.toHaveBeenCalled()
+    expect(mocks.rpc).not.toHaveBeenCalled()
+  })
+})
+
+it('revalidates evidence after preparation instead of trusting cached readiness', async () => {
+  const { handleBulkConfirmation } = await import('./bulk-confirmation')
+  const entries = [{ candidateId: candidate.candidateId, body: { ...body, expectedCandidateFingerprint: 'f'.repeat(64) } }]
+  const request = () => new Request('http://gota.test', { method: 'POST', body: JSON.stringify({ entries }) })
+  expect((await handleBulkConfirmation(request(), true)).status).toBe(200)
+  mocks.fingerprint.mockReturnValue('a'.repeat(64))
+  expect(await (await handleBulkConfirmation(request(), false)).json()).toMatchObject({ status: 'stopped', results: [], remaining: 1, blocked: { status: 409 } })
+  expect(mocks.getObservations).toHaveBeenCalledTimes(2)
+  expect(mocks.rpc).not.toHaveBeenCalled()
+})
+
+it('invalidates shared cycle references after the canonical RPC creates a new period', async () => {
+  vi.stubEnv('MERCADOPAGO_CARD_INSTALLMENTS_ENABLED', 'true')
+  try {
+    const { loadExpenseConfirmationContext, confirmMercadoPagoExpense } = await import('./expense-confirmation-service')
+    const context = (await loadExpenseConfirmationContext('user-1'))!
+    const cardId = '00000000-0000-4000-8000-000000000021'
+    const key = `user-1:${cardId}`
+    context.cardReferences.set(key, Promise.resolve({ card: { id: cardId, user_id: 'user-1', closing_day: 25, due_day: 5, archived: false }, cycles: [] }))
+    mocks.eligibleCard.mockReturnValue(true)
+    mocks.plan.mockResolvedValue({ card: { closing_day: 25, due_day: 5 }, existing_cycles: [], rows: [{ cycle: { period_month: '2026-10-01' } }] })
+    const result = await confirmMercadoPagoExpense('user-1', candidate.candidateId, { description: 'Peaje', category: 'Transporte', isWant: false, isRecurring: false, isExtraordinary: false, expectedCandidateFingerprint: 'f'.repeat(64), cardId, installments: 1 }, context)
+    expect(result.status).toBe(200)
+    expect(context.cardReferences.has(key)).toBe(false)
+    expect(mocks.plan).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ referenceCache: context.cardReferences }))
+  } finally { vi.unstubAllEnvs() }
+})
