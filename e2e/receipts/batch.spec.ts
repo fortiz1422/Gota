@@ -77,6 +77,8 @@ async function fixture(
       url = new URL(request.url()),
       path = url.pathname
     const body = request.postDataJSON() as Record<string, unknown> | null
+    if (path === '/api/capabilities')
+      return route.fulfill({ json: { paidAI: true } })
     if (request.method() !== 'GET') writes.push({ path, body: body ?? {} })
     if (path === '/api/accounts')
       return route.fulfill({
@@ -104,9 +106,9 @@ async function fixture(
             status,
             created_at,
           })),
-          pendingMerchantMemoryRetries: [...pendingMerchantMemory.entries()].map(
-            ([receiptId, payload]) => ({ receiptId, ...payload })
-          ),
+          pendingMerchantMemoryRetries: [
+            ...pendingMerchantMemory.entries(),
+          ].map(([receiptId, payload]) => ({ receiptId, ...payload })),
         },
       })
     if (path.endsWith('/pending-merchant-memory')) {
@@ -320,8 +322,9 @@ test('existing merchant stays selected after category moves the row; alias failu
   ).length
   await page.getByRole('button', { name: 'Reintentar solo el alias' }).click()
   await expect
-    .poll(() =>
-      writes.filter((w) => w.path.includes('/counterparty-profiles/')).length
+    .poll(
+      () =>
+        writes.filter((w) => w.path.includes('/counterparty-profiles/')).length
     )
     .toBe(aliasWrites + 1)
   expect(writes.filter((w) => w.path.endsWith('bulk-confirm'))).toHaveLength(1)
@@ -346,9 +349,7 @@ test('alias failure survives a full page reload without resending expenses', asy
     page.getByRole('button', { name: 'Reintentar solo el alias' })
   ).toBeVisible()
   await expect
-    .poll(() =>
-      writes.some((w) => w.path.endsWith('/pending-merchant-memory'))
-    )
+    .poll(() => writes.some((w) => w.path.endsWith('/pending-merchant-memory')))
     .toBe(true)
   await page.reload()
   await expect(

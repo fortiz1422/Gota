@@ -543,7 +543,7 @@ export function MercadoPagoReviewClient() {
         </div>
       )}
 
-      {!loading && !error && pendingMovements.length > 0 && <button type="button" onClick={() => setBatchMovements(pendingMovements)} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white">Completar en lote</button>}
+      {!loading && !error && pendingMovements.length > 0 && <button type="button" onClick={() => setBatchMovements(pendingMovements)} className="mt-5 min-h-11 w-full rounded-button bg-primary px-4 py-3 text-sm font-semibold text-white">Revisar por grupos</button>}
       {batchMovements && <MercadoPagoBatchReview movements={batchMovements} onClose={() => setBatchMovements(null)} onChanged={() => void load()} />}
 
       {!loading && !error && state && (

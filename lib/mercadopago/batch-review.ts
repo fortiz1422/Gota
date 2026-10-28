@@ -11,7 +11,6 @@ import {
 } from './review'
 import type { Card } from '@/types/database'
 
-export const MP_BATCH_LIMIT = 20
 export type BatchDraft = {
   movement: MercadoPagoMovement
   description: string
@@ -131,11 +130,7 @@ export async function submitBatch(
   onConfirmed: (id: string) => void
 ) {
   const ids = new Set(entries.map((entry) => entry.candidateId))
-  if (
-    !entries.length ||
-    entries.length > MP_BATCH_LIMIT ||
-    ids.size !== entries.length
-  )
+  if (!entries.length || ids.size !== entries.length)
     throw new Error('invalid_batch')
   let confirmed = 0
   for (const entry of entries) {

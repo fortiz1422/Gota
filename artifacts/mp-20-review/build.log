@@ -1,0 +1,20 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> gota@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Experiments (use with caution):
+  · clientTraceMetadata
+  · staleTimes
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 42s
+  Running TypeScript ...
+Failed to compile.
+
+app/(dashboard)/expenses/page.tsx
+Type error: Page "app/(dashboard)/expenses/page.tsx" does not match the required types of a Next.js Page.
+  "expensesToMovimientosHref" is not a valid Page export field.
+
+Next.js build worker exited with code: 1 and signal: null

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import Link from 'next/link'
 import { TaskSurface } from '@/components/ui/TaskSurface'
@@ -13,17 +13,21 @@ import {
 } from '@/lib/mercadopago/review'
 import { formatMercadoPagoObservedDate } from '@/lib/mercadopago/review-presentation'
 import {
-  MP_BATCH_LIMIT,
   batchBlocker,
   batchEvidence,
   buildBatchBody,
   cardEvidenceKey,
-  createBatchDraft,
   submitBatch,
-  type BatchDraft,
   type BatchAccountLink,
 } from '@/lib/mercadopago/batch-review'
 import type { Card } from '@/types/database'
+import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
+import {
+  groupBatchDrafts,
+  prepareGroupedBatchDrafts,
+  type GroupedBatchDraft,
+  type BatchReviewGroup,
+} from '@/lib/mercadopago/grouped-review'
 
 const field =
   'mt-1 min-h-11 w-full min-w-0 rounded-button border border-border-strong bg-bg-tertiary px-3 py-2 text-base text-text-primary'
@@ -45,13 +49,14 @@ export function MercadoPagoBatchReview({
   onChanged: () => void
 }) {
   const queryClient = useQueryClient()
-  const [drafts, setDrafts] = useState<BatchDraft[]>([])
+  const [drafts, setDrafts] = useState<GroupedBatchDraft[]>([])
   const [cards, setCards] = useState<Card[]>([])
   const [link, setLink] = useState<BatchAccountLink | null>(null)
   const [loading, setLoading] = useState(true)
   const [loadError, setLoadError] = useState(false)
   const [selected, setSelected] = useState(new Set<string>())
   const [search, setSearch] = useState('')
+  const [activeGroupKey, setActiveGroupKey] = useState<string | null>(null)
   const [description, setDescription] = useState('')
   const [category, setCategory] = useState('')
   const [preview, setPreview] = useState(false)
@@ -61,6 +66,13 @@ export function MercadoPagoBatchReview({
   const busyRef = useRef(false)
   const changedRef = useRef(false)
   const summaryRef = useRef<HTMLParagraphElement>(null)
+  const groupHeadingRef = useRef<HTMLElement>(null)
+  useEffect(() => {
+    if (activeGroupKey) {
+      groupHeadingRef.current?.closest('[data-task-scroll]')?.scrollTo(0, 0)
+      groupHeadingRef.current?.focus({ preventScroll: true })
+    }
+  }, [activeGroupKey])
   useEffect(() => {
     if (preview) {
       summaryRef.current?.closest('[data-task-scroll]')?.scrollTo(0, 0)
@@ -82,20 +94,30 @@ export function MercadoPagoBatchReview({
           throw new Error('references_unavailable')
         const loadedCards: Card[] = await cardResponse.json()
         const loadedLink: BatchAccountLink = await linkResponse.json()
-        if (!Array.isArray(loadedCards)) throw new Error('invalid_cards')
+        if (!Array.isArray(loadedCards)) throw new Error('invalid_references')
         if (!active) return
         const activeCards = loadedCards.filter((card) => !card.archived)
         setCards(activeCards)
         setLink(loadedLink)
-        setDrafts(
-          movements
-            .filter(
-              (m) =>
-                getMercadoPagoReviewCapability(m).mode === 'confirmable' &&
-                m.attention !== 'possible_duplicate'
-            )
-            .map((m) => createBatchDraft(m, activeCards))
+        const prepared = await prepareGroupedBatchDrafts(
+          movements,
+          activeCards,
+          async (description) => {
+            const response = await fetch('/api/counterparty-aliases/resolve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ alias_value: description }),
+              cache: 'no-store',
+            })
+            if (!response.ok) throw new Error('alias_resolution_unavailable')
+            const body = (await response.json()) as {
+              match?: CounterpartyAliasMatch | null
+            }
+            if (!('match' in body)) throw new Error('invalid_alias_response')
+            return body.match ?? null
+          }
         )
+        if (active) setDrafts(prepared)
       } catch {
         if (active) setLoadError(true)
       } finally {
@@ -117,19 +139,101 @@ export function MercadoPagoBatchReview({
     }
     onClose()
   }
-  const chosen = drafts.filter((d) => selected.has(d.movement.candidateId))
-  const filtered = drafts.filter((d) =>
+  const groups = useMemo(() => groupBatchDrafts(drafts), [drafts])
+  const activeGroup = groups.find((group) => group.key === activeGroupKey)
+  const groupDrafts = activeGroup?.drafts ?? []
+  const chosen = groupDrafts.filter((d) => selected.has(d.movement.candidateId))
+  const filtered = groupDrafts.filter((d) =>
     `${d.description} ${d.movement.fundingSource?.brand ?? ''} ${d.movement.fundingSource?.lastFour ?? ''}`
       .toLowerCase()
       .includes(search.toLowerCase())
   )
   const blockers = chosen.filter((d) => batchBlocker(d, cards, link))
-  const patch = (id: string, values: Partial<BatchDraft>) =>
-    setDrafts((current) =>
-      current.map((d) =>
-        d.movement.candidateId === id ? { ...d, ...values } : d
+  const individualCount = movements.filter(
+    (m) =>
+      m.reviewStatus === 'pending' &&
+      getMercadoPagoReviewCapability(m).mode !== 'confirmable'
+  ).length
+  const openGroup = (group: BatchReviewGroup) => {
+    setActiveGroupKey(group.key)
+    setSelected(
+      new Set(
+        group.kind === 'uncertain'
+          ? []
+          : group.drafts.map((d) => d.movement.candidateId)
       )
     )
+    setSearch('')
+    setCategory('')
+    setDescription('')
+    setPreview(false)
+  }
+  const backToGroups = () => {
+    setActiveGroupKey(null)
+    setSelected(new Set())
+    setPreview(false)
+  }
+  const patch = (id: string, values: Partial<GroupedBatchDraft>) => {
+    const original = drafts.find((d) => d.movement.candidateId === id)
+    const categoryChanged =
+      values.category !== undefined && values.category !== original?.category
+    setDrafts((current) =>
+      current.map((d) =>
+        d.movement.candidateId === id
+          ? {
+              ...d,
+              ...values,
+              ...(categoryChanged
+                ? {
+                    grouping: {
+                      kind: values.category
+                        ? ('category' as const)
+                        : ('uncertain' as const),
+                      categoryOrigin: 'user' as const,
+                    },
+                  }
+                : {}),
+            }
+          : d
+      )
+    )
+    if (categoryChanged) {
+      setSelected((current) => {
+        const next = new Set(current)
+        next.delete(id)
+        return next
+      })
+      setNotice(
+        values.category
+          ? `Movimiento trasladado al grupo ${values.category}. Sigue pendiente de revisión.`
+          : 'Movimiento trasladado a A confirmar.'
+      )
+    }
+  }
+  const applyCommon = () => {
+    const updated = drafts.map((d) =>
+      selected.has(d.movement.candidateId)
+        ? {
+            ...d,
+            ...(description.trim() ? { description: description.trim() } : {}),
+            ...(category
+              ? {
+                  category,
+                  grouping: {
+                    kind: 'category' as const,
+                    categoryOrigin: 'user' as const,
+                  },
+                }
+              : {}),
+          }
+        : d
+    )
+    setDrafts(updated)
+    if (category) {
+      setActiveGroupKey(`category:${category}`)
+      setCategory('')
+    }
+  }
   const cardGroups = [
     ...new Set(
       chosen
@@ -162,6 +266,8 @@ export function MercadoPagoBatchReview({
       candidateId: d.movement.candidateId,
       body: buildBatchBody(d, link),
     }))
+    let mustRefresh = false
+    const confirmedIds = new Set<string>()
     try {
       const result = await submitBatch(
         entries,
@@ -176,23 +282,30 @@ export function MercadoPagoBatchReview({
             }
           ),
         (id) => {
-          setDrafts((current) =>
-            current.filter((d) => d.movement.candidateId !== id)
+          confirmedIds.add(id)
+          setNotice(
+            `Registrando ${confirmedIds.size} de ${entries.length} movimientos…`
           )
-          setNotice('Registrando movimientos…')
         }
       )
+      mustRefresh = result.stopped
+      if (!result.stopped) backToGroups()
       setNotice(
         result.stopped
           ? `${result.confirmed} registrados con respuesta confirmada. Se detuvo la tanda; ${entries.length - result.confirmed} requieren verificar su estado. Actualizá la bandeja antes de continuar: el último envío podría haberse registrado.`
           : `${result.confirmed} movimientos registrados. Los demás siguen pendientes.`
       )
     } catch {
+      mustRefresh = true
       setNotice(
         'Se detuvo la tanda. Actualizá la bandeja para verificar su estado antes de continuar.'
       )
     } finally {
-      setFinished(true)
+      setDrafts((current) =>
+        current.filter((d) => !confirmedIds.has(d.movement.candidateId))
+      )
+      if (confirmedIds.size) void queryClient.invalidateQueries()
+      setFinished(mustRefresh)
       setBusy(false)
       busyRef.current = false
     }
@@ -204,9 +317,14 @@ export function MercadoPagoBatchReview({
       onClose={close}
       busy={busy}
       variant="blue-hero"
-      title="Completar en lote"
+      showIntro={!activeGroupKey}
+      title={activeGroup ? activeGroup.title : 'Revisar por grupos'}
       eyebrow="Mercado Pago"
-      description="Completá varios movimientos y revisá antes de registrarlos."
+      description={
+        activeGroup
+          ? 'Revisá los movimientos y quitá los que quieras dejar pendientes.'
+          : 'Primero tus alias, después las categorías sugeridas. Lo incierto queda a confirmar.'
+      }
       footer={
         finished ? (
           <button
@@ -215,6 +333,14 @@ export function MercadoPagoBatchReview({
             className="rounded-button bg-primary min-h-11 w-full px-4 py-3 font-semibold text-white"
           >
             Actualizar bandeja
+          </button>
+        ) : !activeGroupKey ? (
+          <button
+            type="button"
+            onClick={close}
+            className="rounded-button border-border-strong min-h-11 w-full border px-4 py-3 font-semibold"
+          >
+            Cerrar revisión
           </button>
         ) : preview ? (
           <div className="flex gap-2">
@@ -244,12 +370,16 @@ export function MercadoPagoBatchReview({
             onClick={() => setPreview(true)}
             className="rounded-button bg-primary min-h-11 w-full px-4 py-3 font-semibold text-white disabled:opacity-50"
           >
-            Revisar {chosen.length || ''} seleccionados
+            {chosen.length
+              ? `Revisar ${chosen.length} seleccionados`
+              : 'Elegí movimientos'}
           </button>
         )
       }
     >
-      {loading && <p role="status">Cargando tarjetas y cuenta vinculada…</p>}
+      {loading && (
+        <p role="status">Cargando alias, tarjetas y cuenta vinculada…</p>
+      )}
       {loadError && (
         <p role="alert">
           No pudimos cargar las referencias. Cerrá y reintentá; no se registró
@@ -266,159 +396,237 @@ export function MercadoPagoBatchReview({
       )}
       {!loading && !loadError && !finished && (
         <>
-          {!preview && (
+          {!activeGroupKey && (
             <>
               <p className="text-text-secondary mb-4 text-sm">
-                Hasta {MP_BATCH_LIMIT} por tanda. Las transferencias,
-                devoluciones y posibles duplicados se revisan individualmente
-                cuando no hay evidencia suficiente. No agrupamos por importe.
+                {drafts.length} pendientes para completar en esta bandeja.
+                Ninguno se registra hasta que confirmes su grupo.
               </p>
-              <label className="block text-sm font-medium">
-                Buscar descripción o tarjeta
-                <input
-                  className={field}
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  placeholder="Ej. TelePASE o 8215"
-                />
-              </label>
-              <div className="my-3 flex flex-wrap gap-2">
-                <button
-                  type="button"
-                  className="rounded-button border-border-strong min-h-11 border px-3 text-sm"
-                  onClick={() =>
-                    setSelected(
-                      new Set(
-                        filtered
-                          .slice(0, MP_BATCH_LIMIT)
-                          .map((d) => d.movement.candidateId)
-                      )
-                    )
-                  }
-                >
-                  Seleccionar primeros{' '}
-                  {Math.min(filtered.length, MP_BATCH_LIMIT)}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setSelected(new Set())}
-                  className="text-primary min-h-11 px-3 text-sm"
-                >
-                  Limpiar selección
-                </button>
+              <div className="divide-border-subtle divide-y">
+                {groups.map((group) => (
+                  <button
+                    key={group.key}
+                    type="button"
+                    onClick={() => openGroup(group)}
+                    className="min-h-11 w-full py-4 text-left"
+                    aria-label={`Revisar ${group.title}, ${group.drafts.length} movimientos`}
+                  >
+                    <span className="text-text-secondary block text-xs">
+                      {group.kind === 'alias'
+                        ? 'Alias guardado'
+                        : group.kind === 'category'
+                          ? group.drafts.every(
+                              (d) => d.grouping.categoryOrigin === 'user'
+                            )
+                            ? 'Categoría elegida'
+                            : 'Categoría sugerida'
+                          : 'Revisión manual'}
+                    </span>
+                    <span className="mt-1 flex items-baseline justify-between gap-3">
+                      <span className="text-base font-semibold">
+                        {group.title}
+                      </span>
+                      <span className="text-text-secondary shrink-0 text-sm">
+                        {group.drafts.length} movimientos
+                      </span>
+                    </span>
+                    {group.kind === 'alias' && (
+                      <span className="text-text-secondary block text-sm">
+                        {group.drafts[0].category || 'Falta elegir categoría'}
+                      </span>
+                    )}
+                    <span className="mt-1 block text-sm tabular-nums">
+                      {group.totals
+                        .map(
+                          (total) =>
+                            `${total.currency} ${new Intl.NumberFormat('es-AR', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(total.value)}`
+                        )
+                        .join(' · ')}
+                    </span>
+                    {group.dates.length > 0 && (
+                      <span className="text-text-secondary block text-xs">
+                        {formatMercadoPagoObservedDate(group.dates[0])} —{' '}
+                        {formatMercadoPagoObservedDate(
+                          group.dates[group.dates.length - 1]
+                        )}
+                      </span>
+                    )}
+                    <span className="text-primary mt-2 block text-sm font-semibold">
+                      Revisar grupo
+                    </span>
+                  </button>
+                ))}
               </div>
-              <p role="status" className="text-text-secondary mb-3 text-sm">
-                {chosen.length} seleccionados · {drafts.length} disponibles para
-                completar
-              </p>
-              {chosen.length > 0 && (
-                <fieldset className="rounded-card border-border-subtle bg-bg-secondary mb-5 space-y-3 border p-4">
-                  <legend className="px-1 text-sm font-semibold">
-                    Aplicar a los {chosen.length} seleccionados
-                  </legend>
-                  <label className="block text-sm">
-                    Descripción común
-                    <input
-                      className={field}
-                      maxLength={100}
-                      value={description}
-                      onChange={(e) => setDescription(e.target.value)}
-                      placeholder="Ej. Peaje"
-                    />
-                  </label>
-                  <label className="block text-sm">
-                    Categoría común
-                    <select
-                      className={field}
-                      value={category}
-                      onChange={(e) => setCategory(e.target.value)}
-                    >
-                      <option value="">Elegí una categoría</option>
-                      {CATEGORIES.filter(
-                        (c) =>
-                          c !== 'Pago de Tarjetas' ||
-                          !chosen.some((d) =>
-                            isReviewableMercadoPagoCardPurchase(d.movement)
-                          )
-                      ).map((c) => (
-                        <option key={c}>{c}</option>
-                      ))}
-                    </select>
-                  </label>
+              {individualCount > 0 && (
+                <p className="text-warning mt-4 text-sm">
+                  {individualCount} movimientos requieren revisión individual
+                  por evidencia incompleta o posibles duplicados. Siguen en la
+                  bandeja.
+                </p>
+              )}
+            </>
+          )}
+          {activeGroupKey && !preview && (
+            <>
+              <section ref={groupHeadingRef} tabIndex={-1} className="mb-3">
+                <button
+                  type="button"
+                  onClick={backToGroups}
+                  className="text-primary min-h-11 text-sm font-semibold"
+                >
+                  Volver a los grupos
+                </button>
+                <p className="text-sm font-semibold">
+                  {activeGroup?.drafts[0]?.category || 'Categoría pendiente'}
+                </p>
+                <p role="status" className="text-text-secondary text-sm">
+                  {chosen.length} seleccionados · {groupDrafts.length} en este
+                  grupo
+                </p>
+                {activeGroup?.kind === 'uncertain' && (
+                  <p className="text-text-secondary mt-2 text-sm">
+                    Elegí los movimientos que quieras completar.
+                  </p>
+                )}
+              </section>
+              <details className="mb-2">
+                <summary className="text-primary min-h-11 cursor-pointer py-3 text-sm">
+                  Buscar o cambiar selección
+                </summary>
+                <label className="block text-sm font-medium">
+                  Buscar descripción o tarjeta
+                  <input
+                    className={field}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Ej. TelePASE o 8215"
+                  />
+                </label>
+                <div className="my-3 flex flex-wrap gap-2">
                   <button
                     type="button"
-                    disabled={!description.trim() && !category}
-                    className="rounded-button border-primary text-primary min-h-11 w-full border px-3 text-sm font-semibold disabled:opacity-50"
+                    className="rounded-button border-border-strong min-h-11 border px-3 text-sm"
                     onClick={() =>
-                      setDrafts((current) =>
-                        current.map((d) =>
-                          selected.has(d.movement.candidateId)
-                            ? {
-                                ...d,
-                                ...(description.trim()
-                                  ? { description: description.trim() }
-                                  : {}),
-                                ...(category ? { category } : {}),
-                              }
-                            : d
-                        )
+                      setSelected(
+                        new Set(filtered.map((d) => d.movement.candidateId))
                       )
                     }
                   >
-                    Aplicar descripción / categoría
+                    Seleccionar {filtered.length} visibles
                   </button>
-                  <p className="text-text-secondary text-xs">
-                    Solo cambia los campos que completaste. No crea una regla
-                    para próximas importaciones.
-                  </p>
-                  {cardGroups.map((key) => {
-                    const group = chosen.filter(
-                      (d) => cardEvidenceKey(d.movement) === key
-                    )
-                    const common = group.every(
-                      (d) => d.cardId === group[0].cardId
-                    )
-                      ? group[0].cardId
-                      : ''
-                    return (
-                      <label key={key} className="block text-sm">
-                        Tarjeta {key.replace(':', ' · •••• ')} · {group.length}{' '}
-                        movimientos
-                        <select
+                  <button
+                    type="button"
+                    onClick={() => setSelected(new Set())}
+                    className="text-primary min-h-11 px-3 text-sm"
+                  >
+                    Limpiar selección
+                  </button>
+                </div>
+              </details>
+              {chosen.length > 0 && (
+                <details open={blockers.length > 0} className="mb-5">
+                  <summary className="text-primary min-h-11 cursor-pointer py-3 text-sm font-semibold">
+                    Completar o editar seleccionados
+                  </summary>
+                  <fieldset className="rounded-card border-border-subtle bg-bg-secondary mb-5 space-y-3 border p-4">
+                    <legend className="px-1 text-sm font-semibold">
+                      Aplicar a los {chosen.length} seleccionados
+                    </legend>
+                    <details>
+                      <summary className="text-primary min-h-11 cursor-pointer py-3 text-sm">
+                        Editar descripción en lote (opcional)
+                      </summary>
+                      <label className="block text-sm">
+                        Descripción común
+                        <input
                           className={field}
-                          value={common}
-                          onChange={(e) => setGroupCard(key, e.target.value)}
-                        >
-                          <option value="">Elegí una tarjeta</option>
-                          {cards.map((card) => (
-                            <option key={card.id} value={card.id}>
-                              {card.name}
-                              {card.last_four ? ` · ${card.last_four}` : ''}
-                            </option>
-                          ))}
-                        </select>
+                          maxLength={100}
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          placeholder="Ej. Peaje"
+                        />
                       </label>
-                    )
-                  })}
-                  {chosen.some(
-                    (d) => !isReviewableMercadoPagoCardPurchase(d.movement)
-                  ) && (
-                    <p className="text-text-secondary text-sm">
-                      Saldo MP:{' '}
-                      {link?.linkedAccountId ? (
-                        'se usará la cuenta vinculada'
-                      ) : (
-                        <Link
-                          href="/settings"
-                          className="text-primary underline"
-                        >
-                          vinculá una cuenta en Configuración
-                        </Link>
-                      )}
-                      .
+                    </details>
+                    <label className="block text-sm">
+                      Categoría común
+                      <select
+                        className={field}
+                        value={category}
+                        onChange={(e) => setCategory(e.target.value)}
+                      >
+                        <option value="">Elegí una categoría</option>
+                        {CATEGORIES.filter(
+                          (c) =>
+                            c !== 'Pago de Tarjetas' ||
+                            !chosen.some((d) =>
+                              isReviewableMercadoPagoCardPurchase(d.movement)
+                            )
+                        ).map((c) => (
+                          <option key={c}>{c}</option>
+                        ))}
+                      </select>
+                    </label>
+                    <button
+                      type="button"
+                      disabled={!description.trim() && !category}
+                      className="rounded-button border-primary text-primary min-h-11 w-full border px-3 text-sm font-semibold disabled:opacity-50"
+                      onClick={applyCommon}
+                    >
+                      Aplicar descripción / categoría
+                    </button>
+                    <p className="text-text-secondary text-xs">
+                      Solo cambia los campos que completaste. No crea una regla
+                      para próximas importaciones.
                     </p>
-                  )}
-                </fieldset>
+                    {cardGroups.map((key) => {
+                      const group = chosen.filter(
+                        (d) => cardEvidenceKey(d.movement) === key
+                      )
+                      const common = group.every(
+                        (d) => d.cardId === group[0].cardId
+                      )
+                        ? group[0].cardId
+                        : ''
+                      return (
+                        <label key={key} className="block text-sm">
+                          Tarjeta {key.replace(':', ' · •••• ')} ·{' '}
+                          {group.length} movimientos
+                          <select
+                            className={field}
+                            value={common}
+                            onChange={(e) => setGroupCard(key, e.target.value)}
+                          >
+                            <option value="">Elegí una tarjeta</option>
+                            {cards.map((card) => (
+                              <option key={card.id} value={card.id}>
+                                {card.name}
+                                {card.last_four ? ` · ${card.last_four}` : ''}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      )
+                    })}
+                    {chosen.some(
+                      (d) => !isReviewableMercadoPagoCardPurchase(d.movement)
+                    ) && (
+                      <p className="text-text-secondary text-sm">
+                        Saldo MP:{' '}
+                        {link?.linkedAccountId ? (
+                          'se usará la cuenta vinculada'
+                        ) : (
+                          <Link
+                            href="/settings"
+                            className="text-primary underline"
+                          >
+                            vinculá una cuenta en Configuración
+                          </Link>
+                        )}
+                        .
+                      </p>
+                    )}
+                  </fieldset>
+                </details>
               )}
             </>
           )}
@@ -440,6 +648,7 @@ export function MercadoPagoBatchReview({
               const blocker = checked ? batchBlocker(d, cards, link) : null
               return (
                 <article
+                  data-mp-review-row
                   key={id}
                   className="rounded-card border-border-subtle bg-bg-primary border p-4"
                 >
@@ -449,12 +658,11 @@ export function MercadoPagoBatchReview({
                         type="checkbox"
                         className="accent-primary mt-1 size-5 shrink-0"
                         checked={checked}
-                        disabled={!checked && chosen.length >= MP_BATCH_LIMIT}
                         onChange={() =>
                           setSelected((current) => {
                             const next = new Set(current)
                             if (next.has(id)) next.delete(id)
-                            else if (next.size < MP_BATCH_LIMIT) next.add(id)
+                            else next.add(id)
                             return next
                           })
                         }
@@ -477,6 +685,11 @@ export function MercadoPagoBatchReview({
                       </span>
                     </span>
                   </label>
+                  {d.grouping.reason && (
+                    <p className="text-warning mt-2 text-sm">
+                      {d.grouping.reason}
+                    </p>
+                  )}
                   {checked &&
                     (preview ? (
                       <div className="mt-2 space-y-1 text-sm">

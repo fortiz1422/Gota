@@ -1,0 +1,54 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+[WebServer] (node:58) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:70) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+[WebServer] (node:70) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+[WebServer] (Use `node --trace-warnings ...` to show where the warning was created)
+
+
+Running 24 tests using 1 worker
+
+(node:99) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[1/24] [320] › e2e/receipts/mp-batch.spec.ts:131:5 › review thirty aliases, confirm once, and continue with the suggested category
+[2/24] [320] › e2e/receipts/mp-batch.spec.ts:205:5 › correct one exception and leave another pending without blocking the group
+[3/24] [320] › e2e/receipts/mp-batch.spec.ts:241:5 › uncertain movements require manual selection and category; edits create no persistent alias
+[4/24] [320] › e2e/receipts/mp-batch.spec.ts:278:5 › stops on partial confirmation and refreshes without replaying successful rows
+[5/24] [320] › e2e/receipts/mp-batch.spec.ts:304:5 › alias reference failure blocks review instead of pretending there are no remembered merchants
+[6/24] [320] › e2e/receipts/mp-batch.spec.ts:319:5 › an existing alias does not bypass missing card identity
+(node:249) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[7/24] [390] › e2e/receipts/mp-batch.spec.ts:131:5 › review thirty aliases, confirm once, and continue with the suggested category
+[8/24] [390] › e2e/receipts/mp-batch.spec.ts:205:5 › correct one exception and leave another pending without blocking the group
+[9/24] [390] › e2e/receipts/mp-batch.spec.ts:241:5 › uncertain movements require manual selection and category; edits create no persistent alias
+[10/24] [390] › e2e/receipts/mp-batch.spec.ts:278:5 › stops on partial confirmation and refreshes without replaying successful rows
+[11/24] [390] › e2e/receipts/mp-batch.spec.ts:304:5 › alias reference failure blocks review instead of pretending there are no remembered merchants
+[12/24] [390] › e2e/receipts/mp-batch.spec.ts:319:5 › an existing alias does not bypass missing card identity
+(node:400) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[13/24] [768] › e2e/receipts/mp-batch.spec.ts:131:5 › review thirty aliases, confirm once, and continue with the suggested category
+[14/24] [768] › e2e/receipts/mp-batch.spec.ts:205:5 › correct one exception and leave another pending without blocking the group
+[15/24] [768] › e2e/receipts/mp-batch.spec.ts:241:5 › uncertain movements require manual selection and category; edits create no persistent alias
+[16/24] [768] › e2e/receipts/mp-batch.spec.ts:278:5 › stops on partial confirmation and refreshes without replaying successful rows
+[17/24] [768] › e2e/receipts/mp-batch.spec.ts:304:5 › alias reference failure blocks review instead of pretending there are no remembered merchants
+[18/24] [768] › e2e/receipts/mp-batch.spec.ts:319:5 › an existing alias does not bypass missing card identity
+(node:551) Warning: The 'NO_COLOR' env is ignored due to the 'FORCE_COLOR' env being set.
+(Use `node --trace-warnings ...` to show where the warning was created)
+
+
+[19/24] [1440] › e2e/receipts/mp-batch.spec.ts:131:5 › review thirty aliases, confirm once, and continue with the suggested category
+[20/24] [1440] › e2e/receipts/mp-batch.spec.ts:205:5 › correct one exception and leave another pending without blocking the group
+[21/24] [1440] › e2e/receipts/mp-batch.spec.ts:241:5 › uncertain movements require manual selection and category; edits create no persistent alias
+[22/24] [1440] › e2e/receipts/mp-batch.spec.ts:278:5 › stops on partial confirmation and refreshes without replaying successful rows
+[23/24] [1440] › e2e/receipts/mp-batch.spec.ts:304:5 › alias reference failure blocks review instead of pretending there are no remembered merchants
+[24/24] [1440] › e2e/receipts/mp-batch.spec.ts:319:5 › an existing alias does not bypass missing card identity
+  24 passed (1.3m)
