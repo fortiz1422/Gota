@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { expensesToMovimientosHref } from '@/app/(dashboard)/expenses/page'
+import { expensesToMovimientosHref } from '@/lib/expenses-redirect'
 
 describe('expenses legacy redirect', () => {
   it('preserves month and category on movimientos', () => {
     expect(
-      expensesToMovimientosHref({ month: '2026-03', category: 'Alimentos' }),
+      expensesToMovimientosHref({ month: '2026-03', category: 'Alimentos' })
     ).toBe('/movimientos?month=2026-03&categoria=Alimentos')
   })
 
@@ -16,7 +16,7 @@ describe('expenses legacy redirect', () => {
         payment_method: 'CREDIT',
         is_recurring: 'true',
         is_extraordinary: 'false',
-      }),
+      })
     ).toBe('/movimientos?month=2026-01')
   })
 })

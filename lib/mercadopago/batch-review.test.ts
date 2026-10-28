@@ -217,21 +217,21 @@ describe('MP batch intent and recovery', () => {
       expect(send).toHaveBeenCalledTimes(1)
     }
   })
-  it('bounds the batch and rejects repeated identities before any write', async () => {
+  it('rejects empty or repeated identities and accepts a complete group of thirty', async () => {
     const send = vi.fn(success)
     await expect(
       submitBatch([entry('one'), entry('one')], send, vi.fn())
     ).rejects.toThrow('invalid_batch')
-    await expect(
-      submitBatch(
-        Array.from({ length: 21 }, (_, n) => entry(String(n))),
+    await expect(submitBatch([], send, vi.fn())).rejects.toThrow(
+      'invalid_batch'
+    )
+    expect(send).not.toHaveBeenCalled()
+    expect(
+      await submitBatch(
+        Array.from({ length: 30 }, (_, n) => entry(String(n))),
         send,
         vi.fn()
       )
-    ).rejects.toThrow('invalid_batch')
-    expect(send).not.toHaveBeenCalled()
-    expect(
-      await submitBatch([entry('one'), entry('two')], send, vi.fn())
-    ).toEqual({ confirmed: 2, stopped: false, status: 200 })
+    ).toEqual({ confirmed: 30, stopped: false, status: 200 })
   })
 })

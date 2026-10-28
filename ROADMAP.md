@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| MP-20 | Revisión MP por alias y categoría (autorizado por Facundo el 27/10/2026) | Revisar grupos con sentido, sin cortar arbitrariamente en 20 movimientos. | Alias exacto por perfil → categoría sugerida sin alias → a confirmar. Confirmación humana por grupo; correcciones y pendientes; conservar evidencia, detener ante respuesta incierta; pruebas con 30 movimientos y viewports 320/390/768/1440. Sin publicación, migraciones ni datos reales. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).

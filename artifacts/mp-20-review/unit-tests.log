@@ -1,0 +1,279 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> gota@0.1.0 test
+> vitest run
+
+
+ RUN  v3.2.4 /workspace/scratch/71cb0aeae1dd/gota
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > covers 501 payments in one day without gaps or mixed currency
+mercadopago_payments_page_cap {"batchId":"mp-508d3656-d089-46aa-817c-8570330393fb","count":500,"coveredUntil":"2026-09-30T21:04:14.581Z","cursor":"2026-09-30T21:04:14.581Z","begin":"2026-09-29T21:05:00.000Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > covers 1200 payments in one day without gaps or mixed currency
+mercadopago_payments_page_cap {"batchId":"mp-dbb0091f-3b20-4c4c-b9c8-f76185aae954","count":500,"coveredUntil":"2026-09-30T07:06:34.920Z","cursor":"2026-09-30T07:06:34.920Z","begin":"2026-09-29T21:05:00.000Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > covers 1200 payments in one day without gaps or mixed currency
+mercadopago_payments_page_cap {"batchId":"mp-5a6a7049-c6c0-4c34-ad2a-f206da346881","count":500,"coveredUntil":"2026-09-30T17:02:08.892Z","cursor":"2026-09-30T17:02:08.892Z","begin":"2026-09-30T07:01:34.920Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > retries a partial run idempotently and then continues
+mercadopago_payments_page_cap {"batchId":"mp-aa9cf19c-1489-4f70-b4b4-31c83ab0b961","count":500,"coveredUntil":"2026-09-30T21:04:14.581Z","cursor":"2026-09-30T21:04:14.581Z","begin":"2026-09-29T21:05:00.000Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > retries a partial run idempotently and then continues
+mercadopago_payments_page_cap {"batchId":"mp-01d558cb-1a79-4892-a1be-c26fbc866cba","count":500,"coveredUntil":"2026-09-30T21:04:14.581Z","cursor":null,"begin":"2026-09-29T21:05:00.000Z","end":"2026-09-30T21:10:00.000Z","held":true}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > finishes a same-timestamp cluster on the next dispatch turn without losing or duplicating payments
+mercadopago_payments_page_cap {"batchId":"mp-92b625e6-c724-4bc7-ad9a-5c260a95fc04","count":500,"coveredUntil":"2026-10-23T10:00:00.000Z","cursor":"2026-10-23T10:00:00.000Z","begin":"2026-10-23T08:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":false}
+
+stdout | lib/mercadopago/page-cap.test.ts > payments page cap and watermark > reads a same-timestamp cluster on the following run without skipping or duplicating
+mercadopago_payments_page_cap {"batchId":"mp-c1082695-242b-4b5c-a962-4a3de43d21ce","count":500,"coveredUntil":"2026-09-29T22:05:00.000Z","cursor":"2026-09-29T22:05:00.000Z","begin":"2026-09-29T21:05:00.000Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > finishes 501 payments inside the overlap on the next dispatch turn
+mercadopago_payments_page_cap {"batchId":"mp-ed064f5f-cbbb-4ed4-b86b-a8cc24e37151","count":500,"coveredUntil":"2026-10-23T09:04:19.600Z","cursor":"2026-10-23T09:04:19.600Z","begin":"2026-10-23T08:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":false}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > holds a cluster larger than 1500 without moving the watermark, erroring, or duplicating
+mercadopago_payments_page_cap {"batchId":"mp-7eedc274-5769-46f5-b0d5-80e1584cc567","count":500,"coveredUntil":"2026-10-23T10:00:00.000Z","cursor":"2026-10-23T10:00:00.000Z","begin":"2026-10-23T08:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":false}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > holds a cluster larger than 1500 without moving the watermark, erroring, or duplicating
+mercadopago_payments_page_cap {"batchId":"mp-3205b288-f301-4197-bc49-6e9795a512fc","count":1500,"coveredUntil":"2026-10-23T10:00:00.000Z","cursor":null,"begin":"2026-10-23T09:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":true}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > holds a cluster larger than 1500 without moving the watermark, erroring, or duplicating
+mercadopago_payments_page_cap {"batchId":"mp-105595e9-8ddd-44c1-ab13-40cb021194f0","count":1500,"coveredUntil":"2026-10-23T10:00:00.000Z","cursor":null,"begin":"2026-10-23T09:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":true}
+
+stdout | lib/mercadopago/capture-dispatch.test.ts > daily capture dispatch > serializes two captures with the real lease so the loser cannot skip payments
+mercadopago_payments_page_cap {"batchId":"mp-414c0c3c-3aca-44bf-a2e9-4cb9a3242535","count":500,"coveredUntil":"2026-10-23T09:09:19.000Z","cursor":"2026-10-23T09:09:19.000Z","begin":"2026-10-23T08:55:00.000Z","end":"2026-10-24T09:00:00.000Z","held":false}
+
+ ✓ lib/mercadopago/capture-dispatch.test.ts (22 tests) 294ms
+ ✓ lib/forms-behavior-contract.test.ts (27 tests) 210ms
+ ✓ lib/mercadopago/page-cap.test.ts (10 tests) 362ms
+ ✓ lib/intelligence/__tests__/chat-evidence.test.ts (39 tests) 119ms
+ ✓ lib/parse-expense-route.test.ts (292 tests) 470ms
+ ✓ lib/intelligence/__tests__/home-orchestrator.test.ts (28 tests) 91ms
+ ✓ lib/intelligence/__tests__/insight-rules.test.ts (30 tests) 150ms
+ ✓ lib/intelligence/__tests__/features.test.ts (29 tests) 72ms
+ ✓ lib/intelligence/__tests__/analysis-surface.test.ts (5 tests) 80ms
+ ✓ lib/intelligence/__tests__/signal-center.test.ts (9 tests) 40ms
+ ✓ lib/reconciliation/transfer-route.test.ts (15 tests) 59ms
+ ✓ lib/intelligence/__tests__/projection.test.ts (17 tests) 39ms
+ ✓ lib/expense-preview-source.test.ts (26 tests) 198ms
+ ✓ lib/reconciliation/checkpoints-acceptance.test.ts (12 tests) 50ms
+stdout | lib/mercadopago/background-capture.test.ts > capture service with real incremental windows and pagination > finishes a day with more than 500 payments without a provider error
+mercadopago_payments_page_cap {"batchId":"mp-b7f68f75-1127-47e8-906a-e2d9c08ffbbc","count":500,"coveredUntil":"2026-10-24T08:59:45.657Z","cursor":"2026-10-24T08:59:45.657Z","begin":"2026-10-24T08:00:00.000Z","end":"2026-10-24T09:00:00.000Z","held":false}
+
+ ✓ lib/mercadopago/background-capture.test.ts (13 tests) 67ms
+ ✓ lib/intelligence/__tests__/heroes.test.ts (6 tests) 43ms
+ ✓ lib/expense-parser-audit.test.ts (286 tests) 610ms
+ ✓ lib/reconciliation/route.test.ts (8 tests) 44ms
+ ✓ lib/counterparty-aliases/bulk-memory.test.ts (4 tests) 14ms
+ ✓ lib/mercadopago/confirm-expense-route.test.ts (22 tests) 79ms
+ ✓ lib/mercadopago/auto-post-service.test.ts (10 tests) 37ms
+ ✓ lib/mobile-settings-visual.test.ts (4 tests) 94ms
+ ✓ lib/mobile-income-transfer-surfaces.test.ts (11 tests) 77ms
+ ✓ lib/intelligence/__tests__/insight-lifecycle.test.ts (8 tests) 40ms
+ ✓ lib/mercadopago/setup-route.test.ts (16 tests) 36ms
+stdout | lib/mercadopago/incremental-sync.test.ts > incremental capture integrity > advances a page cap with valid dates only to coveredUntil
+mercadopago_payments_page_cap {"batchId":"mp-bafe89b6-b09b-4da4-8e4a-1426cd45f797","count":500,"coveredUntil":"2026-09-30T21:09:55.697Z","cursor":"2026-09-30T21:09:55.697Z","begin":"2026-09-30T20:52:00.000Z","end":"2026-09-30T21:10:00.000Z","held":false}
+
+ ✓ lib/mercadopago/incremental-sync.test.ts (8 tests) 34ms
+ ✓ lib/reconciliation/income-route.test.ts (4 tests) 38ms
+ ✓ lib/mercadopago/review-dismissal.test.ts (6 tests) 50ms
+ ✓ lib/analytics/analytics-overview.test.ts (9 tests) 38ms
+ ✓ lib/server/__tests__/load-intelligence-signals.test.ts (2 tests) 41ms
+ ✓ lib/analytics/computeCompromisos.card-cycles.test.ts (4 tests) 29ms
+ ✓ lib/shared-receipts/bulk-route.test.ts (4 tests) 46ms
+ ✓ lib/mercadopago/movements-route.test.ts (10 tests) 49ms
+ ✓ lib/shortcut-receipts/receipts-route.test.ts (5 tests) 33ms
+ ✓ lib/forms-planning-display.test.ts (7 tests) 42ms
+ ✓ lib/mercadopago/dismiss-route.test.ts (4 tests) 18ms
+ ✓ lib/gemini/expense-content.test.ts (7 tests) 25ms
+ ✓ lib/mercadopago/ledger-matcher-repository.test.ts (9 tests) 26ms
+ ✓ lib/reconciliation/domain.test.ts (20 tests) 32ms
+ ✓ lib/mercadopago/design-cleanup.test.ts (4 tests) 44ms
+ ✓ lib/mercadopago/settlement-report.test.ts (25 tests) 43ms
+ ✓ lib/mercadopago/review-presentation.test.ts (8 tests) 61ms
+stderr | lib/parse-expense-llm.test.ts > allowlisted text uses the previous LLM flow > uses the former local fallback when Gemini is unavailable
+Parse expense failed
+
+ ✓ lib/parse-expense-llm.test.ts (5 tests) 91ms
+ ✓ lib/shared-receipt-canonical-review.test.ts (6 tests) 33ms
+ ✓ lib/card-setup-state.test.ts (15 tests) 35ms
+ ✓ lib/mercadopago/grouped-review.test.ts (9 tests) 36ms
+ ✓ lib/device-snapshot/build-device-snapshot.test.ts (1 test) 27ms
+ ✓ lib/web-movimientos-workspace.test.ts (2 tests) 72ms
+ ✓ lib/shared-receipts/bulk-confirmation.test.ts (10 tests) 51ms
+ ✓ lib/mercadopago/ledger-matcher.test.ts (18 tests) 27ms
+ ✓ lib/mercadopago/setup-view.test.ts (3 tests) 37ms
+ ✓ lib/mercadopago-spike/routes.test.ts (6 tests) 29ms
+ ✓ lib/intelligence/__tests__/snapshot-loader.test.ts (5 tests) 32ms
+ ✓ lib/mercadopago/reconciliation.test.ts (12 tests) 30ms
+ ✓ lib/dates.test.ts (3 tests) 34ms
+ ✓ lib/mercadopago/capture-probe.test.ts (15 tests) 28ms
+ ✓ lib/landing-html.test.ts (21 tests) 24ms
+ ✓ lib/onboarding-setup.test.ts (26 tests) 31ms
+ ✓ lib/reconciliation/workflow.test.ts (5 tests) 45ms
+ ✓ lib/mercadopago/access-token.test.ts (12 tests) 27ms
+ ✓ lib/mercadopago/cron-proxy.test.ts (8 tests) 39ms
+ ✓ lib/mercadopago/posting-decision.test.ts (17 tests) 16ms
+ ✓ lib/mercadopago/capture-cron.test.ts (7 tests) 21ms
+ ✓ lib/mercadopago/capture-probe-route.test.ts (7 tests) 39ms
+ ✓ lib/expense-text-parser.test.ts (39 tests) 17ms
+stderr | lib/mercadopago/observability.test.ts > Mercado Pago observability harness > paginates payments, independently records report failure, and never exposes Authorization text
+mercadopago_settlement_report_error {"stage":"list","httpStatus":503}
+
+ ✓ lib/mercadopago/observability.test.ts (5 tests) 22ms
+ ✓ lib/mercadopago-spike/diagnostics.test.ts (10 tests) 24ms
+ ✓ lib/mercadopago/reconcile-service.test.ts (2 tests) 25ms
+ ✓ lib/web-movimientos-model.test.ts (3 tests) 26ms
+ ✓ lib/mobile-task-surface.test.ts (5 tests) 46ms
+ ✓ lib/forms-surface-variants.test.ts (10 tests) 21ms
+ ✓ lib/public-entry.test.ts (24 tests) 25ms
+ ✓ lib/desktop-horizon-events.test.ts (7 tests) 18ms
+ ✓ lib/mercadopago/review-card-payload.test.ts (5 tests) 24ms
+ ✓ lib/card-payment-prompts.test.ts (5 tests) 19ms
+ ✓ lib/mercadopago/sync-route.test.ts (9 tests) 21ms
+ ✓ lib/mercadopago/bulk-dismiss-route.test.ts (4 tests) 34ms
+ ✓ lib/shared-receipts/bulk-review.test.ts (13 tests) 19ms
+ ✓ lib/counterparty-aliases/integration.test.ts (5 tests) 39ms
+ ✓ lib/server/__tests__/signals-route.test.ts (7 tests) 16ms
+ ✓ lib/reconciliation/live-balance.test.ts (4 tests) 38ms
+ ✓ lib/shared-receipts/pending-merchant-memory-service.test.ts (9 tests) 22ms
+ ✓ lib/onboarding-account-route.test.ts (5 tests) 15ms
+ ✓ lib/reconciliation/qa-scenarios.test.ts (13 tests) 12ms
+ ✓ lib/expense-duplicates.test.ts (4 tests) 12ms
+ ✓ lib/movimientos-client-ux.test.ts (9 tests) 14ms
+ ✓ lib/shortcut-receipts/ingest.test.ts (12 tests) 17ms
+ ✓ lib/shared-receipts/operations.test.ts (11 tests) 28ms
+ ✓ lib/mercadopago/server-repository.test.ts (9 tests) 19ms
+ ✓ lib/auth-callback.test.ts (12 tests) 21ms
+ ✓ lib/mercadopago/background-route.test.ts (5 tests) 23ms
+ ✓ lib/web-panel/flags.test.ts (2 tests) 14ms
+ ✓ lib/mercadopago/expense-origin-route.test.ts (4 tests) 13ms
+ ✓ lib/mobile-settings-account-layout.test.ts (3 tests) 29ms
+ ✓ lib/card-cycle-assignment.test.ts (4 tests) 16ms
+ ✓ lib/__tests__/flags.test.ts (4 tests) 21ms
+ ✓ lib/counterparty-aliases/counterparty-aliases.test.ts (12 tests) 22ms
+stdout | lib/mercadopago/personal-history.test.ts > historical personal Mercado Pago evidence (sanitized) > keeps actual runner fail-closed until ledger dedupe is performed
+Historical evidence policy summary (dedupe context simulated, no ledger writes): { auto_post: 7, review: 32, ignore: 1, wait_for_reconciliation: 1 }
+
+ ✓ lib/mercadopago/personal-history.test.ts (7 tests) 26ms
+ ✓ lib/home-plus-expense-flow.test.ts (2 tests) 21ms
+ ✓ lib/shared-receipts-ui.test.ts (19 tests) 15ms
+ ✓ lib/intelligence/__tests__/use-signals-center.test.ts (3 tests) 13ms
+ ✓ lib/shared-receipts-signals.test.ts (6 tests) 18ms
+ ✓ lib/card-payment-targeting.test.ts (2 tests) 13ms
+ ✓ lib/mercadopago/provider-movement.test.ts (13 tests) 12ms
+ ✓ lib/shortcut-receipts/device-store.test.ts (4 tests) 10ms
+ ✓ lib/web-settings-account-management.test.ts (1 test) 18ms
+ ✓ lib/counterparty-aliases/api.test.ts (3 tests) 11ms
+ ✓ lib/mercadopago/shadow-service.test.ts (4 tests) 12ms
+ ✓ lib/mercadopago/batch-review.test.ts (8 tests) 15ms
+ ✓ lib/movimientos-pagination.test.ts (1 test) 12ms
+ ✓ lib/shared-receipts/pending-merchant-memory.test.ts (7 tests) 10ms
+ ✓ lib/onboarding-exit.test.ts (3 tests) 19ms
+ ✓ lib/intelligence/__tests__/chat-planner.test.ts (35 tests) 22ms
+ ✓ lib/shared-receipts/proposal.test.ts (5 tests) 11ms
+ ✓ lib/shared-receipts/lifecycle.test.ts (3 tests) 7ms
+ ✓ lib/shortcut-receipts/request.test.ts (3 tests) 14ms
+ ✓ lib/expenses/installments.test.ts (4 tests) 8ms
+ ✓ lib/shared-receipts/analyzer.test.ts (2 tests) 12ms
+ ✓ lib/shortcut-receipts/token.test.ts (2 tests) 12ms
+ ✓ lib/mercadopago/role-probe.test.ts (3 tests) 15ms
+ ✓ lib/web-panel/month-pace.test.ts (10 tests) 19ms
+ ✓ lib/mercadopago/oauth-exchange-timeout.test.ts (4 tests) 11ms
+ ✓ lib/paid-ai-routes.test.ts (3 tests) 13ms
+ ✓ lib/live-balance.test.ts (5 tests) 8ms
+ ✓ lib/shared-receipts-migration.test.ts (7 tests) 7ms
+ ✓ lib/intelligence/__tests__/signals-read-state.test.ts (8 tests) 9ms
+ ✓ lib/share-target.test.ts (5 tests) 13ms
+ ✓ lib/movimientos-yield.test.ts (1 test) 15ms
+ ✓ lib/shared-receipts/backend-contract.test.ts (8 tests) 5ms
+ ✓ lib/settings-surface-contract.test.ts (11 tests) 8ms
+ ✓ lib/cards/input.test.ts (8 tests) 12ms
+ ✓ lib/account-edit-white-pilot.test.ts (8 tests) 8ms
+ ✓ lib/shared-receipts/bulk-duplicates.test.ts (3 tests) 11ms
+ ✓ lib/intelligence/__tests__/chat-context.test.ts (5 tests) 7ms
+ ✓ lib/web-panel/panel-model.test.ts (10 tests) 6ms
+ ✓ lib/web-dashboard-route-navigation.test.ts (1 test) 17ms
+ ✓ lib/analytics/analytics-route-state.test.ts (16 tests) 9ms
+ ✓ lib/mercadopago-spike/probes.test.ts (1 test) 9ms
+ ✓ lib/desktop-movimientos-data.test.ts (2 tests) 9ms
+ ✓ lib/mercadopago/decision-history.test.ts (5 tests) 18ms
+ ✓ lib/mercadopago/review-capture-status.test.ts (7 tests) 6ms
+ ✓ lib/intelligence/__tests__/signal-center-display.test.ts (10 tests) 13ms
+ ✓ lib/mercadopago/confirm-expense.test.ts (22 tests) 8ms
+ ✓ lib/reconciliation/queue.test.ts (3 tests) 4ms
+ ✓ lib/counterparty-aliases/bulk-memory-plan.test.ts (3 tests) 6ms
+ ✓ lib/mercadopago/sync-window.test.ts (6 tests) 5ms
+ ✓ lib/mercadopago-spike/result.test.ts (9 tests) 6ms
+ ✓ lib/mercadopago/initial-import.test.ts (4 tests) 5ms
+ ✓ lib/settings/subscriptions-loader.test.ts (4 tests) 7ms
+ ✓ lib/settings-input-focus-format.test.ts (9 tests) 9ms
+ ✓ lib/navigation/tab-items.test.ts (4 tests) 4ms
+ ✓ lib/ui/overlay-events.test.ts (3 tests) 6ms
+ ✓ lib/shortcut-receipts/response.test.ts (4 tests) 3ms
+ ✓ lib/settings/hero-balance-mode-preference.test.ts (3 tests) 7ms
+ ✓ lib/mercadopago-spike/oauth.test.ts (5 tests) 8ms
+ ✓ lib/intelligence/__tests__/signals-preview-fixtures.test.ts (3 tests) 6ms
+ ✓ lib/reconciliation/balance-query.test.ts (1 test) 4ms
+ ✓ lib/shared-receipts/confirmation-contract.test.ts (1 test) 10ms
+ ✓ lib/device-auth/device-token.test.ts (4 tests) 7ms
+ ✓ lib/desktop-dashboard-goals.test.ts (5 tests) 8ms
+ ✓ lib/product-analytics/events.test.ts (19 tests) 6ms
+ ✓ lib/yield-daily.test.ts (8 tests) 4ms
+ ✓ lib/cards/due-day-migration.test.ts (3 tests) 3ms
+ ✓ lib/settings/mercadopago-expense-review.test.ts (6 tests) 7ms
+ ✓ lib/shared-receipts/preanalyze.test.ts (3 tests) 8ms
+ ✓ lib/card-debt.test.ts (8 tests) 13ms
+ ✓ lib/card-payment-expense-plans.test.ts (3 tests) 5ms
+ ✓ lib/card-cycles.test.ts (5 tests) 5ms
+ ✓ lib/expense-parse-fallback.test.ts (4 tests) 5ms
+ ✓ lib/ar-input.test.ts (7 tests) 5ms
+ ✓ lib/settings-calm-editorial.test.ts (6 tests) 5ms
+ ✓ lib/gemini/receipt-inline-data.test.ts (1 test) 4ms
+ ✓ lib/assistant/events.test.ts (2 tests) 3ms
+ ✓ lib/shared-receipts/expiry.test.ts (2 tests) 6ms
+ ✓ lib/card-cycle-payments.test.ts (6 tests) 5ms
+ ✓ lib/mercadopago-review-ui-contract.test.ts (8 tests) 10ms
+ ✓ lib/server/__tests__/signal-occurrence-key.test.ts (5 tests) 5ms
+ ✓ lib/device-snapshot/handle-device-snapshot.test.ts (2 tests) 4ms
+ ✓ lib/analytics/computeMetrics.test.ts (2 tests) 5ms
+ ✓ lib/mercadopago/card-matcher.test.ts (5 tests) 6ms
+ ✓ lib/intelligence/__tests__/home-display-context.test.ts (5 tests) 4ms
+ ✓ lib/web-panel/navigation.test.ts (12 tests) 4ms
+ ✓ lib/sitemap.test.ts (2 tests) 5ms
+ ✓ lib/ux-audit-2026-10-copy.test.ts (1 test) 3ms
+ ✓ lib/yield-daily-generation.test.ts (2 tests) 4ms
+ ✓ lib/movement-classification.test.ts (7 tests) 5ms
+ ✓ lib/start-entry.test.ts (2 tests) 5ms
+ ✓ lib/paid-ai-policy.test.ts (2 tests) 5ms
+ ✓ lib/tour-position.test.ts (4 tests) 4ms
+ ✓ lib/counterparty-aliases/ui.test.ts (3 tests) 3ms
+ ✓ lib/goals/computeGoalMetrics.test.ts (8 tests) 5ms
+ ✓ lib/gemini/voice-inline-data.test.ts (1 test) 3ms
+ ✓ lib/goal-contribution-history.test.ts (2 tests) 6ms
+ ✓ lib/entrega-1-qa.test.ts (3 tests) 4ms
+ ✓ lib/planning-goals-budgets-surfaces.test.ts (2 tests) 4ms
+ ✓ lib/expense-preset.test.ts (2 tests) 3ms
+ ✓ lib/card-summaries.test.ts (5 tests) 9ms
+ ✓ lib/shared-receipts/inbox-pending-retries.test.ts (2 tests) 3ms
+ ✓ lib/settings/profile-preference-visibility.test.ts (2 tests) 3ms
+ ✓ lib/home-empty-state.test.ts (5 tests) 3ms
+ ✓ lib/cards/persist.test.ts (2 tests) 4ms
+ ✓ lib/mercadopago/preview-rollout.test.ts (5 tests) 4ms
+ ✓ lib/mercadopago/card-confirmation.test.ts (2 tests) 4ms
+ ✓ lib/ui/scroll-lock.test.ts (3 tests) 7ms
+ ✓ lib/mobile-subscriptions-surface.test.ts (3 tests) 5ms
+ ✓ lib/card-cycle-amounts.test.ts (1 test) 2ms
+ ✓ lib/mercadopago/sync-presentation.test.ts (4 tests) 4ms
+ ✓ lib/shortcut-receipts/feature.test.ts (3 tests) 2ms
+ ✓ lib/current-account-balance.test.ts (3 tests) 2ms
+ ✓ lib/device-auth/device-route.test.ts (1 test) 3ms
+ ✓ lib/share-target/mime-filter.test.ts (3 tests) 4ms
+ ✓ lib/format.test.ts (2 tests) 6ms
+ ✓ lib/web-movimientos-resource.test.ts (3 tests) 3ms
+ ✓ lib/expenses-legacy-redirect.test.ts (2 tests) 3ms
+ ✓ lib/intelligence/__tests__/snapshot-currency.test.ts (1 test) 2ms
+
+ Test Files  215 passed (215)
+      Tests  2159 passed (2159)
+   Start at  22:13:21
+   Duration  19.34s (transform 7.93s, setup 0ms, collect 68.28s, tests 6.50s, environment 45ms, prepare 17.46s)

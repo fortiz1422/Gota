@@ -1,0 +1,157 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> gota@0.1.0 build
+> next build --webpack
+
+▲ Next.js 16.1.6 (webpack)
+- Experiments (use with caution):
+  · clientTraceMetadata
+  · staleTimes
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 23.6s
+  Running TypeScript ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/91) ...
+  Generating static pages using 8 workers (22/91)
+  Generating static pages using 8 workers (45/91)
+  Generating static pages using 8 workers (68/91)
+✓ Generating static pages using 8 workers (91/91) in 5.3s
+  Finalizing page optimization ...
+  Collecting build traces ...
+
+Route (app)                                                                Revalidate  Expire
+┌ ƒ /
+├ ○ /_not-found
+├ ƒ /analytics
+├ ƒ /api/account
+├ ƒ /api/account-balances
+├ ƒ /api/accounts
+├ ƒ /api/accounts/[id]
+├ ƒ /api/analytics-data
+├ ƒ /api/assistant
+├ ƒ /api/budgets/clone-from-previous
+├ ƒ /api/budgets/current
+├ ƒ /api/budgets/items
+├ ƒ /api/budgets/items/[id]
+├ ƒ /api/budgets/plans/[id]
+├ ƒ /api/capabilities
+├ ƒ /api/card-cycles
+├ ƒ /api/card-cycles/[id]
+├ ƒ /api/card-cycles/[id]/revert
+├ ƒ /api/card-payments
+├ ƒ /api/card-resumen
+├ ƒ /api/cards
+├ ƒ /api/cards/[id]
+├ ƒ /api/cards/summary
+├ ○ /api/cotizaciones                                                              5m      1y
+├ ƒ /api/counterparty-aliases/[id]
+├ ƒ /api/counterparty-aliases/resolve
+├ ƒ /api/counterparty-profiles
+├ ƒ /api/counterparty-profiles/[id]
+├ ƒ /api/counterparty-profiles/[id]/aliases
+├ ƒ /api/cron/mercadopago-reconcile
+├ ƒ /api/cron/mercadopago-sync
+├ ƒ /api/cron/shared-receipts
+├ ƒ /api/dashboard
+├ ƒ /api/dashboard/account-breakdown
+├ ƒ /api/device/v1/snapshot
+├ ƒ /api/events
+├ ƒ /api/expenses
+├ ƒ /api/expenses/[id]
+├ ƒ /api/expenses/[id]/provider-origin
+├ ƒ /api/expenses/duplicates
+├ ƒ /api/export
+├ ƒ /api/goals
+├ ƒ /api/goals/[id]
+├ ƒ /api/goals/[id]/contributions
+├ ƒ /api/goals/[id]/contributions/[contributionId]
+├ ƒ /api/goals/source-accounts
+├ ƒ /api/income-entries
+├ ƒ /api/income-entries/[id]
+├ ƒ /api/instruments
+├ ƒ /api/instruments/[id]
+├ ƒ /api/integrations/mercadopago/account-link
+├ ƒ /api/integrations/mercadopago/callback
+├ ƒ /api/integrations/mercadopago/capture-probe
+├ ƒ /api/integrations/mercadopago/connect
+├ ƒ /api/integrations/mercadopago/movements
+├ ƒ /api/integrations/mercadopago/movements/[candidateId]/confirm-expense
+├ ƒ /api/integrations/mercadopago/movements/[candidateId]/dismiss
+├ ƒ /api/integrations/mercadopago/movements/[candidateId]/duplicates
+├ ƒ /api/integrations/mercadopago/movements/bulk-dismiss
+├ ƒ /api/integrations/mercadopago/setup
+├ ƒ /api/integrations/mercadopago/sync
+├ ƒ /api/intelligence/events
+├ ƒ /api/intelligence/heroes
+├ ƒ /api/intelligence/signals
+├ ƒ /api/movimientos
+├ ƒ /api/onboarding-account
+├ ƒ /api/parse-expense
+├ ƒ /api/reconciliation
+├ ƒ /api/recurring-incomes/[id]
+├ ƒ /api/shared-receipt-devices
+├ ƒ /api/shared-receipt-devices/[id]
+├ ƒ /api/shared-receipts
+├ ƒ /api/shared-receipts/[id]
+├ ƒ /api/shared-receipts/[id]/analyze
+├ ƒ /api/shared-receipts/[id]/confirm
+├ ƒ /api/shared-receipts/[id]/pending-merchant-memory
+├ ƒ /api/shared-receipts/bulk-confirm
+├ ƒ /api/shortcut/v1/receipts
+├ ƒ /api/subscriptions
+├ ƒ /api/subscriptions/[id]
+├ ƒ /api/subscriptions/[id]/apply
+├ ƒ /api/transfers
+├ ƒ /api/transfers/[id]
+├ ƒ /api/user-config
+├ ƒ /api/yield-accumulator/[id]
+├ ƒ /api/yield-daily
+├ ƒ /api/yield-import/bna
+├ ƒ /auth/callback
+├ ○ /auth/create-password
+├ ○ /auth/error
+├ ƒ /expenses
+├ ƒ /instrumentos
+├ ƒ /instrumentos/[id]
+├ ƒ /integrations/mercadopago/result
+├ ○ /landing
+├ ƒ /login
+├ ƒ /mercadopago/review
+├ ƒ /movimientos
+├ ƒ /onboarding
+├ ○ /privacy
+├ ƒ /reconciliation/[accountId]
+├ ○ /reset-password
+├ ƒ /settings
+├ ƒ /share-target
+├ ƒ /shared-receipts
+├ ƒ /shared-receipts/[id]
+├ ○ /sitemap.xml
+├ ƒ /start
+├ ƒ /tarjetas
+├ ƒ /tarjetas/[cardId]
+├ ○ /terms
+├ ○ /ui-exploration
+├ ƒ /ui-exploration/forms-baseline/[screen]
+├ ○ /ui-exploration/home-intelligence
+├ ƒ /ui-exploration/mercadopago
+├ ○ /ui-exploration/mercadopago-batch
+├ ○ /ui-exploration/mercadopago-review
+├ ○ /ui-exploration/mobile-subscriptions-pilot
+├ ○ /ui-exploration/mobile-task-pilot
+├ ○ /ui-exploration/movimientos-ux-a
+├ ○ /ui-exploration/onboarding
+├ ○ /ui-exploration/receipt-batch
+├ ○ /ui-exploration/receipt-individual
+├ ƒ /ui-exploration/settings-calm-editorial
+├ ○ /ui-exploration/signals
+├ ○ /ui-exploration/web-panel
+├ ƒ /web
+└ ƒ /web/settings
+
+
+ƒ Proxy (Middleware)
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand

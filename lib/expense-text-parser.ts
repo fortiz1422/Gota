@@ -37,6 +37,21 @@ const CATEGORIES: Array<[string, RegExp]> = [
   ['Ropa e Indumentaria', /\b(ropa|zapatillas|remera|pantalon)\b/],
 ]
 
+/** Category-only proposal from existing text rules. Conflicts stay unresolved.
+ * Provider evidence (amount/date/funding) must never pass through the text parser.
+ */
+export function suggestTextExpenseCategory(description: string): string | null {
+  const text = normalize(description)
+  const matches = [
+    ...new Set(
+      CATEGORIES.filter(([, pattern]) => pattern.test(text)).map(
+        ([category]) => category
+      )
+    ),
+  ]
+  return matches.length === 1 ? matches[0] : null
+}
+
 /** Returns a proposal, never a ledger write. Ambiguities require clarification. */
 export function parseTextExpenseFallback(
   input: string,
