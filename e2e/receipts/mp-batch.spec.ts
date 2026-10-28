@@ -6,11 +6,14 @@ async function setup(
     | 'success'
     | 'partial'
     | 'references-error'
-    | 'unmatched-card' = 'success'
+    | 'unmatched-card' = 'success',
+  tollCount = 30
 ) {
   const writes: { candidate: string; body: Record<string, unknown> }[] = []
   const descriptions = [
-    ...Array.from({ length: 30 }, (_, n) => (n % 2 ? 'AUSOL' : 'AUOESTE')),
+    ...Array.from({ length: tollCount }, (_, n) =>
+      n % 2 ? 'AUSOL' : 'AUOESTE'
+    ),
     'Farmacity',
     'Farmacia Norte',
     'Farmacia Café',
@@ -89,15 +92,36 @@ async function setup(
       return route.fulfill({
         json: { linkedAccountId: null, linkedAccountVersion: 0, accounts: [] },
       })
-    if (path.endsWith('/confirm-expense')) {
-      const candidate = path.split('/').at(-2)!
-      writes.push({ candidate, body: route.request().postDataJSON() })
-      if (mode === 'partial' && writes.length === 2)
-        return route.fulfill({ status: 409, json: { error: 'conflict' } })
-      movements.find((m) => m.candidateId === candidate)!.reviewStatus =
-        'confirmed'
+    if (path.endsWith('/bulk-prepare')) {
+      const { entries } = route.request().postDataJSON()
+      return route.fulfill({ json: { status: 'ready', count: entries.length } })
+    }
+    if (path.endsWith('/bulk-confirm')) {
+      const { entries } = route.request().postDataJSON() as {
+        entries: { candidateId: string; body: Record<string, unknown> }[]
+      }
+      const results = []
+      for (const entry of entries) {
+        if (mode === 'partial' && results.length === 1)
+          return route.fulfill({
+            json: {
+              status: 'stopped',
+              results,
+              remaining: entries.length - results.length,
+              blocked: { status: 409 },
+            },
+          })
+        writes.push({ candidate: entry.candidateId, body: entry.body })
+        movements.find(
+          (m) => m.candidateId === entry.candidateId
+        )!.reviewStatus = 'confirmed'
+        results.push({
+          candidateId: entry.candidateId,
+          expenseId: `expense-${writes.length}`,
+        })
+      }
       return route.fulfill({
-        json: { status: 'confirmed', expenseId: `expense-${writes.length}` },
+        json: { status: 'completed', results, remaining: 0 },
       })
     }
     return route.fulfill({ status: 404, json: {} })
@@ -284,12 +308,12 @@ test('stops on partial confirmation and refreshes without replaying successful r
   await expect(
     page.getByText('1 registrados con respuesta confirmada.', { exact: false })
   ).toBeVisible()
-  expect(writes).toHaveLength(2)
+  expect(writes).toHaveLength(1)
   await expect(
     page.getByRole('button', { name: 'Registrar 30 gastos' })
   ).toHaveCount(0)
   await page.getByRole('button', { name: 'Actualizar bandeja' }).click()
-  expect(writes).toHaveLength(2)
+  expect(writes).toHaveLength(1)
   await page
     .getByRole('button', { name: 'Revisar por grupos', exact: true })
     .click()
@@ -334,6 +358,90 @@ test('an existing alias does not bypass missing card identity', async ({
       name: 'Tarjeta master · •••• 8215 · 30 movimientos',
     })
     .selectOption(cardId)
+  await expect(
+    page.getByRole('button', { name: 'Revisar 30 seleccionados' })
+  ).toBeEnabled()
+  expect(writes).toHaveLength(0)
+})
+
+test('prepares sixty without writes and saves all sixty with one HTTP submission', async ({
+  page,
+}, info) => {
+  let submissions = 0
+  let preparations = 0
+  page.on('request', (request) => {
+    if (request.url().endsWith('/bulk-confirm')) submissions++
+    if (request.url().endsWith('/bulk-prepare')) preparations++
+    expect(request.url()).not.toContain('/confirm-expense')
+  })
+  const writes = await setup(page, 'success', 60)
+  await page
+    .getByRole('button', {
+      name: 'Revisar Peajes, 60 movimientos',
+      exact: true,
+    })
+    .click()
+  const review = page.getByRole('button', { name: 'Revisar 60 seleccionados' })
+  await expect(review).toBeEnabled()
+  expect(writes).toHaveLength(0)
+  expect(preparations).toBeGreaterThan(0)
+  await review.click()
+  await page.route('**/bulk-confirm', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 1500))
+    await route.fallback()
+  })
+  await page
+    .getByRole('button', { name: 'Registrar 60 gastos', exact: true })
+    .click()
+  await expect(
+    page.getByRole('button', { name: 'Guardando lote de 60 gastos…' })
+  ).toBeInViewport()
+  await page.screenshot({ path: info.outputPath('mp-saving-sixty.png') })
+  await expect(
+    page.getByText('60 movimientos registrados. Los demás siguen pendientes.')
+  ).toBeVisible()
+  expect(submissions).toBe(1)
+  expect(writes).toHaveLength(60)
+})
+
+test('a lost bulk response requires refresh and is never replayed automatically', async ({
+  page,
+}) => {
+  await setup(page)
+  await openTolls(page)
+  let submissions = 0
+  await page.route('**/bulk-confirm', async (route) => {
+    submissions++
+    await route.abort('failed')
+  })
+  await previewAndConfirm(page, 30)
+  await expect(
+    page.getByRole('button', { name: 'Actualizar bandeja' })
+  ).toBeVisible()
+  expect(submissions).toBe(1)
+  await page.getByRole('button', { name: 'Actualizar bandeja' }).click()
+  expect(submissions).toBe(1)
+})
+
+test('failed read-only preparation blocks save and can be retried without writes', async ({
+  page,
+}) => {
+  const writes = await setup(page)
+  await page.route('**/bulk-prepare', (route) =>
+    route.fulfill({ status: 503, json: { error: 'unavailable' } })
+  )
+  await page
+    .getByRole('button', {
+      name: 'Revisar Peajes, 30 movimientos',
+      exact: true,
+    })
+    .click()
+  await expect(
+    page.getByRole('button', { name: 'No se pudo preparar el lote' })
+  ).toBeDisabled()
+  expect(writes).toHaveLength(0)
+  await page.unroute('**/bulk-prepare')
+  await page.getByRole('button', { name: 'Reintentar preparación' }).click()
   await expect(
     page.getByRole('button', { name: 'Revisar 30 seleccionados' })
   ).toBeEnabled()

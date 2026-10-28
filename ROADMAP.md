@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| MP-21 | Preparar y guardar lotes MP con un solo envío (reporte de Facundo 28/10/2026) | Cada gasto repetía el historial y un pedido desde el móvil; la espera parecía congelada. | Preparación sin escrituras durante revisión; un POST para 60 gastos; evidencia y referencias compartidas por pedido; RPCs canónicas, corte ante conflicto y actualización ante incertidumbre; pruebas API y móviles. Sin cambios de alias ni migraciones. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).

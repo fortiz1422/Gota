@@ -121,32 +121,80 @@ export function buildBatchBody(
   }
 }
 
-/** Snapshot the approved intent. Stop on any uncertain response; never auto-retry a write. */
+/** One approved payload, one submission. Never auto-retry an uncertain write. */
 export async function submitBatch(
   entries: readonly BatchEntry[],
   send: (
-    entry: BatchEntry
+    entries: readonly BatchEntry[],
+    signal: AbortSignal
   ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>,
-  onConfirmed: (id: string) => void
+  onConfirmed: (id: string) => void,
+  timeoutMs = 130_000
 ) {
-  const ids = new Set(entries.map((entry) => entry.candidateId))
-  if (!entries.length || ids.size !== entries.length)
+  if (
+    !entries.length ||
+    entries.length > 200 ||
+    new Set(entries.map((entry) => entry.candidateId)).size !== entries.length
+  )
     throw new Error('invalid_batch')
-  let confirmed = 0
-  for (const entry of entries) {
-    try {
-      const response = await send(entry)
-      const body = (await response.json()) as {
-        status?: string
-        expenseId?: string
-      }
-      if (!response.ok || body?.status !== 'confirmed' || !body.expenseId)
-        return { confirmed, stopped: true, status: response.status }
-      onConfirmed(entry.candidateId)
-      confirmed++
-    } catch {
-      return { confirmed, stopped: true, status: 0 }
+  const controller = new AbortController()
+  let timer: ReturnType<typeof setTimeout> | undefined
+  try {
+    const result = await Promise.race([
+      (async () => {
+        const response = await send(entries, controller.signal)
+        const body = (await response.json()) as {
+          status?: string
+          results?: { candidateId: string; expenseId: string }[]
+          remaining?: number
+          blocked?: { status?: number }
+        }
+        if (
+          !response.ok ||
+          !Array.isArray(body.results) ||
+          !['completed', 'stopped'].includes(body.status ?? '')
+        )
+          throw new Error('uncertain_batch')
+        const results = body.results
+        if (
+          results.length > entries.length ||
+          body.remaining !== entries.length - results.length ||
+          results.some(
+            (item, index) =>
+              item?.candidateId !== entries[index].candidateId ||
+              typeof item.expenseId !== 'string' ||
+              !item.expenseId
+          ) ||
+          (body.status === 'completed'
+            ? results.length !== entries.length
+            : results.length === entries.length)
+        )
+          throw new Error('invalid_batch_response')
+        return {
+          results,
+          stopped: body.status === 'stopped',
+          status:
+            body.status === 'stopped'
+              ? (body.blocked?.status ?? 409)
+              : response.status,
+        }
+      })(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => {
+          controller.abort()
+          reject(new Error('timeout'))
+        }, timeoutMs)
+      }),
+    ])
+    result.results.forEach((item) => onConfirmed(item.candidateId))
+    return {
+      confirmed: result.results.length,
+      stopped: result.stopped,
+      status: result.status,
     }
+  } catch {
+    return { confirmed: 0, stopped: true, status: 0 }
+  } finally {
+    if (timer) clearTimeout(timer)
   }
-  return { confirmed, stopped: false, status: 200 }
 }

@@ -60,11 +60,18 @@ const entry = (id: string) => ({
   candidateId: id,
   body: buildBatchBody(draft(), link),
 })
-const success = () =>
+const success = (entries: readonly ReturnType<typeof entry>[]) =>
   Promise.resolve({
     ok: true,
     status: 200,
-    json: async () => ({ status: 'confirmed', expenseId: 'expense' }),
+    json: async () => ({
+      status: 'completed',
+      remaining: 0,
+      results: entries.map((entry) => ({
+        candidateId: entry.candidateId,
+        expenseId: 'expense',
+      })),
+    }),
   })
 
 describe('MP batch intent and recovery', () => {
@@ -184,14 +191,18 @@ describe('MP batch intent and recovery', () => {
     })
     expect(buildBatchBody(wallet, link)).not.toHaveProperty('cardId')
   })
-  it('confirms sequentially, reports partial success and never sends later entries after conflict', async () => {
+  it('sends one bulk request and reports only the confirmed prefix after a conflict', async () => {
     const send = vi
       .fn()
-      .mockImplementationOnce(success)
-      .mockResolvedValueOnce({
-        ok: false,
-        status: 409,
-        json: async () => ({ error: 'conflict' }),
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({
+          status: 'stopped',
+          results: [{ candidateId: 'one', expenseId: 'expense' }],
+          remaining: 2,
+          blocked: { status: 409 },
+        }),
       })
     const confirmed = vi.fn()
     expect(
@@ -201,8 +212,42 @@ describe('MP batch intent and recovery', () => {
         confirmed
       )
     ).toEqual({ confirmed: 1, stopped: true, status: 409 })
-    expect(send).toHaveBeenCalledTimes(2)
+    expect(send).toHaveBeenCalledTimes(1)
     expect(confirmed).toHaveBeenCalledExactlyOnceWith('one')
+  })
+  it('bounds a stuck response including body reads without retrying', async () => {
+    const send = vi
+      .fn()
+      .mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: () => new Promise(() => {}),
+      })
+    expect(await submitBatch([entry('one')], send, vi.fn(), 5)).toEqual({
+      confirmed: 0,
+      stopped: true,
+      status: 0,
+    })
+    expect(send).toHaveBeenCalledTimes(1)
+  })
+  it('rejects unordered or falsely complete responses before marking anything confirmed', async () => {
+    for (const results of [
+      [{ candidateId: 'two', expenseId: 'x' }],
+      [{ candidateId: 'one', expenseId: 'x' }],
+    ]) {
+      const confirmed = vi.fn()
+      const send = vi
+        .fn()
+        .mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: async () => ({ status: 'completed', results, remaining: 1 }),
+        })
+      expect(
+        await submitBatch([entry('one'), entry('two')], send, confirmed)
+      ).toMatchObject({ stopped: true, confirmed: 0 })
+      expect(confirmed).not.toHaveBeenCalled()
+    }
   })
   it('stops on network ambiguity and malformed success without automatic retries', async () => {
     for (const send of [
@@ -217,7 +262,7 @@ describe('MP batch intent and recovery', () => {
       expect(send).toHaveBeenCalledTimes(1)
     }
   })
-  it('rejects empty or repeated identities and accepts a complete group of thirty', async () => {
+  it('rejects empty or repeated identities and accepts a complete group of sixty', async () => {
     const send = vi.fn(success)
     await expect(
       submitBatch([entry('one'), entry('one')], send, vi.fn())
@@ -228,10 +273,11 @@ describe('MP batch intent and recovery', () => {
     expect(send).not.toHaveBeenCalled()
     expect(
       await submitBatch(
-        Array.from({ length: 30 }, (_, n) => entry(String(n))),
+        Array.from({ length: 60 }, (_, n) => entry(String(n))),
         send,
         vi.fn()
       )
-    ).toEqual({ confirmed: 30, stopped: false, status: 200 })
+    ).toEqual({ confirmed: 60, stopped: false, status: 200 })
+    expect(send).toHaveBeenCalledTimes(1)
   })
 })

@@ -19,6 +19,7 @@ import {
   cardEvidenceKey,
   submitBatch,
   type BatchAccountLink,
+  type BatchEntry,
 } from '@/lib/mercadopago/batch-review'
 import type { Card } from '@/types/database'
 import type { CounterpartyAliasMatch } from '@/lib/counterparty-aliases/resolve'
@@ -61,8 +62,25 @@ export function MercadoPagoBatchReview({
   const [category, setCategory] = useState('')
   const [preview, setPreview] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [elapsed, setElapsed] = useState(0)
+  useEffect(() => {
+    if (!busy) return
+    const started = Date.now()
+    setElapsed(0)
+    const timer = setInterval(
+      () => setElapsed(Math.floor((Date.now() - started) / 1000)),
+      1000
+    )
+    return () => clearInterval(timer)
+  }, [busy])
   const [finished, setFinished] = useState(false)
   const [notice, setNotice] = useState('')
+  const [prepared, setPrepared] = useState<{
+    key: string
+    entries: BatchEntry[]
+  } | null>(null)
+  const [prepareError, setPrepareError] = useState(false)
+  const [prepareAttempt, setPrepareAttempt] = useState(0)
   const busyRef = useRef(false)
   const changedRef = useRef(false)
   const summaryRef = useRef<HTMLParagraphElement>(null)
@@ -149,6 +167,59 @@ export function MercadoPagoBatchReview({
       .includes(search.toLowerCase())
   )
   const blockers = chosen.filter((d) => batchBlocker(d, cards, link))
+  const preparationKey =
+    activeGroupKey && chosen.length && !blockers.length
+      ? JSON.stringify(
+          chosen.map((d) => ({
+            candidateId: d.movement.candidateId,
+            body: buildBatchBody(d, link),
+          }))
+        )
+      : ''
+  const ready = prepared?.key === preparationKey && !!preparationKey
+  useEffect(() => {
+    setPrepared(null)
+    setPrepareError(false)
+    if (!preparationKey || finished) return
+    const controller = new AbortController()
+    const entries: BatchEntry[] = JSON.parse(preparationKey)
+    const timer = setTimeout(async () => {
+      try {
+        const response = await fetch(
+          '/api/integrations/mercadopago/movements/bulk-prepare',
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries }),
+            signal: controller.signal,
+          }
+        )
+        const body = await response.json()
+        if (
+          !response.ok ||
+          body.status !== 'ready' ||
+          body.count !== entries.length
+        )
+          throw new Error('not_ready')
+        if (!controller.signal.aborted)
+          setPrepared({ key: preparationKey, entries })
+      } catch {
+        if (!controller.signal.aborted) setPrepareError(true)
+      } finally {
+        clearTimeout(deadline)
+      }
+    }, 350)
+    const deadline = setTimeout(() => {
+      controller.abort()
+      setPrepareError(true)
+    }, 125_000)
+    return () => {
+      clearTimeout(timer)
+      clearTimeout(deadline)
+      controller.abort()
+    }
+  }, [preparationKey, prepareAttempt, finished])
+
   const individualCount = movements.filter(
     (m) =>
       m.reviewStatus === 'pending' &&
@@ -256,36 +327,28 @@ export function MercadoPagoBatchReview({
       finished ||
       !preview ||
       !chosen.length ||
-      blockers.length
+      blockers.length ||
+      !ready
     )
       return
     busyRef.current = true
     changedRef.current = true
     setBusy(true)
-    const entries = chosen.map((d) => ({
-      candidateId: d.movement.candidateId,
-      body: buildBatchBody(d, link),
-    }))
+    const entries = prepared!.entries
     let mustRefresh = false
     const confirmedIds = new Set<string>()
     try {
       const result = await submitBatch(
         entries,
-        (entry) =>
-          fetch(
-            `/api/integrations/mercadopago/movements/${encodeURIComponent(entry.candidateId)}/confirm-expense`,
-            {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(entry.body),
-              signal: AbortSignal.timeout(20_000),
-            }
-          ),
+        (entries, signal) =>
+          fetch('/api/integrations/mercadopago/movements/bulk-confirm', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ entries }),
+            signal,
+          }),
         (id) => {
           confirmedIds.add(id)
-          setNotice(
-            `Registrando ${confirmedIds.size} de ${entries.length} movimientos…`
-          )
         }
       )
       mustRefresh = result.stopped
@@ -343,36 +406,58 @@ export function MercadoPagoBatchReview({
             Cerrar revisión
           </button>
         ) : preview ? (
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => setPreview(false)}
-              disabled={busy}
-              className="rounded-button border-border-strong min-h-11 border px-3 text-sm"
-            >
-              Volver
-            </button>
-            <button
-              type="button"
-              disabled={busy || !chosen.length || blockers.length > 0}
-              onClick={() => void confirm()}
-              className="rounded-button bg-primary min-h-11 flex-1 px-3 py-3 font-semibold text-white disabled:opacity-50"
-            >
-              {busy ? 'Registrando…' : `Registrar ${chosen.length} gastos`}
-            </button>
+          <div>
+            {busy && (
+              <p
+                role="status"
+                className="text-text-secondary mb-2 text-center text-sm"
+              >
+                Procesando el lote completo · {elapsed} s
+              </p>
+            )}
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => setPreview(false)}
+                disabled={busy}
+                className="rounded-button border-border-strong min-h-11 border px-3 text-sm"
+              >
+                Volver
+              </button>
+              <button
+                type="button"
+                disabled={
+                  busy || !ready || !chosen.length || blockers.length > 0
+                }
+                onClick={() => void confirm()}
+                className="rounded-button bg-primary min-h-11 flex-1 px-3 py-3 font-semibold text-white disabled:opacity-50"
+              >
+                {busy
+                  ? `Guardando lote de ${chosen.length} gastos…`
+                  : `Registrar ${chosen.length} gastos`}
+              </button>
+            </div>
           </div>
         ) : (
           <button
             type="button"
             disabled={
-              loading || loadError || !chosen.length || blockers.length > 0
+              loading ||
+              loadError ||
+              !ready ||
+              !chosen.length ||
+              blockers.length > 0
             }
             onClick={() => setPreview(true)}
             className="rounded-button bg-primary min-h-11 w-full px-4 py-3 font-semibold text-white disabled:opacity-50"
           >
-            {chosen.length
-              ? `Revisar ${chosen.length} seleccionados`
-              : 'Elegí movimientos'}
+            {preparationKey && !ready
+              ? prepareError
+                ? 'No se pudo preparar el lote'
+                : 'Preparando lote…'
+              : chosen.length
+                ? `Revisar ${chosen.length} seleccionados`
+                : 'Elegí movimientos'}
           </button>
         )
       }
@@ -384,6 +469,14 @@ export function MercadoPagoBatchReview({
         <p role="alert">
           No pudimos cargar las referencias. Cerrá y reintentá; no se registró
           ningún gasto.
+        </p>
+      )}
+      {prepareError && !finished && (
+        <p role="alert">
+          No pudimos preparar el lote. No se registró ningún gasto.{' '}
+          <button type="button" onClick={() => setPrepareAttempt((n) => n + 1)}>
+            Reintentar preparación
+          </button>
         </p>
       )}
       {notice && (
