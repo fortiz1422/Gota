@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| MP-20 | Revisión MP por alias y categoría (autorizado por Facundo el 27/10/2026) | Revisar grupos con sentido, sin cortar arbitrariamente en 20 movimientos. | Alias exacto por perfil → categoría sugerida sin alias → a confirmar. Confirmación humana por grupo; correcciones y pendientes; conservar evidencia, detener ante respuesta incierta; pruebas con 30 movimientos y viewports 320/390/768/1440. Sin publicación, migraciones ni datos reales. |
+| (vacío) | | | |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -51,6 +51,7 @@ Publicado en main. «Listo» acá significa código publicado y CI verde; la val
 
 | ID | Título | Evidencia | Límite |
 |---|---|---|---|
+| MP-20 | Revisión MP por alias existente y categoría | https://github.com/fortiz1422/Gota/pull/172; build y CI aprobados; confirmación de 30 movimientos, excepciones y errores parciales probados | No modifica alias, perfiles ni reglas. Sin registro automático. Prueba con la cuenta real pendiente. |
 | MP-19 | Completar movimientos MP en lote | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`, 2.097 tests, 48 Playwright, TypeScript, build y SQL aprobados) | Selección humana hasta 20; sin reglas persistentes nuevas ni registro automático. |
 | MODO-07 | Acceso al lote y revisión sin depender de imagen | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`) | Campana a lotes; renovación de imagen y fallo de firma aislado; causa real en iPhone pendiente de verificar. |
 | PR 141 | Rediseño de formularios de ajustes y planificación | https://github.com/fortiz1422/Gota/pull/141 (mergeado 17/10/2026) | Home, análisis principal y movimientos quedaron fuera. |
