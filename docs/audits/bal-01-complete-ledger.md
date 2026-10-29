@@ -27,4 +27,12 @@ No se agregan funciones SQL, migraciones, flags ni cambios de configuración. No
 
 La paginación no constituye un snapshot transaccional de varias tablas. Los controles detectan cambios de cardinalidad y páginas superpuestas; ante una carga concurrente se debe refrescar. Una actualización de importes que conserve la cardinalidad no queda congelada entre pedidos, igual que en las lecturas independientes anteriores.
 
-Los logs de Vercel no estuvieron accesibles (403). La causa se contrastó mediante consultas SQL de solo lectura, inspección del código desplegado y reproducción con el cliente real de Supabase. La comprobación autenticada en el teléfono queda pendiente de publicar la corrección.
+Los logs de Vercel no estuvieron accesibles (403). La causa se contrastó mediante consultas SQL de solo lectura, inspección del código desplegado y reproducción con el cliente real de Supabase. No se ejerció una sesión de usuario ni se ejecutaron confirmaciones de movimientos en producción.
+
+## Cierre de implementación
+
+- PR [#174](https://github.com/fortiz1422/Gota/pull/174) integrado en `274a1441d3edaff6a675a3d04601d6bb09d42eb9`.
+- [CI de balance](https://github.com/fortiz1422/Gota/actions/runs/40815169628): 2.187 tests en 218 archivos, TypeScript y build de producción aprobados.
+- Preview de la versión verificada: `dpl_6ZLFeUJnyP32yRVkX6mUa33yfXu8`, READY, commit `e85ea44`.
+- Producción verificada: `dpl_9JWADH3X17Vw59iSutfdHYoat2N5`, READY, commit `274a144`, con `gota.money` asignado. No se ejecutaron escrituras financieras para verificar el despliegue.
+- El workflow ajeno `claude-code-review.yml` conserva un fallo de configuración previo; no se modificó.

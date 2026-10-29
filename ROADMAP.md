@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| BAL-01 | Saldo completo con más de 1.000 movimientos | El límite de la Data API recortaba salidas y elevaba el saldo mostrado. | Lectura paginada y ordenada con conteo exacto; rechazar páginas incompletas/cambiantes; regresión del total y por cuenta; sin editar movimientos ni saldos iniciales. |
+| (vacío) | | | |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).
@@ -51,6 +51,7 @@ Publicado en main. «Listo» acá significa código publicado y CI verde; la val
 
 | ID | Título | Evidencia | Límite |
 |---|---|---|---|
+| BAL-01 | Saldo sin truncamiento por límites de lectura | https://github.com/fortiz1422/Gota/pull/174; CI de balance, 2.187 tests, TypeScript y build aprobados | Paginación adaptativa con conteo exacto, sin tope de filas/páginas; todas las entradas financieras y conciliación; error ante lectura incompleta. Sin editar datos ni migraciones. |
 | MP-21 | Preparar y guardar lotes MP con un solo envío | https://github.com/fortiz1422/Gota/pull/173; 2.167 tests, TypeScript, build, SQL y 78 recorridos de navegador aprobados | Preparación sin escrituras; 60 gastos con un POST; referencias por pedido, validación fresca, corte por conflicto y espera acotada. Sin cambios de alias ni migraciones. |
 | MP-20 | Revisión MP por alias existente y categoría | https://github.com/fortiz1422/Gota/pull/172; build y CI aprobados; confirmación de 30 movimientos, excepciones y errores parciales probados | No modifica alias, perfiles ni reglas. Sin registro automático. Prueba con la cuenta real pendiente. |
 | MP-19 | Completar movimientos MP en lote | https://github.com/fortiz1422/Gota/pull/158 (mergeado; `0191ab3`, 2.097 tests, 48 Playwright, TypeScript, build y SQL aprobados) | Selección humana hasta 20; sin reglas persistentes nuevas ni registro automático. |
