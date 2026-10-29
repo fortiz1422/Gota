@@ -219,6 +219,8 @@ export function DashboardShell({
       return res.json()
     },
     initialData,
+    // A failed financial refresh must not leave an old balance looking current.
+    throwOnError: true,
   })
 
   const cotizacionQuery = useQuery<CotizacionApiData | null>({

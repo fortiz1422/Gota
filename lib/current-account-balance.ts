@@ -44,12 +44,16 @@ export async function getCurrentBalanceBreakdown(params: {
     { data: yieldEntriesData },
     { data: instrumentsData },
   ] = await Promise.all([
-    supabase
-      .from('accounts')
-      .select('*')
-      .eq('user_id', userId)
-      .eq('archived', false)
-      .order('is_primary', { ascending: false }),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('accounts')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('archived', false)
+        .order('is_primary', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
     readCompleteLedger((from, to) =>
       supabase
         .from('income_entries')
@@ -106,11 +110,15 @@ export async function getCurrentBalanceBreakdown(params: {
         .order('id', { ascending: true })
         .range(from, to)
     ),
-    supabase
-      .from('instruments')
-      .select('account_id, amount, currency')
-      .eq('user_id', userId)
-      .eq('status', 'active'),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('instruments')
+        .select('id, account_id, amount, currency', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('status', 'active')
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
   ]).then((results) => {
     if (results.some((result) => result.error))
       throw new Error('balance_unavailable')

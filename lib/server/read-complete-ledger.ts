@@ -1,15 +1,15 @@
 /** Data API limits apply even without .limit(). A financial total requires every page. */
 const PAGE_SIZE = 500
-const MAX_PAGES = 200
 
 type Page<T> = { data: T[] | null; error: unknown; count: number | null }
-export async function readCompleteLedger<T extends { id: string }>(
-  readPage: (from: number, to: number) => PromiseLike<Page<T>>
+export async function readCompleteLedger<T>(
+  readPage: (from: number, to: number) => PromiseLike<Page<T>>,
+  identify: (row: T) => string = (row) => (row as { id: string }).id
 ): Promise<{ data: T[]; error: null }> {
   const rows: T[] = []
   const ids = new Set<string>()
   let expectedCount: number | undefined
-  for (let page = 0; page < MAX_PAGES; page++) {
+  for (;;) {
     const from = rows.length
     const result = await readPage(from, from + PAGE_SIZE - 1)
     if (
@@ -23,16 +23,17 @@ export async function readCompleteLedger<T extends { id: string }>(
     expectedCount ??= result.count
     if (
       result.count !== expectedCount ||
-      result.data.length !== Math.min(PAGE_SIZE, expectedCount - from)
+      result.data.length > Math.min(PAGE_SIZE, expectedCount - from) ||
+      (result.data.length === 0 && from < expectedCount)
     )
       throw new Error('balance_unavailable')
     for (const row of result.data) {
-      if (typeof row.id !== 'string' || !row.id || ids.has(row.id))
+      const id = identify(row)
+      if (typeof id !== 'string' || !id || ids.has(id))
         throw new Error('balance_unavailable')
-      ids.add(row.id)
+      ids.add(id)
       rows.push(row)
     }
     if (rows.length === expectedCount) return { data: rows, error: null }
   }
-  throw new Error('balance_unavailable')
 }

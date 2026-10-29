@@ -50,3 +50,45 @@ describe('complete financial ledger reads', () => {
     }
   })
 })
+
+it.each([1, 37, 100, 500, 1000])(
+  'completes the ledger with a server cap of %i without assuming a page size or page count',
+  async (cap) => {
+    const rows = Array.from({ length: 1701 }, (_, n) => ({
+      id: String(n),
+      amount: n === 1700 ? 100000 : 1,
+    }))
+    const read = vi.fn(async (from: number, to: number) => ({
+      data: rows.slice(from, Math.min(to + 1, from + cap)),
+      count: rows.length,
+      error: null,
+    }))
+    const result = await readCompleteLedger(read)
+    expect(result.data.reduce((sum, row) => sum + row.amount, 0)).toBe(101700)
+    expect(read).toHaveBeenCalledTimes(
+      Math.ceil(rows.length / Math.min(cap, 500))
+    )
+  }
+)
+
+it('rejects an unexpectedly empty page while rows remain', async () => {
+  await expect(
+    readCompleteLedger(async () => ({ data: [], error: null, count: 10 }))
+  ).rejects.toThrow('balance_unavailable')
+})
+
+it('supports tables with composite identifiers without merging their rows', async () => {
+  const rows = [
+    { account_id: 'one', period: '2026-10', amount: 20 },
+    { account_id: 'two', period: '2026-10', amount: 30 },
+  ]
+  const result = await readCompleteLedger(
+    async (from) => ({
+      data: rows.slice(from, from + 1),
+      count: 2,
+      error: null,
+    }),
+    (row) => row.account_id
+  )
+  expect(result.data.reduce((sum, row) => sum + row.amount, 0)).toBe(50)
+})
