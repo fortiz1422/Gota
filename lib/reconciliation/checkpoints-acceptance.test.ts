@@ -164,12 +164,15 @@ function thenable(result: {
   data: unknown
   error: { message: string } | null
 }) {
+  let from = 0, to = 999
   const query = {
+    range: (start: number, end: number) => { from = start; to = end; return query },
+    order: () => query,
     select: () => query,
     eq: () => query,
     maybeSingle: () => query,
     then: (resolve: (value: unknown) => unknown) =>
-      Promise.resolve(result).then(resolve),
+      Promise.resolve(Array.isArray(result.data) ? { ...result, data: result.data.slice(from, to + 1), count: result.data.length } : result).then(resolve),
   }
   return query
 }
@@ -180,8 +183,10 @@ function supabase(options: {
 }) {
   return {
     from(table: string) {
-      let data = options.rows[table] ?? []
+      let data: Record<string, unknown>[] = (options.rows[table] ?? []).map((row, index) => ({ id: `${table}-${index}`, ...row }))
+      let from = 0, to = Infinity
       const query = {
+        range: (start: number, end: number) => { from = start; to = end; return query },
         select: () => query,
         order: () => query,
         eq: (key: string, value: unknown) => {
@@ -210,7 +215,7 @@ function supabase(options: {
           Promise.resolve(
             options.failingTable === table
               ? { data: null, error: { message: 'down' } }
-              : { data, error: null }
+              : { data: data.slice(from, to + 1), count: data.length, error: null }
           ).then(resolve),
       }
       return query
@@ -1077,4 +1082,17 @@ describe('checkpoints de saldo', () => {
       'Confirmá tu saldo de BBVA'
     )
   })
+})
+
+it('includes every reconciliation correction beyond the API row cap', async () => {
+  vi.stubEnv('BALANCE_RECONCILIATION_SCHEMA_READY', 'true')
+  const rows = Array.from({ length: 1001 }, (_, n) => {
+    const account = `account-${String(n).padStart(5, '0')}`
+    const state = addCheckpoint(emptyWorkspace(account, 'ARS'), { id: `cp-${n}`, observedAt: OBSERVED, expected: 10000, confirmed: 9900, includedMovementIds: [] })
+    return { account_id: account, currency: 'ARS', state }
+  })
+  admin.from.mockReturnValue(thenable({ data: rows, error: null }))
+  const corrections = await readCorrections('user')
+  expect(corrections).toHaveLength(1001)
+  expect(corrections.reduce((sum, row) => sum + row.amount, 0)).toBe(-1001)
 })

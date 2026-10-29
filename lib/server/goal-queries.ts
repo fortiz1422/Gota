@@ -1,3 +1,4 @@
+import { readCompleteLedger } from '@/lib/server/read-complete-ledger'
 import type { createClient } from '@/lib/supabase/server'
 import { computeCommittedAmount } from '@/lib/goals/computeCommittedAmount'
 import { computeGoalMetrics } from '@/lib/goals/computeGoalMetrics'
@@ -53,11 +54,12 @@ function rowToContribution(row: GoalContributionRow): GoalContribution {
 function hydrateGoalWithMetrics(
   goal: Goal,
   contributions: GoalContributionRow[],
-  today: Date,
+  today: Date
 ): GoalWithMetrics {
-  const lastContributionAt = contributions
-    .map((contribution) => contribution.contributed_at)
-    .sort((a, b) => b.localeCompare(a))[0] ?? null
+  const lastContributionAt =
+    contributions
+      .map((contribution) => contribution.contributed_at)
+      .sort((a, b) => b.localeCompare(a))[0] ?? null
   const committedAmount = computeCommittedAmount(contributions, goal.currency)
   const metrics = computeGoalMetrics(
     {
@@ -69,34 +71,41 @@ function hydrateGoalWithMetrics(
       status: goal.status,
     },
     contributions,
-    today,
+    today
   )
   return { ...goal, ...metrics, lastContributionAt, committedAmount }
 }
 
 export async function getGoals(
   supabase: SupabaseClient,
-  userId: string,
+  userId: string
 ): Promise<GoalWithMetrics[]> {
   const today = new Date()
 
-  const { data: goalsData, error: goalsError } = await supabase
-    .from('goals')
-    .select('*')
-    .eq('user_id', userId)
-    .neq('status', 'archived')
-    .order('created_at', { ascending: false })
+  const { data: goalsData, error: goalsError } = await readCompleteLedger(
+    (from, to) =>
+      supabase
+        .from('goals')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .neq('status', 'archived')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to)
+  )
 
   if (goalsError) throw goalsError
   if (!goalsData || goalsData.length === 0) return []
 
-  const goalIds = (goalsData as GoalRow[]).map((g) => g.id)
-
-  const { data: contribData, error: contribError } = await supabase
-    .from('goal_contributions')
-    .select('*')
-    .eq('user_id', userId)
-    .in('goal_id', goalIds)
+  const { data: contribData, error: contribError } = await readCompleteLedger(
+    (from, to) =>
+      supabase
+        .from('goal_contributions')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('id', { ascending: true })
+        .range(from, to)
+  )
 
   if (contribError) throw contribError
 
@@ -117,25 +126,31 @@ export async function getGoals(
 export async function getGoalById(
   supabase: SupabaseClient,
   userId: string,
-  goalId: string,
+  goalId: string
 ): Promise<GoalDetail | null> {
   const today = new Date()
 
-  const [{ data: goalData, error: goalError }, { data: contribData, error: contribError }] =
-    await Promise.all([
-      supabase
-        .from('goals')
-        .select('*')
-        .eq('id', goalId)
-        .eq('user_id', userId)
-        .maybeSingle(),
+  const [
+    { data: goalData, error: goalError },
+    { data: contribData, error: contribError },
+  ] = await Promise.all([
+    supabase
+      .from('goals')
+      .select('*')
+      .eq('id', goalId)
+      .eq('user_id', userId)
+      .maybeSingle(),
+    readCompleteLedger((from, to) =>
       supabase
         .from('goal_contributions')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('goal_id', goalId)
         .eq('user_id', userId)
-        .order('contributed_at', { ascending: false }),
-    ])
+        .order('contributed_at', { ascending: false })
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
+  ])
 
   if (goalError) throw goalError
   if (contribError) throw contribError

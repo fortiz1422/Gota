@@ -2,7 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { buildPrevMonthSummary } from '@/lib/rollover'
 import { getCurrentMonth, addMonths } from '@/lib/dates'
 import { todayAR } from '@/lib/format'
-import { buildCardCycleAmountsMap, isMissingCardCycleAmountsTableError } from '@/lib/card-cycle-amounts'
+import { buildCardCycleAmountsMap } from '@/lib/card-cycle-amounts'
 import {
   buildLiveBalanceBreakdown,
   buildLiveBalanceHeroSummary,
@@ -21,6 +21,7 @@ import type { GoalWithMetrics } from '@/lib/goals/types'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { readCorrections } from '@/lib/reconciliation/repository'
 import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
+import { readCompleteLedger } from '@/lib/server/read-complete-ledger'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
@@ -122,19 +123,21 @@ export async function readDashboardData({
       .select('default_currency, rollover_mode, hero_balance_mode')
       .eq('user_id', userId)
       .single(),
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('accounts')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .eq('archived', false)
       .order('is_primary', { ascending: false })
-      .order('created_at', { ascending: true }),
-    supabase
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('cards')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .eq('archived', false)
-      .order('created_at', { ascending: true }),
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }).range(from, to)),
   ])
 
   const userCurrency = (config?.default_currency ?? 'ARS') as 'ARS' | 'USD'
@@ -170,16 +173,16 @@ export async function readDashboardData({
     { data: goalCommitmentsData },
     { data: unpaidCyclesData },
     { data: paidCyclesData },
-    { data: cycleAmountsData, error: cycleAmountsError },
+    { data: cycleAmountsData },
   ] = await Promise.all([
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('income_entries')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .gte('date', selectedMonthDate)
       .lt('date', nextMonthDate)
       .order('date', { ascending: false })
-      .limit(20),
+      .order('id', { ascending: true }).range(from, to)),
     supabase.from('expenses').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('income_entries').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('transfers').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
@@ -204,81 +207,91 @@ export async function readDashboardData({
       .order('date', { ascending: false })
       .order('created_at', { ascending: false })
       .limit(5),
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('subscriptions')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .eq('is_active', true)
-      .order('created_at', { ascending: true }),
+      .order('created_at', { ascending: true })
+      .order('id', { ascending: true }).range(from, to)),
     Promise.resolve({ data: [] as YieldAccumulator[] }),
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('instruments')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .eq('status', 'active')
-      .order('opened_at', { ascending: false }),
-    supabase
+      .order('opened_at', { ascending: false })
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('recurring_incomes')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
-      .eq('is_active', true),
-    supabase
+      .eq('is_active', true)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('income_entries')
-      .select('amount, currency, account_id')
-      .eq('user_id', userId)
-      .lt('date', timestampEnd),
-    supabase
-      .from('expenses')
-      .select('amount, currency, account_id, payment_method, category')
+      .select('id, amount, currency, account_id', { count: 'exact' })
       .eq('user_id', userId)
       .lt('date', timestampEnd)
-      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
-    supabase
-      .from('transfers')
-      .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
-      .eq('user_id', userId)
-      .lte('date', todayDate),
-    supabase
-      .from('yield_daily_entries')
-      .select('account_id, expected_amount, actual_amount')
-      .eq('user_id', userId)
-      .lte('date', todayDate),
-    supabase
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('expenses')
-      .select('*')
+      .select('id, amount, currency, account_id, payment_method, category', { count: 'exact' })
+      .eq('user_id', userId)
+      .lt('date', timestampEnd)
+      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT'])
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('transfers')
+      .select('id, amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id', { count: 'exact' })
+      .eq('user_id', userId)
+      .lte('date', todayDate)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('yield_daily_entries')
+      .select('id, account_id, expected_amount, actual_amount', { count: 'exact' })
+      .eq('user_id', userId)
+      .lte('date', todayDate)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('expenses')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .gte('date', historyStartDate)
       .lt('date', nextMonthDate)
-      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
-    supabase.from('goals').select('id').eq('user_id', userId).neq('status', 'archived'),
-    supabase
+      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas')
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase.from('goals').select('id', { count: 'exact' }).eq('user_id', userId).neq('status', 'archived').order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('goal_contributions')
-      .select('goal_id, amount, currency, availability_effect')
+      .select('id, goal_id, amount, currency, availability_effect', { count: 'exact' })
       .eq('user_id', userId)
-      .eq('availability_effect', 'committed_only'),
-    supabase
+      .eq('availability_effect', 'committed_only')
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('card_cycles')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
-      .neq('status', 'paid'),
-    supabase
+      .neq('status', 'paid')
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('card_cycles')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .eq('status', 'paid')
-      .gte('period_month', historyStartDate),
-    supabase
+      .gte('period_month', historyStartDate)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('card_cycle_amounts')
-      .select('*')
-      .eq('user_id', userId),
+      .select('*', { count: 'exact' })
+      .eq('user_id', userId)
+      .order('id', { ascending: true }).range(from, to)),
   ])
-  if (cycleAmountsError && !isMissingCardCycleAmountsTableError(cycleAmountsError.message)) {
-    throw new Error(cycleAmountsError.message)
-  }
 
   const goals = await goalsPromise
 
-  const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
+  const monthlyIncomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
+  const incomeEntries = monthlyIncomeEntries.slice(0, 20)
   const hasConfiguredOpeningBalance = accounts.some(
     (account) => account.opening_balance_ars > 0 || account.opening_balance_usd > 0,
   )
@@ -332,24 +345,27 @@ export async function readDashboardData({
       { data: prevIncomeEntries },
       { data: prevPeriodBalances },
     ] = await Promise.all([
-      supabase
+      readCompleteLedger((from, to) => supabase
         .from('expenses')
-        .select('amount, category, payment_method, account_id, currency')
+        .select('id, amount, category, payment_method, account_id, currency', { count: 'exact' })
         .eq('user_id', userId)
         .gte('date', prevMonthDate)
-        .lt('date', selectedMonthDate),
-      supabase
+        .lt('date', selectedMonthDate)
+        .order('id', { ascending: true }).range(from, to)),
+      readCompleteLedger((from, to) => supabase
         .from('income_entries')
-        .select('amount, currency, account_id')
+        .select('id, amount, currency, account_id', { count: 'exact' })
         .eq('user_id', userId)
         .gte('date', prevMonthDate)
-        .lt('date', selectedMonthDate),
+        .lt('date', selectedMonthDate)
+        .order('id', { ascending: true }).range(from, to)),
       accountIds.length > 0
-        ? supabase
+        ? readCompleteLedger((from, to) => supabase
             .from('account_period_balance')
-            .select('account_id, balance_ars, balance_usd')
+            .select('account_id, balance_ars, balance_usd', { count: 'exact' })
             .in('account_id', accountIds)
             .eq('period', prevMonthDate)
+            .order('account_id', { ascending: true }).range(from, to), row => row.account_id)
         : Promise.resolve({ data: [] as { account_id: string; balance_ars: number; balance_usd: number }[] }),
     ])
 
@@ -421,7 +437,7 @@ export async function readDashboardData({
   const activeRecurring = (recurringData ?? []) as RecurringIncome[]
   const todayDay = parseInt(todayDate.split('-')[2], 10)
   const linkedThisMonth = new Set(
-    incomeEntries
+    monthlyIncomeEntries
       .filter((incomeEntry) => incomeEntry.recurring_income_id !== null)
       .map((incomeEntry) => incomeEntry.recurring_income_id as string),
   )

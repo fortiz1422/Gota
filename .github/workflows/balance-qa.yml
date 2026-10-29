@@ -1,0 +1,52 @@
+name: Balance completeness verification
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - '.github/workflows/balance-qa.yml'
+      - 'lib/server/read-complete-ledger*'
+      - 'lib/server/dashboard-queries.ts'
+      - 'lib/server/goal-queries.ts'
+      - 'lib/server/__tests__/dashboard-ledger-pagination.test.ts'
+      - 'lib/current-account-balance*'
+      - 'lib/live-balance*'
+      - 'lib/live-ledger-date*'
+      - 'lib/reconciliation/**'
+      - 'lib/analytics/computeCompromisos*'
+      - 'components/dashboard/DashboardShell.tsx'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: balance-qa-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: America/Argentina/Buenos_Aires
+      NEXT_TELEMETRY_DISABLED: '1'
+      GOTA_LOCAL_VERIFY: 'true'
+      NEXT_PUBLIC_SUPABASE_URL: https://fixture.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: fixture
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020
+        with:
+          node-version: '24'
+      - run: npm ci
+      - name: Full unit suite and TypeScript
+        run: npm test && npx tsc --noEmit
+      - name: Install isolated QA fonts
+        run: |
+          npm install --prefix "$RUNNER_TEMP/gota-fonts" --no-save --ignore-scripts @fontsource-variable/dm-sans@5.3.0 @fontsource/dm-mono@5.3.0
+          echo "GOTA_QA_FONTS_ROOT=$RUNNER_TEMP/gota-fonts/node_modules" >> "$GITHUB_ENV"
+          echo "NEXT_FONT_GOOGLE_MOCKED_RESPONSES=$GITHUB_WORKSPACE/e2e/forms/fonts/mocked-responses.cjs" >> "$GITHUB_ENV"
+      - name: Production build without credentials or Sentry uploads
+        run: npx next build --webpack
