@@ -180,8 +180,10 @@ function supabase(options: {
 }) {
   return {
     from(table: string) {
-      let data = options.rows[table] ?? []
+      let data: Record<string, unknown>[] = (options.rows[table] ?? []).map((row, index) => ({ id: `${table}-${index}`, ...row }))
+      let from = 0, to = Infinity
       const query = {
+        range: (start: number, end: number) => { from = start; to = end; return query },
         select: () => query,
         order: () => query,
         eq: (key: string, value: unknown) => {
@@ -210,7 +212,7 @@ function supabase(options: {
           Promise.resolve(
             options.failingTable === table
               ? { data: null, error: { message: 'down' } }
-              : { data, error: null }
+              : { data: data.slice(from, to + 1), count: data.length, error: null }
           ).then(resolve),
       }
       return query

@@ -21,6 +21,7 @@ import type { GoalWithMetrics } from '@/lib/goals/types'
 import { FF_INSTRUMENTS } from '@/lib/flags'
 import { readCorrections } from '@/lib/reconciliation/repository'
 import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
+import { readCompleteLedger } from '@/lib/server/read-complete-ledger'
 import type { HeroBalanceMode } from '@/types/database'
 import type {
   Account,
@@ -222,34 +223,39 @@ export async function readDashboardData({
       .select('*')
       .eq('user_id', userId)
       .eq('is_active', true),
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('income_entries')
-      .select('amount, currency, account_id')
-      .eq('user_id', userId)
-      .lt('date', timestampEnd),
-    supabase
-      .from('expenses')
-      .select('amount, currency, account_id, payment_method, category')
+      .select('id, amount, currency, account_id', { count: 'exact' })
       .eq('user_id', userId)
       .lt('date', timestampEnd)
-      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT']),
-    supabase
-      .from('transfers')
-      .select('amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id')
-      .eq('user_id', userId)
-      .lte('date', todayDate),
-    supabase
-      .from('yield_daily_entries')
-      .select('account_id, expected_amount, actual_amount')
-      .eq('user_id', userId)
-      .lte('date', todayDate),
-    supabase
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
       .from('expenses')
-      .select('*')
+      .select('id, amount, currency, account_id, payment_method, category', { count: 'exact' })
+      .eq('user_id', userId)
+      .lt('date', timestampEnd)
+      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER', 'CREDIT'])
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('transfers')
+      .select('id, amount_from, amount_to, currency_from, currency_to, from_account_id, to_account_id', { count: 'exact' })
+      .eq('user_id', userId)
+      .lte('date', todayDate)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('yield_daily_entries')
+      .select('id, account_id, expected_amount, actual_amount', { count: 'exact' })
+      .eq('user_id', userId)
+      .lte('date', todayDate)
+      .order('id', { ascending: true }).range(from, to)),
+    readCompleteLedger((from, to) => supabase
+      .from('expenses')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .gte('date', historyStartDate)
       .lt('date', nextMonthDate)
-      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas'),
+      .or('payment_method.eq.CREDIT,category.eq.Pago de Tarjetas')
+      .order('id', { ascending: true }).range(from, to)),
     supabase.from('goals').select('id').eq('user_id', userId).neq('status', 'archived'),
     supabase
       .from('goal_contributions')

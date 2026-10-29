@@ -7,6 +7,7 @@ import type { createClient } from '@/lib/supabase/server'
 import type { Currency } from '@/types/database'
 import { readCorrections } from '@/lib/reconciliation/repository'
 import { liveLedgerExclusiveEnd } from '@/lib/live-ledger-date'
+import { readCompleteLedger } from '@/lib/server/read-complete-ledger'
 
 export function getBalanceForAccount(
   breakdown: LiveBreakdownRow[],
@@ -49,39 +50,62 @@ export async function getCurrentBalanceBreakdown(params: {
       .eq('user_id', userId)
       .eq('archived', false)
       .order('is_primary', { ascending: false }),
-    supabase
-      .from('income_entries')
-      .select('account_id, amount')
-      .eq('user_id', userId)
-      .eq('currency', currency)
-      .lt('date', timestampEnd),
-    supabase
-      .from('expenses')
-      .select('account_id, amount')
-      .eq('user_id', userId)
-      .eq('currency', currency)
-      .lt('date', timestampEnd)
-      .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
-      .neq('category', 'Pago de Tarjetas'),
-    supabase
-      .from('expenses')
-      .select('account_id, amount')
-      .eq('user_id', userId)
-      .eq('currency', currency)
-      .lt('date', timestampEnd)
-      .eq('category', 'Pago de Tarjetas'),
-    supabase
-      .from('transfers')
-      .select(
-        'from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to'
-      )
-      .eq('user_id', userId)
-      .lte('date', todayDate),
-    supabase
-      .from('yield_daily_entries')
-      .select('account_id, expected_amount, actual_amount')
-      .eq('user_id', userId)
-      .lte('date', todayDate),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('income_entries')
+        .select('id, account_id, amount', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('currency', currency)
+        .lt('date', timestampEnd)
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('expenses')
+        .select('id, account_id, amount', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('currency', currency)
+        .lt('date', timestampEnd)
+        .in('payment_method', ['CASH', 'DEBIT', 'TRANSFER'])
+        .neq('category', 'Pago de Tarjetas')
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('expenses')
+        .select('id, account_id, amount', { count: 'exact' })
+        .eq('user_id', userId)
+        .eq('currency', currency)
+        .lt('date', timestampEnd)
+        .eq('category', 'Pago de Tarjetas')
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('transfers')
+        .select(
+          'id, from_account_id, to_account_id, amount_from, amount_to, currency_from, currency_to',
+          { count: 'exact' }
+        )
+        .eq('user_id', userId)
+        .lte('date', todayDate)
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
+    readCompleteLedger((from, to) =>
+      supabase
+        .from('yield_daily_entries')
+        .select('id, account_id, expected_amount, actual_amount', {
+          count: 'exact',
+        })
+        .eq('user_id', userId)
+        .lte('date', todayDate)
+        .order('id', { ascending: true })
+        .range(from, to)
+    ),
     supabase
       .from('instruments')
       .select('account_id, amount, currency')

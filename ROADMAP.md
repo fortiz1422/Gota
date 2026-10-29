@@ -12,7 +12,7 @@ Cada ítem: ID, título, por qué, criterio de listo (testeable).
 ## En curso
 | ID | Título | Por qué | Criterio de listo |
 |---|---|---|---|
-| (vacío) | | | |
+| BAL-01 | Saldo completo con más de 1.000 movimientos | El límite de la Data API recortaba salidas y elevaba el saldo mostrado. | Lectura paginada y ordenada con conteo exacto; rechazar páginas incompletas/cambiantes; regresión del total y por cuenta; sin editar movimientos ni saldos iniciales. |
 
 ## Ideas
 No se ejecutan hasta que Facundo las pase a Aprobado. Orden recomendado en la columna Orden (no es dependencia técnica lineal).

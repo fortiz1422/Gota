@@ -67,8 +67,10 @@ it('includes expenses/income throughout today in Argentina, excludes tomorrow, a
   const filters: string[][] = []
   const supabase = {
     from: (table: string) => {
-      let data = rows[table]
+      let data: Record<string, unknown>[] = rows[table].map((row, index) => ({ id: `${table}-${index}`, ...row }))
+      let from = 0, to = Infinity
       const q = {
+        range: (start: number, end: number) => { from = start; to = end; return q },
         select: () => q,
         order: () => q,
         eq: (key: string, value: unknown) => {
@@ -96,7 +98,7 @@ it('includes expenses/income throughout today in Argentina, excludes tomorrow, a
           return q
         },
         then: (resolve: (value: unknown) => unknown) =>
-          Promise.resolve({ data, error: null }).then(resolve),
+          Promise.resolve({ data: data.slice(from, to + 1), count: data.length, error: null }).then(resolve),
       }
       return q
     },
