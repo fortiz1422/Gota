@@ -175,14 +175,14 @@ export async function readDashboardData({
     { data: paidCyclesData },
     { data: cycleAmountsData },
   ] = await Promise.all([
-    supabase
+    readCompleteLedger((from, to) => supabase
       .from('income_entries')
-      .select('*')
+      .select('*', { count: 'exact' })
       .eq('user_id', userId)
       .gte('date', selectedMonthDate)
       .lt('date', nextMonthDate)
       .order('date', { ascending: false })
-      .limit(20),
+      .order('id', { ascending: true }).range(from, to)),
     supabase.from('expenses').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('income_entries').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
     supabase.from('transfers').select('date').eq('user_id', userId).order('date', { ascending: true }).limit(1).maybeSingle(),
@@ -290,7 +290,8 @@ export async function readDashboardData({
 
   const goals = await goalsPromise
 
-  const incomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
+  const monthlyIncomeEntries = (incomeEntriesResult.data ?? []) as IncomeEntry[]
+  const incomeEntries = monthlyIncomeEntries.slice(0, 20)
   const hasConfiguredOpeningBalance = accounts.some(
     (account) => account.opening_balance_ars > 0 || account.opening_balance_usd > 0,
   )
@@ -436,7 +437,7 @@ export async function readDashboardData({
   const activeRecurring = (recurringData ?? []) as RecurringIncome[]
   const todayDay = parseInt(todayDate.split('-')[2], 10)
   const linkedThisMonth = new Set(
-    incomeEntries
+    monthlyIncomeEntries
       .filter((incomeEntry) => incomeEntry.recurring_income_id !== null)
       .map((incomeEntry) => incomeEntry.recurring_income_id as string),
   )

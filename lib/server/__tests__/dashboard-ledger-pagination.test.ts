@@ -266,3 +266,31 @@ it('fails the Home load rather than returning partial totals when a later page f
     })
   ).rejects.toThrow('balance_unavailable')
 })
+
+it('does not use the twenty displayed incomes to decide whether a recurring income is still pending', async () => {
+  const incomes = Array.from({ length: 21 }, (_, n) => ({
+    id: `i${String(n).padStart(3, '0')}`,
+    user_id: 'user',
+    account_id: 'bank',
+    amount: 10,
+    currency: 'ARS',
+    date: '2026-10-10T12:00:00Z',
+    recurring_income_id: n === 20 ? 'recurring' : null,
+  }))
+  const { client } = fixtureClient([], incomes, {
+    tables: {
+      recurring_incomes: [
+        { id: 'recurring', user_id: 'user', is_active: true, day_of_month: 1 },
+      ],
+    },
+  })
+  const data = await readDashboardData({
+    supabase: client,
+    userId: 'user',
+    selectedMonth: '2026-10',
+    viewCurrency: 'ARS',
+  })
+  expect(data.incomeEntries).toHaveLength(20)
+  expect(data.recurringPending).toHaveLength(0)
+  expect(data.heroBreakdown.ARS).toBe(36000210)
+})

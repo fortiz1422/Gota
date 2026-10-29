@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { readCompleteLedger } from '@/lib/server/read-complete-ledger'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { balanceCorrection, liveCorrection, type Workspace } from './domain'
 export type WorkspaceRow = {
@@ -16,12 +17,20 @@ function database() {
 export const reconciliationEnabled = () =>
   process.env.BALANCE_RECONCILIATION_ENABLED === 'true'
 export async function readWorkspaces(userId: string): Promise<WorkspaceRow[]> {
-  const { data, error } = await database()
-    .from('balance_reconciliation_workspaces')
-    .select('*')
-    .eq('user_id', userId)
-  if (error) throw new Error('reconciliation_unavailable')
-  return (data ?? []) as WorkspaceRow[]
+  try {
+    const { data } = await readCompleteLedger(
+      (from, to) => database()
+        .from('balance_reconciliation_workspaces')
+        .select('*', { count: 'exact' })
+        .eq('user_id', userId)
+        .order('account_id', { ascending: true })
+        .order('currency', { ascending: true }).range(from, to),
+      row => `${row.account_id}:${row.currency}`
+    )
+    return data as WorkspaceRow[]
+  } catch {
+    throw new Error('reconciliation_unavailable')
+  }
 }
 export async function readReceipt(userId: string, requestId: string) {
   const { data, error } = await database()
